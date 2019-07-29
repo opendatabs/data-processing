@@ -1,12 +1,15 @@
+from shutil import copy2
 import pandas as pd
 from ftplib import FTP
 import credentials
 
 
 def parse_truncate(path, filename):
+    print("Copying file " + path + filename + " to local directory...")
+    copy2(path + filename, filename)
     # Parse, process, truncate and write csv file
-    print("Reading file " + path + filename + "...")
-    data = pd.read_csv(path + filename,
+    print("Reading file " + filename + "...")
+    data = pd.read_csv(filename,
                        engine='python',
                        sep=';',
                        # encoding='ANSI',
