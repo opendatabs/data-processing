@@ -1,6 +1,7 @@
 from shutil import copy2
 import pandas as pd
 from ftplib import FTP
+import requests
 import credentials
 
 
@@ -73,4 +74,15 @@ for datafile in filename_orig:
 # Upload original unprocessed data
 for orig_file in filename_orig:
     upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
+
+
+# Make OpenDataSoft reload data source
+print("Telling OpenDataSoft to reload dataset...")
+response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/da_koisz3/publish', params={'apikey': credentials.api_key}, proxies={'https': credentials.proxy})
+if response.status_code == 200:
+    print('Job Successful')
+else:
+    print('Problem with OpenDataSoft Management API: ')
+    print(response)
+
 
