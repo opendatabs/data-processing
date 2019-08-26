@@ -8,16 +8,18 @@ import shlex
 import json
 import credentials
 
-# Read dataset
+datafilename = 'ogd_datensaetze.csv'
+print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
 filename = credentials.path_orig + 'ogd_datensaetze.csv'
 data = pd.read_csv(filename, sep=';', encoding='cp1252')
+metadata_for_ods = []
 
-# Iterate over entries
+print('Iterating over datasets...')
 for index, row in data.iterrows():
     # Construct folder path
     # path = credentials.path_orig + data.iloc[1]['ordnerpfad'].replace('\\', '/')
     path = credentials.path_orig + row['ordnerpfad'].replace('\\', '/')
-
+    print ('Checking ' + path + '...')
     # Exclude raster data for the moment - we don't have them yet
     if row['art'] == 'Vektor':
         # Get files from folder
@@ -25,7 +27,7 @@ for index, row in data.iterrows():
 
         # How many unique shp files are there?
         shpfiles = glob.glob(os.path.join(path, '*.shp'))
-
+        print (str(len(shpfiles)) + ' shp files in ' + path )
 
         # For each shp file:
         for shpfile in shpfiles:
@@ -40,10 +42,11 @@ for index, row in data.iterrows():
                 #zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace(credentials.path_orig, '')
-                # todo: create subfolders
-                zipfilepath = os.path.join(os.getcwd(), folder, shpfilename_noext + '.zip')
-                print('Cretaing zip file ' + zipfilepath)
+                folder_flat = folder.replace('/', '__'). replace('\\', '__')
+                zipfilepath = os.path.join(os.getcwd(), folder_flat + '__' + shpfilename_noext + '.zip')
+                print('Creating zip file ' + zipfilepath)
                 zipf = zipfile.ZipFile(zipfilepath, 'w')
+                print('Finding Files to add to zip')
                 # Include all files with shpfile's name
                 files_to_zip = glob.glob(os.path.join(path, shpfilename_noext + '.*'))
                 for file_to_zip in files_to_zip:
@@ -62,17 +65,20 @@ for index, row in data.iterrows():
                 # args = shlex.split(cmd)
                 geocat_uid = row['geocat'].rsplit('/', 1)[-1]
                 metadata_file = geocat_uid + '.json'
-                cmd = 'curl -X GET "https://www.geocat.ch/geonetwork/srv/api/0.1/records/289b9c0c-a1bb-4ffc-ba09-c1e41dc7138a" -H "accept: application/json" -H "accept: application/json" -k > ' + os.getcwd() + '/' + metadata_file
+                cmd = 'curl -X GET "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -H "accept: application/json" -k > ' + os.getcwd() + '/' + metadata_file
                 resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
-                with open('data.txt') as json_file:
-                    metadata = json.load(json_file)
-                # resptxt = str(resp.stdout)
-                # json.loads(resptxt)
+                with open(metadata_file, 'r', encoding='cp1252') as json_file:
+                    json_string = json_file.read()
+                    metadata = json.loads(json_string)
 
-                print(resp.stdout)
-                # Add entry to harvester file
+                    # Add entry to harvester file
+                    metadata_for_ods.append({
+                        'name': geocat_uid,
+                        'title': row['titel'],
+                        'keyword': metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
+                        'publisher': metadata['gmd:contact']['che:CHE_CI_ResponsibleParty']["gmd:positionName"]["gco:CharacterString"]['#text'],
+                    })
 
-                # FTP upload file
 
         # No shp file: find out filename
         if len(shpfiles) == 0:
@@ -81,8 +87,11 @@ for index, row in data.iterrows():
             # Add entry to harvester file
             # FTP upload file
 
-# FTP upload harvester csv file
+# Save harvester file
+ods_metadata = pd.DataFrame().append(metadata_for_ods, ignore_index=True, sort=False)
+ods_metadata.to_csv('Opendatasoft_Export_GVA.csv', index=False)
 
+# FTP upload file
 
 
 
