@@ -6,7 +6,8 @@ def upload_ftp(filename, server, user, password, remote_path):
     # change to desired directory first
     currdir = os.getcwd()
     relpath, filename_nopath = os.path.split(filename)
-    os.chdir(relpath)
+    if relpath != '':
+        os.chdir(relpath)
     ftp = FTP(server)
     ftp.login(user, password)
     ftp.cwd(remote_path)
