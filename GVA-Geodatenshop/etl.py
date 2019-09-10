@@ -33,7 +33,7 @@ for index, row in data.iterrows():
         # For each shp file:
         for shpfile in shpfiles:
             # todo: comment out to remove testing restriction
-            if ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien'):
+            if ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien') or ('Statistische Raumeinheiten' in ('' + row['titel'])):
 
                 # Transform Shape to WGS-84
 
@@ -59,7 +59,8 @@ for index, row in data.iterrows():
 
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
-                common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                # todo: uncomment to enable shp file uploading again
+                # common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
@@ -81,8 +82,11 @@ for index, row in data.iterrows():
 
                     # Add entry to harvester file
                     metadata_for_ods.append({
-                        'name':  geocat_uid + ':' + shpfilename_noext if len(shpfiles) > 1 else geocat_uid,
+                        'name':  geocat_uid + ':' + shpfilename_noext,
                         'title': row['titel'].replace(':', ': ') + ': ' + shpfilename_noext if len(shpfiles) > 1 else row['titel'].replace(':', ': '),
+                        'description': metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']['gmd:LocalisedCharacterString']['#text'],
+                        'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
+                        'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
                         # For some datasets, keyword is a list
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
