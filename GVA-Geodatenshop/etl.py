@@ -91,7 +91,8 @@ for index, row in data.iterrows():
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                         # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                        'publisher': metadata['gmd:contact']['che:CHE_CI_ResponsibleParty']["gmd:positionName"]["gco:CharacterString"]['#text'],
+                        # 'publisher': metadata['gmd:contact']['che:CHE_CI_ResponsibleParty']["gmd:positionName"]["gco:CharacterString"]['#text'],
+                        'publisher': row['kontakt_dienststelle'], # + ' Basel-Stadt',
                         # 'dcat.created': metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:citation']['gmd:CI_Citation']['gmd:date']['gmd:CI_Date']['gmd:date']['gco:Date']['#text'],
                         'dcat.issued': datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d"),
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
