@@ -33,7 +33,7 @@ for index, row in data.iterrows():
         # For each shp file:
         for shpfile in shpfiles:
             # todo: comment out to remove testing restriction
-            if ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien') or ('Statistische Raumeinheiten' in ('' + row['titel'])):
+            if ('Statistische Raumeinheiten' in ('' + row['titel'])) or ('Amtliche Vermessung Basel-Stadt' in ('' + row['titel'])):  # or ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien'):
 
                 # Transform Shape to WGS-84
 
@@ -60,7 +60,7 @@ for index, row in data.iterrows():
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 # todo: uncomment to enable shp file uploading again
-                # common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
@@ -76,17 +76,25 @@ for index, row in data.iterrows():
                 metadata_file = 'metadata' + '/' + geocat_uid + '.json'
                 cmd = 'curl -X GET "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -H "accept: application/json" -k > ' + os.getcwd() + '/' + metadata_file
                 resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
+                print('Processing geocat.ch metadata file ' + metadata_file + '...')
                 with open(metadata_file, 'r', encoding='cp1252') as json_file:
                     json_string = json_file.read()
                     metadata = json.loads(json_string)
+
+                    # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
+                    descriptionTextGroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
+                    description = descriptionTextGroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(descriptionTextGroup, list) else descriptionTextGroup['gmd:LocalisedCharacterString']['#text']
 
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
                         'title': row['titel'].replace(':', ': ') + ': ' + shpfilename_noext if len(shpfiles) > 1 else row['titel'].replace(':', ': '),
-                        'description': metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']['gmd:LocalisedCharacterString']['#text'],
+                        'description': description,
+                        # gmd: identificationInfo.che: CHE_MD_DataIdentification.gmd:abstract.gco: CharacterString.# text
                         'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
                         'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
+                        'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
+                        'custom.terms_of_use': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
                         # For some datasets, keyword is a list
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
