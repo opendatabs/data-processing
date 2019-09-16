@@ -32,11 +32,10 @@ for index, row in data.iterrows():
 
         # For each shp file:
         for shpfile in shpfiles:
-            # todo: comment out to remove testing restriction
-            if ('Statistische Raumeinheiten' in ('' + row['titel'])) or ('Amtliche Vermessung Basel-Stadt' in ('' + row['titel'])):  # or ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien'):
-
-                # Transform Shape to WGS-84
-
+            # Make sure only the currently necessary datasets are imported
+            # if ('Statistische Raumeinheiten' in ('' + row['titel'])) or ('Amtliche Vermessung Basel-Stadt' in ('' + row['titel'])):  # or ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien'):
+            required_topics = ['AF\\Abfuhrtermine', 'AF\\Abfuhrzonen', 'AL\\Alterspflegeheime', 'AS\\Akutspitaeler', 'BA\\Baumbestand', 'BA\\Faellliste', 'BI\\InteressanteOrte', 'BS\\Gebaeudeadressen', 'BS\\PLZOrtschaft', 'BW\\Allmendbewilligungen', 'DF\\Defibrillatoren', 'EB\\Erdbebenmikrozonierung', 'EL\\Elternberatung', 'ES\\Entsorgungsstellen', 'GO\\GueteklassenOeV', 'HS\\Hundesignalisation', 'KJ\\KinderJugendangebote', 'KK\\KatholischeKirchenkreise', 'LN\\OeVHaltestellen', 'LN\\OeVLiniennetz', 'LN\\OeVTeilhaltestellen', 'MN\\Durchgangsstrassen', 'MN\\KSRiehenBettingen', 'MN\\StrassentypenWege', 'NI\\Naturinventar', 'NK\\Invasive_Neophyten', 'NR\\NaturinventarRiehen', 'OG\\OeffentlGrundeigentum', 'OR\\OeffentlicherRaum', 'OW\\SportBewegung', 'PW\\PolitischeWahlkreise', 'QT\\Quartiertreffpunkte', 'RC\\Recyclingstellen', 'SC\\Schulstandorte', 'SE\\Siedlungsentwicklung', 'SG\\SanitaereAnlagen', 'SN\\Strassennamen', 'SO\\Schulstandorte', 'SS\\Schulwegsicherheit', 'ST\\Nettogeschossflaeche', 'SX\\Adressen', 'SX\\Dachkanten', 'SX\\Fernwaerme', 'SX\\Photovoltaik', 'SX\\Solarthermie', 'TK\\TagesheimeKitas', 'VO\\Velorouten_Alltag', 'VO\\Velorouten_touristisch', 'VO\\Velorouten_TRP', 'VO\\Velostadtplan', 'VR\\Begegnungszonen', 'VR\\Fussgaengerzonen', 'VR\\Tempo30Zonen', 'VR\\VKIPerimeter', 'VZ\\Verkehrszaehldaten', 'WE\\Bezirk', 'WE\\Block', 'WE\\Blockseite', 'WE\\Wohnviertel']
+            if (str(row['ordnerpfad'])) in required_topics:
                 # Create zip file containing all necessary files for each Shape
                 shppath, shpfilename = os.path.split(shpfile)
                 shpfilename_noext, shpext = os.path.splitext(shpfilename)
@@ -85,6 +84,7 @@ for index, row in data.iterrows():
                     descriptionTextGroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
                     description = descriptionTextGroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(descriptionTextGroup, list) else descriptionTextGroup['gmd:LocalisedCharacterString']['#text']
 
+                    modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
@@ -93,8 +93,9 @@ for index, row in data.iterrows():
                         # gmd: identificationInfo.che: CHE_MD_DataIdentification.gmd:abstract.gco: CharacterString.# text
                         'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
                         'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
-                        'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
-                        'custom.terms_of_use': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
+                        # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
+                        # 'license': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
+                        # 'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
                         # For some datasets, keyword is a list
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
@@ -102,7 +103,9 @@ for index, row in data.iterrows():
                         # 'publisher': metadata['gmd:contact']['che:CHE_CI_ResponsibleParty']["gmd:positionName"]["gco:CharacterString"]['#text'],
                         'publisher': row['kontakt_dienststelle'], # + ' Basel-Stadt',
                         # 'dcat.created': metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:citation']['gmd:CI_Citation']['gmd:date']['gmd:CI_Date']['gmd:date']['gco:Date']['#text'],
-                        'dcat.issued': datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d"),
+                        'dcat.issued': modified,
+                        'modified': modified,
+                        'language': 'de',
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
                     })
 
