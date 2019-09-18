@@ -10,14 +10,23 @@ import credentials
 
 datafilename = 'ogd_datensaetze.csv'
 print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
-filename = credentials.path_orig + 'ogd_datensaetze.csv'
-data = pd.read_csv(filename, sep=';', encoding='cp1252')
+datafile = credentials.path_orig + datafilename
+data = pd.read_csv(datafile, sep=';', encoding='cp1252')
+
+metadatafilename = 'Metadata.csv'
+print('Reading data file form ' + metadatafilename + '...')
+metadata = pd.read_csv(metadatafilename, sep=';', encoding='cp1252')
+
+# join data and metadata (if any)
+joined_data = pd.merge(data, metadata, on='ordnerpfad', how='left')
+joined_data.to_csv('_alldata.csv', index=False, sep=';')
+
 metadata_for_ods = []
 
 print('Iterating over datasets...')
-for index, row in data.iterrows():
+for index, row in joined_data.iterrows():
     # Construct folder path
-    # path = credentials.path_orig + data.iloc[1]['ordnerpfad'].replace('\\', '/')
+    # path = credentials.path_orig + joined_data.iloc[1]['ordnerpfad'].replace('\\', '/')
     path = credentials.path_orig + row['ordnerpfad'].replace('\\', '/')
     print ('Checking ' + path + '...')
 
@@ -55,7 +64,9 @@ for index, row in data.iterrows():
                 for file_to_zip in files_to_zip:
                     # Do not add the zip file into the zip file...
                     if not file_to_zip.endswith('.zip'):
-                        zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
+                        # todo: uncomment to create zip files
+                        # zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
+                        pass
                 zipf.close()
 
                 # Upload zip file to ftp server
@@ -87,14 +98,28 @@ for index, row in data.iterrows():
                     description = descriptionTextGroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(descriptionTextGroup, list) else descriptionTextGroup['gmd:LocalisedCharacterString']['#text']
 
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
+
+                    # Returns value from geocat
+                    def geocat_value(columnname):
+                        if str(row[columnname]) != 'nan':
+                            pathlist = row[columnname].split('.')
+                            tmp = metadata
+                            for x in pathlist:
+                                tmp = tmp[x]
+                            return tmp
+                        else:
+                            return ''
+
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
                         'title': row['titel'].replace(':', ': ') + ': ' + shpfilename_noext if len(shpfiles) > 1 else row['titel'].replace(':', ': '),
                         'description': description,
+                        'references': str(row['mapbs_link']) + '; ' + row['geocat'],
                         # gmd: identificationInfo.che: CHE_MD_DataIdentification.gmd:abstract.gco: CharacterString.# text
                         'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
                         'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
+                        'dcat.contact_name': geocat_value('geocat_contact_firstname') + ' ' + geocat_value('geocat_contact_lastname'),
                         # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
                         # 'license': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
                         # 'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
@@ -103,7 +128,7 @@ for index, row in data.iterrows():
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                         # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
                         # 'publisher': metadata['gmd:contact']['che:CHE_CI_ResponsibleParty']["gmd:positionName"]["gco:CharacterString"]['#text'],
-                        'publisher': row['kontakt_dienststelle'], # + ' Basel-Stadt',
+                        'publisher': row['kontakt_dienststelle'],
                         # 'dcat.created': metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:citation']['gmd:CI_Citation']['gmd:date']['gmd:CI_Date']['gmd:date']['gco:Date']['#text'],
                         'dcat.issued': modified,
                         'modified': modified,
