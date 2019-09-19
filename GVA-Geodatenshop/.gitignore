@@ -1,3 +1,4 @@
 *.json
 *.zip
 *.csv
+!Metadata.csv
