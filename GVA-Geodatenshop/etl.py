@@ -11,11 +11,11 @@ import credentials
 datafilename = 'ogd_datensaetze.csv'
 print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
 datafile = credentials.path_orig + datafilename
-data = pd.read_csv(datafile, sep=';', encoding='cp1252')
+data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252')
 
 metadatafilename = 'Metadata.csv'
 print('Reading data file form ' + metadatafilename + '...')
-metadata = pd.read_csv(metadatafilename, sep=';', encoding='cp1252')
+metadata = pd.read_csv(metadatafilename, sep=';', na_filter=False, encoding='cp1252')
 
 # join data and metadata (if any)
 joined_data = pd.merge(data, metadata, on='ordnerpfad', how='left')
@@ -100,9 +100,9 @@ for index, row in joined_data.iterrows():
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
 
                     # Returns value from geocat
-                    def geocat_value(columnname):
-                        if str(row[columnname]) != 'nan':
-                            pathlist = row[columnname].split('.')
+                    def geocat_value(key):
+                        if str(key) != '':
+                            pathlist = key.split('.')
                             tmp = metadata
                             for x in pathlist:
                                 tmp = tmp[x]
@@ -110,16 +110,44 @@ for index, row in joined_data.iterrows():
                         else:
                             return ''
 
+                    def geocat_try(geocat_path_list):
+                        for key in geocat_path_list:
+                            try:
+                                return geocat_value(key)
+                            except (KeyError, TypeError):
+                                # This key apparently is not present, try the next one in the list
+                                pass
+                        print('Error: None of the given keys exist in the source dict...')
+                        raise KeyError(';'.join(geocat_path_list))
+
+
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
                         'title': row['titel'].replace(':', ': ') + ': ' + shpfilename_noext if len(shpfiles) > 1 else row['titel'].replace(':', ': '),
                         'description': description,
-                        'references': str(row['mapbs_link']) + '; ' + row['geocat'],
-                        # gmd: identificationInfo.che: CHE_MD_DataIdentification.gmd:abstract.gco: CharacterString.# text
+                        # Only add nonempty strings as references
+                        'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
+                        'theme': str(row['theme']),
+                        'keyword': str(row['keyword']),
                         'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
                         'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
-                        'dcat.contact_name': geocat_value('geocat_contact_firstname') + ' ' + geocat_value('geocat_contact_lastname'),
+                        # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
+                        'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                                                         'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'])
+                                             + ' '
+                                             + geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text',
+                                                           'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text']),
+                        # 'dcat.contact_email': geocat_value(row['geocat_email']),
+                        'dcat.contact_email': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
+                                                          'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
+                                                          'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
+                        # 'dcat.created': geocat_value('geocat_created'),
+                        'dcat.created': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
+                                                    'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
+                        'dcat.creator': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                                                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
+                        # todo: Maintenance interval in geocat - create conversion table geocat -> dact-ap-ch. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
                         # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
                         # 'license': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
                         # 'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
@@ -127,10 +155,9 @@ for index, row in joined_data.iterrows():
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                         # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                        # 'publisher': metadata['gmd:contact']['che:CHE_CI_ResponsibleParty']["gmd:positionName"]["gco:CharacterString"]['#text'],
                         'publisher': row['kontakt_dienststelle'],
-                        # 'dcat.created': metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:citation']['gmd:CI_Citation']['gmd:date']['gmd:CI_Date']['gmd:date']['gco:Date']['#text'],
                         'dcat.issued': modified,
+                        # todo: give time in UTC
                         'modified': modified,
                         'language': 'de',
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
