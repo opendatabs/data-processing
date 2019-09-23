@@ -8,6 +8,30 @@ import json
 import common
 import credentials
 
+
+# Returns value from geocat
+def geocat_value(key):
+    if str(key) != '':
+        pathlist = key.split('.')
+        tmp = metadata
+        for x in pathlist:
+            tmp = tmp[x]
+        return tmp
+    else:
+        return ''
+
+
+def geocat_try(geocat_path_list):
+    for key in geocat_path_list:
+        try:
+            return geocat_value(key)
+        except (KeyError, TypeError):
+            # This key apparently is not present, try the next one in the list
+            pass
+    print('Error: None of the given keys exist in the source dict...')
+    raise KeyError(';'.join(geocat_path_list))
+
+
 datafilename = 'ogd_datensaetze.csv'
 print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
 datafile = credentials.path_orig + datafilename
@@ -23,33 +47,42 @@ joined_data.to_csv('_alldata.csv', index=False, sep=';')
 
 metadata_for_ods = []
 
+# required_topics = ['BI\\InteressanteOrte', 'BS\\PLZOrtschaft', 'BW\\Allmendbewilligungen', 'DF\\Defibrillatoren', 'EL\\Elternberatung', 'ES\\Entsorgungsstellen', 'GO\\GueteklassenOeV', 'HS\\Hundesignalisation', 'KJ\\KinderJugendangebote', 'NK\\Invasive_Neophyten', 'PW\\PolitischeWahlkreise', 'QT\\Quartiertreffpunkte', 'RC\\Recyclingstellen', 'SC\\Schulstandorte', 'SG\\SanitaereAnlagen', 'SO\\Schulstandorte', 'VO\\Velorouten_Alltag', 'VO\\Velorouten_touristisch', 'VO\\Velostadtplan', 'VZ\\Verkehrszaehldaten', 'WE\\Bezirk', 'WE\\Block', 'WE\\Blockseite', 'WE\\Wohnviertel']
+
 print('Iterating over datasets...')
 for index, row in joined_data.iterrows():
     # Construct folder path
     # path = credentials.path_orig + joined_data.iloc[1]['ordnerpfad'].replace('\\', '/')
     path = credentials.path_orig + row['ordnerpfad'].replace('\\', '/')
-    print ('Checking ' + path + '...')
+    print('Checking ' + path + '...')
 
     # Exclude raster data for the moment - we don't have them yet
-    if row['art'] == 'Vektor':
+    if row['import'] is True and row['art'] == 'Vektor':  # and (str(row['ordnerpfad'])) in required_topics
         # Get files from folder
         files = os.listdir(path)
 
         # How many unique shp files are there?
         shpfiles = glob.glob(os.path.join(path, '*.shp'))
-        print (str(len(shpfiles)) + ' shp files in ' + path )
+        print(str(len(shpfiles)) + ' shp files in ' + path)
+
+        # Which shapes need to be imported to ods?
+        shapes_to_load_raw = row['shapes'].split(';')
+        # Remove empty string from list
+        shapes_to_load = list(filter(None, shapes_to_load_raw))
 
         # For each shp file:
         for shpfile in shpfiles:
-            # Make sure only the currently necessary datasets are imported
-            # if ('Statistische Raumeinheiten' in ('' + row['titel'])) or ('Amtliche Vermessung Basel-Stadt' in ('' + row['titel'])):  # or ('' + row['ordnerpfad']).endswith('BauStrassenWaldlinien'):
-            # required_topics = ['AF\\Abfuhrtermine', 'AF\\Abfuhrzonen', 'AL\\Alterspflegeheime', 'AS\\Akutspitaeler', 'BA\\Baumbestand', 'BA\\Faellliste', 'BI\\InteressanteOrte', 'BS\\Gebaeudeadressen', 'BS\\PLZOrtschaft', 'BW\\Allmendbewilligungen', 'DF\\Defibrillatoren', 'EB\\Erdbebenmikrozonierung', 'EL\\Elternberatung', 'ES\\Entsorgungsstellen', 'GO\\GueteklassenOeV', 'HS\\Hundesignalisation', 'KJ\\KinderJugendangebote', 'KK\\KatholischeKirchenkreise', 'LN\\OeVHaltestellen', 'LN\\OeVLiniennetz', 'LN\\OeVTeilhaltestellen', 'MN\\Durchgangsstrassen', 'MN\\KSRiehenBettingen', 'MN\\StrassentypenWege', 'NI\\Naturinventar', 'NK\\Invasive_Neophyten', 'NR\\NaturinventarRiehen', 'OG\\OeffentlGrundeigentum', 'OR\\OeffentlicherRaum', 'OW\\SportBewegung', 'PW\\PolitischeWahlkreise', 'QT\\Quartiertreffpunkte', 'RC\\Recyclingstellen', 'SC\\Schulstandorte', 'SE\\Siedlungsentwicklung', 'SG\\SanitaereAnlagen', 'SN\\Strassennamen', 'SO\\Schulstandorte', 'SS\\Schulwegsicherheit', 'ST\\Nettogeschossflaeche', 'SX\\Adressen', 'SX\\Dachkanten', 'SX\\Fernwaerme', 'SX\\Photovoltaik', 'SX\\Solarthermie', 'TK\\TagesheimeKitas', 'VO\\Velorouten_Alltag', 'VO\\Velorouten_touristisch', 'VO\\Velorouten_TRP', 'VO\\Velostadtplan', 'VR\\Begegnungszonen', 'VR\\Fussgaengerzonen', 'VR\\Tempo30Zonen', 'VR\\VKIPerimeter', 'VZ\\Verkehrszaehldaten', 'WE\\Bezirk', 'WE\\Block', 'WE\\Blockseite', 'WE\\Wohnviertel']
-            required_topics = ['BI\\InteressanteOrte', 'BS\\PLZOrtschaft', 'BW\\Allmendbewilligungen', 'DF\\Defibrillatoren', 'EL\\Elternberatung', 'ES\\Entsorgungsstellen', 'GO\\GueteklassenOeV', 'HS\\Hundesignalisation', 'KJ\\KinderJugendangebote', 'NK\\Invasive_Neophyten', 'PW\\PolitischeWahlkreise', 'QT\\Quartiertreffpunkte', 'RC\\Recyclingstellen', 'SC\\Schulstandorte', 'SG\\SanitaereAnlagen', 'SO\\Schulstandorte', 'VO\\Velorouten_Alltag', 'VO\\Velorouten_touristisch', 'VO\\Velostadtplan', 'VZ\\Verkehrszaehldaten', 'WE\\Bezirk', 'WE\\Block', 'WE\\Blockseite', 'WE\\Wohnviertel']
+            # Create zip file containing all necessary files for each Shape
+            shppath, shpfilename = os.path.split(shpfile)
+            shpfilename_noext, shpext = os.path.splitext(shpfilename)
 
-            if (str(row['ordnerpfad'])) in required_topics:
-                # Create zip file containing all necessary files for each Shape
-                shppath, shpfilename = os.path.split(shpfile)
-                shpfilename_noext, shpext = os.path.splitext(shpfilename)
+            print('Shapefile: ' + shpfilename_noext)
+            print('length of shapes_to_load: ' + str(len(shapes_to_load)))
+            print('shapes_to_load: ')
+            print(*shapes_to_load)
+
+            # If "shapes" column is empty: load all shapes: Otherwise load only listed shapes
+            if len(shapes_to_load) == 0 or shpfilename_noext in shapes_to_load:
                 # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace(credentials.path_orig, '')
@@ -65,14 +98,14 @@ for index, row in joined_data.iterrows():
                     # Do not add the zip file into the zip file...
                     if not file_to_zip.endswith('.zip'):
                         # todo: uncomment to create zip files
-                        # zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
+                        #zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
                         pass
                 zipf.close()
 
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 # todo: uncomment to enable shp file uploading again
-                # common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                #common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
@@ -99,31 +132,10 @@ for index, row in joined_data.iterrows():
 
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
 
-                    # Returns value from geocat
-                    def geocat_value(key):
-                        if str(key) != '':
-                            pathlist = key.split('.')
-                            tmp = metadata
-                            for x in pathlist:
-                                tmp = tmp[x]
-                            return tmp
-                        else:
-                            return ''
-
-                    def geocat_try(geocat_path_list):
-                        for key in geocat_path_list:
-                            try:
-                                return geocat_value(key)
-                            except (KeyError, TypeError):
-                                # This key apparently is not present, try the next one in the list
-                                pass
-                        print('Error: None of the given keys exist in the source dict...')
-                        raise KeyError(';'.join(geocat_path_list))
-
-
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
+                        # todo: change title if given in Metadata.csv
                         'title': row['titel'].replace(':', ': ') + ': ' + shpfilename_noext if len(shpfiles) > 1 else row['titel'].replace(':', ': '),
                         'description': description,
                         # Only add nonempty strings as references
@@ -147,7 +159,7 @@ for index, row in joined_data.iterrows():
                                                     'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
                         'dcat.creator': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
                                                     'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
-                        # todo: Maintenance interval in geocat - create conversion table geocat -> dact-ap-ch. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
+                        # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
                         # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
                         # 'license': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
                         # 'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
@@ -162,6 +174,8 @@ for index, row in joined_data.iterrows():
                         'language': 'de',
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
                     })
+            else:
+                print('No shapes to load in this topic.')
 
         # No shp file: find out filename
         if len(shpfiles) == 0:
@@ -171,14 +185,16 @@ for index, row in joined_data.iterrows():
             # FTP upload file
 
 # Save harvester file
-ods_metadata = pd.DataFrame().append(metadata_for_ods, ignore_index=True, sort=False)
-ods_metadata_filename = 'Opendatasoft_Export_GVA.csv'
-ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';' )
+if len(metadata_for_ods) > 0:
+    ods_metadata = pd.DataFrame().append(metadata_for_ods, ignore_index=True, sort=False)
+    ods_metadata_filename = 'Opendatasoft_Export_GVA.csv'
+    ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';' )
 
-# FTP upload file
-print('Uploading ODS harvester file to FTP Server...')
-common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
-
+    # FTP upload file
+    print('Uploading ODS harvester file to FTP Server...')
+    common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+else:
+    print('Harvester File contains no entries, no upload necessary.')
 
 print('Job successful.')
 
