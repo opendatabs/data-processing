@@ -98,14 +98,14 @@ for index, row in joined_data.iterrows():
                     # Do not add the zip file into the zip file...
                     if not file_to_zip.endswith('.zip'):
                         # todo: uncomment to create zip files
-                        #zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
+                        # zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
                         pass
                 zipf.close()
 
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 # todo: uncomment to enable shp file uploading again
-                #common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                # common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
@@ -132,11 +132,22 @@ for index, row in joined_data.iterrows():
 
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
 
+                    # Get the correct title from the list of titles in the title_nice column by checking th index of the current shpfile_noext in the shapes column
+                    if shpfilename_noext in shapes_to_load:
+                        title_index = shapes_to_load.index(shpfilename_noext)
+                        title_nice_raw = str(row['titel_nice']).split(';')
+                        # Remove empty string from list
+                        title_nice_list = list(filter(None, title_nice_raw))
+                        title = title_nice_list[title_index]
+                    elif len(shpfiles) > 1:
+                        title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
+                    else:
+                        title = row['titel'].replace(':', ': ')
+
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
-                        # todo: change title if given in Metadata.csv
-                        'title': row['titel'].replace(':', ': ') + ': ' + shpfilename_noext if len(shpfiles) > 1 else row['titel'].replace(':', ': '),
+                        'title': title,
                         'description': description,
                         # Only add nonempty strings as references
                         'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
@@ -144,16 +155,18 @@ for index, row in joined_data.iterrows():
                         'keyword': str(row['keyword']),
                         'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
                         'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
+                        'dcat.contact_name': 'Fachstelle für OGD Basel-Stadt',
+                        'dcat.contact_email': 'opendata@bs.ch',
                         # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
-                        'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                                                         'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'])
-                                             + ' '
-                                             + geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text',
-                                                           'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text']),
+                        # 'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                        #                                  'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'])
+                        #                      + ' '
+                        #                      + geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text',
+                        #                                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text']),
                         # 'dcat.contact_email': geocat_value(row['geocat_email']),
-                        'dcat.contact_email': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
-                                                          'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
-                                                          'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
+                        # 'dcat.contact_email': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
+                        #                                   'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
+                        #                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
                         # 'dcat.created': geocat_value('geocat_created'),
                         'dcat.created': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
                                                     'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
