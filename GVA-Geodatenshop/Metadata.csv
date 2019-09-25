@@ -1,6 +1,6 @@
 ordnerpfad;import;shapes;titel_nice;beschreibung;referenz;theme;keyword
 BI\InteressanteOrte;True;;;;https://models.geo.bs.ch/Modellbeschreibungen/BI_BaselInfo_KGDM_V1_0.pdf;"Tourismus; Geographie; Kultur, Medien, Informationsgesellschaft, Sport";"Fussgänger; Sehenswürdigkeit; Museum; Kultureinrichtungen"
-BS\PLZOrtschaft;True;"PL_PLZ6;PL_Ortschaft";"Postleitzahlenkreise;Gemeinden";;;"Geographie; Verwaltung; Statistische Grundlagen";"Post; Postleitzahl; Brief; Paket"
+BS\PLZOrtschaft;True;"PL_PLZ6;PL_Ortschaft";"Postleitzahlenkreise;Gemeinden";";";;"Geographie; Verwaltung; Statistische Grundlagen";"Post; Postleitzahl; Brief; Paket"
 BW\Allmendbewilligungen;True;;;;;"Öffentliche Ordnung und Sicherheit; Bau- und Wohnungswesen";"Baustelle; Plakat; Anlass; Fest; Party; Umleitung"
 DF\Defibrillatoren;True;;;;https://models.geo.bs.ch/Modellbeschreibungen/DF_Defibrillatoren_KGDM_V1_0.pdf;Gesundheit;"Notfall; Reanimation; CPR; Herz; Lunge; Wiederbelebung; Standort"
 EL\Elternberatung;True;;;;https://models.geo.bs.ch/Modellbeschreibungen/EL_Elternberatung_KGDM_V1_0.pdf;"Gesundheit; Bevölkerung";"Kind; Baby; Mutter; Vater; Krankheit; Gesundheit"
