@@ -32,6 +32,10 @@ def geocat_try(geocat_path_list):
     raise KeyError(';'.join(geocat_path_list))
 
 
+def remove_empty_string_from_list(string_list):
+    return list(filter(None, string_list))
+
+
 datafilename = 'ogd_datensaetze.csv'
 print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
 datafile = credentials.path_orig + datafilename
@@ -46,8 +50,6 @@ joined_data = pd.merge(data, metadata, on='ordnerpfad', how='left')
 joined_data.to_csv('_alldata.csv', index=False, sep=';')
 
 metadata_for_ods = []
-
-# required_topics = ['BI\\InteressanteOrte', 'BS\\PLZOrtschaft', 'BW\\Allmendbewilligungen', 'DF\\Defibrillatoren', 'EL\\Elternberatung', 'ES\\Entsorgungsstellen', 'GO\\GueteklassenOeV', 'HS\\Hundesignalisation', 'KJ\\KinderJugendangebote', 'NK\\Invasive_Neophyten', 'PW\\PolitischeWahlkreise', 'QT\\Quartiertreffpunkte', 'RC\\Recyclingstellen', 'SC\\Schulstandorte', 'SG\\SanitaereAnlagen', 'SO\\Schulstandorte', 'VO\\Velorouten_Alltag', 'VO\\Velorouten_touristisch', 'VO\\Velostadtplan', 'VZ\\Verkehrszaehldaten', 'WE\\Bezirk', 'WE\\Block', 'WE\\Blockseite', 'WE\\Wohnviertel']
 
 print('Iterating over datasets...')
 for index, row in joined_data.iterrows():
@@ -66,23 +68,27 @@ for index, row in joined_data.iterrows():
         print(str(len(shpfiles)) + ' shp files in ' + path)
 
         # Which shapes need to be imported to ods?
-        shapes_to_load_raw = row['shapes'].split(';')
-        # Remove empty string from list
-        shapes_to_load = list(filter(None, shapes_to_load_raw))
+        shapes_to_load = remove_empty_string_from_list(row['shapes'].split(';'))
 
-        # For each shp file:
-        for shpfile in shpfiles:
+        # Iterate over shapefiles - we need the shp_number to map custom titles and descriptions to the correct shapefile
+        for shp_number in range(0, len(shpfiles)):
+            shpfile = shpfiles[shp_number]
             # Create zip file containing all necessary files for each Shape
             shppath, shpfilename = os.path.split(shpfile)
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
 
-            print('Shapefile: ' + shpfilename_noext)
-            print('length of shapes_to_load: ' + str(len(shapes_to_load)))
-            print('shapes_to_load: ')
-            print(*shapes_to_load)
+            # Determine shp_to_load_number - the index of the current shape that should be loaded to ods
+            if len(shapes_to_load) == 0:
+                # Load all shapes - use index of current shape in list of all shapes in the current folder
+                shp_to_load_number = shp_number
+            elif shpfilename_noext in shapes_to_load:
+                # Only load certain shapes - use index of shape given in column "shapes"
+                shp_to_load_number = shapes_to_load.index(shpfilename_noext)
 
-            # If "shapes" column is empty: load all shapes: Otherwise load only listed shapes
+            # If "shapes" column is empty: load all shapes - otherwise only shapes listed in column "shapes"
             if len(shapes_to_load) == 0 or shpfilename_noext in shapes_to_load:
+                print('Preparing shape ' + shpfilename_noext + '...')
+                # todo: uncomment to create zip files
                 # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace(credentials.path_orig, '')
@@ -123,32 +129,36 @@ for index, row in joined_data.iterrows():
                 resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
                 print('Processing geocat.ch metadata file ' + metadata_file + '...')
                 with open(metadata_file, 'r', encoding='cp1252') as json_file:
+                    print('Adding shape ' + shpfilename_noext + ' to harverster csv...')
                     json_string = json_file.read()
                     metadata = json.loads(json_string)
-
-                    # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
-                    descriptionTextGroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
-                    description = descriptionTextGroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(descriptionTextGroup, list) else descriptionTextGroup['gmd:LocalisedCharacterString']['#text']
 
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
 
                     # Get the correct title from the list of titles in the title_nice column by checking th index of the current shpfile_noext in the shapes column
+                    # Current shape explicitly set in column "shapes"
                     if shpfilename_noext in shapes_to_load:
-                        title_index = shapes_to_load.index(shpfilename_noext)
-                        title_nice_raw = str(row['titel_nice']).split(';')
-                        # Remove empty string from list
-                        title_nice_list = list(filter(None, title_nice_raw))
-                        title = title_nice_list[title_index]
+                        title = str(row['titel_nice']).split(';')[shp_to_load_number]
+                    # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
+                    elif len(shapes_to_load) == 0 and len(str(row['titel_nice'])) > 0 and len(shpfiles) == 1:
+                        title = str(row['titel_nice'])
                     elif len(shpfiles) > 1:
                         title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
                     else:
                         title = row['titel'].replace(':', ': ')
 
+                    # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
+                    geocat_description_textgroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
+                    geocat_description = geocat_description_textgroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(geocat_description_textgroup, list) else geocat_description_textgroup['gmd:LocalisedCharacterString']['#text']
+                    # Check if a description to the current shape is given in Metadata.csv
+                    description_list = str(row['beschreibung']).split(';')
+                    description = description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
+
                     # Add entry to harvester file
                     metadata_for_ods.append({
                         'name':  geocat_uid + ':' + shpfilename_noext,
                         'title': title,
-                        'description': description,
+                        'description': description if len(description) > 0 else geocat_description,
                         # Only add nonempty strings as references
                         'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
                         'theme': str(row['theme']),
@@ -175,7 +185,7 @@ for index, row in joined_data.iterrows():
                         # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
                         # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
                         # 'license': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
-                        # 'attributions': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
+                        'attributions': 'Quelle: Geodaten Kanton Basel-Stadt',
                         # For some datasets, keyword is a list
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
@@ -192,7 +202,7 @@ for index, row in joined_data.iterrows():
 
         # No shp file: find out filename
         if len(shpfiles) == 0:
-            test = 0
+            pass
             # Load metadata from geocat.ch
             # Add entry to harvester file
             # FTP upload file
@@ -201,7 +211,7 @@ for index, row in joined_data.iterrows():
 if len(metadata_for_ods) > 0:
     ods_metadata = pd.DataFrame().append(metadata_for_ods, ignore_index=True, sort=False)
     ods_metadata_filename = 'Opendatasoft_Export_GVA.csv'
-    ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';' )
+    ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
     # FTP upload file
     print('Uploading ODS harvester file to FTP Server...')
