@@ -88,15 +88,15 @@ for index, row in joined_data.iterrows():
             # If "shapes" column is empty: load all shapes - otherwise only shapes listed in column "shapes"
             if len(shapes_to_load) == 0 or shpfilename_noext in shapes_to_load:
                 print('Preparing shape ' + shpfilename_noext + '...')
-                # todo: uncomment to create zip files
-                # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace(credentials.path_orig, '')
                 folder_flat = folder.replace('/', '__'). replace('\\', '__')
                 zipfilepath_relative = os.path.join('data', folder_flat + '__' + shpfilename_noext + '.zip')
                 zipfilepath = os.path.join(os.getcwd(), zipfilepath_relative)
                 print('Creating zip file ' + zipfilepath)
+                # todo: uncomment to create zip files
                 zipf = zipfile.ZipFile(zipfilepath, 'w')
+                # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 print('Finding Files to add to zip')
                 # Include all files with shpfile's name
                 files_to_zip = glob.glob(os.path.join(path, shpfilename_noext + '.*'))
@@ -104,14 +104,14 @@ for index, row in joined_data.iterrows():
                     # Do not add the zip file into the zip file...
                     if not file_to_zip.endswith('.zip'):
                         # todo: uncomment to create zip files
-                        # zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
+                        zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
                         pass
                 zipf.close()
 
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 # todo: uncomment to enable shp file uploading again
-                # common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
