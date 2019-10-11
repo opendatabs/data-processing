@@ -135,17 +135,22 @@ for index, row in joined_data.iterrows():
 
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
 
-                    # Get the correct title from the list of titles in the title_nice column by checking th index of the current shpfile_noext in the shapes column
+                    # Get the correct title and ods_id from the list of titles in the title_nice column by checking th index of the current shpfile_noext in the shapes column
                     # Current shape explicitly set in column "shapes"
                     if shpfilename_noext in shapes_to_load:
                         title = str(row['titel_nice']).split(';')[shp_to_load_number]
+                        ods_id = str(row['ods_id']).split(';')[shp_to_load_number]
                     # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
                     elif len(shapes_to_load) == 0 and len(str(row['titel_nice'])) > 0 and len(shpfiles) == 1:
                         title = str(row['titel_nice'])
+                        ods_id = str(row['ods_id'])
+                    # Multiple shape files present
                     elif len(shpfiles) > 1:
                         title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
+                    # 1 shape file present
                     else:
                         title = row['titel'].replace(':', ': ')
+                        ods_id = row['ods_id']
 
                     # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
                     geocat_description_textgroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
@@ -154,8 +159,14 @@ for index, row in joined_data.iterrows():
                     description_list = str(row['beschreibung']).split(';')
                     description = description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
 
+                    if str(row['dcat_ap_ch.domain']) != '':
+                        dcat_ap_ch_domain = str(row['dcat_ap_ch.domain'])
+                    else:
+                        dcat_ap_ch_domain = 'geoinformation-kanton-basel-stadt'
+
                     # Add entry to harvester file
                     metadata_for_ods.append({
+                        'ods_id': ods_id,
                         'name':  geocat_uid + ':' + shpfilename_noext,
                         'title': title,
                         'description': description if len(description) > 0 else geocat_description,
@@ -163,7 +174,7 @@ for index, row in joined_data.iterrows():
                         'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
                         'theme': str(row['theme']),
                         'keyword': str(row['keyword']),
-                        'dcat_ap_ch.domain': 'geoinformation-kanton-basel-stadt',
+                        'dcat_ap_ch.domain': dcat_ap_ch_domain,
                         'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
                         'dcat.contact_name': 'Fachstelle für OGD Basel-Stadt',
                         'dcat.contact_email': 'opendata@bs.ch',
@@ -218,6 +229,10 @@ if len(metadata_for_ods) > 0:
     common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
 else:
     print('Harvester File contains no entries, no upload necessary.')
+
+# Todo: After harvester runs, change datasets title in order to have human readable title and number as id
+# Because ods_id cannot be set via csv harvester, initially the title should be set to ods_id, then after harvester runs,
+# ods title can be changed for those datasets where it is still equal to ods_id.
 
 print('Job successful.')
 
