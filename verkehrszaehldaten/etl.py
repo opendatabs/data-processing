@@ -25,6 +25,7 @@ def parse_truncate(path, filename):
     data['Weekday'] = data['DateTimeTo'].dt.weekday
     data['HourFrom'] = data['DateTimeFrom'].dt.hour
     # Convert Datetime to GMT / UTC to simplify opendatasoft import
+    # todo: Fix - does still not work for all dates
     data['DateTimeFrom'] = (data['DateTimeFrom'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
     data['DateTimeTo'] = (data['DateTimeTo'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
     print("Saving converted_" + filename + "...")
@@ -44,17 +45,28 @@ def upload_ftp(filename, server, user, password):
     # Upload files to FTP Server
     ftp = FTP(server)
     ftp.login(user, password)
-    print ("Uploading " + filename + " to FTP server...")
+    print("Uploading " + filename + " to FTP server...")
     with open(filename, 'rb') as f:
         ftp.storlines('STOR %s' % filename, f)
     ftp.quit()
     return
 
 
+def publish_ods_dataset(dataset_uid, creds):
+    print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
+    response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
+    if response.status_code == 200:
+        print('ODS publish command successful.')
+    else:
+        print('Problem with OpenDataSoft Management API: ')
+        print(response)
+
+
 path_orig = credentials.path_orig
 
 # filename_orig = ['small_MIV_Class_10_1.csv']
 filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
+ods_dataset_uids = ['da_koisz3', 'da_ob8g0d']
 
 ftp_server = credentials.ftp_server
 ftp_user = credentials.ftp_user
@@ -71,18 +83,15 @@ for datafile in filename_orig:
         upload_ftp(file, ftp_server, ftp_user, ftp_pass)
 
 
+# Make OpenDataSoft reload data sources
+for datasetuid in ods_dataset_uids:
+    publish_ods_dataset(datasetuid, credentials)
+
+
 # Upload original unprocessed data
 for orig_file in filename_orig:
     upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
 
 
-# Make OpenDataSoft reload data source
-print("Telling OpenDataSoft to reload dataset...")
-response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/da_koisz3/publish', params={'apikey': credentials.api_key}, proxies={'https': credentials.proxy})
-if response.status_code == 200:
-    print('Job Successful')
-else:
-    print('Problem with OpenDataSoft Management API: ')
-    print(response)
 
 
