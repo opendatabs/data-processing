@@ -1,48 +1,48 @@
-ordnerpfad;import;shapes;titel_nice;beschreibung;referenz;theme;keyword
-BI\InteressanteOrte;True;;Basel Info: Interessante Orte (POI);;https://models.geo.bs.ch/Modellbeschreibungen/BI_BaselInfo_KGDM_V1_0.pdf;"Tourismus; Geographie; Kultur, Medien, Informationsgesellschaft, Sport";"Fussgänger; Sehenswürdigkeit; Museum; Kultureinrichtungen; POI; Points of Interest"
-BS\PLZOrtschaft;True;"PL_PLZ6;PL_Ortschaft";"Postleitzahlenkreise;Gemeinden";";Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen.";;"Geographie; Verwaltung; Statistische Grundlagen";"Post; Postleitzahl; Brief; Paket"
-BW\Allmendbewilligungen;True;;;;;"Öffentliche Ordnung und Sicherheit; Bau- und Wohnungswesen";"Baustelle; Plakat; Anlass; Fest; Party; Umleitung"
-DF\Defibrillatoren;True;;;;https://models.geo.bs.ch/Modellbeschreibungen/DF_Defibrillatoren_KGDM_V1_0.pdf;Gesundheit;"Notfall; Reanimation; CPR; Herz; Lunge; Wiederbelebung; Standort"
-EL\Elternberatung;True;;;;https://models.geo.bs.ch/Modellbeschreibungen/EL_Elternberatung_KGDM_V1_0.pdf;"Gesundheit; Bevölkerung";"Kind; Baby; Mutter; Vater; Krankheit; Gesundheit"
-ES\Entsorgungsstellen;True;;;;;Öffentliche Ordnung und Sicherheit;"Recycling; Wiederverwertung; Abfall; Müll; Entsorgen"
-GO\GueteklassenOeV;True;;Güteklassen öffentlicher Verkehr;;;Mobilität und Verkehr;"Abdeckung; Tram; Bus; Distanz"
-HS\Hundesignalisation;True;;Hundesignalisation: Orte mit Leinenpflicht oder Hundeverbot;;;Öffentliche Ordnung und Sicherheit;"Hund; Verbot; Leine; Leinenpflicht"
-KJ\KinderJugendangebote;True;;Kinder- und Jugendangebote;;https://models.geo.bs.ch/Modellbeschreibungen/KJ_KinderJugendangebote_KGDM_V1_0.pdf;"Kultur, Medien, Informationsgesellschaft, Sport; Bevölkerung";"Sport; Turnen; Jugenarbeit; Freizeit; Treffpunkt"
-NK\Invasive_Neophyten;True;;;;;Raum und Umwelt;"Pflanzen; Einheimisch; Asuwärtig; Einwanderung; Verdrängen; Invasion; Naturschutz"
-PW\PolitischeWahlkreise;True;;Politische Wahlkreise;;;Politik;"Abstimmung; Wahl; Stimmberechtigt"
-QT\Quartiertreffpunkte;True;;Quartiertreffpunkte;;https://models.geo.bs.ch/Modellbeschreibungen/QT_Quartiertreffpunkte_KGDM_V1_0.pdf;"Kultur, Medien, Informationsgesellschaft, Sport; Bevölkerung";"Raum; Anlass; Party; Fest; Treffpunkt; Niederschwellig"
-RC\Recyclingstellen;True;"Recyclingstation;BioKlappe";"Recyclingstationen;Bio-Klappen";"Recyclingstationen für Glas, Weissblech, Aluminium und Batterien im Kanton Basel-Stadt.;Bio-Klappen für organische Küchenabfälle im Kanton Basel-Stadt.";https://models.geo.bs.ch/Modellbeschreibungen/RC_Recyclingstellen_KGDM_V1_0.pdf;Öffentliche Ordnung und Sicherheit;"Recycling; Wiederverwertung; Abfall; Müll; Entsorgen"
-SC\Schulstandorte;True;;Schulstandorte (Gemeinde Basel);;https://models.geo.bs.ch/Modellbeschreibungen/SC_Schulstandorte_KGDM_V1_0.pdf;"Bildung, Wissenschaft; Bevölkerung";"Schule; Lernen; Schüler; Schülerinnen; Lehrer; Lehrerinnen"
-SG\SanitaereAnlagen;True;;Sanitäre Anlagen;;;Öffentliche Ordnung und Sicherheit;"WC; Toilette; Abort"
-SO\Schulstandorte;True;;Schulstandorte (Gemeinden Riehen und Bettingen);Schulstandorte der Primarstufe (Gemeinden Riehen und Bettingen);;"Bildung, Wissenschaft; Bevölkerung";"Schule; Lernen; Schüler; Schülerinnen; Lehrer; Lehrerinnen"
-VO\Velorouten_Alltag;True;Velorouten_Alltag;Alltagsvelorouten;;;Mobilität und Verkehr;"Velo; Fahrrad; Veloweg; E-Bike; Pedelec"
-VO\Velorouten_touristisch;True;Velorouten_touristisch;Touristische Velorouten;;;Mobilität und Verkehr;"Velo; Fahrrad; Veloweg; E-Bike; Pedelec"
-VO\Velostadtplan;True;"STR_Tempo50_60;Fahrverbot_Velos;Einbahn_Gefahr;Steigung";"Verkehrsreiche Strassen (50 km/h oder mehr);Velo-Fahrverbote (allgemein oder temporär);Velo-Einbahnstrassen und -Gefahrenstellen;Steile Velo-Strecken";;;Mobilität und Verkehr;"Velo; Fahrrad; Veloweg; E-Bike; Pedelec; Einbahnstrasse; Gefahrenstelle; Tempo; Verkehr; Steil; Berg; Hügel"
-VZ\Verkehrszaehldaten;True;;Standorte der Zählstellen für Verkehrszähldaten;;https://models.geo.bs.ch/Modellbeschreibungen/VZ_VerkehrszaeldatenLV95.pdf;Mobilität und Verkehr;"Auto; Velo; Fussgänger; Lastwagen; LKW; Anhänger"
-WE\Bezirk;True;;Statistische Raumeinheiten: Bezirke;"Die Bezirke sind Untereinheiten der Wohnviertel. Jedes Wohnviertel mit Ausnahme von Klybeck und Kleinhüningen ist in 2 bis 8 Bezirke unterteilt. Insgesamt werden auf dem gesamten Kantonsgebiet 69 Bezirke unterschieden.
+ordnerpfad;import;shapes;titel_nice;ods_id;beschreibung;referenz;theme;keyword;dcat_ap_ch.domain
+BI\InteressanteOrte;True;;Basel Info: Interessante Orte (POI);100015;;https://models.geo.bs.ch/Modellbeschreibungen/BI_BaselInfo_KGDM_V1_0.pdf;"Tourismus; Geographie; Kultur, Medien, Informationsgesellschaft, Sport";"Fussgänger; Sehenswürdigkeit; Museum; Kultureinrichtungen; POI; Points of Interest";kantons-und-stadtentwicklung-basel-stadt
+BS\PLZOrtschaft;True;"PL_PLZ6;PL_Ortschaft";"Postleitzahlenkreise;Gemeinden";"100016;100017";";Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen.";;"Geographie; Verwaltung; Statistische Grundlagen";"Post; Postleitzahl; Brief; Paket";
+BW\Allmendbewilligungen;True;;;100018;;;"Öffentliche Ordnung und Sicherheit; Bau- und Wohnungswesen";"Baustelle; Plakat; Anlass; Fest; Party; Umleitung";
+DF\Defibrillatoren;True;;;100019;;https://models.geo.bs.ch/Modellbeschreibungen/DF_Defibrillatoren_KGDM_V1_0.pdf;Gesundheit;"Notfall; Reanimation; CPR; Herz; Lunge; Wiederbelebung; Standort";
+EL\Elternberatung;True;;;100020;;https://models.geo.bs.ch/Modellbeschreibungen/EL_Elternberatung_KGDM_V1_0.pdf;"Gesundheit; Bevölkerung";"Kind; Baby; Mutter; Vater; Krankheit; Gesundheit";
+ES\Entsorgungsstellen;True;;;100021;;;Öffentliche Ordnung und Sicherheit;"Recycling; Wiederverwertung; Abfall; Müll; Entsorgen";
+GO\GueteklassenOeV;True;;Güteklassen öffentlicher Verkehr;100022;;;Mobilität und Verkehr;"Abdeckung; Tram; Bus; Distanz";
+HS\Hundesignalisation;True;;Hundesignalisation: Orte mit Leinenpflicht oder Hundeverbot;100023;;;Öffentliche Ordnung und Sicherheit;"Hund; Verbot; Leine; Leinenpflicht";
+KJ\KinderJugendangebote;True;;Kinder- und Jugendangebote;100024;;https://models.geo.bs.ch/Modellbeschreibungen/KJ_KinderJugendangebote_KGDM_V1_0.pdf;"Kultur, Medien, Informationsgesellschaft, Sport; Bevölkerung";"Sport; Turnen; Jugenarbeit; Freizeit; Treffpunkt";
+NK\Invasive_Neophyten;True;Kartierung;Invasive Neophyten;100043;;;Raum und Umwelt;"Pflanzen; Einheimisch; Auswärtig; Einwanderung; Verdrängen; Invasion; Naturschutz";
+PW\PolitischeWahlkreise;True;;Politische Wahlkreise;100025;;;Politik;"Abstimmung; Wahl; Stimmberechtigt";
+QT\Quartiertreffpunkte;True;;Quartiertreffpunkte;100026;;https://models.geo.bs.ch/Modellbeschreibungen/QT_Quartiertreffpunkte_KGDM_V1_0.pdf;"Kultur, Medien, Informationsgesellschaft, Sport; Bevölkerung";"Raum; Anlass; Party; Fest; Treffpunkt; Niederschwellig";kantons-und-stadtentwicklung-basel-stadt
+RC\Recyclingstellen;True;"Recyclingstation;BioKlappe";"Recyclingstationen;Bio-Klappen";"100027;100028";"Recyclingstationen für Glas, Weissblech, Aluminium und Batterien im Kanton Basel-Stadt.;Bio-Klappen für organische Küchenabfälle im Kanton Basel-Stadt.";https://models.geo.bs.ch/Modellbeschreibungen/RC_Recyclingstellen_KGDM_V1_0.pdf;Öffentliche Ordnung und Sicherheit;"Recycling; Wiederverwertung; Abfall; Müll; Entsorgen";
+SC\Schulstandorte;True;;Schulstandorte (Gemeinde Basel);100029;;https://models.geo.bs.ch/Modellbeschreibungen/SC_Schulstandorte_KGDM_V1_0.pdf;"Bildung, Wissenschaft; Bevölkerung";"Schule; Lernen; Schüler; Schülerinnen; Lehrer; Lehrerinnen";
+SG\SanitaereAnlagen;True;;Sanitäre Anlagen;100031;;;Öffentliche Ordnung und Sicherheit;"WC; Toilette; Abort";
+SO\Schulstandorte;True;;Schulstandorte (Gemeinden Riehen und Bettingen);100030;Schulstandorte der Primarstufe (Gemeinden Riehen und Bettingen);;"Bildung, Wissenschaft; Bevölkerung";"Schule; Lernen; Schüler; Schülerinnen; Lehrer; Lehrerinnen";
+VO\Velorouten_Alltag;True;Velorouten_Alltag;Alltagsvelorouten;100032;;;Mobilität und Verkehr;"Velo; Fahrrad; Veloweg; E-Bike; Pedelec";amt-fur-mobilitat-kanton-basel-stadt
+VO\Velorouten_touristisch;True;Velorouten_touristisch;Touristische Velorouten;100033;;;Mobilität und Verkehr;"Velo; Fahrrad; Veloweg; E-Bike; Pedelec";amt-fur-mobilitat-kanton-basel-stadt
+VO\Velostadtplan;True;"STR_Tempo50_60;Fahrverbot_Velos;Einbahn_Gefahr;Steigung";"Verkehrsreiche Strassen (50 km/h oder mehr);Velo-Fahrverbote (allgemein oder temporär);Velo-Einbahnstrassen und -Gefahrenstellen;Steile Velo-Strecken";"100034;100035;100036;100037";;;Mobilität und Verkehr;"Velo; Fahrrad; Veloweg; E-Bike; Pedelec; Einbahnstrasse; Gefahrenstelle; Tempo; Verkehr; Steil; Berg; Hügel";amt-fur-mobilitat-kanton-basel-stadt
+VZ\Verkehrszaehldaten;True;;Standorte der Zählstellen für Verkehrszähldaten;100038;;https://models.geo.bs.ch/Modellbeschreibungen/VZ_VerkehrszaeldatenLV95.pdf;Mobilität und Verkehr;"Auto; Velo; Fussgänger; Lastwagen; LKW; Anhänger";amt-fur-mobilitat-kanton-basel-stadt
+WE\Bezirk;True;;Statistische Raumeinheiten: Bezirke;100039;"Die Bezirke sind Untereinheiten der Wohnviertel. Jedes Wohnviertel mit Ausnahme von Klybeck und Kleinhüningen ist in 2 bis 8 Bezirke unterteilt. Insgesamt werden auf dem gesamten Kantonsgebiet 69 Bezirke unterschieden.
 
 Statistische Nummerierung:
 Die Nummerierung der Bezirke setzt sich zusammen aus der zweistelligen Wohnviertel-Nr. und der einstelligen Bezirks-Nr. (im Label durch einen Punkt getrennt):
 - Beispiel für den Bezirk Flora (1) im Wohnviertel Matthäus (17): BEZ_ID 171, die Bezeichnung (BEZ_Label) lautet 17.1
-- Beispiel für das Wohnviertel Kleinhüningen ohne Bezirke (19.0): BEZ_ID 190, die Bezeichnung (BEZ_Label) lautet 19.0";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnbezirk"
-WE\Block;True;;Statistische Raumeinheiten: Blöcke;"Ein Block wird in der Regel von allen Seiten durch Strassen begrenzt. In einzelnen Fällen wird die Abgrenzung durch Zonenplankategorien vorgegeben (Bahnareale, Wald, Grünzone, Landwirtschaftszone etc.).
+- Beispiel für das Wohnviertel Kleinhüningen ohne Bezirke (19.0): BEZ_ID 190, die Bezeichnung (BEZ_Label) lautet 19.0";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnbezirk";statistisches-amt-kanton-basel-stadt
+WE\Block;True;;Statistische Raumeinheiten: Blöcke;100040;"Ein Block wird in der Regel von allen Seiten durch Strassen begrenzt. In einzelnen Fällen wird die Abgrenzung durch Zonenplankategorien vorgegeben (Bahnareale, Wald, Grünzone, Landwirtschaftszone etc.).
 
 Statistische Nummerierung:
 Die Nummerierung der Blöcke setzt sich zusammen aus der zweistelligen Wohnviertel-Nr., der einstelligen Bezirks-Nr. und der dreistelligen Block-Nr (im Label jeweils durch Punkte getrennt):
 - Blöcke haben keine Namensbezeichnung und werden lediglich über die Nummer referenziert.
-- Beispiel Block rund um die Clarakirche: BLO_ID 121014, die Bezeichnung (BLO_Label) lautet 12.1.014";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnblock"
-WE\Blockseite;True;;Statistische Raumeinheiten: Blockseiten;"Die Blockseite ist die dem angrenzenden Strassenraum zugeordnete Seite eines Blocks.
+- Beispiel Block rund um die Clarakirche: BLO_ID 121014, die Bezeichnung (BLO_Label) lautet 12.1.014";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnblock";statistisches-amt-kanton-basel-stadt
+WE\Blockseite;True;;Statistische Raumeinheiten: Blockseiten;100041;"Die Blockseite ist die dem angrenzenden Strassenraum zugeordnete Seite eines Blocks.
 
 Statistische Nummerierung:
 Die Nummerierung der Blockseiten setzt sich zusammen aus der zweistelligen Wohnviertel-Nr., der einstelligen Bezirks-Nr. und der dreistelligen Block-Nr
 (im Label jeweils durch Punkte getrennt), gefolgt von der vierstelligen Block-Nr
 (sowohl im Label als auch in der ID durch einen Unterstrich verbunden):
 - Blockseiten haben wie die Blöcke keine Namensbezeichnung und werden lediglich über die Nummer referenziert.
-- Beispiel Blockseite mit der Clarakirche: BLS_ID 121014_1741, die Bezeichnung (BLS_Label) lautet 12.1.014_1741";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnblockseite"
-WE\Wohnviertel;True;;Statistische Raumeinheiten: Wohnviertel ;"Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen. Die Stadt Basel ist in 19 statistische Wohnviertel gegliedert. Diese statistische Raumeinteilungen existiert seit über 100 Jahren unverändert und erlaubt somit kleinräumige Längsschnittanalysen des Kantons Basel-Stadt. 
+- Beispiel Blockseite mit der Clarakirche: BLS_ID 121014_1741, die Bezeichnung (BLS_Label) lautet 12.1.014_1741";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnblockseite";statistisches-amt-kanton-basel-stadt
+WE\Wohnviertel;True;;Statistische Raumeinheiten: Wohnviertel ;100042;"Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen. Die Stadt Basel ist in 19 statistische Wohnviertel gegliedert. Diese statistische Raumeinteilungen existiert seit über 100 Jahren unverändert und erlaubt somit kleinräumige Längsschnittanalysen des Kantons Basel-Stadt. 
 
 Statistische Nummerierung:
 Im Gegensatz zum amtlichen Gemeindeverzeichnis der Schweiz wird für räumliche Auswertungen auf Gemeinde-Ebene auf die Nummerierung der Wohnviertel zurückgegriffen:
 - Die Stadt Basel (BFS-Code 2701) hat keine eigene Identifikationsnummer. Auswertungen beruhen auf einem Zusammenzug der 19 Wohnviertel, die von 01 bis 19 nummeriert sind.
 - Die Gemeinde Bettingen (BFS-Code 2702) hat die Wohnviertel-Nr. 20.
-- Die Gemeinde Riehen (BFS-Code 2703) hat die Wohnviertel-Nr. 30.";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnviertel; Quartier"
+- Die Gemeinde Riehen (BFS-Code 2703) hat die Wohnviertel-Nr. 30.";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";Statistische Grundlagen;"Statistik; Einteilung; Wohnviertel; Quartier";statistisches-amt-kanton-basel-stadt
