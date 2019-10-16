@@ -201,7 +201,7 @@ for index, row in joined_data.iterrows():
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                         # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                        'publisher': row['kontakt_dienststelle'],
+                        'publisher': row['kontakt_dienststelle'] if row['kontakt_dienststelle'] != "Zentrale Dienste" else "Erziehungsdepartement - Zentrale Dienste",
                         'dcat.issued': modified,
                         # todo: give time in UTC
                         'modified': modified,
