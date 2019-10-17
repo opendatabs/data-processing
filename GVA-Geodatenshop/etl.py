@@ -125,7 +125,8 @@ for index, row in joined_data.iterrows():
                 # In some geocat URLs there's a tab character, remove it.
                 geocat_uid = row['geocat'].rsplit('/', 1)[-1].replace('\t', '')
                 metadata_file = 'metadata' + '/' + geocat_uid + '.json'
-                cmd = 'curl -X GET "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -H "accept: application/json" -k > ' + os.getcwd() + '/' + metadata_file
+                cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -H "accept: application/json" -k > ' + os.getcwd() + '/' + metadata_file
+                print('Running curl to get geocat.ch metadata...')
                 resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
                 print('Processing geocat.ch metadata file ' + metadata_file + '...')
                 with open(metadata_file, 'r', encoding='cp1252') as json_file:
