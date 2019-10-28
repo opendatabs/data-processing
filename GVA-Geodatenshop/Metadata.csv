@@ -24,13 +24,13 @@ WE\Bezirk;True;;Statistische Raumeinheiten: Bezirke;100039;"Die Bezirke sind Unt
 Statistische Nummerierung:
 Die Nummerierung der Bezirke setzt sich zusammen aus der zweistelligen Wohnviertel-Nr. und der einstelligen Bezirks-Nr. (im Label durch einen Punkt getrennt):
 - Beispiel für den Bezirk Flora (1) im Wohnviertel Matthäus (17): BEZ_ID 171, die Bezeichnung (BEZ_Label) lautet 17.1
-- Beispiel für das Wohnviertel Kleinhüningen ohne Bezirke (19.0): BEZ_ID 190, die Bezeichnung (BEZ_Label) lautet 19.0";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Statistische Grundlagen;Geographie";"Statistik;Einteilung;Wohnbezirk";statistisches-amt-kanton-basel-stadt
+- Beispiel für das Wohnviertel Kleinhüningen ohne Bezirke (19.0): BEZ_ID 190, die Bezeichnung (BEZ_Label) lautet 19.0";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Geographie;Statistische Grundlagen";"Statistik;Einteilung;Wohnbezirk";statistisches-amt-kanton-basel-stadt
 WE\Block;True;;Statistische Raumeinheiten: Blöcke;100040;"Ein Block wird in der Regel von allen Seiten durch Strassen begrenzt. In einzelnen Fällen wird die Abgrenzung durch Zonenplankategorien vorgegeben (Bahnareale, Wald, Grünzone, Landwirtschaftszone etc.).
 
 Statistische Nummerierung:
 Die Nummerierung der Blöcke setzt sich zusammen aus der zweistelligen Wohnviertel-Nr., der einstelligen Bezirks-Nr. und der dreistelligen Block-Nr (im Label jeweils durch Punkte getrennt):
 - Blöcke haben keine Namensbezeichnung und werden lediglich über die Nummer referenziert.
-- Beispiel Block rund um die Clarakirche: BLO_ID 121014, die Bezeichnung (BLO_Label) lautet 12.1.014";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Statistische Grundlagen;Geographie";"Statistik;Einteilung;Wohnblock";statistisches-amt-kanton-basel-stadt
+- Beispiel Block rund um die Clarakirche: BLO_ID 121014, die Bezeichnung (BLO_Label) lautet 12.1.014";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Geographie;Statistische Grundlagen";"Statistik;Einteilung;Wohnblock";statistisches-amt-kanton-basel-stadt
 WE\Blockseite;True;;Statistische Raumeinheiten: Blockseiten;100041;"Die Blockseite ist die dem angrenzenden Strassenraum zugeordnete Seite eines Blocks.
 
 Statistische Nummerierung:
@@ -38,11 +38,11 @@ Die Nummerierung der Blockseiten setzt sich zusammen aus der zweistelligen Wohnv
 (im Label jeweils durch Punkte getrennt), gefolgt von der vierstelligen Block-Nr
 (sowohl im Label als auch in der ID durch einen Unterstrich verbunden):
 - Blockseiten haben wie die Blöcke keine Namensbezeichnung und werden lediglich über die Nummer referenziert.
-- Beispiel Blockseite mit der Clarakirche: BLS_ID 121014_1741, die Bezeichnung (BLS_Label) lautet 12.1.014_1741";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Statistische Grundlagen;Geographie";"Statistik;Einteilung;Wohnblockseite";statistisches-amt-kanton-basel-stadt
+- Beispiel Blockseite mit der Clarakirche: BLS_ID 121014_1741, die Bezeichnung (BLS_Label) lautet 12.1.014_1741";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Geographie;Statistische Grundlagen";"Statistik;Einteilung;Wohnblockseite";statistisches-amt-kanton-basel-stadt
 WE\Wohnviertel;True;;Statistische Raumeinheiten: Wohnviertel ;100042;"Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen. Die Stadt Basel ist in 19 statistische Wohnviertel gegliedert. Diese statistische Raumeinteilungen existiert seit über 100 Jahren unverändert und erlaubt somit kleinräumige Längsschnittanalysen des Kantons Basel-Stadt. 
 
 Statistische Nummerierung:
 Im Gegensatz zum amtlichen Gemeindeverzeichnis der Schweiz wird für räumliche Auswertungen auf Gemeinde-Ebene auf die Nummerierung der Wohnviertel zurückgegriffen:
 - Die Stadt Basel (BFS-Code 2701) hat keine eigene Identifikationsnummer. Auswertungen beruhen auf einem Zusammenzug der 19 Wohnviertel, die von 01 bis 19 nummeriert sind.
 - Die Gemeinde Bettingen (BFS-Code 2702) hat die Wohnviertel-Nr. 20.
-- Die Gemeinde Riehen (BFS-Code 2703) hat die Wohnviertel-Nr. 30.";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Statistische Grundlagen;Geographie";"Statistik;Einteilung;Wohnviertel;Quartier";statistisches-amt-kanton-basel-stadt
+- Die Gemeinde Riehen (BFS-Code 2703) hat die Wohnviertel-Nr. 30.";"https://models.geo.bs.ch/Modellbeschreibungen/WE_StatistischeRaumeinheiten_KGDM_V1_0.pdf; https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf";"Geographie;Statistische Grundlagen";"Statistik;Einteilung;Wohnviertel;Quartier";statistisches-amt-kanton-basel-stadt
