@@ -196,7 +196,7 @@ for index, row in joined_data.iterrows():
                                                     'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
                         # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
                         # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
-                        # 'license': 'https://www.geo.bs.ch/nutzung/nutzungsbedingungen.html',
+                        # 'license': 'https://creativecommons.org/licenses/by/3.0/ch/deed.de',
                         'attributions': 'Quelle: Geodaten Kanton Basel-Stadt',
                         # For some datasets, keyword is a list
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
