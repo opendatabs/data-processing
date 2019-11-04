@@ -135,16 +135,21 @@ for index, row in joined_data.iterrows():
                     metadata = json.loads(json_string)
 
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
+                    schema_file = ''
 
                     # Get the correct title and ods_id from the list of titles in the title_nice column by checking th index of the current shpfile_noext in the shapes column
                     # Current shape explicitly set in column "shapes"
                     if shpfilename_noext in shapes_to_load:
                         title = str(row['titel_nice']).split(';')[shp_to_load_number]
                         ods_id = str(row['ods_id']).split(';')[shp_to_load_number]
+                        if row['schema_file'] == 'True':
+                            schema_file = ods_id + '.csv'
                     # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
                     elif len(shapes_to_load) == 0 and len(str(row['titel_nice'])) > 0 and len(shpfiles) == 1:
                         title = str(row['titel_nice'])
                         ods_id = str(row['ods_id'])
+                        if row['schema_file'] == 'True':
+                            schema_file = ods_id + '.csv'
                     # Multiple shape files present
                     elif len(shpfiles) > 1:
                         title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
@@ -208,6 +213,7 @@ for index, row in joined_data.iterrows():
                         'modified': modified,
                         'language': 'de',
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
+                        'schema_file': schema_file
                     })
             else:
                 print('No shapes to load in this topic.')
@@ -228,6 +234,14 @@ if len(metadata_for_ods) > 0:
     # FTP upload file
     print('Uploading ODS harvester file to FTP Server...')
     common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+
+    # Upload each schema_file
+    print('Uploading ODS schema files to FTP Server...')
+    for schemafile in ods_metadata['schema_file'].unique():
+        if schemafile != '':
+            print('Uploading ODS schema files to FTP Server: ' + schemafile + '...')
+            common.upload_ftp(schemafile, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+
 else:
     print('Harvester File contains no entries, no upload necessary.')
 
