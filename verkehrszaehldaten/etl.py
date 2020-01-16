@@ -33,11 +33,21 @@ def parse_truncate(path, filename):
 
     # group by SiteName, get latest rows (data is already sorted by date and time) so that ODS limit
     # of 250K is not exceeded
+    # print("Creating dataset truncated_" + filename + "...")
+    # grouped_data = data.groupby('SiteName')
+    # sliced_data = grouped_data.tail(249900 / grouped_data.ngroups)
+    # print("Saving truncated_" + filename + "...")
+    # sliced_data.to_csv('truncated_' + filename, sep=';', encoding='utf-8', index=False)
+    # return ['converted_' + filename, 'truncated_' + filename]
+
+    # Only keep latest two years of data
     print("Creating dataset truncated_" + filename + "...")
-    grouped_data = data.groupby('SiteName')
-    sliced_data = grouped_data.tail(249900 / grouped_data.ngroups)
+    # latest_year = pd.datetime.now().year
+    latest_year = data['Year'].max()
+    years = [latest_year, latest_year - 1]
+    truncated_data = data[data.Year.isin(years)]
     print("Saving truncated_" + filename + "...")
-    sliced_data.to_csv('truncated_' + filename, sep=';', encoding='utf-8', index=False)
+    truncated_data.to_csv('truncated_' + filename, sep=';', encoding='utf-8', index=False)
     return ['converted_' + filename, 'truncated_' + filename]
 
 
