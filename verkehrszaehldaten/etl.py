@@ -3,11 +3,14 @@ import pandas as pd
 from ftplib import FTP
 import requests
 import credentials
+import sys
 
 
-def parse_truncate(path, filename):
-    print("Copying file " + path + filename + " to local directory...")
-    copy2(path + filename, filename)
+def parse_truncate(path, filename, no_file_copy):
+    generated_filenames = []
+    if no_file_copy is False:
+        print("Copying file " + path + filename + " to local directory...")
+        copy2(path + filename, filename)
     # Parse, process, truncate and write csv file
     print("Reading file " + filename + "...")
     data = pd.read_csv(filename,
@@ -28,8 +31,10 @@ def parse_truncate(path, filename):
     # todo: Fix - does still not work for all dates
     data['DateTimeFrom'] = (data['DateTimeFrom'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
     data['DateTimeTo'] = (data['DateTimeTo'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
-    print("Saving converted_" + filename + "...")
-    data.to_csv('converted_' + filename, sep=';', encoding='utf-8', index=False)
+    current_filename = 'converted_' + filename
+    print("Saving " + current_filename + "...")
+    data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+    generated_filenames.append(current_filename)
 
     # group by SiteName, get latest rows (data is already sorted by date and time) so that ODS limit
     # of 250K is not exceeded
@@ -41,14 +46,27 @@ def parse_truncate(path, filename):
     # return ['converted_' + filename, 'truncated_' + filename]
 
     # Only keep latest two years of data
-    print("Creating dataset truncated_" + filename + "...")
+    current_filename = 'truncated_' + filename
+    print('Creating dataset ' + current_filename + "...")
     # latest_year = pd.datetime.now().year
     latest_year = data['Year'].max()
     years = [latest_year, latest_year - 1]
     truncated_data = data[data.Year.isin(years)]
-    print("Saving truncated_" + filename + "...")
-    truncated_data.to_csv('truncated_' + filename, sep=';', encoding='utf-8', index=False)
-    return ['converted_' + filename, 'truncated_' + filename]
+    print("Saving " + current_filename + "...")
+    truncated_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+    generated_filenames.append(current_filename)
+
+    # Create a seaparate dataset per year
+    all_years = data.Year.unique()
+    for year in all_years:
+        year_data = data[data.Year.eq(year)]
+        current_filename = str(year) + '_' + filename
+        print('Saving ' + current_filename + "...")
+        year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+        generated_filenames.append(current_filename)
+
+    print('Created the following files to forther processing: ' + str(generated_filenames))
+    return generated_filenames
 
 
 def upload_ftp(filename, server, user, password):
@@ -72,6 +90,10 @@ def publish_ods_dataset(dataset_uid, creds):
         print(response)
 
 
+no_file_copy = False
+if 'no_file_copy' in sys.argv:
+    no_file_copy = True
+    print('Proceeding without copying files...')
 path_orig = credentials.path_orig
 
 # filename_orig = ['small_MIV_Class_10_1.csv']
@@ -88,19 +110,22 @@ ftp_pass = credentials.ftp_pass
 
 # Upload processed and truncated data
 for datafile in filename_orig:
-    file_names = parse_truncate(path_orig, datafile)
-    for file in file_names:
-        upload_ftp(file, ftp_server, ftp_user, ftp_pass)
+    file_names = parse_truncate(path_orig, datafile, no_file_copy)
+    if not no_file_copy:
+        for file in file_names:
+            upload_ftp(file, ftp_server, ftp_user, ftp_pass)
 
 
 # Make OpenDataSoft reload data sources
-for datasetuid in ods_dataset_uids:
-    publish_ods_dataset(datasetuid, credentials)
+if not no_file_copy:
+    for datasetuid in ods_dataset_uids:
+        publish_ods_dataset(datasetuid, credentials)
 
 
 # Upload original unprocessed data
-for orig_file in filename_orig:
-    upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
+if not no_file_copy:
+    for orig_file in filename_orig:
+        upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
 
 
 
