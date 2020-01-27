@@ -1,4 +1,3 @@
 *.json
 *.zip
-*.csv
-!Metadata.csv
+_alldata.csv
