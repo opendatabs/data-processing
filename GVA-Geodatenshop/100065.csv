@@ -10,5 +10,5 @@ tramlinien;Tramlinien;Tramlinien, welche eine Teilhaltestelle bedienen
 buslinien;Buslinien;Buslinien, welche eine Teilhaltestelle bedienen
 fahrplan;Fahrplan;Link zum Fahrplan
 nachtlin;Nachtlinien;Nachtlinien, welche eine Teilhaltestelle bedienen
-tramzugang;Tramzugang;"Zugangsmoeglichkeit fuer Elektrorollstuehlen bei Tramhaltestellen; ja = hohe Kante (27 cm)"
-buszugang;Buszugang;"Zugangsmoeglichkeit fuer Elektrorollstuehlen bei Bushaltestellen; ja = hohe Kante (22 cm)"
+tramzugang;Tramzugang;"Zugangsmöglichkeit für Elektrorollstühle bei Tramhaltestellen; ja = hohe Kante (27 cm)"
+buszugang;Buszugang;"Zugangsmöglichkeit für Elektrorollstühle bei Bushaltestellen; ja = hohe Kante (22 cm)"

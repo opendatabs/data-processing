@@ -2,7 +2,7 @@ name;label;description
 l_nr;ID_Linie;Eindeutiger Identifikator der Linien
 liniennmr;Liniennummer;Liniennummer
 strecke;Strecke;Strecke
-hinrueck;Hin_Rueckweg;Hin- und Rueckweg
+hinrueck;Hin_Rueckweg;Hin- und Rückweg
 fahrzeug;Fahrzeug;Transportmittel
 angebot;Angebot;Zeitraum, in welchem das Angebot besteht
 tu;Transportunternehmen;Name des Transportunternehmens
