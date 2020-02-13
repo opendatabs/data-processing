@@ -1,3 +1,4 @@
 .idea
 __pycache__/
 **/credentials.py
+**/venv/*
