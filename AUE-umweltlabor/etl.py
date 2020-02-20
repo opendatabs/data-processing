@@ -1,6 +1,9 @@
 import pandas as pd
 from datetime import datetime
 import os
+import sys
+from shutil import copy2
+import common
 import credentials
 
 
@@ -10,8 +13,18 @@ def namestr(obj, namespace):
 
 
 datafilename = 'OGD-Daten.CSV'
-print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
-datafile = credentials.path_orig + datafilename
+datafile_with_path = os.path.join(credentials.path_orig, datafilename)
+
+no_file_copy = False
+if 'no_file_copy' in sys.argv:
+    no_file_copy = True
+    print('Proceeding without copying files to or from working folder...')
+else:
+    print("Copying file " + datafile_with_path + " to local directory...")
+    copy2(datafile_with_path, 'data/' + datafilename)
+
+print('Reading data file from ' + 'data/' + datafilename + '...')
+datafile = 'data/' + datafilename
 data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252', dtype={
     'Probentyp': 'category',
     'Probenahmestelle': 'category',
@@ -24,7 +37,6 @@ data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252', dtype=
     'Probennr': 'category',
     'Resultatnummer': 'string',
     'Automatische Auswertung': 'category'
-    # '': 'category',
 })
 
 print('Calculating new columns...')
@@ -32,7 +44,6 @@ print('Calculating new columns...')
 data.columns = [column.replace(" ", "_") for column in data.columns]
 # create new columns
 data['Probenahmedatum_date'] = pd.to_datetime(data['Probenahmedatum'], format='%d.%m.%Y', errors='coerce')
-data['Probenahmedatum_datetime'] = str(data['Probenahmedatum_date']) + 'T' + data['Entnahmezeit']
 data['Probenahmejahr'] = data['Probenahmedatum_date'].dt.year
 data.Probenahmejahr = data.Probenahmejahr.fillna(0).astype({'Probenahmejahr': int})
 
@@ -70,3 +81,17 @@ for dataset in reversed(generated_datasets):
     generated_filenames.append(current_filename)
     print("Exporting dataset to " + current_filename + '...')
     dataset.to_csv('data/' + current_filename, sep=';', encoding='utf-8', index=False)
+
+if not no_file_copy:
+    ftp_server = credentials.ftp_server
+    ftp_user = credentials.ftp_user
+    ftp_pass = credentials.ftp_pass
+
+    files_to_upload = generated_filenames
+    files_to_upload.append(datafile)
+    for filename in files_to_upload:
+        common.upload_ftp('data/' + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+
+    ods_dataset_uids = ['', '']
+
+print('Job successful.')
