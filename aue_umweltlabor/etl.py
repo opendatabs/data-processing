@@ -1,10 +1,9 @@
 import pandas as pd
-from datetime import datetime
 import os
 import sys
 from shutil import copy2
 import common
-import credentials
+from aue_umweltlabor import credentials
 
 
 # get name of object, see https://stackoverflow.com/a/592891
@@ -20,15 +19,15 @@ if 'no_file_copy' in sys.argv:
     no_file_copy = True
     print('Proceeding without copying files to or from working folder...')
 else:
-    print("Copying file " + datafile_with_path + " to local directory...")
-    copy2(datafile_with_path, 'data/' + datafilename)
+    print("Copying file " + datafile_with_path + " to directory " + credentials.path_work)
+    copy2(datafile_with_path, credentials.path_work + datafilename)
 
-print('Reading data file from ' + 'data/' + datafilename + '...')
-datafile = 'data/' + datafilename
+print('Reading data file from ' + credentials.path_work + datafilename + '...')
+datafile = credentials.path_work + datafilename
 data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252', dtype={
     'Probentyp': 'category',
     'Probenahmestelle': 'category',
-    'X-Coord':'category',
+    'X-Coord': 'category',
     'Y-Coord': 'category',
     'Probenahmedauer': 'category',
     'Reihenfolge': 'category',
@@ -80,7 +79,7 @@ for dataset in reversed(generated_datasets):
     current_filename = namestr(dataset, globals())[0] + '.csv'
     generated_filenames.append(current_filename)
     print("Exporting dataset to " + current_filename + '...')
-    dataset.to_csv('data/' + current_filename, sep=';', encoding='utf-8', index=False)
+    dataset.to_csv(credentials.path_work + current_filename, sep=';', encoding='utf-8', index=False)
 
 if not no_file_copy:
     ftp_server = credentials.ftp_server
@@ -90,7 +89,7 @@ if not no_file_copy:
     files_to_upload = generated_filenames
     files_to_upload.append(datafile)
     for filename in files_to_upload:
-        common.upload_ftp('data/' + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
     ods_dataset_uids = ['', '']
 

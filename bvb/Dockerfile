@@ -19,3 +19,4 @@ CMD [ "/bin/bash", "./etl.sh"]
 # Docker commands to create image and run container: 
 # docker build -t bvb-python-pg .
 # docker run -it -v "$(pwd)":/BVB --name bvb-python-pg bvb-python-pg
+# docker rm -f bvb-python-pg & docker run -it -v "$(pwd)":/BVB --name bvb-python-pg bvb-python-pg
