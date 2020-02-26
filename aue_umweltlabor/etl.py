@@ -87,7 +87,7 @@ if not no_file_copy:
     ftp_pass = credentials.ftp_pass
 
     files_to_upload = generated_filenames
-    files_to_upload.append(datafile)
+    files_to_upload.append(datafilename)
     for filename in files_to_upload:
         common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
