@@ -22,10 +22,10 @@ def parse_truncate(path, filename, no_file_copy):
     print("Processing " + filename + "...")
     data['DateTimeFrom'] = pd.to_datetime(data['Date'] + ' ' + data['TimeFrom'], format='%d.%m.%Y %H:%M')
     data['DateTimeTo'] = pd.to_datetime(data['Date'] + ' ' + data['TimeTo'], format='%d.%m.%Y %H:%M')
-    data['Year'] = data['DateTimeTo'].dt.year
-    data['Month'] = data['DateTimeTo'].dt.month
-    data['Day'] = data['DateTimeTo'].dt.day
-    data['Weekday'] = data['DateTimeTo'].dt.weekday
+    data['Year'] = data['DateTimeFrom'].dt.year
+    data['Month'] = data['DateTimeFrom'].dt.month
+    data['Day'] = data['DateTimeFrom'].dt.day
+    data['Weekday'] = data['DateTimeFrom'].dt.weekday
     data['HourFrom'] = data['DateTimeFrom'].dt.hour
     # Convert Datetime to GMT / UTC to simplify opendatasoft import
     # todo: Fix - does still not work for all dates
