@@ -10,7 +10,7 @@ CMD ["/bin/bash", "/code/data-processing/aue_umweltlabor/etl.sh"]
 # Docker commands to create image and run container:
 # cd aue_umweltlabor
 # docker build -t aue-umweltlabor .
-# docker run -it --rm -v /mnt/OGD-DataExch/Umweltlabor:/code/data-processing/aue_umweltlabor/data_orig -v /home/jonas.bieri/dev/workspace:/code/data-processing --name aue-umweltlabor aue-umweltlabor
+# docker run -it --rm -v /mnt/OGD-DataExch/Umweltlabor:/code/data-processing/aue_umweltlabor/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name aue-umweltlabor aue-umweltlabor
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd aue_umweltlabor
