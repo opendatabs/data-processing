@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+import numpy as np
 from shutil import copy2
 import common
 from aue_umweltlabor import credentials
@@ -45,6 +46,10 @@ data.columns = [column.replace(" ", "_") for column in data.columns]
 data['Probenahmedatum_date'] = pd.to_datetime(data['Probenahmedatum'], format='%d.%m.%Y', errors='coerce')
 data['Probenahmejahr'] = data['Probenahmedatum_date'].dt.year
 data.Probenahmejahr = data.Probenahmejahr.fillna(0).astype({'Probenahmejahr': int})
+# create new column that contains only numeric valuess of column "Wert"
+data['Wert_cleaned_for_num'] = data['Wert'].str.replace('<', '')
+data['Wert_num'] = pd.to_numeric(data['Wert_cleaned_for_num'], errors='coerce')
+data = data.drop(columns=['Wert_cleaned_for_num'])
 
 print('Create independent datasets:')
 gew_rhein_rues_fest = data.query('Probenahmestelle == "GEW_RHEIN_RUES" and Probentyp == "FESTSTOFF"')
@@ -91,6 +96,9 @@ if not no_file_copy:
     for filename in files_to_upload:
         common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
-    ods_dataset_uids = ['', '']
+print('Publishing ODS datasets...')
+ods_dataset_uids = ['da_20e9bc', 'da_uxt6fk', 'da_uxt6fk', 'da_reclv8']
+for datasetuid in ods_dataset_uids:
+    common.publish_ods_dataset(datasetuid, credentials)
 
 print('Job successful.')

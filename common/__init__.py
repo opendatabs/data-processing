@@ -1,4 +1,5 @@
 from ftplib import FTP
+import requests
 import os
 
 
@@ -18,3 +19,14 @@ def upload_ftp(filename, server, user, password, remote_path):
     ftp.quit()
     os.chdir(curr_dir)
     return
+
+
+# Tell Opendatasoft to (re-)publish datasets
+def publish_ods_dataset(dataset_uid, creds):
+    print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
+    response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
+    if response.status_code == 200:
+        print('ODS publish command successful.')
+    else:
+        print('Problem with OpenDataSoft Management API: ')
+        print(response)
