@@ -46,7 +46,7 @@ data.columns = [column.replace(" ", "_") for column in data.columns]
 data['Probenahmedatum_date'] = pd.to_datetime(data['Probenahmedatum'], format='%d.%m.%Y', errors='coerce')
 data['Probenahmejahr'] = data['Probenahmedatum_date'].dt.year
 data.Probenahmejahr = data.Probenahmejahr.fillna(0).astype({'Probenahmejahr': int})
-# create new column that contains only numeric valuess of column "Wert"
+# create new column that contains only numeric values of column "Wert"
 data['Wert_cleaned_for_num'] = data['Wert'].str.replace('<', '')
 data['Wert_num'] = pd.to_numeric(data['Wert_cleaned_for_num'], errors='coerce')
 data = data.drop(columns=['Wert_cleaned_for_num'])
