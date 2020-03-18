@@ -96,9 +96,9 @@ if not no_file_copy:
     for filename in files_to_upload:
         common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
-print('Publishing ODS datasets...')
-ods_dataset_uids = ['da_20e9bc', 'da_uxt6fk', 'da_uxt6fk', 'da_reclv8']
-for datasetuid in ods_dataset_uids:
-    common.publish_ods_dataset(datasetuid, credentials)
+    print('Publishing ODS datasets...')
+    ods_dataset_uids = ['da_20e9bc', 'da_uxt6fk', 'da_q78iuw', 'da_reclv8']
+    for datasetuid in ods_dataset_uids:
+        common.publish_ods_dataset(datasetuid, credentials)
 
 print('Job successful.')
