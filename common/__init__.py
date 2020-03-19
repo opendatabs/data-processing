@@ -30,3 +30,4 @@ def publish_ods_dataset(dataset_uid, creds):
     else:
         print('Problem with OpenDataSoft Management API: ')
         print(response)
+        raise RuntimeError('Problem with OpenDataSoft Management API: ' + response)
