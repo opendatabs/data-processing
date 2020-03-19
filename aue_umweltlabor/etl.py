@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 from shutil import copy2
+import time
 import common
 from aue_umweltlabor import credentials
 
@@ -100,5 +101,7 @@ if not no_file_copy:
     ods_dataset_uids = ['da_20e9bc', 'da_uxt6fk', 'da_q78iuw', 'da_reclv8']
     for datasetuid in ods_dataset_uids:
         common.publish_ods_dataset(datasetuid, credentials)
+        time.sleep(3)
+
 
 print('Job successful.')
