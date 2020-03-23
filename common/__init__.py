@@ -22,6 +22,8 @@ def upload_ftp(filename, server, user, password, remote_path):
 
 
 # Tell Opendatasoft to (re-)publish datasets
+# How to get the dataset_uid from ODS:
+# curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
 def publish_ods_dataset(dataset_uid, creds):
     print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
     response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
