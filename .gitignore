@@ -2,3 +2,5 @@
 __pycache__/
 **/credentials.py
 **/venv/*
+**/*.csv
+**/*.CSV
