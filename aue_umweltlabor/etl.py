@@ -101,7 +101,8 @@ if not no_file_copy:
     ods_dataset_uids = ['da_20e9bc', 'da_uxt6fk', 'da_q78iuw', 'da_reclv8']
     for datasetuid in ods_dataset_uids:
         common.publish_ods_dataset(datasetuid, credentials)
-        time.sleep(3)
+        print('Waiting 1 minute before sending next publish request to ODS...')
+        time.sleep(60)
 
 
 print('Job successful.')
