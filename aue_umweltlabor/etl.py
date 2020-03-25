@@ -48,9 +48,9 @@ data['Probenahmedatum_date'] = pd.to_datetime(data['Probenahmedatum'], format='%
 data['Probenahmejahr'] = data['Probenahmedatum_date'].dt.year
 data.Probenahmejahr = data.Probenahmejahr.fillna(0).astype({'Probenahmejahr': int})
 # create new column that contains only numeric values of column "Wert"
-data['Wert_cleaned_for_num'] = data['Wert'].str.replace('<', '')
-data['Wert_num'] = pd.to_numeric(data['Wert_cleaned_for_num'], errors='coerce')
-data = data.drop(columns=['Wert_cleaned_for_num'])
+# data['Wert_cleaned_for_num'] = data['Wert'].str.replace('<', '')
+data['Wert_num'] = pd.to_numeric(data['Wert'], errors='coerce')
+# data = data.drop(columns=['Wert_cleaned_for_num'])
 
 print('Create independent datasets:')
 gew_rhein_rues_fest = data.query('Probenahmestelle == "GEW_RHEIN_RUES" and Probentyp == "FESTSTOFF"')
