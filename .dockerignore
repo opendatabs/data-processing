@@ -1,3 +1,4 @@
 **/*.csv
 **/*.CSV
 .git
+**/credentials.py
