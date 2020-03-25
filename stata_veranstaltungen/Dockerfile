@@ -8,7 +8,7 @@ CMD ["/bin/bash", "/code/data-processing/stata_veranstaltungen/etl.sh"]
 
 
 # Docker commands to create image and run container:
-# cd aue_umweltlabor
+# cd stata_veranstaltungen
 # docker build -t stata-veranstaltungen .
 # cd ..
 # docker run -it --rm -v /mnt/OGD-DataExch/StatA/Veranstaltung:/code/data-processing/stata_veranstaltungen/data -v /data/dev/workspace/data-processing:/code/data-processing --name stata-veranstaltungen stata-veranstaltungen
