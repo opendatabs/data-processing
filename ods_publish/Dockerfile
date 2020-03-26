@@ -2,7 +2,7 @@ FROM python:3.7.6
 WORKDIR /code/data-processing
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
-COPY ods_publish/requirements.txt .
+COPY requirements.txt .
 RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
 CMD ["python3", "-m", "ods_publish.etl"]
 
