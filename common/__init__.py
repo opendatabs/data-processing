@@ -29,6 +29,9 @@ def publish_ods_dataset(dataset_uid, creds):
     response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
     if response.status_code == 200:
         print('ODS publish command successful.')
+    elif response.status_code == 400:
+        print('ODS publish command returned http error 400, but experience shows that publishing works anyway.')
+        print(response)
     else:
         print('Problem with OpenDataSoft Management API: ')
         print(response)
