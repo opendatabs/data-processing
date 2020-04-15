@@ -8,8 +8,8 @@ CMD ["/bin/bash", "/code/data-processing/stata_sterbefaelle/etl.sh"]
 
 
 # Docker commands to create image and run container:
-# cd stata_veranstaltungen
-# docker build -t stata_sterbefaelle .
+# cd stata_sterbefaelle
+# docker build -t stata-sterbefaelle .
 # cd ..
 # docker run -it --rm -v /mnt/OGD-DataExch/StatA/Bevoelkerung:/code/data-processing/stata_sterbefaelle/data -v /data/dev/workspace/data-processing:/code/data-processing --name stata-sterbefaelle stata-sterbefaelle
 
