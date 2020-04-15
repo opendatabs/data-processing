@@ -4,7 +4,7 @@ BS\PLZOrtschaft;True;"PL_PLZ6;PL_Ortschaft";"Postleitzahlenkreise;Gemeinden";"10
 BW\Allmendbewilligungen;True;;;100018;;;"Öffentliche Ordnung und Sicherheit;Bau- und Wohnungswesen;Geographie";"Baustelle;Plakat;Anlass;Fest;Party;Umleitung";;;
 DF\Defibrillatoren;True;;;100019;;https://models.geo.bs.ch/Modellbeschreibungen/DF_Defibrillatoren_KGDM_V1_0.pdf;"Gesundheit;Geographie";"Notfall;Reanimation;CPR;Herz;Lunge;Wiederbelebung;Standort";;;
 EL\Elternberatung;True;;;100020;;https://models.geo.bs.ch/Modellbeschreibungen/EL_Elternberatung_KGDM_V1_0.pdf;"Gesundheit;Bevölkerung;Geographie";"Kind;Baby;Mutter;Vater;Krankheit;Gesundheit";;;
-ES\Entsorgungsstellen;True;;;100021;;;"Öffentliche Ordnung und Sicherheit;Geographie";"Recycling;Wiederverwertung;Abfall;Müll;Entsorgen";;;
+ES\Entsorgungsstellen;True;;;100021;;;"Öffentliche Ordnung und Sicherheit;Geographie";"Recycling;Wiederverwertung;Abfall;Müll;Entsorgen";amt-fur-umwelt-und-energie-kanton-basel-stadt;http://purl.org/cld/freq/irregular;
 GO\GueteklassenOeV;True;;Güteklassen öffentlicher Verkehr;100022;;;"Mobilität und Verkehr;Geographie";"Abdeckung;Tram;Bus;Distanz";;;
 HS\Hundesignalisation;True;;Hundesignalisation: Orte mit Leinenpflicht oder Hundeverbot;100023;;;"Öffentliche Ordnung und Sicherheit;Geographie";"Hund;Verbot;Leine;Leinenpflicht";;;
 KJ\KinderJugendangebote;True;;Kinder- und Jugendangebote;100024;;https://models.geo.bs.ch/Modellbeschreibungen/KJ_KinderJugendangebote_KGDM_V1_0.pdf;"Kultur, Medien, Informationsgesellschaft, Sport;Bevölkerung;Geographie";"Sport;Turnen;Jugenarbeit;Freizeit;Treffpunkt";;;
