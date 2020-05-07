@@ -67,7 +67,11 @@ pd.options.mode.chained_assignment = None  # Switch off warnings, see https://st
 live_val['meta.rain.1h.val'] = live_df['meta.rain24h.vals'].apply(lambda x: x[23])
 live_val.to_csv(filename_val, index=False)
 
-live_map = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'position.altitude', 'config.timezone_offset', 'position.geo.coordinates']]
+map_df = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'position.altitude', 'config.timezone_offset', 'position.geo.coordinates']]
+# Stations with name.custom of length 1 are not live yet, filter those out. For some reason we have to filter > 2 here.
+map_df['name.custom.len'] = map_df['name.custom'].str.len()
+live_map = map_df.loc[map_df['name.custom'].str.len() > 2]
+
 # let's better do this in ODS, it gets nasty here for some reason.
 # print('Reversing coordinates for ods...')
 # live_map['coords'] = df['position.geo.coordinates'].apply(lambda x: [x[1], x[0]])
