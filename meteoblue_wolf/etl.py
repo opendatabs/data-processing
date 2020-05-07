@@ -10,6 +10,7 @@ import pandas as pd
 import common
 import ast
 
+
 # Class to perform HMAC encoding
 class AuthHmacMetosGet(AuthBase):
     # Creates HMAC authorization header for Metos REST service GET request.
@@ -52,27 +53,28 @@ privateKey = credentials.privateKey
 print('Retrieving information about all stations of current user from API...')
 (pretty_resp, df) = call_fieldclimate_api('/user/stations', publicKey, privateKey, f'stations-{datetime.now()}')
 
-print('Filtering Wolf stations...')
-# mast_frame = stations_frame[stations_frame['name.custom'].str.contains('Mast')
-#                             & ~stations_frame['name.custom'].str.contains('A2')]
-wolf_df = df[df['name.custom'].str.contains('Wolf')]
+# print('Filtering Wolf stations...')
+# # mast_frame = stations_frame[stations_frame['name.custom'].str.contains('Mast')
+# #                             & ~stations_frame['name.custom'].str.contains('A2')]
+# wolf_df = df[df['name.custom'].str.contains('Wolf')]
+
 filename_val = f'{credentials.path}csv/val/stations--{datetime.now()}.csv'
 print(f'Saving Wolf stations to {filename_val}...')
-wolf_val = wolf_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'config.timezone_offset', 'meta.time', 'meta.rh', 'meta.airTemp', 'meta.rain24h.vals', 'meta.rain24h.sum', 'meta.rain48h.sum']]
+wolf_val = df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'config.timezone_offset', 'meta.time', 'meta.rh', 'meta.airTemp', 'meta.rain24h.vals', 'meta.rain24h.sum', 'meta.rain48h.sum']]
 print("Getting last hour's precipitation...")
 pd.options.mode.chained_assignment = None  # Switch off warnings, see https://stackoverflow.com/a/53954986
-wolf_val['meta.rain.1h.val'] = wolf_df['meta.rain24h.vals'].apply(lambda x: x[23])
+wolf_val['meta.rain.1h.val'] = df['meta.rain24h.vals'].apply(lambda x: x[23])
 wolf_val.to_csv(filename_val, index=False)
 
-wolf_map = wolf_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'position.altitude', 'config.timezone_offset', 'position.geo.coordinates']]
+wolf_map = df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'position.altitude', 'config.timezone_offset', 'position.geo.coordinates']]
 print('Reversing coordinates for ods...')
-wolf_map['coords'] = wolf_df['position.geo.coordinates'].apply(lambda x: [x[1], x[0]])
+wolf_map['coords'] = df['position.geo.coordinates'].apply(lambda x: [x[1], x[0]])
 filename_stations_map = f'{credentials.path}csv/map/stations.csv'
 print(f'Saving minimized table of station data for map creation to {filename_stations_map}')
 wolf_map.to_csv(filename_stations_map, index=False)
 
 # print("Retrieving last hour's data from all Wolf stations from API...")
-# for station in wolf_df['name.original']:
+# for station in df['name.original']:
 #     # get last data point from each station. See https://api.fieldclimate.com/v1/docs/#info-understanding-your-device
 #     (pretty_resp, station_df) = call_fieldclimate_api('/data/normal/' + station + '/hourly/last/1h',
 #                                                       publicKey, privateKey, f'station--{station}--{datetime.now()}')
