@@ -1,4 +1,7 @@
 xlrd==1.2.0
 pandas==1.0.3
-requests==2.20.0
-pandas==1.0.3
+requests==2.23.0
+
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
