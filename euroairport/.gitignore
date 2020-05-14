@@ -1,1 +1,4 @@
 **/*.xlsx
+credentials.py
+credentials.json
+token.pickle
