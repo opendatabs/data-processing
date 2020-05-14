@@ -1,2 +1,4 @@
-xlrd
+xlrd==1.2.0
+pandas==1.0.3
+requests==2.20.0
 pandas==1.0.3

@@ -16,9 +16,9 @@ print('Removing rows with empty date...')
 df3 = df2.dropna(subset=['date'])
 
 print('Unpivoting table...')
-df_pax  = df3.melt(id_vars=['date'], value_name='Pax',  var_name='variable_pax',  value_vars=['PAX_Pax', 'FRET_EXPRESS_Pax', 'FRET_CARGO_Pax', 'AUTRES_Pax', 'Total_Pax'])
+df_pax =  df3.melt(id_vars=['date'], value_name='Pax',  var_name='variable_pax',  value_vars=['PAX_Pax', 'FRET_EXPRESS_Pax', 'FRET_CARGO_Pax', 'AUTRES_Pax', 'Total_Pax'])
 df_fret = df3.melt(id_vars=['date'], value_name='Fret', var_name='variable_fret', value_vars=['PAX_Fret', 'FRET_EXPRESS_Fret', 'FRET_CARGO_Fret', 'AUTRES_Fret', 'Total_Fret'])
-df_mvt  = df3.melt(id_vars=['date'], value_name='Mvt',  var_name='variable_mvt',  value_vars=['PAX_Mvt', 'FRET_EXPRESS_Mvt', 'FRET_CARGO_Mvt', 'AUTRES_Mvt', 'Total_Mvt'])
+df_mvt =  df3.melt(id_vars=['date'], value_name='Mvt',  var_name='variable_mvt',  value_vars=['PAX_Mvt', 'FRET_EXPRESS_Mvt', 'FRET_CARGO_Mvt', 'AUTRES_Mvt', 'Total_Mvt'])
 
 print('Getting Kategorie as first part of string...')
 # df_pax['Kategorien'] = df_pax['variable'].str.split('_', n=1)
@@ -27,11 +27,11 @@ df_pax['Kategorie'] = df_pax['variable_pax'].str.rsplit('_', n=1).apply(lambda x
 df_fret['Kategorie'] = df_fret['variable_fret'].str.rsplit('_', n=1).apply(lambda x: x[0])
 df_mvt['Kategorie'] = df_mvt['variable_mvt'].str.rsplit('_', n=1).apply(lambda x: x[0])
 
-df_pax.to_csv('C:/dev/workspace/data-processing/euroairport/data/pax.csv', index=False)
-df_fret.to_csv('C:/dev/workspace/data-processing/euroairport/data/fret.csv', index=False)
-df_mvt.to_csv('C:/dev/workspace/data-processing/euroairport/data/mvt.csv', index=False)
+# df_pax.to_csv('C:/dev/workspace/data-processing/euroairport/data/pax.csv', index=False)
+# df_fret.to_csv('C:/dev/workspace/data-processing/euroairport/data/fret.csv', index=False)
+# df_mvt.to_csv('C:/dev/workspace/data-processing/euroairport/data/mvt.csv', index=False)
 
-print('Merging dataframes into one again...')
+print('Merging data frames into one again...')
 df_merged1 = pd.merge(df_pax, df_fret, on=['date', 'Kategorie'], how='outer')
 df_merged = pd.merge(df_merged1, df_mvt, on=['date', 'Kategorie'], how='outer')
 
@@ -54,3 +54,4 @@ df_nototal.to_csv(export_file_name, index=False)
 
 common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 print('Job successful!')
+
