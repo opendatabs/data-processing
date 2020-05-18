@@ -4,7 +4,7 @@ ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 COPY requirements.txt .
 RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
-CMD ["/bin/bash", "/code/data-processing/covid_19_dashboard/etl.sh"]
+CMD ["/bin/bash", "/code/data-processing/covid19dashboard/etl.sh"]
 
 # docker build -t covid19dashboard .
 # docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name covid19dashboard covid19dashboard
