@@ -64,7 +64,8 @@ print(f'Saving live stations to {filename_val}...')
 live_val = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'config.timezone_offset', 'meta.time', 'meta.rh', 'meta.airTemp', 'meta.rain24h.vals', 'meta.rain24h.sum', 'meta.rain48h.sum']]
 print("Getting last hour's precipitation...")
 pd.options.mode.chained_assignment = None  # Switch off warnings, see https://stackoverflow.com/a/53954986
-live_val['meta.rain.1h.val'] = live_df['meta.rain24h.vals'].apply(lambda x: x[23])
+# make sure we have a list present, otherwise return None, see https://stackoverflow.com/a/12709152/5005585
+live_val['meta.rain.1h.val'] = live_df['meta.rain24h.vals'].apply(lambda x: x[23] if isinstance(x, list) else None)
 live_val.to_csv(filename_val, index=False)
 
 map_df = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'position.altitude', 'config.timezone_offset', 'position.geo.coordinates']]
