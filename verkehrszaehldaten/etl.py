@@ -5,13 +5,15 @@ from ftplib import FTP
 import requests
 from verkehrszaehldaten import credentials
 import sys
+import os
 
 
 def parse_truncate(path, filename, no_file_copy):
     generated_filenames = []
     if no_file_copy is False:
-        print("Copying file " + path + filename + " to local directory...")
-        copy2(path + filename, filename)
+        path_to_file = os.path.join(path, filename)
+        print(f"Copying file {path_to_file} to local directory...")
+        copy2(path_to_file, filename)
     # Parse, process, truncate and write csv file
     print("Reading file " + filename + "...")
     data = pd.read_csv(filename,
