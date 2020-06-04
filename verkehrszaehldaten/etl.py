@@ -1,8 +1,6 @@
 from shutil import copy2
 import pandas as pd
 import common
-from ftplib import FTP
-import requests
 from verkehrszaehldaten import credentials
 import sys
 import os
@@ -60,7 +58,7 @@ def parse_truncate(path, filename, dest_path, no_file_copy):
     truncated_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
 
-    # Create a seaparate dataset per year
+    # Create a separate dataset per year
     all_years = data.Year.unique()
     for year in all_years:
         year_data = data[data.Year.eq(year)]
@@ -73,27 +71,6 @@ def parse_truncate(path, filename, dest_path, no_file_copy):
     return generated_filenames
 
 
-def upload_ftp(filename, server, user, password):
-    # Upload files to FTP Server
-    ftp = FTP(server)
-    ftp.login(user, password)
-    print(f'Uploading {filename} to FTP server...')
-    with open(filename, 'rb') as f:
-        ftp.storlines('STOR %s' % filename, f)
-    ftp.quit()
-    return
-
-
-def publish_ods_dataset(dataset_uid, creds):
-    print(f'Telling OpenDataSoft to reload dataset {dataset_uid}...')
-    response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
-    if response.status_code == 200:
-        print('ODS publish command successful.')
-    else:
-        print('Problem with OpenDataSoft Management API: ')
-        print(response)
-
-
 no_file_copy = False
 if 'no_file_copy' in sys.argv:
     no_file_copy = True
@@ -101,11 +78,7 @@ if 'no_file_copy' in sys.argv:
 
 # filename_orig = ['small_MIV_Class_10_1.csv']
 filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
-ods_dataset_uids = ['da_koisz3', 'da_ob8g0d']
-
-# Test
-# data = parse_truncate(path_orig, filename_orig)[2]
-
+# ods_dataset_uids = ['da_koisz3', 'da_ob8g0d']
 
 # Upload processed and truncated data
 for datafile in filename_orig:
@@ -113,13 +86,6 @@ for datafile in filename_orig:
     if not no_file_copy:
         for file in file_names:
             common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
-
-
-# Make OpenDataSoft reload data sources
-if not no_file_copy:
-    for datasetuid in ods_dataset_uids:
-        publish_ods_dataset(datasetuid, credentials)
-
 
 # Upload original unprocessed data
 if not no_file_copy:
