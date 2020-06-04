@@ -11,7 +11,7 @@ CMD ["/bin/bash", "/code/data-processing/verkehrszaehldaten/etl.sh"]
 # cd verkehrszaehldaten
 # docker build -t verkehrszaehldaten .
 # cd ..
-# docker run -it --rm -v /mnt/MOB-StatA:/code/data-processing/verkehrszaehldaten/data-orig -v /data/dev/workspace/data-processing:/code/data-processing --name verkehrszaehldaten verkehrszaehldaten
+# docker run -it --rm -v /mnt/MOB-StatA:/code/data-processing/verkehrszaehldaten/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name verkehrszaehldaten verkehrszaehldaten
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd verkehrszaehldaten
