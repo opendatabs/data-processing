@@ -8,21 +8,22 @@ import sys
 import os
 
 
-def parse_truncate(path, filename, no_file_copy):
+def parse_truncate(path, filename, dest_path, no_file_copy):
     generated_filenames = []
     if no_file_copy is False:
-        path_to_file = os.path.join(path, filename)
-        print(f"Copying file {path_to_file} to local directory...")
-        copy2(path_to_file, filename)
+        path_to_orig_file = os.path.join(path, filename)
+        path_to_copied_file = os.path.join(dest_path, filename)
+        print(f"Copying file {path_to_orig_file} to {path_to_copied_file}...")
+        copy2(path_to_orig_file, path_to_copied_file)
     # Parse, process, truncate and write csv file
-    print("Reading file " + filename + "...")
-    data = pd.read_csv(filename,
+    print(f"Reading file {filename}...")
+    data = pd.read_csv(path_to_copied_file,
                        engine='python',
                        sep=';',
                        # encoding='ANSI',
                        encoding='cp1252',
                        dtype={'SiteCode': 'category', 'SiteName': 'category', 'DirectionName': 'category', 'LaneName': 'category', 'TrafficType': 'category'})
-    print("Processing " + filename + "...")
+    print(f"Processing {path_to_copied_file}...")
     data['DateTimeFrom'] = pd.to_datetime(data['Date'] + ' ' + data['TimeFrom'], format='%d.%m.%Y %H:%M')
     data['DateTimeTo'] = pd.to_datetime(data['Date'] + ' ' + data['TimeTo'], format='%d.%m.%Y %H:%M')
     data['Year'] = data['DateTimeFrom'].dt.year
@@ -34,8 +35,8 @@ def parse_truncate(path, filename, no_file_copy):
     # todo: Fix - does still not work for all dates
     data['DateTimeFrom'] = (data['DateTimeFrom'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
     data['DateTimeTo'] = (data['DateTimeTo'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
-    current_filename = 'converted_' + filename
-    print("Saving " + current_filename + "...")
+    current_filename = os.path.join(dest_path, 'converted_' + filename)
+    print(f"Saving {current_filename}...")
     data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
 
@@ -49,13 +50,13 @@ def parse_truncate(path, filename, no_file_copy):
     # return ['converted_' + filename, 'truncated_' + filename]
 
     # Only keep latest two years of data
-    current_filename = 'truncated_' + filename
-    print('Creating dataset ' + current_filename + "...")
+    current_filename = os.path.join(dest_path, 'truncated_' + filename)
+    print(f'Creating dataset {current_filename}...')
     # latest_year = pd.datetime.now().year
     latest_year = data['Year'].max()
     years = [latest_year, latest_year - 1]
     truncated_data = data[data.Year.isin(years)]
-    print("Saving " + current_filename + "...")
+    print(f"Saving {current_filename}...")
     truncated_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
 
@@ -63,12 +64,12 @@ def parse_truncate(path, filename, no_file_copy):
     all_years = data.Year.unique()
     for year in all_years:
         year_data = data[data.Year.eq(year)]
-        current_filename = str(year) + '_' + filename
-        print('Saving ' + current_filename + "...")
+        current_filename = os.path.join(dest_path, str(year) + '_' + filename)
+        print(f'Saving {current_filename}...')
         year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
 
-    print('Created the following files to forther processing: ' + str(generated_filenames))
+    print(f'Created the following files to forther processing: {str(generated_filenames)}')
     return generated_filenames
 
 
@@ -76,7 +77,7 @@ def upload_ftp(filename, server, user, password):
     # Upload files to FTP Server
     ftp = FTP(server)
     ftp.login(user, password)
-    print("Uploading " + filename + " to FTP server...")
+    print(f'Uploading {filename} to FTP server...')
     with open(filename, 'rb') as f:
         ftp.storlines('STOR %s' % filename, f)
     ftp.quit()
@@ -84,7 +85,7 @@ def upload_ftp(filename, server, user, password):
 
 
 def publish_ods_dataset(dataset_uid, creds):
-    print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
+    print(f'Telling OpenDataSoft to reload dataset {dataset_uid}...')
     response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
     if response.status_code == 200:
         print('ODS publish command successful.')
@@ -97,7 +98,6 @@ no_file_copy = False
 if 'no_file_copy' in sys.argv:
     no_file_copy = True
     print('Proceeding without copying files...')
-path_orig = credentials.path_orig
 
 # filename_orig = ['small_MIV_Class_10_1.csv']
 filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
@@ -109,7 +109,7 @@ ods_dataset_uids = ['da_koisz3', 'da_ob8g0d']
 
 # Upload processed and truncated data
 for datafile in filename_orig:
-    file_names = parse_truncate(path_orig, datafile, no_file_copy)
+    file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
     if not no_file_copy:
         for file in file_names:
             common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
