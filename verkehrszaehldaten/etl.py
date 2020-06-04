@@ -1,8 +1,9 @@
 from shutil import copy2
 import pandas as pd
+import common
 from ftplib import FTP
 import requests
-import credentials
+from verkehrszaehldaten import credentials
 import sys
 
 
@@ -100,10 +101,6 @@ path_orig = credentials.path_orig
 filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
 ods_dataset_uids = ['da_koisz3', 'da_ob8g0d']
 
-ftp_server = credentials.ftp_server
-ftp_user = credentials.ftp_user
-ftp_pass = credentials.ftp_pass
-
 # Test
 # data = parse_truncate(path_orig, filename_orig)[2]
 
@@ -113,7 +110,7 @@ for datafile in filename_orig:
     file_names = parse_truncate(path_orig, datafile, no_file_copy)
     if not no_file_copy:
         for file in file_names:
-            upload_ftp(file, ftp_server, ftp_user, ftp_pass)
+            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
 
 # Make OpenDataSoft reload data sources
@@ -125,7 +122,8 @@ if not no_file_copy:
 # Upload original unprocessed data
 if not no_file_copy:
     for orig_file in filename_orig:
-        upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
+        # upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
+        common.upload_ftp(orig_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
 
 
