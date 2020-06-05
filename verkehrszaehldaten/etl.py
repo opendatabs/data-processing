@@ -6,11 +6,11 @@ import sys
 import os
 
 
-def parse_truncate(path, filename, dest_path, no_file_copy):
+def parse_truncate(path, filename, dest_path, no_file_cp):
     generated_filenames = []
-    if no_file_copy is False:
-        path_to_orig_file = os.path.join(path, filename)
-        path_to_copied_file = os.path.join(dest_path, filename)
+    path_to_orig_file = os.path.join(path, filename)
+    path_to_copied_file = os.path.join(dest_path, filename)
+    if no_file_cp is False:
         print(f"Copying file {path_to_orig_file} to {path_to_copied_file}...")
         copy2(path_to_orig_file, path_to_copied_file)
     # Parse, process, truncate and write csv file
@@ -67,7 +67,7 @@ def parse_truncate(path, filename, dest_path, no_file_copy):
         year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
 
-    print(f'Created the following files to forther processing: {str(generated_filenames)}')
+    print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
 
 
@@ -76,7 +76,6 @@ if 'no_file_copy' in sys.argv:
     no_file_copy = True
     print('Proceeding without copying files...')
 
-# filename_orig = ['small_MIV_Class_10_1.csv']
 filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
 # ods_dataset_uids = ['da_koisz3', 'da_ob8g0d']
 
@@ -90,8 +89,8 @@ for datafile in filename_orig:
 # Upload original unprocessed data
 if not no_file_copy:
     for orig_file in filename_orig:
-        # upload_ftp(orig_file, ftp_server, ftp_user, ftp_pass)
-        common.upload_ftp(orig_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        path_to_file = os.path.join(credentials.path_dest, orig_file)
+        common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
 
 
