@@ -51,7 +51,7 @@ if r.status_code == 200:
     print(f'Exporting data to {file_path}...')
     df.to_csv(file_path, index=False, date_format='%Y-%m-%dT%H:%M:%S%z')
 
-    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'tba/wilde-deponien-tba')
+    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'tba/wilde_deponien_tba')
     print('Job successful!')
 else:
     raise Exception(f'HTTP error getting values from API: {r.status_code}')
