@@ -6,10 +6,6 @@ COPY requirements.txt .
 RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
 CMD ["/bin/bash", "/code/data-processing/tba_wildedeponien/etl.sh"]
 
-# docker build -t tba-wildedeponien .
-# docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name tba-wildedeponien tba-wildedeponien
-
-
 # Docker commands to create image and run container:
 # cd tba_wildedeponien
 # docker build -t tba-wildedeponien .
