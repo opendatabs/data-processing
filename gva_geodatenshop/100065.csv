@@ -1,0 +1,14 @@
+name;label;description
+thst_nr;ID_Teilhaltestelle;Eindeutiger Identifikator der Teilhaltestellen
+hst_nr;Haltestellen-Nr;Nummer der Haltestelle nach BAV
+haltestl;Haltestellen_Name;Name der Haltestelle
+kt;Gebiet;Gebiet. Wertebereich: Aargau (AG), Basel-Landschaft (BL), Basel-Stadt (BS), Deutschland (D), Frankreich (F), Jura (JU), Solothurn (SO).
+richtung;Richtung;Fahrtrichtung
+art;Haltestellenart;Art der Haltestelle
+typ;Haltestellentyp;Typ der Haltestelle
+tramlinien;Tramlinien;Tramlinien, welche eine Teilhaltestelle bedienen
+buslinien;Buslinien;Buslinien, welche eine Teilhaltestelle bedienen
+fahrplan;Fahrplan;Link zum Fahrplan
+nachtlin;Nachtlinien;Nachtlinien, welche eine Teilhaltestelle bedienen
+tramzugang;Tramzugang;"Zugangsmöglichkeit für Elektrorollstühle bei Tramhaltestellen; ja = hohe Kante (27 cm)"
+buszugang;Buszugang;"Zugangsmöglichkeit für Elektrorollstühle bei Bushaltestellen; ja = hohe Kante (22 cm)"
