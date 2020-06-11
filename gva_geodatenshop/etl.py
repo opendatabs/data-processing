@@ -236,11 +236,11 @@ for index, row in joined_data.iterrows():
 # Save harvester file
 if len(metadata_for_ods) > 0:
     ods_metadata = pd.DataFrame().append(metadata_for_ods, ignore_index=True, sort=False)
-    ods_metadata_filename = 'Opendatasoft_Export_GVA.csv'
+    ods_metadata_filename = os.path.join(credentials.path_root, 'Opendatasoft_Export_GVA.csv')
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
     if not no_file_copy:
-        print('Uploading ODS harvester file to FTP Server...')
+        print(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
         common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
 
     # Upload each schema_file
@@ -248,8 +248,9 @@ if len(metadata_for_ods) > 0:
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
             if not no_file_copy:
-                print('Uploading ODS schema files to FTP Server: ' + schemafile + '...')
-                common.upload_ftp(schemafile, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+                schemafile_with_path = os.path.join(credentials.path_root, schemafile)
+                print(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
+                common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
 
 else:
     print('Harvester File contains no entries, no upload necessary.')
