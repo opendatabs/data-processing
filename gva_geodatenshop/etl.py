@@ -91,7 +91,7 @@ for index, row in joined_data.iterrows():
                 folder = shppath.replace(credentials.path_orig, '')
                 folder_flat = folder.replace('/', '__'). replace('\\', '__')
                 zipfilepath_relative = os.path.join('data', folder_flat + '__' + shpfilename_noext + '.zip')
-                zipfilepath = os.path.join(os.getcwd(), zipfilepath_relative)
+                zipfilepath = os.path.join(credentials.path_root, zipfilepath_relative)
                 print('Creating zip file ' + zipfilepath)
                 # todo: uncomment to create zip files
                 zipf = zipfile.ZipFile(zipfilepath, 'w')
