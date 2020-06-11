@@ -110,7 +110,7 @@ for index, row in joined_data.iterrows():
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 # todo: uncomment to enable shp file uploading again
-                common.upload_ftp(zipfilepath_relative, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                common.upload_ftp(zipfilepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
