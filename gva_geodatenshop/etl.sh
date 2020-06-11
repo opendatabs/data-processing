@@ -1,5 +1,6 @@
 cd /code/data-processing || exit
 # pip freeze > /code/data-processing/gva_geodatenshop/requirements-in-docker.txt
+# python3 -m gva_geodatenshop.etl no_file_copy
 python3 -m gva_geodatenshop.etl
 
 
