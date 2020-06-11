@@ -1,6 +1,8 @@
 cd /code/data-processing || exit
 # pip freeze > /code/data-processing/verkehrszaehldaten/requirements-in-docker.txt
-python3 -m verkehrszaehldaten.etl
+python3 -m verkehrszaehldaten.etl no_file_copy
+# python3 -m verkehrszaehldaten.etl
+
 
 
 

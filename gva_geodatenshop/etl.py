@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 import os
+import sys
 import glob
 import zipfile
 import subprocess
@@ -35,6 +36,11 @@ def geocat_try(geocat_path_list):
 def remove_empty_string_from_list(string_list):
     return list(filter(None, string_list))
 
+
+no_file_copy = False
+if 'no_file_copy' in sys.argv:
+    no_file_copy = True
+    print('Proceeding without copying files...')
 
 datafile = os.path.join(credentials.path_orig, 'ogd_datensaetze.csv')
 print(f'Reading data file form {datafile}...')
@@ -109,8 +115,8 @@ for index, row in joined_data.iterrows():
 
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
-                # todo: uncomment to enable shp file uploading again
-                common.upload_ftp(zipfilepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                if not no_file_copy:
+                    common.upload_ftp(zipfilepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
 
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
@@ -233,16 +239,17 @@ if len(metadata_for_ods) > 0:
     ods_metadata_filename = 'Opendatasoft_Export_GVA.csv'
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
-    # FTP upload file
-    print('Uploading ODS harvester file to FTP Server...')
-    common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+    if not no_file_copy:
+        print('Uploading ODS harvester file to FTP Server...')
+        common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
 
     # Upload each schema_file
     print('Uploading ODS schema files to FTP Server...')
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
-            print('Uploading ODS schema files to FTP Server: ' + schemafile + '...')
-            common.upload_ftp(schemafile, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+            if not no_file_copy:
+                print('Uploading ODS schema files to FTP Server: ' + schemafile + '...')
+                common.upload_ftp(schemafile, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
 
 else:
     print('Harvester File contains no entries, no upload necessary.')
