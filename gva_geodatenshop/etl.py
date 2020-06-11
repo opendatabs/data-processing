@@ -40,13 +40,13 @@ datafile = os.path.join(credentials.path_orig, 'ogd_datensaetze.csv')
 print(f'Reading data file form {datafile}...')
 data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252')
 
-metadatafile = os.path.join(credentials.path_orig, 'Metadata.csv')
+metadatafile = os.path.join(credentials.path_root, 'Metadata.csv')
 print(f'Reading data file form {metadatafile}...')
 metadata = pd.read_csv(metadatafile, sep=';', na_filter=False, encoding='cp1252')
 
 # join data and metadata (if any)
 joined_data = pd.merge(data, metadata, on='ordnerpfad', how='left')
-joined_data.to_csv(os.path.join(credentials.path_orig, '_alldata.csv'), index=False, sep=';')
+joined_data.to_csv(os.path.join(credentials.path_root, '_alldata.csv'), index=False, sep=';')
 
 metadata_for_ods = []
 
