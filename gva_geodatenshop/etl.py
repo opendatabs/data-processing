@@ -36,18 +36,17 @@ def remove_empty_string_from_list(string_list):
     return list(filter(None, string_list))
 
 
-datafilename = 'ogd_datensaetze.csv'
-print('Reading data file form ' + os.path.join(credentials.path_orig, datafilename) + '...')
-datafile = credentials.path_orig + datafilename
+datafile = os.path.join(credentials.path_orig, 'ogd_datensaetze.csv')
+print(f'Reading data file form {datafile}...')
 data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252')
 
-metadatafilename = 'Metadata.csv'
-print('Reading data file form ' + metadatafilename + '...')
-metadata = pd.read_csv(metadatafilename, sep=';', na_filter=False, encoding='cp1252')
+metadatafile = os.path.join(credentials.path_orig, 'Metadata.csv')
+print(f'Reading data file form {metadatafile}...')
+metadata = pd.read_csv(metadatafile, sep=';', na_filter=False, encoding='cp1252')
 
 # join data and metadata (if any)
 joined_data = pd.merge(data, metadata, on='ordnerpfad', how='left')
-joined_data.to_csv('_alldata.csv', index=False, sep=';')
+joined_data.to_csv(os.path.join(credentials.path_orig, '_alldata.csv'), index=False, sep=';')
 
 metadata_for_ods = []
 
