@@ -41,6 +41,8 @@ no_file_copy = False
 if 'no_file_copy' in sys.argv:
     no_file_copy = True
     print('Proceeding without copying files...')
+else:
+    print('Proceeding with copying files...')
 
 datafile = os.path.join(credentials.path_orig, 'ogd_datensaetze.csv')
 print(f'Reading data file form {datafile}...')
@@ -132,8 +134,6 @@ for index, row in joined_data.iterrows():
                 metadata_file = os.path.join(credentials.path_root, 'metadata', geocat_uid + '.json')
                 cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -s -k > ' + metadata_file
                 print('Running curl to get geocat.ch metadata: ')
-                # todo: remove cmd from log
-                print(cmd)
                 resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
                 print('Processing geocat.ch metadata file ' + metadata_file + '...')
                 with open(metadata_file, 'r', encoding='cp1252') as json_file:
