@@ -136,7 +136,7 @@ for index, row in joined_data.iterrows():
                 print('Running curl to get geocat.ch metadata: ')
                 resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
                 print('Processing geocat.ch metadata file ' + metadata_file + '...')
-                with open(metadata_file, 'r', encoding='cp1252') as json_file:
+                with open(metadata_file, 'r') as json_file:
                     print('Adding shape ' + shpfilename_noext + ' to harverster csv...')
                     json_string = json_file.read()
                     metadata = json.loads(json_string)
