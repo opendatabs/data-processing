@@ -16,8 +16,9 @@ def wait_for_idle(harvester_id):
         if status == 'idle':
             break
         else:
-            print('Waiting 5 seconds before trying again...')
-            time.sleep(5)
+            seconds = 10
+            print(f'Waiting {seconds} seconds before trying again...')
+            time.sleep(seconds)
 
 
 def handle_http_errors(resp):
