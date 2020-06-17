@@ -23,7 +23,7 @@ def wait_for_idle(harvester_id):
 
 def handle_http_errors(resp):
     if resp.status_code == 200:
-        print(f'ODS command successful: HTTP Code "{resp.status_code}"')
+        print(f'ODS command successful: HTTP Code {resp.status_code}')
     else:
         print(f'Problem with ODS command: HTTP Code "{resp.status_code}"')
         raise RuntimeError('Problem with OpenDataSoft Management API: ' + resp.text)
