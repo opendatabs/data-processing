@@ -16,6 +16,9 @@ for file in files:
         ftp.retrbinary(f"RETR {file}", f.write)
 ftp.quit()
 
+# Load files into dataframes
+# Merge into a single df, then export to csv
+
 for local_file in local_files:
     common.upload_ftp(local_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_remote_dir)
 print('Job successful!')
