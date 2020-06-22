@@ -6,9 +6,6 @@ COPY requirements.txt .
 RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
 CMD ["/bin/bash", "/code/data-processing/covid19bs/etl.sh"]
 
-# docker build -t covid19bs .
-# docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name covid19bs covid19bs
-
 
 # Docker commands to create image and run container:
 # cd covid19bs
