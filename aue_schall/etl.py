@@ -36,6 +36,8 @@ for station in stations:
     df = pd.read_csv(local_files[station], sep=';', skiprows=1, na_filter=False)
     df.columns = ['timestamp_text', 'dB']
     df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich')
+    df.set_index('timestamp', drop=False, inplace=True)
+    df = df[['timestamp', 'dB', 'timestamp_text']]
     dfs[station] = df
 
 
