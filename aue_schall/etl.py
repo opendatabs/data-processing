@@ -28,6 +28,7 @@ for file_name, facts in ftp.mlsd():
 
         local_files[station] = local_file
         # print(facts);
+ftp.quit()
 
 dfs = {}
 print('Reading csv files into data frames...')
@@ -49,5 +50,4 @@ for station in stations:
 #     print(f'Retrieving file {local_file}...')
 #     with open(local_file, 'wb') as f:
 #         ftp.retrbinary(f"RETR {file}", f.write)
-ftp.quit()
 
