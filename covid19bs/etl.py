@@ -8,10 +8,10 @@ print(f'Reading date from {sourcefile}...')
 df = pd.read_csv(sourcefile)
 print('Calculating differences between current and previous row...')
 df_diff = df[['ncumul_conf', 'ncumul_released', 'ncumul_deceased', 'ncumul_confirmed_non_resident']].diff()
-df['diff_conf'] = df_diff.ncumul_conf
-df['diff_released'] = df_diff.ncumul_released
-df['diff_deceased'] = df_diff.ncumul_deceased
-df['diff_confirmed_non_resident'] = df_diff.ncumul_confirmed_non_resident
+df['ndiff_conf'] = df_diff.ncumul_conf
+df['ndiff_released'] = df_diff.ncumul_released
+df['ndiff_deceased'] = df_diff.ncumul_deceased
+df['ndiff_confirmed_non_resident'] = df_diff.ncumul_confirmed_non_resident
 
 filename = os.path.join(credentials.path, credentials.filename)
 print(f'Exporting data to {filename}')
