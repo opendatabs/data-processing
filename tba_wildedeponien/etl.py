@@ -10,7 +10,7 @@ from io import StringIO
 # api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&format=csv'
 
 # Subsequently get only data since yesterday
-from_timestamp = (datetime.today() - timedelta(days = 1)).strftime('%Y-%m-%d')
+from_timestamp = (datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
 api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&from={from_timestamp}&format=csv'
 print(f'Retrieving data since ({from_timestamp}) from API call to "{api_url}"...')
 r = requests.get(api_url, auth=(credentials.api_user, credentials.api_password))
@@ -33,7 +33,7 @@ if r.status_code == 200:
         print("Rasterizing coordinates and getting rid of data we don't want to have published...")
         offset_lon = 2608700
         offset_lat = 1263200
-        raster_size = 50 # 50 m raster
+        raster_size = 50  # 50 m raster
         df['raster_lat'] = ((df.lat - offset_lat) // raster_size) * raster_size + offset_lat
         df['raster_lon'] = ((df.lon - offset_lon) // raster_size) * raster_size + offset_lon
         # df['diff_lat'] = df.lat - df.raster_lat
@@ -44,8 +44,12 @@ if r.status_code == 200:
         # 'POINT\((?<long> \d *.\d *)\s(?<lat> \d *.\d *)\)'
 
         print('Creating ISO8601 timestamps with timezone info...')
-        df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'], format='%Y-%m-%d %H:%M:%S')
-        df['Timestamp'] = df['Timestamp'].dt.tz_localize('Europe/Zurich')
+        df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'].str
+                                         .replace(' ', 'T', regex=False)
+                                         .replace('+01', '+0100', regex=False)
+                                         .replace('+02', '+0200', regex=False))
+        # df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'], format='%Y-%m-%d %H:%M:%S%Z')
+        # df['Timestamp'] = df['Timestamp'].dt.tz_localize('Europe/Zurich')
         df['bearbeitungszeit_meldung'] = df['Timestamp']
         df.drop(['Timestamp'], axis=1, inplace=True)
 
