@@ -54,6 +54,6 @@ stations_file = os.path.join(credentials.path, 'stations/stations.csv')
 print(f'Exporting stations file to {stations_file}...')
 df_stations.to_csv(stations_file, index=False)
 
-common.upload_ftp(stations_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, f'{credentials.ftp_remote_path}/stations')
-common.upload_ftp(today_data_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_remote_path)
+common.upload_ftp(stations_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, f'{credentials.ftp_remote_path_stations}')
+common.upload_ftp(today_data_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_remote_path_vals)
 print('Job successful!')
