@@ -44,10 +44,7 @@ if r.status_code == 200:
         # 'POINT\((?<long> \d *.\d *)\s(?<lat> \d *.\d *)\)'
 
         print('Creating ISO8601 timestamps with timezone info...')
-        df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'].str
-                                         .replace(' ', 'T', regex=False)
-                                         .replace('+01', '+0100', regex=False)
-                                         .replace('+02', '+0200', regex=False))
+        df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'])
         # df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'], format='%Y-%m-%d %H:%M:%S%Z')
         # df['Timestamp'] = df['Timestamp'].dt.tz_localize('Europe/Zurich')
         df['bearbeitungszeit_meldung'] = df['Timestamp']
