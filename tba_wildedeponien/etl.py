@@ -68,6 +68,8 @@ if r.status_code == 200:
         print('Dropping unnecessary columns...')
         gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points'], inplace=True)
 
+        # todo: Find nearest Wohnviertel / Bezirk of points outside ofthos shapes (Rhein, Outside of BS territory)
+
         timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
         file_path = os.path.join(credentials.path, f'{timestamp}_{credentials.filename}')
         print(f'Exporting data to {file_path}...')
