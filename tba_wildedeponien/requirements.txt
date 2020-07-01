@@ -1,2 +1,4 @@
 pandas==1.0.3
 requests==2.20.0
+geopandas==0.8.0
+pygeos==0.7.1
