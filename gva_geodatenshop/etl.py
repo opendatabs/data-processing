@@ -144,7 +144,7 @@ for index, row in joined_data.iterrows():
                     modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
                     schema_file = ''
 
-                    # Get the correct title and ods_id from the list of titles in the title_nice column by checking th index of the current shpfile_noext in the shapes column
+                    # Get the correct title and ods_id from the list of titles in the title_nice column by checking the index of the current shpfile_noext in the shapes column
                     # Current shape explicitly set in column "shapes"
                     if shpfilename_noext in shapes_to_load:
                         title = str(row['titel_nice']).split(';')[shp_to_load_number]
@@ -216,7 +216,7 @@ for index, row in joined_data.iterrows():
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                         # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
                         'publisher': row['kontakt_dienststelle'] if row['kontakt_dienststelle'] != "Zentrale Dienste" else "Erziehungsdepartement - Zentrale Dienste",
-                        'dcat.issued': modified,
+                        'dcat.issued': row['dcat.issued'],
                         # todo: give time in UTC
                         'modified': modified,
                         'language': 'de',
