@@ -1,3 +1,4 @@
+_alldata.csv
 *.json
 *.zip
 !*.csv
