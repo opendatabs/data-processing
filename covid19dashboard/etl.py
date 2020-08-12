@@ -19,6 +19,7 @@ print('Iterating over each canton, sorting, adding missing dates, then filling t
 cantons = df.abbreviation_canton_and_fl.unique()
 df_filled = pd.DataFrame(columns=df.columns)
 for canton in cantons:
+    print(f'Working through canton {canton}...')
     df_canton = df[df.abbreviation_canton_and_fl == canton].sort_values(by='date')
     df_canton_filled = df_canton.set_index('date').reindex(date_range).ffill().reset_index().rename(columns={'index': 'date'})
 
