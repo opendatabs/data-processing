@@ -8,10 +8,10 @@ CMD ["/bin/bash", "/code/data-processing/bag_coronavirus_tests/etl.sh"]
 
 
 # Docker commands to create image and run container:
-# cd covid19bs
+# cd bag_coronavirus_tests
 # docker build -t bag_coronavirus_tests .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/BAG_Coronavirus_Tests:/code/data-processing/bag_coronavirus_tests/data --name bag_coronavirus_tests bag_coronavirus_tests
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/BAG_Coronavirus_Tests:/code/data-processing/bag_coronavirus_tests/data --name bag_coronavirus_tests bag_coronavirus_tests
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd bag_coronavirus_tests
