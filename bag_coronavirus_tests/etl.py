@@ -3,7 +3,7 @@ import os
 import common
 import glob
 
-search_string = os.path.join(credentials.path, '*CovidTests_BS.xlsx')
+search_string = os.path.join(credentials.path, '?????? CovidTests_BS.xlsx')
 print(f'Searching for files matching "{search_string}"...')
 files = glob.glob(search_string)
 print(f'Found {len(files)} matching files. Uploading to FTP server...')
