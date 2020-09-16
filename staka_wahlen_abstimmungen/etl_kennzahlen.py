@@ -11,7 +11,6 @@ sheets = pd.read_excel(import_file_name, sheet_name=None, skiprows=4, index_col=
 dat_sheet_names = []
 print(f'Determining "DAT n" sheets...')
 for key in sheets:
-    print(key)
     if key.startswith('DAT '):
         dat_sheet_names.append(key)
 
