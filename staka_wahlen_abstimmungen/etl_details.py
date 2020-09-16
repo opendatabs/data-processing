@@ -69,7 +69,7 @@ for sheet_name in dat_sheet_names:
 print(f'Creating one dataframe for all Abstimmungen...')
 all_df = pd.concat(dat_sheets)
 
-export_file_name = os.path.join(credentials.path, f'Abstimmungen_Details_{abst_date}.csv')
+export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')
 all_df.to_csv(export_file_name, index=False)
 

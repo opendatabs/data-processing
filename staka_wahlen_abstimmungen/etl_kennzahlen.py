@@ -127,7 +127,7 @@ df_merged = reduce(lambda left,right: pd.merge(left,right,on=['Gemein_Name'], ho
 
 
 
-export_file_name = os.path.join(credentials.path, f'Abstimmungen_{abst_date}.csv')
+export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')
 df_merged.to_csv(export_file_name, index=False)
 
