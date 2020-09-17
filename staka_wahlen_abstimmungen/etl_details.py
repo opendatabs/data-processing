@@ -60,15 +60,14 @@ for sheet_name in dat_sheet_names:
     print(f'Calculating columns...')
     df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
 
-    # todo: use filter() instead of drop so that non-essential additional columns are not a problem https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.filter.html
-    print('Dropping unnecessary columns...')
-    df.drop(columns=['index', 'Unnamed: 0'], inplace=True)
-
-    # df.to_csv(f'c:/dev/workspace/data-processing/staka_wahlen_abstimmungen/data/{sheet_name}.csv', index=False)
     dat_sheets.append(df)
 
 print(f'Creating one dataframe for all Abstimmungen...')
 all_df = pd.concat(dat_sheets)
+
+print('Keeping only necessary columns...')
+all_df = all_df.filter(['Wahllok_name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz', 'Ja_Anz', 'Nein_Anz',
+               'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID', 'anteil_ja_stimmen'],)
 
 export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')

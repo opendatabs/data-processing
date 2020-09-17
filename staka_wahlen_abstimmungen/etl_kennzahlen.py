@@ -60,11 +60,6 @@ for sheet_name in dat_sheet_names:
     print(f'Calculating columns...')
     df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
 
-    #todo: use filter() instead of drop so that non-essential additional columns are not a problem https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.filter.html
-    print('Dropping unnecessary columns...')
-    df.drop(columns=['index', 'Unnamed: 0'], inplace=True)
-
-
     # df.to_csv(f'c:/dev/workspace/data-processing/staka_wahlen_abstimmungen/data/{sheet_name}.csv', index=False)
     dat_sheets.append(df)
 
@@ -100,8 +95,6 @@ df_stimmber.rename(columns={'Unnamed: 0': 'empty',
                             'davon                                   Männer': 'Stimmber_Anz_M',
                             'davon                                          Frauen': 'Stimmber_Anz_F',
                             'Unnamed: 5': 'empty2'}, inplace=True)
-print(f'Removing unnecessary columns from {stimmber_sheet_name}...')
-df_stimmber.drop(columns=['empty', 'empty2'], inplace=True)
 print(f'Cleaning up Gemeinde names in {stimmber_sheet_name}...')
 # df_stimmber.loc[(df_stimmber['Gemein_Name'] == 'Total Kanton'), 'Gemein_Name'] = 'Basel-Stadt'
 gemein_replacements = {'Total Kanton': 'Basel-Stadt'}
@@ -120,13 +113,17 @@ df_kennz.rename(columns={'Unnamed: 0': 'empty',
 print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
 for repl in gemein_replacements:
     df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]
-print(f'Removing unnecessary columns from {kennz_sheet_name}...')
-df_kennz.drop(columns=['empty', 'Elektr_Ant', 'Stimmber_Anz'], inplace=True)
+print(f'Removing duplicate column stimmber_anz from {kennz_sheet_name}...')
+df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
 print('Joining all sheets into one...')
 frames_to_join = [all_df, df_kennz, df_stimmber]
 df_merged = reduce(lambda left,right: pd.merge(left,right,on=['Gemein_Name'], how='inner'), frames_to_join)
 
-
+print('Keeping only necessary columns...')
+df_merged = df_merged.filter(['Gemein_Name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz',
+                              'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID',
+                              'anteil_ja_stimmen', 'Gemein_ID', 'Stimmbet', 'Briefl_Ant', 'Stimmber_Anz',
+                              'Stimmber_Anz_M', 'Stimmber_Anz_F'])
 
 export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')
