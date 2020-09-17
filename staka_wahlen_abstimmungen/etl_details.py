@@ -60,6 +60,7 @@ for sheet_name in dat_sheet_names:
     print(f'Calculating columns...')
     df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
 
+    # todo: use filter() instead of drop so that non-essential additional columns are not a problem https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.filter.html
     print('Dropping unnecessary columns...')
     df.drop(columns=['index', 'Unnamed: 0'], inplace=True)
 
