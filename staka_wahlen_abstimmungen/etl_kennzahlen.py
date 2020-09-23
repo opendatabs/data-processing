@@ -125,6 +125,9 @@ df_merged = df_merged.filter(['Gemein_Name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_A
                               'anteil_ja_stimmen', 'Gemein_ID', 'Stimmbet', 'Briefl_Ant', 'Stimmber_Anz',
                               'Stimmber_Anz_M', 'Stimmber_Anz_F'])
 
+print('Creating column "Abst_ID_Titel"...')
+df_merged['Abst_ID_Titel'] = df_merged['Abst_ID'].astype(str) + ': ' + df_merged['Abst_Titel']
+
 export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')
 df_merged.to_csv(export_file_name, index=False)

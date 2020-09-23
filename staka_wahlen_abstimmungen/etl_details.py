@@ -69,6 +69,9 @@ print('Keeping only necessary columns...')
 all_df = all_df.filter(['Wahllok_name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz', 'Ja_Anz', 'Nein_Anz',
                'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID', 'anteil_ja_stimmen'],)
 
+print('Creating column "Abst_ID_Titel"...')
+all_df['Abst_ID_Titel'] = all_df['Abst_ID'].astype(str) + ': ' + all_df['Abst_Titel']
+
 export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')
 all_df.to_csv(export_file_name, index=False)
