@@ -2,7 +2,7 @@ ftp_server = 'FTP-GATEWAY'
 ftp_user = 'USERNAME@data-bs.ch@data-bs.ch'
 ftp_pass = 'DUMMYPASSWORD'
 
-path_work = '/code/data-processing/stata_sterbefaelle/data/'
+path_work = '/code/data-processing/stata_daily_upload/data/'
 
 api_key = 'dummy_ods_api_key'
 
