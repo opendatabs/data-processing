@@ -58,7 +58,10 @@ for sheet_name in dat_sheet_names:
     df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
 
     print(f'Calculating columns...')
-    df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
+    try:
+        df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
+    except ZeroDivisionError:
+        print("ZeroDivisionError caught - ignoring...")
 
     dat_sheets.append(df)
 
