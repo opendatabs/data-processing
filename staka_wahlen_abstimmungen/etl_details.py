@@ -57,16 +57,14 @@ for sheet_name in dat_sheet_names:
     df['Result_Art'] = result_type
     df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
 
-    print(f'Calculating columns...')
-    try:
-        df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
-    except ZeroDivisionError:
-        print("ZeroDivisionError caught - ignoring...")
-
     dat_sheets.append(df)
 
 print(f'Creating one dataframe for all Abstimmungen...')
 all_df = pd.concat(dat_sheets)
+
+print(f'Calculating anteil_ja_stimmen...')
+all_df.Guelt_Anz.replace(0, pd.NA, inplace=True)
+all_df['anteil_ja_stimmen'] = all_df['Ja_Anz'] / all_df['Guelt_Anz']
 
 print('Keeping only necessary columns...')
 all_df = all_df.filter(['Wahllok_name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz', 'Ja_Anz', 'Nein_Anz',

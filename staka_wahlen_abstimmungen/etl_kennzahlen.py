@@ -57,17 +57,15 @@ for sheet_name in dat_sheet_names:
     df['Result_Art'] = result_type
     df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
 
-    print(f'Calculating columns...')
-    try:
-        df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
-    except ZeroDivisionError:
-        print("ZeroDivisionError caught - ignoring...")
-
     # df.to_csv(f'c:/dev/workspace/data-processing/staka_wahlen_abstimmungen/data/{sheet_name}.csv', index=False)
     dat_sheets.append(df)
 
 print(f'Creating one dataframe for all Abstimmungen...')
 all_df = pd.concat(dat_sheets)
+
+print(f'Calculating anteil_ja_stimmen...')
+all_df.Guelt_Anz.replace(0, pd.NA, inplace=True)
+all_df['anteil_ja_stimmen'] = all_df['Ja_Anz'] / all_df['Guelt_Anz']
 
 # Code specific for Kennzahlen dataset
 print(f'Cleaning up Gemeinde names in all_df...')
