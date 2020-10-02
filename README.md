@@ -40,7 +40,7 @@ Data is regularly published from data-producing governmental entities on interna
  ### Data Harvesting Mechanisms
  #### Into the Data Platform
  
- 1. Single datasets are source via these mechanisms: : 
+ 1. Single datasets are source via these mechanisms: 
     - Direct https source, e.g. [Coronavirus Fallzahlen Basel-Stadt](https://data.bs.ch/explore/dataset/100073)
     - Opendatasoft realtime API, e.g. [Real-time occupation status of chargig stations](https://data.bs.ch/explore/dataset/100004)
     - FTP(S) sourcing of a directory, e.g. [Smart Climate Schallpegelmessungen](https://data.bs.ch/explore/dataset/100087)
@@ -54,3 +54,12 @@ Data is regularly published from data-producing governmental entities on interna
         - Data and metadata of datasets to be harvested by the data platform are daily created by the data processing job [gva_geodatenshop](https://github.com/opendatabs/data-processing/blob/master/gva_geodatenshop/etl.py) and uploaded to the web server into  folder "/public_html/opendatasoft/harvesters/GVA/". 
  
  #### Out of the Data Platform
+ The data platform can be harvested by other data platforms via the [DCAT-AP for Switzerland API](https://www.ech.ch/de/standards/39919), by using an URL in the form of [https://data.bs.ch/api/v2/catalog/exports/dcat_ap_ch](https://data.bs.ch/api/v2/catalog/exports/dcat_ap_ch) (see [here](https://help.opendatasoft.com/apis/ods-search-v2/#exporting-datasets) for further technical information).  
+ 
+ To our knowledge, the only direct current consumer/harvester of our data platform metadata is https://opendata.swiss, which in turn is being harvested by the [European Data Portal](https://www.europeandataportal.eu/), and possibly others. 
+ 
+ As an example see this dataset in different data portals:
+ - In the data portal Basel-Stadt: https://data.bs.ch/explore/dataset/100042
+ - In opendata.swiss: https://opendata.swiss/de/dataset/statistische-raumeinheiten-wohnviertel
+ - In the European Data portal: https://www.europeandataportal.eu/data/datasets/100042-statistisches-amt-kanton-basel-stadt
+    
