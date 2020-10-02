@@ -47,6 +47,10 @@ Data is regularly published from data-producing governmental entities on interna
  
      About using a directory instead of a file as the source for a dataset: "Using a directory is often the prefered solution to automate incremental updates between a customer's information system and the platform. All the files in the directory need to have the same format and schema (e.g. CSV files with the same column titles). In case of automation, whenever the dataset is published, new and updated files are fetched from the remote location and processed and thanks to Opendatasoft's native deduplication strategy". For more technical information how these mechanisma work see the [Opendatasoft documentation](https://help.opendatasoft.com/platform/en/publishing_data/01_creating_a_dataset/sourcing_data.html#sourcing-remote-data-via-a-url).
     
- 1. Catalogs of datasets are harvested via the [FTP with meta CSV harvester](https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html). Currently th
+ 1. Catalogs of datasets are harvested via the [FTP with meta CSV harvester](https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html). Currently these include the following: 
+    1. OGD datasets by Statistisches Amt Basel-Stadt
+        - Metadata of datasets to be harvested by the data portal are saved onto the web server in folder "/public_html/opendatasoft/harvesters/stata/ftp-csv/" by the publishing process run by members of the Statistisches Amt. 
+    1. Open Datasets by Grundbuch- und Vermessungsamt Basel-Stadt
+        - Data and metadata of datasets to be harvested by the data platform are daily created by the data processing job [gva_geodatenshop](https://github.com/opendatabs/data-processing/blob/master/gva_geodatenshop/etl.py) and uploaded to the web server into  folder "/public_html/opendatasoft/harvesters/GVA/". 
  
  #### Out of the Data Platform
