@@ -21,6 +21,8 @@ Usually, data is published from data-producing governmental entities on internal
     - ETL jobs containerized in Docker images, so that each job has its own containerized environment to run in. The environment is configured using the Dockerfile, see e.g. [here](https://github.com/opendatabs/data-processing/blob/master/aue_umweltlabor/Dockerfile).  
     - [AirFlow](https://en.wikipedia.org/wiki/Apache_Airflow) workflow scheduler. Runs as a docker container, see [configuration](https://github.com/opendatabs/docker-airflow).  
     - Every ETL job to run has its own Apache Airflow [Directed Acyclical Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) file. It is written in Python and defines when a containerized ETL job is run, and how to proceed if the job fails. DAG files are stored in the [AirFlow repo](https://github.com/opendatabs/docker-airflow/tree/master/dags), see e.g. [this one](https://github.com/opendatabs/docker-airflow/blob/master/dags/aue-umweltlabor.py).
+    - AirFlow DAG jobs can be found on the server in the folder '/data/dev/workspace/docker-airflow/dags', ETL jobs in '/data/dev/workspace/data-processing'.
+    - Deployment of source code is done via git: Push from development environment to github, pull from github to live environment in above mentioned folders.  
     
 1. Web Server https://data-bs.ch
     - Linux server that is primarly used to host data ready to be published onto the data portal.
