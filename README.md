@@ -66,3 +66,16 @@ Usually, data is published from data-producing governmental entities on internal
  - In opendata.swiss (harvested from the above): https://opendata.swiss/de/dataset/statistische-raumeinheiten-wohnviertel
  - In the European Data portal (harvested from the above): https://www.europeandataportal.eu/data/datasets/100042-statistisches-amt-kanton-basel-stadt
     
+ ### Miscellaneous
+ ####Usage of git
+ - On the data processing server we use the Docker container 'alpine/git:v2.26.2' as a git client, see https://hub.docker.com/r/alpine/git. 
+ - First usage on the Docker host to download the Docker image and see `git --version`executed:
+`docker run -ti --rm -v ${HOME}:/root -v $(pwd):/git alpine/git:v2.26.2 --version` 
+ - Adding a custom 'git' function in ~/.bashrc: 
+~~~
+# User specific aliases and functions
+function git () {
+    (docker run -ti --rm -v ${HOME}:/root -v $(pwd):/git alpine/git:v2.26.2 "$@")
+}
+~~~ 
+ 
