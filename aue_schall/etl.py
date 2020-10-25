@@ -42,7 +42,7 @@ for station in stations:
     print(f"Reading {local_files[station]}...")
     df = pd.read_csv(local_files[station], sep=';', na_filter=False)
     print(f'Calculating ISO8601 time string...')
-    df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich')
+    df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich', ambiguous='infer')
     df.set_index('timestamp', drop=False, inplace=True)
     df['station_id'] = station
     all_data = all_data.append(df, sort=True)
