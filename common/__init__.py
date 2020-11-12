@@ -21,6 +21,22 @@ def upload_ftp(filename, server, user, password, remote_path):
     return
 
 
+# Download files from FTP server
+def download_ftp(files, server, user, password, remote_path, local_path):
+    print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" to local path "{local_path}"...')
+    ftp = FTP(server, user, password)
+    ftp.cwd(remote_path)
+    local_files = []
+    for file in files:
+        local_file = os.path.join(local_path, file)
+        local_files.append(local_file)
+        print(f'Retrieving file {local_file}...')
+        with open(local_file, 'wb') as f:
+            ftp.retrbinary(f"RETR {file}", f.write)
+    ftp.quit()
+    return
+
+
 # Tell Opendatasoft to (re-)publish datasets
 # How to get the dataset_uid from ODS:
 # curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
