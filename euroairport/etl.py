@@ -3,6 +3,10 @@ import pandas as pd
 import os
 import common
 
+print(f'Downloading data from FTP server...')
+common.download_ftp([credentials.data_orig], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                    credentials.ftp_remote_path, credentials.local_path)
+
 import_file_name = os.path.join(credentials.path, credentials.data_orig)
 print(f'Reading dataset from {import_file_name}...')
 df = pd.read_excel(import_file_name, index_col=None)
