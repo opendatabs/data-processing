@@ -39,3 +39,4 @@ print(f'Exporting data to {filename}')
 df_filled.to_csv(filename, index=False)
 
 common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19dashboard')
+print('Job successful!')
