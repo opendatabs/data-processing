@@ -81,8 +81,9 @@ print(f'Concatenating data from all import files ({appended_data})...')
 concatenated_df = pd.concat(appended_data)
 
 print(f'Calculating Abstimmungs-ID based on all data...')
-if 'national' in concatenated_df['Abst_Art'].unique():
-    max_nat_id = int(concatenated_df['Abst_ID'].max())
+nat_df = concatenated_df[concatenated_df['Abst_Art'] == 'national']
+if 'national' in nat_df['Abst_Art'].unique():
+    max_nat_id = int(nat_df['Abst_ID'].max())
     concatenated_df['Abst_ID'] = np.where(concatenated_df['Abst_Art'] == 'kantonal',
                                           max_nat_id + concatenated_df['Abst_ID'].astype('int32'),
                                           concatenated_df['Abst_ID'])
