@@ -97,4 +97,3 @@ concatenated_df.to_csv(export_file_name, index=False)
 
 common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
 print('Job successful!')
-

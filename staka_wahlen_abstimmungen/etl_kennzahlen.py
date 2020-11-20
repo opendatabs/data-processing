@@ -62,7 +62,6 @@ for data_file_name in data_file_names:
         df['Result_Art'] = result_type
         df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
 
-        # df.to_csv(f'c:/dev/workspace/data-processing/staka_wahlen_abstimmungen/data/{sheet_name}.csv', index=False)
         dat_sheets.append(df)
 
     print(f'Creating one dataframe for all Abstimmungen...')
@@ -155,4 +154,3 @@ concatenated_df.to_csv(export_file_name, index=False)
 
 common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
 print('Job successful!')
-
