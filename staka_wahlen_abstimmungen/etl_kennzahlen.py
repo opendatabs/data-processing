@@ -114,9 +114,9 @@ for data_file_name in data_file_names:
     df_kennz.rename(columns={'Unnamed: 0': 'empty',
                                 'Unnamed: 1': 'Gemein_Name',
                                 '\nStimmberechtigte': 'Stimmber_Anz',
-                                'Durchschnittliche\nStimmbeteiligung': 'Stimmbet',
-                                'Durchschnittlicher Anteil der brieflich Stimmenden': 'Briefl_Ant',
-                                'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Elektr_Ant'}, inplace=True)
+                                'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
+                                'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'}, inplace=True)
     print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
     for repl in gemein_replacements:
         df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]
@@ -129,7 +129,7 @@ for data_file_name in data_file_names:
     print('Keeping only necessary columns...')
     df_merged = df_merged.filter(['Gemein_Name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz',
                                   'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID',
-                                  'anteil_ja_stimmen', 'Gemein_ID', 'Stimmbet', 'Briefl_Ant', 'Stimmber_Anz',
+                                  'anteil_ja_stimmen', 'Gemein_ID', 'Durchschn_Stimmbet_pro_Abst_Art', 'Durchschn_Briefl_Ant_pro_Abst_Art', 'Stimmber_Anz',
                                   'Stimmber_Anz_M', 'Stimmber_Anz_F'])
 
     appended_data.append(df_merged)
@@ -147,6 +147,9 @@ if 'national' in nat_df['Abst_Art'].unique():
 
 print('Creating column "Abst_ID_Titel"...')
 concatenated_df['Abst_ID_Titel'] = concatenated_df['Abst_ID'].astype(str) + ': ' + concatenated_df['Abst_Titel']
+
+# print(f'Calculating Stimmbeteiligung...')
+# concatenated_df['Stimmbet'] = concatenated_df['Eingel_Anz'] / concatenated_df['Stimmber_Anz']
 
 export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{abst_date}.csv')
 print(f'Exporting to {export_file_name}...')
