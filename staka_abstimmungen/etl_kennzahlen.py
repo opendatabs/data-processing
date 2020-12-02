@@ -1,4 +1,4 @@
-from staka_wahlen_abstimmungen import credentials
+from staka_abstimmungen import credentials
 import pandas as pd
 import os
 import dateparser
