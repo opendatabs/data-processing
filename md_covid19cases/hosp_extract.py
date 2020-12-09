@@ -33,7 +33,8 @@ soup_spital_bs = BeautifulSoup(req_spital_bs.content, 'html.parser')
 
 for data_spec in credentials.hosp_data_files:
     print(f'Retrieving data from {data_spec["id"]}...')
-    data_from_html = soup_spital_bs.find(id=data_spec['id']).text
+    # data_from_html = soup_spital_bs.find(id=data_spec['id']).text
+    data_from_html = soup_spital_bs.find_all(attrs={'widget_id': data_spec['widget_id']})[0].text
     # print(f'{data_spec["id"]}: {data_from_html}')
     export_file_path = os.path.join(credentials.export_path, data_spec['filename'])
     print(f'Saving data to file {export_file_path}...')
