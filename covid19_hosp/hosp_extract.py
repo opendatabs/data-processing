@@ -1,4 +1,4 @@
-from md_covid19cases import credentials
+from covid19_hosp import credentials
 import common
 import requests
 import os
