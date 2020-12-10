@@ -4,9 +4,9 @@ import requests
 import os
 from bs4 import BeautifulSoup
 
+print(f'Starting processing python script {__file__}...')
 # use session to retain cookie infos
 session = requests.Session()
-
 # extract necessary info from the login form
 login_form_url = credentials.hosp_domain + credentials.hosp_url_path
 print(f'Getting content of login form at {login_form_url}...')

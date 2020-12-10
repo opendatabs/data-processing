@@ -11,6 +11,8 @@ def parse_data_file(file_id):
     return pd.read_csv(filename)
 
 
+print(f'Starting processing python script {__file__}...')
+
 df0 = parse_data_file(0)
 df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
 
