@@ -29,6 +29,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['Day'] = data['DateTimeFrom'].dt.day
     data['Weekday'] = data['DateTimeFrom'].dt.weekday
     data['HourFrom'] = data['DateTimeFrom'].dt.hour
+    data['DayOfYear'] = data['DateTimeFrom'].dt.dayofyear
     # Convert Datetime to GMT / UTC to simplify opendatasoft import
     # todo: Fix - does still not work for all dates
     data['DateTimeFrom'] = (data['DateTimeFrom'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
