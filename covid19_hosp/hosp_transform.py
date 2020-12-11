@@ -7,7 +7,7 @@ from functools import reduce
 
 def parse_data_file(file_id):
     filename = os.path.join(credentials.export_path, credentials.hosp_data_files[file_id]['filename'])
-    print(f'reading file {filename} into dataframe...')
+    print(f'Reading file {filename} into dataframe...')
     return pd.read_csv(filename)
 
 
