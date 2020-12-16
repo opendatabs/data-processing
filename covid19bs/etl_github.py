@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import common
 
+print(f'Starting processing python script {__file__}...')
 sourcefile = 'https://raw.githubusercontent.com/openZH/covid_19/master/fallzahlen_kanton_total_csv_v2/COVID19_Fallzahlen_Kanton_BS_total.csv'
 print(f'Reading date from {sourcefile}...')
 df = pd.read_csv(sourcefile)

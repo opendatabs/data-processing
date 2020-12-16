@@ -4,6 +4,8 @@ import os
 import common
 import numpy as np
 
+
+print(f'Starting processing python script {__file__}...')
 hosp_url = 'https://data.bs.ch/explore/dataset/100109/download/?format=csv'
 print(f'Reading hosp data from {hosp_url}...')
 df_hosp = pd.read_csv(hosp_url, sep=';')
