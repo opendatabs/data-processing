@@ -11,10 +11,10 @@ CMD ["/bin/bash", "/code/data-processing/covid19bs/etl.sh"]
 # cd covid19bs
 # docker build -t covid19bs .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing  --name covid19bs covid19bs
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/MD/ogd_upload:/code/data-processing/covid19_hosp/data_orig --name covid19bs covid19bs
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd covid19bs
 # docker build -t covid19bs --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name covid19bs covid19bs
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing  -v /mnt/OGD-DataExch/MD/ogd_upload:/code/data-processing/covid19_hosp/data --name covid19bs covid19bs
