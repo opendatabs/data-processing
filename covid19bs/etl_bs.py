@@ -22,7 +22,7 @@ df_pubdate = df_pubdate.rename(columns={
 test_file = os.path.join(credentials.path_orig, credentials.filename_test_date)
 print(f'Reading data from {test_file}...')
 df_testdate = pd.read_csv(test_file, sep=';')
-print(f'Keeping only certain case columns...')
+print(f'Renaming columns to match openZH dataset...')
 df_testdate = df_testdate.rename(columns={
     'datum': 'test_date',
     'erholt_bs': 'ncumul_released',
@@ -55,7 +55,7 @@ df_merged['ndiff_released'] = df_diff.ncumul_released
 df_merged['ndiff_deceased'] = df_diff.ncumul_deceased
 df_merged['ndiff_confirmed_non_resident'] = np.nan
 
-print(f'Change column order...')
+print(f'Change column order and keeping only necessary columns...')
 df_merged = df_merged[['date', 'time', 'abbreviation_canton_and_fl', 'ncumul_tested', 'ncumul_conf', 'new_hosp', 'current_hosp',
         'current_icu', 'current_vent', 'ncumul_released', 'ncumul_deceased', 'source', 'current_isolated',
         'current_quarantined', 'ncumul_confirmed_non_resident', 'current_hosp_non_resident',
