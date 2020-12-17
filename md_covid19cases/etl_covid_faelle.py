@@ -7,7 +7,15 @@ print(f'Reading data into dataframe...')
 filename = os.path.join(credentials.path, credentials.filename_faelle)
 df = pd.read_csv(filename, sep=';')
 print(f'Keeping only certain columns...')
-df = df[['datum', 'publikationsdatum', 'faelle_bs_kum', 'faelle_bs', 'inzidenz07_bs', 'inzidenz14_bs', 'summe_07_tage', 'summe_14_tage', 'mittel_07_tage', 'mittel_14_tage']]
+
+df = df[['datum', 'faelle_bs_kum', 'faelle_bs', 'faelle_basel', 'faelle_basel_kum', 'faelle_riehen',
+         'faelle_riehen_kum', 'faelle_bettingen', 'faelle_bettingen_kum', 'inzidenz07_bs', 'inzidenz14_bs',
+         'summe_07_tage_bs', 'summe_14_tage_bs', 'mittel_07_tage_bs', 'mittel_14_tage_bs',
+         # The following columns will be published as soon as they're ready:
+         # 'inzidenz_riehen_07', 'inzidenz_riehen_14',
+         # 'inzidenz_bettingen_07', 'inzidenz_bettingen_14',
+         # 'inzidenz_basel_07', 'inzidenz_basel_14'
+         ]]
 
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_faelle)
 print(f'Exporting csv to {export_filename}')
