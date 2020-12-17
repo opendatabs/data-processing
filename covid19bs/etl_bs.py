@@ -14,10 +14,13 @@ df_pubdate = df_pubdate.rename(columns={
     'datum': 'date',
     'meldezeit': 'time',
     'publizierte_neue_faelle_kum': 'ncumul_conf',
+    'publizierte_neue_faelle': 'ndiff_conf',
     'hospitalisierte_bs': 'current_hosp_resident',
     'hospitalisierte_icu': 'current_icu',
     'hospitalisierte_total': 'current_hosp'
     })
+print(f'Replacing missing times with default value of 00:00...')
+df_pubdate.time = df_pubdate.time.replace('None', '00:00')
 
 test_file = os.path.join(credentials.path_orig, credentials.filename_test_date)
 print(f'Reading data from {test_file}...')
@@ -28,6 +31,8 @@ df_testdate = df_testdate.rename(columns={
     'erholt_bs': 'ncumul_released',
     'gestorbene_bs_kum': 'ncumul_deceased',
     'isoliert_bs': 'current_isolated',
+    'diff_erholt_bs': 'ndiff_released',
+    'diff_gestorbene_bs': 'ndiff_deceased',
     'quarantaene_bs': 'current_quarantined_total',
     'quarantaene_reise_bs': 'current_quarantined_riskareatravel',
     'quarantaene_kontakt_bs': 'current_quarantined'
@@ -57,11 +62,11 @@ df_merged['current_vent'] = np.nan
 #df_merged['ncumul_confirmed_non_resident'] = np.nan
 
 print('Calculating differences between current and previous row...')
-df_diff = df_merged[['ncumul_conf', 'ncumul_released', 'ncumul_deceased', 'current_hosp',
+df_diff = df_merged[[#'ncumul_conf', 'ncumul_released', 'ncumul_deceased', 'current_hosp',
                      'ncumul_confirmed_non_resident']].diff(periods=-1)
-df_merged['ndiff_conf'] = df_diff.ncumul_conf
-df_merged['ndiff_released'] = df_diff.ncumul_released
-df_merged['ndiff_deceased'] = df_diff.ncumul_deceased
+#df_merged['ndiff_conf'] = df_diff.ncumul_conf
+#df_merged['ndiff_released'] = df_diff.ncumul_released
+#df_merged['ndiff_deceased'] = df_diff.ncumul_deceased
 df_merged['ndiff_confirmed_non_resident'] = df_diff.ncumul_confirmed_non_resident
 
 print(f'Change column order and keeping only necessary columns...')
