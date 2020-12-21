@@ -49,13 +49,14 @@ print(f'Joining test and pub datasets...')
 df_merged = pd.merge(df_pubdate, df_testdate, on=['date'], how='outer')
 print(f'Deleting rows to be filled by manual data file...')
 df_trunc = df_merged[df_merged['date'] > latest_manual_date]
+print(f'Setting source of auto-generated data file...')
+df_trunc['source'] = 'https://www.gesundheit.bs.ch'
 
 print(f'Appending generated to manual data file...')
 df_append = df_manual.append(df_trunc)
 
 print(f'Calculating columns...')
 df_append['abbreviation_canton_and_fl'] = 'BS'
-df_append['source'] = 'https://www.gesundheit.bs.ch'
 df_append['current_hosp_non_resident'] = df_append['current_hosp'] - df_append['current_hosp_resident']
 # values for some columns are currently not available
 df_append['ncumul_tested'] = np.nan
