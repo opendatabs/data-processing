@@ -65,7 +65,7 @@ df_append['current_vent'] = np.nan
 
 print('Calculating differences between current and previous row...')
 df_diff = df_append[[#'ncumul_conf', 'ncumul_released', 'ncumul_deceased', 'current_hosp',
-                     'ncumul_confirmed_non_resident']].diff(periods=-1)
+                     'ncumul_confirmed_non_resident']].diff()
 #df_append['ndiff_conf'] = df_diff.ncumul_conf
 #df_append['ndiff_released'] = df_diff.ncumul_released
 #df_append['ndiff_deceased'] = df_diff.ncumul_deceased
