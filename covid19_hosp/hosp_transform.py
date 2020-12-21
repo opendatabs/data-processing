@@ -13,8 +13,15 @@ def parse_data_file(file_id):
 
 print(f'Starting processing python script {__file__}...')
 
+print(f'Counting number of hospitals with data...')
 df0 = parse_data_file(0)
+df = df0.copy()
+df['hospital_count'] = df.drop(columns=['Datum']).count(axis='columns')
+print(f'Counting sum of cases in hospitals...')
 df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
+print(f'Determining if all hospitals have reported their data...')
+df0['hospital_count'] = df['hospital_count']
+df0['data_from_all_hosp'] = df['hospital_count'] >= credentials.target_hosp_count
 
 df1 = parse_data_file(1)
 df1['current_hosp_non_resident'] = df1[credentials.hosp_df1_total_non_resident_columns].sum(axis=1, skipna=True, numeric_only=True)
@@ -30,7 +37,7 @@ df_merged = reduce(lambda left,right: pd.merge(left, right, how='outer', on='Dat
 print(f'Reformatting date...')
 df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d-%m-%Y', errors='coerce')
 print(f'Filtering columns...')
-df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu']]
+df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'data_from_all_hosp']]
 
 export_filename = os.path.join(credentials.export_path,credentials.export_filename_hosp)
 print(f'Exporting merged dataset to file {export_filename}...')
