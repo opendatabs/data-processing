@@ -40,53 +40,51 @@ df_testdate = df_testdate.rename(columns={
 print(f'Calculating pub date...')
 df_testdate['date'] = (pd.to_datetime(df_testdate['test_date']) + pd.Timedelta(days=1)).dt.strftime('%Y-%m-%d')
 
-conf_non_resident_file = os.path.join(credentials.path_orig, credentials.filename_conf_non_resident)
-print(f'Reading data from {conf_non_resident_file}...')
-df_nonresident = pd.read_csv(conf_non_resident_file)
-print(f'Keeping only necessary columns...')
-df_nonresident = df_nonresident[['date', 'ncumul_confirmed_non_resident']]
+manual_data_file = os.path.join(credentials.path_orig, credentials.filename_conf_non_resident)
+print(f'Reading data from {manual_data_file}...')
+df_manual = pd.read_csv(manual_data_file)
+latest_manual_date = df_manual['date'].max()
 
 print(f'Joining test and pub datasets...')
-df_merged0 = pd.merge(df_pubdate, df_testdate, on=['date'], how='outer')
-print(f'Joining the result with the ncumul_non_resident file...')
-df_merged = pd.merge(df_merged0, df_nonresident, on=['date'], how='left')
+df_merged = pd.merge(df_pubdate, df_testdate, on=['date'], how='outer')
+print(f'Deleting rows to be filled by manual data file...')
+df_trunc = df_merged[df_merged['date'] > latest_manual_date]
+
+print(f'Appending generated to manual data file...')
+df_append = df_manual.append(df_trunc)
 
 print(f'Calculating columns...')
-df_merged['abbreviation_canton_and_fl'] = 'BS'
-df_merged['source'] = 'https://www.gesundheit.bs.ch'
-df_merged['current_hosp_non_resident'] = df_merged['current_hosp'] - df_merged['current_hosp_resident']
+df_append['abbreviation_canton_and_fl'] = 'BS'
+df_append['source'] = 'https://www.gesundheit.bs.ch'
+df_append['current_hosp_non_resident'] = df_append['current_hosp'] - df_append['current_hosp_resident']
 # values for some columns are currently not available
-df_merged['ncumul_tested'] = np.nan
-df_merged['new_hosp'] = np.nan
-df_merged['current_vent'] = np.nan
-#df_merged['ncumul_confirmed_non_resident'] = np.nan
+df_append['ncumul_tested'] = np.nan
+df_append['new_hosp'] = np.nan
+df_append['current_vent'] = np.nan
+
 
 print('Calculating differences between current and previous row...')
-df_diff = df_merged[[#'ncumul_conf', 'ncumul_released', 'ncumul_deceased', 'current_hosp',
+df_diff = df_append[[#'ncumul_conf', 'ncumul_released', 'ncumul_deceased', 'current_hosp',
                      'ncumul_confirmed_non_resident']].diff(periods=-1)
-#df_merged['ndiff_conf'] = df_diff.ncumul_conf
-#df_merged['ndiff_released'] = df_diff.ncumul_released
-#df_merged['ndiff_deceased'] = df_diff.ncumul_deceased
-df_merged['ndiff_confirmed_non_resident'] = df_diff.ncumul_confirmed_non_resident
+#df_append['ndiff_conf'] = df_diff.ncumul_conf
+#df_append['ndiff_released'] = df_diff.ncumul_released
+#df_append['ndiff_deceased'] = df_diff.ncumul_deceased
+df_append['ndiff_confirmed_non_resident'] = df_diff.ncumul_confirmed_non_resident
 
 print(f'Change column order and keeping only necessary columns...')
-df_merged = df_merged[['date', 'time', 'abbreviation_canton_and_fl', 'ncumul_tested', 'ncumul_conf', 'new_hosp', 'current_hosp',
+df_append = df_append[['date', 'time', 'abbreviation_canton_and_fl', 'ncumul_tested', 'ncumul_conf', 'new_hosp', 'current_hosp',
         'current_icu', 'current_vent', 'ncumul_released', 'ncumul_deceased', 'source', 'current_isolated',
         'current_quarantined', 'ncumul_confirmed_non_resident', 'current_hosp_non_resident',
         'current_quarantined_riskareatravel', 'current_quarantined_total',
         'current_hosp_resident', 'ndiff_conf', 'ndiff_released', 'ndiff_deceased', 'ndiff_confirmed_non_resident', 'test_date']]
 
 print(f'Removing test_date column for the moment...')
-df_merged = df_merged.drop(columns=['test_date'])
-
-# print(f'Keeping only top row...')
-# df_latest = df_merged.head(1)
-# latest_date = df_latest['date'][0]
+df_append = df_append.drop(columns=['test_date'])
 
 # export_filename = os.path.join(credentials.path, credentials.filename).replace('.csv', f'_{latest_date}.csv')
 export_filename = os.path.join(credentials.path, credentials.filename)
 print(f'Exporting csv to {export_filename}')
-df_merged.to_csv(export_filename, index=False)
+df_append.to_csv(export_filename, index=False)
 
-common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19bs/daily')
+common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19bs/auto_generated')
 print('Job successful!')
