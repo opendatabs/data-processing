@@ -37,7 +37,7 @@ df_merged = reduce(lambda left,right: pd.merge(left, right, how='outer', on='Dat
 print(f'Reformatting date...')
 df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d-%m-%Y', errors='coerce')
 print(f'Filtering columns...')
-df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'data_from_all_hosp']]
+df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp']]
 
 export_filename = os.path.join(credentials.export_path,credentials.export_filename_hosp)
 print(f'Exporting merged dataset to file {export_filename}...')
