@@ -4,7 +4,10 @@ import common
 from verkehrszaehldaten import credentials
 import sys
 import os
+import platform
 
+print(f'Python running on the following architecture:')
+print(f'{platform.architecture()}')
 
 def parse_truncate(path, filename, dest_path, no_file_cp):
     generated_filenames = []
