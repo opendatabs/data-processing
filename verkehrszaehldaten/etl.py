@@ -53,7 +53,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     current_filename = os.path.join(dest_path, 'truncated_' + filename)
     print(f'Creating dataset {current_filename}...')
     latest_year = data['Year'].max()
-    years = range(latest_year - keep_years, latest_year)
+    years = range(latest_year - keep_years, latest_year + 1)
+    print(f'Keeping only data for the following years in the truncated file: {years}...')
     truncated_data = data[data.Year.isin(years)]
     print(f"Saving {current_filename}...")
     truncated_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
