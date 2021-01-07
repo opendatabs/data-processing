@@ -40,7 +40,7 @@ merged_df['timestamp'] = pd.to_datetime(merged_df.datum + ' ' + merged_df.zeit, 
 # Adding a minute to entries with time 23:59 then replacing 23:59 with 24:00 again
 merged_df.timestamp = np.where(merged_df.zeit != '23:59', merged_df.timestamp, merged_df.timestamp + pd.Timedelta(minutes=1))
 merged_df.zeit = np.where(merged_df.zeit == '23:59', '24:00', merged_df.zeit)
-merged_filename = os.path.join(local_path, f'2289_pegel_abfluss_{datetime.today().strftime("%Y-%m-%dT%H-%M-%S")}.csv')
+merged_filename = os.path.join(local_path, f'2289_pegel_abfluss_{datetime.today().strftime("%Y-%m-%d")}.csv')
 merged_df.to_csv(merged_filename, index=False)
 
 common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_remote_dir)
