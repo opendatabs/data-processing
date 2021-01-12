@@ -54,6 +54,13 @@ latest_ods_value = r.json()['records'][0]['fields']['timestamp']
 print(f'Filtering data after {latest_ods_value} for submission to ODS via realtime API...')
 realtime_df = merged_df[merged_df['timestamp'] > latest_ods_value]
 
+# Realtime API bootstrap data:
+# {
+#   "timestamp": "2020-07-28T01:35:00+02:00",
+#   "pegel": "245.16",
+#   "abfluss": "591.2"
+# }
+
 print(f'Pushing {realtime_df.timestamp.count()} rows to ODS realtime API...')
 for index, row in realtime_df.iterrows():
     timestamp_text = row.timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
