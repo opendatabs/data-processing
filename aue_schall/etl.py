@@ -49,7 +49,7 @@ for station in stations:
     dfs[station] = df
 
 all_data = all_data[['station_id', 'timestamp', 'Value', 'Latitude', 'Longitude', 'EUI', 'LocalDateTime']]
-today_data_file = os.path.join(credentials.path, f'schall_aktuell.csv')
+today_data_file = os.path.join(credentials.path, f'schall_{today_string}.csv')
 print(f"Exporting yesterday's and today's data to {today_data_file}...")
 all_data.to_csv(today_data_file, index=False)
 
