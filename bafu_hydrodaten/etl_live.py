@@ -27,7 +27,7 @@ print(f'Abfluss: {abfluss}')
 
 print(f'Posting data to ods...')
 payload = {'zeitstempel': timestamp, 'pegel': pegelstand, 'abflussmenge': abfluss}
-r = requests.post(credentials.ods_push_api_url, json=payload)
+r = requests.post(credentials.ods_test_push_api_url, json=payload)
 print(f'Response status code: {r.status_code}')
 
 #print(pegelstand.tag, pegelstand.attrib)
