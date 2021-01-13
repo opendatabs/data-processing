@@ -42,7 +42,7 @@ def download_ftp(files, server, user, password, remote_path, local_path):
 # curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
 def publish_ods_dataset(dataset_uid, creds):
     print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
-    response = requests.put('https://basel-stadt.opendatasoft.com/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
+    response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
     response.raise_for_status()
 
     # if response.status_code == 200:
