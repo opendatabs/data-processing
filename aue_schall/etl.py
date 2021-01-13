@@ -17,39 +17,38 @@ ftp.cwd(credentials.ftp_read_remote_path)
 print('Retrieving list of files...')
 for file_name, facts in ftp.mlsd():
     # If we only use today's date we might lose some values just before midnight yesterday.
-    if (today_string in file_name or yesterday_string in file_name) and 'OGD' in file_name:
-        print(f"File {file_name} has 'OGD' and (yesterday's or today's date) in its filename. "
-              f'Parsing station name from filename...')
-        station = file_name\
-            .replace(f'_{today_string}.csv', '') \
-            .replace(f'_{yesterday_string}.csv', '') \
-            .replace('airmet_auebs_', '') \
-            .replace('_OGD', '')
-        stations.append(station)
-
-        print(f'Downloading {file_name} for station {station}...')
-        local_file = os.path.join(credentials.path, file_name)
-        with open(local_file, 'wb') as f:
-            ftp.retrbinary(f"RETR {file_name}", f.write)
-
-        local_files[station] = local_file
+    for date_string in [yesterday_string, today_string]:
+        if date_string in file_name and 'OGD' in file_name:
+            print(f"File {file_name} has 'OGD' and '{date_string}' in its filename. "
+                  f'Parsing station name from filename...')
+            station = file_name\
+                .replace(f'_{date_string}.csv', '') \
+                .replace('airmet_auebs_', '') \
+                .replace('_OGD', '')
+            stations.append(station)
+            print(f'Downloading {file_name} for station {station}...')
+            local_file = os.path.join(credentials.path, file_name)
+            with open(local_file, 'wb') as f:
+                ftp.retrbinary(f"RETR {file_name}", f.write)
+            local_files[(station, date_string)] = local_file
 ftp.quit()
 
 dfs = {}
 all_data = pd.DataFrame(columns=['LocalDateTime', 'Value', 'Latitude', 'Longitude', 'EUI'])
 print('Reading csv files into data frames...')
 for station in stations:
-    print(f"Reading {local_files[station]}...")
-    df = pd.read_csv(local_files[station], sep=';', na_filter=False)
-    print(f'Calculating ISO8601 time string...')
-    df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich', ambiguous='infer')
-    df.set_index('timestamp', drop=False, inplace=True)
-    df['station_id'] = station
-    all_data = all_data.append(df, sort=True)
-    dfs[station] = df
+    for date_string in [yesterday_string, today_string]:
+        print(f"Reading {local_files[(station, date_string)]}...")
+        df = pd.read_csv(local_files[(station, date_string)], sep=';', na_filter=False)
+        print(f'Calculating ISO8601 time string...')
+        df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich', ambiguous='infer')
+        df.set_index('timestamp', drop=False, inplace=True)
+        df['station_id'] = station
+        all_data = all_data.append(df, sort=True)
+        dfs[(station, date_string)] = df
 
 all_data = all_data[['station_id', 'timestamp', 'Value', 'Latitude', 'Longitude', 'EUI', 'LocalDateTime']]
-today_data_file = os.path.join(credentials.path, f'schall_{today_string}.csv')
+today_data_file = os.path.join(credentials.path, f'schall_aktuell.csv')
 print(f"Exporting yesterday's and today's data to {today_data_file}...")
 all_data.to_csv(today_data_file, index=False)
 
