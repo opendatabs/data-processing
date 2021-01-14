@@ -45,9 +45,7 @@ def publish_ods_dataset(dataset_uid, creds):
     response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
     if not response.ok:
         print(f'Received http error {response.status_code}:')
-        print(f'response content: {response.content}')
-        print(f'Whole respone object: ')
-        print(f'{response}')
+        print(f'Error message: {response.text}')
         response.raise_for_status()
 
     # if response.status_code == 200:
