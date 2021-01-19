@@ -11,7 +11,7 @@ CMD ["/bin/bash", "/code/data-processing/kapo_geschwindigkeitsmonitoring/etl.sh"
 # cd kapo_geschwindigkeitsmonitoring
 # docker build -t kapo_geschwindigkeitsmonitoring .
 # cd ..
-# docker run -it --rm -v /mnt/OGD-DataExch/KaPo/Geschwindigkeitsmonitoring:/code/data-processing/kapo_geschwindigkeitsmonitoring/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_geschwindigkeitsmonitoring kapo_geschwindigkeitsmonitoring
+# docker run -it --rm -v /mnt/OGD-DataExch/KaPo/VP-Geschwindigkeitsmonitoring:/code/data-processing/kapo_geschwindigkeitsmonitoring/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_geschwindigkeitsmonitoring kapo_geschwindigkeitsmonitoring
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd kapo_geschwindigkeitsmonitoring
