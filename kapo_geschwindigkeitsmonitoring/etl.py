@@ -96,7 +96,7 @@ for index, row in df.iterrows():
                 #todo: fix ambiguous times - setting ambiguous to 'infer' raises an exception for some times
                 raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
                 raw_df = raw_df.drop(columns=['Fahrzeuglänge'])
-                filename_current_measure = os.path.join(credentials.path, 'processed', credentials.filename.replace('.csv', f'_{row["ID"]}.csv'))
+                filename_current_measure = os.path.join(credentials.path, 'processed', credentials.filename.replace('.csv', f'_{row["ID"]}_{raw_df["Richtung ID"].iloc[0]}.csv'))
                 if not os.path.exists(filename_current_measure):
                     print(f'Exporting data file for current measurement to {filename_current_measure}')
                     raw_df.to_csv(filename_current_measure, index=False)
