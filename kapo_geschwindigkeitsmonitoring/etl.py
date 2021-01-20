@@ -53,7 +53,7 @@ for index, row in df.iterrows():
                                       # .replace('Ka', 'KA')
     )
     data_search_string = os.path.join(metadata_file_path, "**/*.txt")
-    raw_files = glob.iglob(data_search_string, recursive=True)
+    raw_files = glob.glob(data_search_string, recursive=True)
     if len(raw_files) == 0:
         print(f'No data files found using search path {data_search_string}...')
     for file in raw_files:
