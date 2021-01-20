@@ -88,6 +88,7 @@ df_metadata.to_csv(metadata_filename, index=False)
 common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
 
 for data_file in files_to_upload:
+    #todo: if upload fails, file will never be uploaded because it is locally present. Thus we have to check if it is already on the FTP Server instead of locally present.
     common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
 
 if len(dfs) == 0:
