@@ -49,6 +49,8 @@ for index, row in df.iterrows():
     metadata_file_path = os.path.join(credentials.detail_data_q_drive, row['Verzeichnis'].replace('Q:\\', '').replace('\\', os.sep).replace('Ka', 'KA'))
     data_search_string = os.path.join(metadata_file_path, "**/*.txt")
     raw_files = glob.glob(data_search_string)
+    if len(raw_files) == 0:
+        print(f'No data files found using search path {data_search_string}...')
     for file in raw_files:
         file = file.replace('\\', '/')
         filename_current_measure = os.path.join(credentials.path, 'processed', str(measure_id) + os.path.basename(file))
