@@ -46,7 +46,7 @@ for index, row in df.iterrows():
     print(f'Processing row {index + 1} of {len(df)}...')
     measure_id = row['ID']
     # print(f'Creating case-sensitive directory to data files...')
-    metadata_file_path = os.path.join(credentials.detail_data_q_drive, row['Verzeichnis'].replace('Q:\\', '').replace('Ka', 'KA'))
+    metadata_file_path = os.path.join(credentials.detail_data_q_drive, row['Verzeichnis'].replace('Q:\\', '').replace('\\', os.path.pathsep).replace('Ka', 'KA'))
     data_search_string = os.path.join(metadata_file_path, "**/*.txt")
     raw_files = glob.glob(data_search_string)
     for file in raw_files:
@@ -96,9 +96,9 @@ else:
     print(f'{len(dfs)} datasets have been processed:')
     new_df = all_df.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
     print(new_df[['Messung-ID', 'Richtung ID']])
-    # all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
-    # print(f'Exporting into one huge csv to {all_data_filename}...')
-    # all_df = all_df.drop(columns=['Fahrzeuglänge'])
-    # all_df.to_csv(all_data_filename, index=False)
+
+    all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
+    print(f'Exporting into one huge csv to {all_data_filename}...')
+    all_df.to_csv(all_data_filename, index=False)
 
 print('Job successful!')
