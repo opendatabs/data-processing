@@ -46,7 +46,7 @@ for index, row in df.iterrows():
     print(f'Processing row {index + 1} of {len(df)}...')
     measure_id = row['ID']
     # print(f'Creating case-sensitive directory to data files...')
-    metadata_file_path = os.path.join(credentials.detail_data_q_drive, row['Verzeichnis'].replace('Q:\\', '').replace('\\', os.path.pathsep).replace('Ka', 'KA'))
+    metadata_file_path = os.path.join(credentials.detail_data_q_drive, row['Verzeichnis'].replace('Q:\\', '').replace('\\', os.sep).replace('Ka', 'KA'))
     data_search_string = os.path.join(metadata_file_path, "**/*.txt")
     raw_files = glob.glob(data_search_string)
     for file in raw_files:
