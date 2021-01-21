@@ -53,7 +53,7 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 # Upload file to FTP Server
 # Retry 4 times with 5s delay in between if BrokenPipeError is raised
-@retry(BrokenPipeError, tries=4, delay=5)
+# @retry(BrokenPipeError, tries=4, delay=5)
 def upload_ftp(filename, server, user, password, remote_path):
     print("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
