@@ -2,13 +2,13 @@ from ftplib import FTP
 import requests
 import os
 import logging
-from tenacity import *
+# from tenacity import *
 
 logger = logging.getLogger(__name__)
 
 # Upload file to FTP Server
-@retry(retry=retry_if_exception_type(BrokenPipeError), wait=wait_fixed(15), stop=stop_after_attempt(3),
-       before_sleep=before_sleep_log(logger, logging.DEBUG))
+# @retry(retry=retry_if_exception_type(BrokenPipeError), wait=wait_fixed(15), stop=stop_after_attempt(3),
+#        before_sleep=before_sleep_log(logger, logging.DEBUG))
 def upload_ftp(filename, server, user, password, remote_path):
     print("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
