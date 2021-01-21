@@ -11,7 +11,7 @@ CMD ["/bin/bash", "/code/data-processing/stata_daily_upload/etl.sh"]
 # cd stata_daily_upload
 # docker build -t stata_daily_upload .
 # cd ..
-# docker run -it --rm -v /mnt/OGD-DataExch/StatA/Bevoelkerung:/code/data-processing/stata_daily_upload/data -v /data/dev/workspace/data-processing:/code/data-processing --name stata_daily_upload stata_daily_upload
+# docker run -it --rm -v /mnt/OGD-DataExch/StatA:/code/data-processing/stata_daily_upload/data -v /data/dev/workspace/data-processing:/code/data-processing --name stata_daily_upload stata_daily_upload
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd stata_daily_upload
