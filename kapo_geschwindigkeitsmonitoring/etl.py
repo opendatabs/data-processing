@@ -51,7 +51,7 @@ for index, row in df.iterrows():
     raw_files = glob.glob(data_search_string, recursive=True)
     if len(raw_files) == 0:
         print(f'No data files found using search path {data_search_string}...')
-    for i, file in raw_files:
+    for i, file in enumerate(raw_files):
         file = file.replace('\\', '/')
         # Does not work - not all files have #1 or #2 in their filename
         # direction_csv = os.path.basename(file).split('#')[1]
