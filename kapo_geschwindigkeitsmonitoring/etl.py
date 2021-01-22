@@ -53,7 +53,8 @@ for index, row in df.iterrows():
         print(f'No data files found using search path {data_search_string}...')
     for file in raw_files:
         file = file.replace('\\', '/')
-        filename_current_measure = os.path.join(credentials.path, 'processed', str(measure_id) + os.path.basename(file))
+        direction_csv = os.path.basename(file).split('#')[1]
+        filename_current_measure = os.path.join(credentials.path, 'processed', str(measure_id) + '_' + direction_csv)
         if os.path.exists(filename_current_measure):
             print(f'Processed csv file already exists, ignoring ({filename_current_measure})...')
         else:
