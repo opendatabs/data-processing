@@ -87,7 +87,7 @@ for dataset in reversed(generated_datasets):
     dataset.to_csv(credentials.path_work + current_filename, sep=';', encoding='utf-8', index=False)
 
 
-@common.retry(ftplib.error_temp, tries=10, delay=10, backoff=1)
+@common.retry((ftplib.error_temp, BrokenPipeError), tries=10, delay=10, backoff=1)
 def upload_ftp(file, path):
     common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, path)
 
