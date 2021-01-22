@@ -51,10 +51,11 @@ for index, row in df.iterrows():
     raw_files = glob.glob(data_search_string, recursive=True)
     if len(raw_files) == 0:
         print(f'No data files found using search path {data_search_string}...')
-    for file in raw_files:
+    for i, file in raw_files:
         file = file.replace('\\', '/')
-        direction_csv = os.path.basename(file).split('#')[1]
-        filename_current_measure = os.path.join(credentials.path, 'processed', str(measure_id) + '_' + direction_csv)
+        # Does not work - not all files have #1 or #2 in their filename
+        # direction_csv = os.path.basename(file).split('#')[1]
+        filename_current_measure = os.path.join(credentials.path, 'processed',  f'{str(measure_id)}_{i}.csv')
         if os.path.exists(filename_current_measure):
             print(f'Processed csv file already exists, ignoring ({filename_current_measure})...')
         else:
