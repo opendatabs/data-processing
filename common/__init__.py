@@ -73,7 +73,7 @@ def upload_ftp(filename, server, user, password, remote_path):
 # Download files from FTP server
 def download_ftp(files, server, user, password, remote_path, local_path):
     print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" to local path "{local_path}"...')
-    ftp = FTP(server, user, password)
+    ftp = ftplib.FTP(server, user, password)
     ftp.cwd(remote_path)
     local_files = []
     for file in files:
