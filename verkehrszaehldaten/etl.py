@@ -9,6 +9,7 @@ import platform
 print(f'Python running on the following architecture:')
 print(f'{platform.architecture()}')
 
+
 def parse_truncate(path, filename, dest_path, no_file_cp):
     generated_filenames = []
     path_to_orig_file = os.path.join(path, filename)
@@ -83,28 +84,15 @@ if 'no_file_copy' in sys.argv:
 
 filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
 
-
-# Retry 4 times
-@common.retry(BrokenPipeError, tries=4, delay=5, backoff=1)
-def upload_ftp(file_to_upload, path):
-    common.upload_ftp(file_to_upload, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, path)
-
-
 # Upload processed and truncated data
 for datafile in filename_orig:
     file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
     if not no_file_copy:
         for file in file_names:
-            upload_ftp(file, '')
-            #common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
 # Upload original unprocessed data
 if not no_file_copy:
     for orig_file in filename_orig:
         path_to_file = os.path.join(credentials.path_dest, orig_file)
-        upload_ftp(path_to_file, '')
-        #common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
-
-
-
-
+        common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')

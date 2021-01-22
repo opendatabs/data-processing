@@ -1,7 +1,6 @@
-from ftplib import FTP
 import requests
 import os
-import logging
+import ftplib
 import time
 from functools import wraps
 
@@ -53,7 +52,7 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 # Upload file to FTP Server
 # Retry 4 times with 5s delay in between if BrokenPipeError is raised
-# @retry(BrokenPipeError, tries=4, delay=5)
+@retry((ftplib.error_temp, BrokenPipeError), tries=6, delay=10, backoff=1)
 def upload_ftp(filename, server, user, password, remote_path):
     print("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
@@ -61,7 +60,7 @@ def upload_ftp(filename, server, user, password, remote_path):
     rel_path, filename_no_path = os.path.split(filename)
     if rel_path != '':
         os.chdir(rel_path)
-    ftp = FTP(server)
+    ftp = ftplib.FTP(server)
     ftp.login(user, password)
     ftp.cwd(remote_path)
     with open(filename_no_path, 'rb') as f:

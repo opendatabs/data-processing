@@ -87,11 +87,6 @@ for dataset in reversed(generated_datasets):
     dataset.to_csv(credentials.path_work + current_filename, sep=';', encoding='utf-8', index=False)
 
 
-@common.retry((ftplib.error_temp, BrokenPipeError), tries=10, delay=10, backoff=1)
-def upload_ftp(file, path):
-    common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, path)
-
-
 if not no_file_copy:
     ftp_server = credentials.ftp_server
     ftp_user = credentials.ftp_user
@@ -100,7 +95,6 @@ if not no_file_copy:
     files_to_upload = generated_filenames
     files_to_upload.append(datafilename)
     for filename in files_to_upload:
-        upload_ftp(file=credentials.path_work + filename, path='')
-        # common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
 print('Job successful.')
