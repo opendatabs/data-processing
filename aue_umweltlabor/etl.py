@@ -1,9 +1,8 @@
 import pandas as pd
 import os
 import sys
-import numpy as np
 from shutil import copy2
-import time
+import ftplib
 import common
 from aue_umweltlabor import credentials
 
@@ -87,6 +86,12 @@ for dataset in reversed(generated_datasets):
     print("Exporting dataset to " + current_filename + '...')
     dataset.to_csv(credentials.path_work + current_filename, sep=';', encoding='utf-8', index=False)
 
+
+@common.retry(ftplib.error_temp, tries=10, delay=10, backoff=1)
+def upload_ftp(file, path):
+    common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, path)
+
+
 if not no_file_copy:
     ftp_server = credentials.ftp_server
     ftp_user = credentials.ftp_user
@@ -95,15 +100,7 @@ if not no_file_copy:
     files_to_upload = generated_filenames
     files_to_upload.append(datafilename)
     for filename in files_to_upload:
-        common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
-
-    # ODS publishig is now done in a separate job "ods_publish"
-    # print('Publishing ODS datasets...')
-    # ods_dataset_uids = ['da_20e9bc', 'da_uxt6fk', 'da_q78iuw', 'da_reclv8']
-    # for datasetuid in ods_dataset_uids:
-    #     common.publish_ods_dataset(datasetuid, credentials)
-    #     print('Waiting 1 minute before sending next publish request to ODS...')
-    #     time.sleep(60)
-
+        upload_ftp(file=credentials.path_work + filename, path='')
+        # common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
 print('Job successful.')
