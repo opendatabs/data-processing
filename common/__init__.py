@@ -49,11 +49,14 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
     return deco_retry
 
-ftp_errors_to_handle = (ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError)
+
+def ftp_errors_to_handle():
+    return ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError
+
 
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
+@retry(ftp_errors_to_handle(), tries=6, delay=10, backoff=1)
 def upload_ftp(filename, server, user, password, remote_path):
     print("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
@@ -73,7 +76,7 @@ def upload_ftp(filename, server, user, password, remote_path):
 
 # Download files from FTP server
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
+@retry(ftp_errors_to_handle(), tries=6, delay=10, backoff=1)
 def download_ftp(files, server, user, password, remote_path, local_path):
     print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" to local path "{local_path}"...')
     ftp = ftplib.FTP(server, user, password)
