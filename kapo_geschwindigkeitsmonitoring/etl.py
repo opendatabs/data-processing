@@ -8,11 +8,12 @@ import psycopg2 as pg
 import cchardet as chardet
 import fileinput
 
+
 # Add missing line breaks for lines with more than 5 columns
-def fix_data(data_file, id, encoding):
-    filename_fixed = os.path.join(credentials.path, 'fixed', id + os.path.basename(data_file))
+def fix_data(filename, id, encoding):
+    filename_fixed = os.path.join(credentials.path, 'fixed', id + os.path.basename(filename))
     # print(f'Fixing data if necessary and writing to {filename_fixed}...')
-    with open(data_file, 'r', encoding=encoding) as input_file, \
+    with open(filename, 'r', encoding=encoding) as input_file, \
             open(filename_fixed, 'w', encoding=encoding) as output_file:
         for i, line in enumerate(input_file):
             if len(line.split('\t')) > 5:
@@ -37,6 +38,7 @@ con.close()
 
 
 dfs = []
+new_df = []
 files_to_upload = []
 # error_df = pd.DataFrame(columns=['line_text_orig', 'line_text_fixed', 'file', 'line_number'])
 empty_df = pd.DataFrame(columns=['ID'])
@@ -52,33 +54,39 @@ for index, row in df.iterrows():
     if len(raw_files) == 0:
         print(f'No data files found using search path {data_search_string}...')
     for i, file in enumerate(raw_files):
+        file_exists = False
         file = file.replace('\\', '/')
         # Does not work - not all files have #1 or #2 in their filename
         # direction_csv = os.path.basename(file).split('#')[1]
         filename_current_measure = os.path.join(credentials.path, 'processed',  f'{str(measure_id)}_{i}.csv')
         if os.path.exists(filename_current_measure):
-            print(f'Processed csv file already exists, ignoring ({filename_current_measure})...')
+            print(f'Processed csv file already exists, will not re-upload to FTP ({filename_current_measure})...')
+            file_exists = True
+
+        # print(f'Detecting encoding of {file}...')
+        with open(file, 'rb') as f:
+            raw_data = f.read()
+            result = chardet.detect(raw_data)
+            enc = result['encoding']
+        print(f'Fixing errors and reading data into dataframe from {file}...')
+        raw_df = pd.read_table(fix_data(data_file=file, id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
+        if raw_df.empty:
+            print(f'Dataframe is empty, ignoring...')
         else:
-            # print(f'Detecting encoding of {file}...')
-            with open(file, 'rb') as f:
-                raw_data = f.read()
-                result = chardet.detect(raw_data)
-                enc = result['encoding']
-            print(f'Fixing errors and reading data into dataframe from {file}...')
-            raw_df = pd.read_table(fix_data(data_file=file, id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
-            if raw_df.empty:
-                print(f'Dataframe is empty, ignoring...')
+            raw_df['Messung-ID'] = measure_id
+            print(f'Calculating timestamp...')
+            raw_df['Datum_Zeit'] = raw_df['Datum'] + ' ' + raw_df['Zeit']
+            # todo: fix ambiguous times - setting ambiguous to 'infer' raises an exception for some times
+            raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
+            raw_df = raw_df.drop(columns=['Fahrzeuglänge'])
+            dfs.append(raw_df)
+            if file_exists:
+                print(f'File already exists, will not export and upload it again...')
             else:
-                raw_df['Messung-ID'] = measure_id
-                dfs.append(raw_df)
-                print(f'Calculating timestamp...')
-                raw_df['Datum_Zeit'] = raw_df['Datum'] + ' ' + raw_df['Zeit']
-                # todo: fix ambiguous times - setting ambiguous to 'infer' raises an exception for some times
-                raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
-                raw_df = raw_df.drop(columns=['Fahrzeuglänge'])
                 print(f'Exporting data file for current measurement to {filename_current_measure}')
                 raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append(filename_current_measure)
+                new_df.append(raw_df)
 
 df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone',
        'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
@@ -94,13 +102,13 @@ for data_file in files_to_upload:
     common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
 
 if len(dfs) == 0:
-    print(f'No new data present.')
+    print(f'No data present.')
 else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
     print(f'{len(dfs)} datasets have been processed:')
-    new_df = all_df.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
-    print(new_df[['Messung-ID', 'Richtung ID']])
+    new_df_details = new_df.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
+    print(new_df_details[['Messung-ID', 'Richtung ID']])
 
     all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
     print(f'Exporting into one huge csv to {all_data_filename}...')
