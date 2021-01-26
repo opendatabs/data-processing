@@ -119,3 +119,15 @@ def publish_ods_dataset(dataset_uid, creds):
     #     print('Problem with OpenDataSoft Management API: ')
     #     print(response)
     #     raise RuntimeError('Problem with OpenDataSoft Management API: ' + response)
+
+
+# Retry with some delay in between if any explicitly defined error is raised
+@retry(http_errors_to_handle(), tries=6, delay=10, backoff=1)
+def get_ods_uid_by_id(ods_id, creds):
+    print(f'Retrieving ods uid for ods id {id}...')
+    response = requests.get(f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid={ods_id}', auth=(creds.user_name, creds.password), proxies={'https': creds.proxy})
+    if not response.ok:
+        print(f'Received http error {response.status_code}:')
+        print(f'Error message: {response.text}')
+        response.raise_for_status()
+    return response.json()['datasets'][0]['dataset_uid']
