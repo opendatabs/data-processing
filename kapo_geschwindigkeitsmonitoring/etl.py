@@ -6,7 +6,6 @@ import common
 from kapo_geschwindigkeitsmonitoring import credentials
 import psycopg2 as pg
 import cchardet as chardet
-import fileinput
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -107,7 +106,8 @@ else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
     print(f'{len(dfs)} datasets have been processed:')
-    new_df_details = new_df.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
+    new_dfs = pd.concat(new_df)
+    new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
     print(new_df_details[['Messung-ID', 'Richtung ID']])
 
     all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
