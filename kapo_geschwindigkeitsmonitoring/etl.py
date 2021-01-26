@@ -106,9 +106,10 @@ else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
     print(f'{len(dfs)} datasets have been processed:')
-    new_dfs = pd.concat(new_df)
-    new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
-    print(new_df_details[['Messung-ID', 'Richtung ID']])
+    if len(new_df) > 0:
+        new_dfs = pd.concat(new_df)
+        new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
+        print(new_df_details[['Messung-ID', 'Richtung ID']])
 
     all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
     print(f'Exporting into one huge csv to {all_data_filename}...')
