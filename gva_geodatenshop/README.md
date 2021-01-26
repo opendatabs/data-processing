@@ -25,10 +25,11 @@
 - Check changes in file Metadata.csv using a diff viewer.
 - If everything seem finde: Commit file to git repo, push to github. 
 - Connect to processing server using ssh, cd to `/data/dev/workspace/data-processing`, issue command `git pull`.
-- Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started. 
-- After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.csv` accordingly, before deploying and harvesting again.
+- Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started.
+- After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.csv` accordingly.
+- Manually change ODS id of newly datasets. 
 - Newly created datasets are not auto-published, but remain private until published in ODS. 
-- Changes in datasets that have been published in ODS before are automatically published when the ODS harvester has finished running. 
+- Changes in datasets that have been published in ODS before are automatically published when the ODS harvester has finished running.
 - Repeat until happy with the results ;-)
 
 ### Publishing Dataset
