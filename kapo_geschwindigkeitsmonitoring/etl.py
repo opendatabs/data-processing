@@ -69,7 +69,7 @@ for index, row in df.iterrows():
             result = chardet.detect(raw_data)
             enc = result['encoding']
         print(f'Fixing errors and reading data into dataframe from {file}...')
-        raw_df = pd.read_table(fix_data(data_file=file, id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
+        raw_df = pd.read_table(fix_data(filename=file, id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
         if raw_df.empty:
             print(f'Dataframe is empty, ignoring...')
         else:
