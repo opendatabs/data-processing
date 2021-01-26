@@ -10,29 +10,36 @@ yesterday_string = datetime.strftime(datetime.today() - timedelta(1), '%Y%m%d')
 local_files = {}
 stations = []
 
-print(f'Connecting to FTP Server to read data...')
-ftp = ftplib.FTP(credentials.ftp_read_server, credentials.ftp_read_user, credentials.ftp_read_pass)
-print(f'Changing to remote dir {credentials.ftp_read_remote_path}...')
-ftp.cwd(credentials.ftp_read_remote_path)
-print('Retrieving list of files...')
-for file_name, facts in ftp.mlsd():
-    # If we only use today's date we might lose some values just before midnight yesterday.
-    for date_string in [yesterday_string, today_string]:
-        if date_string in file_name and 'OGD' in file_name:
-            print(f"File {file_name} has 'OGD' and '{date_string}' in its filename. "
-                  f'Parsing station name from filename...')
-            station = file_name\
-                .replace(f'_{date_string}.csv', '') \
-                .replace('airmet_auebs_', '') \
-                .replace('_OGD', '')
-            stations.append(station)
-            print(f'Downloading {file_name} for station {station}...')
-            local_file = os.path.join(credentials.path, file_name)
-            with open(local_file, 'wb') as f:
-                ftp.retrbinary(f"RETR {file_name}", f.write)
-            local_files[(station, date_string)] = local_file
-ftp.quit()
 
+# Retry with some delay in between if any explicitly defined error is raised
+@common.retry(common.ftp_errors_to_handle(), tries=6, delay=10, backoff=1)
+def download_data_files():
+    global date_string, station
+    ftp = ftplib.FTP(credentials.ftp_read_server, credentials.ftp_read_user, credentials.ftp_read_pass)
+    print(f'Changing to remote dir {credentials.ftp_read_remote_path}...')
+    ftp.cwd(credentials.ftp_read_remote_path)
+    print('Retrieving list of files...')
+    for file_name, facts in ftp.mlsd():
+        # If we only use today's date we might lose some values just before midnight yesterday.
+        for date_string in [yesterday_string, today_string]:
+            if date_string in file_name and 'OGD' in file_name:
+                print(f"File {file_name} has 'OGD' and '{date_string}' in its filename. "
+                      f'Parsing station name from filename...')
+                station = file_name \
+                    .replace(f'_{date_string}.csv', '') \
+                    .replace('airmet_auebs_', '') \
+                    .replace('_OGD', '')
+                stations.append(station)
+                print(f'Downloading {file_name} for station {station}...')
+                local_file = os.path.join(credentials.path, file_name)
+                with open(local_file, 'wb') as f:
+                    ftp.retrbinary(f"RETR {file_name}", f.write)
+                local_files[(station, date_string)] = local_file
+    ftp.quit()
+
+
+print(f'Connecting to FTP Server to read data...')
+download_data_files()
 dfs = {}
 all_data = pd.DataFrame(columns=['LocalDateTime', 'Value', 'Latitude', 'Longitude', 'EUI'])
 print('Reading csv files into data frames...')
