@@ -118,7 +118,7 @@ for data_file in files_to_upload:
     common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
 
 if len(dfs) == 0:
-    print(f'No data present.')
+    print(f'No raw data present at all.')
 else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
@@ -127,6 +127,8 @@ else:
         new_dfs = pd.concat(new_df)
         new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
         print(new_df_details[['Messung-ID', 'Richtung ID']])
+    else:
+        print(f'No new raw data found...')
 
     all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
     print(f'Exporting into one huge csv to {all_data_filename}...')
