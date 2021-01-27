@@ -35,6 +35,31 @@ print(f'Reading data into dataframe...')
 df = psql.read_sql('SELECT *, ST_AsGeoJSON(the_geom) as the_geom_json, ST_AsEWKT(the_geom) as the_geom_EWKT, ST_AsText(the_geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
 con.close()
 
+df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone',
+       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
+       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
+      ]]
+metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
+print(f'Exporting data to {metadata_filename}...')
+df_metadata.to_csv(metadata_filename, index=False)
+common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+
+print(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
+# Manual stacking of the columns for Richtung 1 and 2
+df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1']]
+df_richtung1 = df_richtung1.rename(columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85', 'Ue_Quote_1': 'Ue_Quote'})
+df_richtung1['Richtung ID'] = 1
+df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2']]
+df_richtung2 = df_richtung2.rename(columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85', 'Ue_Quote_2': 'Ue_Quote'})
+df_richtung2['Richtung ID'] = 2
+df_richtung = df_richtung1.append(df_richtung2)
+df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
+# Changing column order
+df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote']]
+richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
+print(f'Exporting richtung data to {richtung_filename}...')
+df_richtung.to_csv(richtung_filename, index=False)
+common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
 
 dfs = []
 new_df = []
@@ -86,33 +111,6 @@ for index, row in df.iterrows():
                 raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append(filename_current_measure)
                 new_df.append(raw_df)
-
-df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone',
-       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
-       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
-      ]]
-metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
-print(f'Exporting data to {metadata_filename}...')
-df_metadata.to_csv(metadata_filename, index=False)
-common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
-
-print(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
-# Manual stacking of the columns for Richtung 1 and 2
-df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1']]
-df_richtung1 = df_richtung1.rename(columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85', 'Ue_Quote_1': 'Ue_Quote'})
-df_richtung1['Richtung ID'] = 1
-df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2']]
-df_richtung2 = df_richtung2.rename(columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85', 'Ue_Quote_2': 'Ue_Quote'})
-df_richtung2['Richtung ID'] = 2
-df_richtung = df_richtung1.append(df_richtung2)
-df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
-# Changing column order
-df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote']]
-richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
-print(f'Exporting richtung data to {richtung_filename}...')
-df_richtung.to_csv(richtung_filename, index=False)
-common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
-
 
 
 for data_file in files_to_upload:
