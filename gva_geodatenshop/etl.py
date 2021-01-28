@@ -226,6 +226,7 @@ for index, row in joined_data.iterrows():
                         'language': 'de',
                         'publizierende-organisation': row['publizierende_organisation'],
                         'tags': row['tags'],
+                        'geodaten-modellbeschreibung': row['modellbeschreibung'],
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
                         'schema_file': schema_file
                     })
