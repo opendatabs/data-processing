@@ -210,7 +210,7 @@ for index, row in joined_data.iterrows():
                         # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
                         # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
                         # 'license': 'https://creativecommons.org/licenses/by/3.0/ch/deed.de',
-                        'attributions': 'Quelle: Geodaten Kanton Basel-Stadt',
+                        'attributions': 'Geodaten Kanton Basel-Stadt',
                         # For some datasets, keyword is a list
                         # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                         # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
