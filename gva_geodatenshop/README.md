@@ -10,7 +10,7 @@
 - Add a new row, paste contents of column "ordnerpfad". 
 - Set "import" to "True". 
 - Column "shapes": Define which shp files shape(s) should be imported. Leave empty to import all shapes to explore the shapes in ODS before publication. Each shape will be imported as a new ODS dataset. Do not add file extension. Multiple shapes can be separated with semicolon. Do not add a semicolon at the end of a list of shape names. If empty, all shapes will be imported. 
-- Column "tile_nice": Replace shape names as title of ODS datasets. multiple entries are separated with semicolon. If empty, shape name is used. If one shape gets a title_nice, all shapes must get a title_nice. 
+- Column "tile_nice": Replace shape names as title of ODS datasets. Multiple entries are separated with semicolon. If empty, shape name is used. If one shape gets a title_nice, all shapes must get a title_nice. 
 - Column "ods_id": Dataset id that will be used in ODS. Currently, this id is not automatically set and is just used for reference. 
 - Column "beschreibung": Add a description text for the shape(s) in question. If no description is given, the description by GVA is used. 
 - Column "referenz": Add URL that will be set as "Reference" in ODS. Currently this is used to add links to "https://models.geo.bs.ch/..." (which is planned to be imported automatically in the future). 
