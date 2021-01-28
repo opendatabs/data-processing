@@ -44,16 +44,19 @@ if 'no_file_copy' in sys.argv:
 else:
     print('Proceeding with copying files...')
 
-datafile = os.path.join(credentials.path_orig, 'ogd_datensaetze.csv')
-print(f'Reading data file form {datafile}...')
-data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252')
 
-metadatafile = os.path.join(credentials.path_root, 'Metadata.csv')
-print(f'Reading data file form {metadatafile}...')
-metadata = pd.read_csv(metadatafile, sep=';', na_filter=False, encoding='cp1252')
+def open_csv(file_path):
+    print(f'Reading data file form {file_path}...')
+    return pd.read_csv(file_path, sep=';', na_filter=False, encoding='cp1252')
 
-# join data and metadata (if any)
-joined_data = pd.merge(data, metadata, on='ordnerpfad', how='left')
+
+data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
+metadata = open_csv(os.path.join(credentials.path_root, 'Metadata.csv'))
+pub_org = open_csv(os.path.join(credentials.path_root, 'Publizierende_organisation.csv'))
+
+print(f'Left-joining data, metadata and publizierende_organisation...')
+data_meta = pd.merge(data, metadata, on='ordnerpfad', how='left')
+joined_data = pd.merge(data_meta, pub_org, on='kontakt_dienststelle', how='left')
 joined_data.to_csv(os.path.join(credentials.path_root, '_alldata.csv'), index=False, sep=';')
 
 metadata_for_ods = []
@@ -85,6 +88,7 @@ for index, row in joined_data.iterrows():
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
 
             # Determine shp_to_load_number - the index of the current shape that should be loaded to ods
+            shp_to_load_number = 0
             if len(shapes_to_load) == 0:
                 # Load all shapes - use index of current shape in list of all shapes in the current folder
                 shp_to_load_number = shp_number
@@ -220,6 +224,8 @@ for index, row in joined_data.iterrows():
                         # todo: give time in UTC
                         'modified': modified,
                         'language': 'de',
+                        'publizierende-organisation': row['publizierende_organisation'],
+
                         'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
                         'schema_file': schema_file
                     })
