@@ -17,4 +17,4 @@ CMD ["/bin/bash", "/code/data-processing/gva_geodatenshop/etl.sh"]
 # cd gva_geodatenshop
 # docker build -t gva-geodatenshop --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "\\bs.ch\dfs\BS\BVD\BVD-MOB-90 Datenaustausch temp\MOB-StatA":/code/data-processing/gva_geodatenshop/data_orig -v "C:\dev\workspace\data-processing":/code/data-processing --name gva-geodatenshop gva-geodatenshop
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "//bs.ch/dfs/BS/PD/PD-StatA-FST-OGD-Data-GVA":/code/data-processing/gva_geodatenshop/data_orig -v "C:\dev\workspace\data-processing":/code/data-processing --name gva-geodatenshop gva-geodatenshop
