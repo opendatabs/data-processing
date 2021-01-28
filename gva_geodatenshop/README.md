@@ -1,13 +1,23 @@
 # Harvester for GVA Gedodata files
 
 ## Publish existing GVA datasets
-### Filling out file Metadata.csv
+### Identify dataset to publish in ogd_datensaetze.csv
 - GVA exports all available geo datasets every morning into `{file File Server Root}\PD\PD-StatA-FST-OGD-Data-GVA\ogd_datensaetze.csv`.
 - Open in Excel and find the dataset to be published as OGD.
-- Copy contents of column "ordnerpfad"
-- Open new empty file in Excel, import file [Metadata.csv](./Metadata.csv) in Excel.
+  Copy contens of column "kontakt_dienststelle" into clipboard. 
+- Copy contents of column "ordnerpfad" into clipboard. 
+
+### Defin Column "Publizierende Organisation"
+- Open File [Publizierende_organisation.csv](./Publizierende_organisation.csv) in Excel.
+- Search worksheet for the value of "kontakt_dienststelle" in clipboard. 
+- If not found, add a new row that defines the top-level organisation of the "kontakt_dienststelle" of the dataset to be published. 
+- Save, check for unwanted changes using a diff tool, fix if necessary. 
+- Commit, push to github. 
+
+### Fill out file Metadata.csv
+- Open file [Metadata.csv](./Metadata.csv) in Excel.
 - Reformat column "dcat.issued" in Excel to use custom format "JJJJ-MM-TT". 
-- Add a new row, paste contents of column "ordnerpfad". 
+- Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
 - Column "shapes": Define which shp files shape(s) should be imported. Leave empty to import all shapes to explore the shapes in ODS before publication. Each shape will be imported as a new ODS dataset. Do not add file extension. Multiple shapes can be separated with semicolon. Do not add a semicolon at the end of a list of shape names. If empty, all shapes will be imported. 
 - Column "tile_nice": Replace shape names as title of ODS datasets. Multiple entries are separated with semicolon. If empty, shape name is used. If one shape gets a title_nice, all shapes must get a title_nice. 
