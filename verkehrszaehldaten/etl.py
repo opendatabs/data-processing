@@ -5,6 +5,7 @@ from verkehrszaehldaten import credentials
 import sys
 import os
 import platform
+import sqlite3
 
 print(f'Python running on the following architecture:')
 print(f'{platform.architecture()}')
@@ -38,10 +39,18 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     # todo: Fix - does still not work for all dates
     data['DateTimeFrom'] = (data['DateTimeFrom'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
     data['DateTimeTo'] = (data['DateTimeTo'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
+    print(f'Retrieving Zst_id as the first word in SiteName...')
+    data['Zst_id'] = data['SiteName'].str.split().str[0]
     current_filename = os.path.join(dest_path, 'converted_' + filename)
     print(f"Saving {current_filename}...")
     data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
+
+    db_filename = os.path.join(dest_path, filename.replace('.csv', '.db'))
+    print(f'Saving into sqlite db {db_filename}...')
+    conn = sqlite3.connect(db_filename)
+    data.to_sql(name=db_filename.replace('.db', ''), con=conn, if_exists='replace', )
+
 
     # group by SiteName, get latest rows (data is already sorted by date and time) so that ODS limit
     # of 250K is not exceeded
