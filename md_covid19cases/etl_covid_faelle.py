@@ -13,7 +13,11 @@ df = df[['datum', 'faelle_bs_kum', 'faelle_bs', 'faelle_basel', 'faelle_basel_ku
          'summe_07_tage_bs', 'summe_14_tage_bs', 'mittel_07_tage_bs', 'mittel_14_tage_bs',
          'inzidenz_riehen_07', 'inzidenz_riehen_14', 'inzidenz_bettingen_07', 'inzidenz_bettingen_14',
          'inzidenz_basel_07', 'inzidenz_basel_14']]
-
+print(f'Calculating day of week...')
+df['date'] = pd.to_datetime(df['datum'], format='%Y-%m-%d')
+df['weekday_nr'] = df['date'].dt.weekday
+df['weekday'] = df['date'].dt.day_name('de')
+df = df.drop(columns=['date'])
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_faelle)
 print(f'Exporting csv to {export_filename}')
 df.to_csv(export_filename, index=False)
