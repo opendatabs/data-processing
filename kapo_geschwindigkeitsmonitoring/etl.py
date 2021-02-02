@@ -122,8 +122,9 @@ if len(dfs) == 0:
 else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
-    print(f'{len(dfs)} datasets have been processed:')
+    print(f'{len(dfs)} datasets have been processed in total. ')
     if len(new_df) > 0:
+        print(f'{len(new_df)} new datasets have been processed:')
         new_dfs = pd.concat(new_df)
         new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
         print(new_df_details[['Messung-ID', 'Richtung ID']])
