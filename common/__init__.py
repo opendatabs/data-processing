@@ -51,7 +51,7 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 
 def ftp_errors_to_handle():
-    return ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError, EOFError
+    return ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError, EOFError, FileNotFoundError
 
 
 # Upload file to FTP Server
