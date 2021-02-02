@@ -16,7 +16,7 @@ df = df[['datum', 'faelle_bs_kum', 'faelle_bs', 'faelle_basel', 'faelle_basel_ku
 print(f'Calculating day of week...')
 df['date'] = pd.to_datetime(df['datum'], format='%Y-%m-%d')
 df['weekday_nr'] = df['date'].dt.weekday
-df['weekday'] = df['date'].dt.day_name('de')
+df['weekday'] = df['date'].dt.day_name()
 df = df.drop(columns=['date'])
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_faelle)
 print(f'Exporting csv to {export_filename}')

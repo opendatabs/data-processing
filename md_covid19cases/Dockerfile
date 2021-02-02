@@ -3,11 +3,6 @@ WORKDIR /code
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 COPY requirements.txt .
-RUN apt-get update && apt-get -y install locales
-RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
 RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
 CMD ["/bin/bash", "/code/data-processing/md_covid19cases/etl.sh"]
 
