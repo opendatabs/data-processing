@@ -1,4 +1,3 @@
-import requests
 import json
 from datetime import datetime
 from parkendd import credentials
@@ -7,7 +6,7 @@ import common
 
 apiUrl = 'https://api.parkendd.de/Basel'
 print(f'Getting latest data from {apiUrl}...')
-response = requests.get(apiUrl)
+response = common.requests_get(url=apiUrl)
 
 
 print(f'Parsing json...')

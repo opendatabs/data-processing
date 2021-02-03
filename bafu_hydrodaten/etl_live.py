@@ -1,7 +1,5 @@
-import json
+import common
 from xml.etree import ElementTree
-
-import pandas as pd
 import requests
 
 from bafu_hydrodaten import credentials
@@ -9,7 +7,7 @@ from bafu_hydrodaten import credentials
 print(f'Connecting to HTTPS Server to read data...')
 
 local_path = 'bafu_hydrodaten/data'
-r = requests.get(credentials.https_live_url, auth=(credentials.https_user, credentials.https_pass))
+r = common.requests_get(url=credentials.https_live_url, auth=(credentials.https_user, credentials.https_pass))
 
 print(f'Parsing response XML...')
 root = ElementTree.fromstring(r.content)

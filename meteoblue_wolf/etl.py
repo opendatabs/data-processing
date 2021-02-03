@@ -1,5 +1,3 @@
-import os
-import requests
 from requests.auth import AuthBase
 from Crypto.Hash import HMAC  # use package pycryptodome
 from Crypto.Hash import SHA256
@@ -8,7 +6,6 @@ import json
 from meteoblue_wolf import credentials
 import pandas as pd
 import common
-import ast
 
 
 # Class to perform HMAC encoding
@@ -33,7 +30,7 @@ class AuthHmacMetosGet(AuthBase):
 
 def call_fieldclimate_api(apiRoute, publicKey, privateKey, filename):
     auth = AuthHmacMetosGet(apiRoute, publicKey, privateKey)
-    response = requests.get(apiURI + apiRoute, headers={'Accept': 'application/json'}, auth=auth)
+    response = common.requests_get(url=apiURI + apiRoute, headers={'Accept': 'application/json'}, auth=auth)
     parsed = json.loads(response.text)
     # print(response.json())
     pretty_resp = json.dumps(parsed, indent=4, sort_keys=True)

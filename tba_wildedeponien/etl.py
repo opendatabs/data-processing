@@ -1,6 +1,5 @@
 import pandas as pd
 import geopandas as gpd
-import requests
 from datetime import datetime, timedelta
 import os
 import common
@@ -17,7 +16,7 @@ api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&from={from_tim
 # api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&format=csv'
 
 print(f'Retrieving data since {from_timestamp} from API call to "{api_url}"...')
-r = requests.get(api_url, auth=(credentials.api_user, credentials.api_password))
+r = common.requests_get(url=api_url, auth=(credentials.api_user, credentials.api_password))
 
 if r.status_code == 200:
     if len(r.text) == 0:
