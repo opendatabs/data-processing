@@ -54,6 +54,16 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
     return deco_retry
 
 
+@retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
+def requests_get(*args, **kwargs):
+    return requests.get(*args, **kwargs)
+
+
+@retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
+def requests_post(*args, **kwargs):
+    return requests.post(*args, **kwargs)
+
+
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)

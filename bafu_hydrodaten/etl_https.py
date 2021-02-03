@@ -7,16 +7,6 @@ import common
 from bafu_hydrodaten import credentials
 
 
-@common.retry(common.http_errors_to_handle, tries=6, delay=10, backoff=1)
-def requests_get(url, auth=None):
-    return requests.get(url=url, auth=auth)
-
-
-@common.retry(common.http_errors_to_handle, tries=6, delay=10, backoff=1)
-def requests_post(url, json, auth=None):
-    return requests.post(url=url, json=json, auth=auth)
-
-
 print(f'Connecting to HTTPS Server to read data...')
 local_path = 'bafu_hydrodaten/data'
 files = [credentials.abfluss_file, credentials.pegel_file]
