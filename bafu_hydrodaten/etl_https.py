@@ -6,8 +6,18 @@ import pandas as pd
 import common
 from bafu_hydrodaten import credentials
 
-print(f'Connecting to HTTPS Server to read data...')
 
+@common.retry(common.http_errors_to_handle(), tries=6, delay=10, backoff=1)
+def requests_get(url, auth=None):
+    return requests.get(url=url, auth=auth)
+
+
+@common.retry(common.http_errors_to_handle(), tries=6, delay=10, backoff=1)
+def requests_post(url, json, auth=None):
+    return requests.post(url=url, json=json, auth=auth)
+
+
+print(f'Connecting to HTTPS Server to read data...')
 local_path = 'bafu_hydrodaten/data'
 files = [credentials.abfluss_file, credentials.pegel_file]
 local_files = []
@@ -16,9 +26,10 @@ for file in files:
     local_files.append(local_file)
     print(f'Retrieving file {local_file}...')
     with open(local_file, 'wb') as f:
-        url = f'{credentials.https_url}/{file}'
-        print(f'Reading data from {url}...')
-        r = requests.get(url, auth=(credentials.https_user, credentials.https_pass))
+        uri = f'{credentials.https_url}/{file}'
+        print(f'Reading data from {uri}...')
+        # r = requests.get(url, auth=(credentials.https_user, credentials.https_pass))
+        r = requests_get(url=uri, auth=(credentials.https_user, credentials.https_pass))
         f.write(r.content)
 
 
@@ -47,7 +58,8 @@ merged_df.to_csv(merged_filename, index=False)
 common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_remote_dir)
 
 print(f'Retrieving latest record from ODS...')
-r = requests.get('https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
+# r = requests.get('https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
+r = requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
 r.raise_for_status()
 latest_ods_value = r.json()['records'][0]['fields']['timestamp']
 
@@ -66,7 +78,8 @@ for index, row in realtime_df.iterrows():
     timestamp_text = row.timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
     payload = {'timestamp': timestamp_text, 'pegel': row.pegel, 'abfluss': row.abfluss}
     print(f'Pushing row {index} with with the following data to ODS: {payload}')
-    r = requests.post(credentials.ods_live_push_api_url, json=payload)
+    # r = requests.post(credentials.ods_live_push_api_url, json=payload)
+    r = requests_post(url=credentials.ods_live_push_api_url, json=payload)
     r.raise_for_status()
 
 print('Job successful!')
