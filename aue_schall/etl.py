@@ -12,7 +12,7 @@ stations = []
 
 
 # Retry with some delay in between if any explicitly defined error is raised
-@common.retry(common.ftp_errors_to_handle(), tries=6, delay=10, backoff=1)
+@common.retry(common.ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def download_data_files():
     global date_string, station
     ftp = ftplib.FTP(credentials.ftp_read_server, credentials.ftp_read_user, credentials.ftp_read_pass)

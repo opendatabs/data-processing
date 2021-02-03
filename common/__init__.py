@@ -5,6 +5,9 @@ import time
 from functools import wraps
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
+http_errors_to_handle = ConnectionResetError
+ftp_errors_to_handle = ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError, EOFError, FileNotFoundError
+
 
 # Source: https://github.com/saltycrane/retry-decorator/blob/master/retry_decorator.py
 # BSD license: https://github.com/saltycrane/retry-decorator/blob/master/LICENSE
@@ -51,13 +54,9 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
     return deco_retry
 
 
-def ftp_errors_to_handle():
-    return ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError, EOFError, FileNotFoundError
-
-
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(ftp_errors_to_handle(), tries=6, delay=10, backoff=1)
+@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def upload_ftp(filename, server, user, password, remote_path):
     print("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
@@ -77,7 +76,7 @@ def upload_ftp(filename, server, user, password, remote_path):
 
 # Download files from FTP server
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(ftp_errors_to_handle(), tries=6, delay=10, backoff=1)
+@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def download_ftp(files, server, user, password, remote_path, local_path):
     print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" to local path "{local_path}"...')
     ftp = ftplib.FTP(server, user, password)
@@ -93,16 +92,12 @@ def download_ftp(files, server, user, password, remote_path, local_path):
     return
 
 
-def http_errors_to_handle():
-    return ConnectionResetError
-
-
 # Tell Opendatasoft to (re-)publish datasets
 # How to get the dataset_uid from ODS:
 # curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
 
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(http_errors_to_handle(), tries=6, delay=10, backoff=1)
+@retry(http_errors_to_handle, tries=6, delay=10, backoff=1)
 def publish_ods_dataset(dataset_uid, creds):
     print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
     response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
@@ -123,7 +118,7 @@ def publish_ods_dataset(dataset_uid, creds):
 
 
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(http_errors_to_handle(), tries=6, delay=10, backoff=1)
+@retry(http_errors_to_handle, tries=6, delay=10, backoff=1)
 def get_ods_uid_by_id(ods_id, creds):
     print(f'Retrieving ods uid for ods id {id}...')
     response = requests.get(f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid={ods_id}', auth=(creds.user_name, creds.password), proxies={'https': creds.proxy})
