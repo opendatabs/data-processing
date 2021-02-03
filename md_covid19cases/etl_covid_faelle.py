@@ -17,6 +17,7 @@ print(f'Calculating day of week...')
 df['date'] = pd.to_datetime(df['datum'], format='%Y-%m-%d')
 df['weekday_nr'] = df['date'].dt.weekday
 df['weekday'] = df['date'].dt.day_name()
+df['wochentag'] = df['weekday_nr'].apply(lambda x: common.weekdays_german[x])
 df = df.drop(columns=['date'])
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_faelle)
 print(f'Exporting csv to {export_filename}')

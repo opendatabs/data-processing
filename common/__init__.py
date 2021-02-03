@@ -4,6 +4,7 @@ import ftplib
 import time
 from functools import wraps
 
+weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 
 # Source: https://github.com/saltycrane/retry-decorator/blob/master/retry_decorator.py
 # BSD license: https://github.com/saltycrane/retry-decorator/blob/master/LICENSE
