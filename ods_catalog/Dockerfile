@@ -9,7 +9,7 @@ CMD ["python3", "-m", "ods_catalog.etl"]
 
 # Docker commands to create image and run container:
 # cd ods_catalog
-# docker build -t ods-ods_catalog .
+# docker build -t ods_catalog .
 # cd ..
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ods-ods_catalog ods_catalog python3 -m ods_catalog.etl
 
