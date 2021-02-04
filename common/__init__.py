@@ -2,10 +2,11 @@ import requests
 import os
 import ftplib
 import time
+import urllib3
 from functools import wraps
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
-http_errors_to_handle = ConnectionResetError
+http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError
 ftp_errors_to_handle = ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError, EOFError, FileNotFoundError
 
 
