@@ -56,4 +56,5 @@ LN\OeVTeilhaltestellen;True;;Teilhaltestellen des öffentlichen Verkehrs;100065;D
 DS\Denkmalverzeichnis;True;;;;;;"Geographie;Raum und Umwelt;Verwaltung";"Denkmal;Altbau;Schutz;Abriss;Umbau;Bau;Baustelle";staedtebau-und-architektur-kanton-basel-stadt;;;2019-11-06;
 AF\Abfuhrzonen;True;;Abfuhrzonen (Gemeinde Basel);100095;;;"Raum und Umwelt;Öffentliche Ordnung und Sicherheit;Verwaltung";"Abfall;Recycling;Grüngut";;http://purl.org/cld/freq/irregular;;2020-08-24;opendata.swiss
 DM\DatenmarktAdressen;True;;;100114;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
+DM\DatenmarktGebaeude;True;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
 BS\Liegenschaften;True;;;;;;;;;;;;
