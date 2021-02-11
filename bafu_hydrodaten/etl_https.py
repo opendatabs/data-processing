@@ -1,5 +1,4 @@
 from datetime import datetime
-import requests
 import numpy as np
 import os
 import pandas as pd
@@ -8,7 +7,7 @@ from bafu_hydrodaten import credentials
 
 
 print(f'Connecting to HTTPS Server to read data...')
-local_path = 'bafu_hydrodaten/data'
+local_path = os.path.join(credentials.path, 'bafu_hydrodaten/data')
 files = [credentials.abfluss_file, credentials.pegel_file]
 local_files = []
 for file in files:
