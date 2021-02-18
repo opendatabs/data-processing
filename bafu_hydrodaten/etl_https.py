@@ -18,7 +18,7 @@ for file in files:
         uri = f'{credentials.https_url}/{file}'
         print(f'Reading data from {uri}...')
         # r = requests.get(url, auth=(credentials.https_user, credentials.https_pass))
-        r = common.requests_get(url=uri, auth=(credentials.https_user, credentials.https_pass))
+        r = common.requests_get(url=uri, verify=False, auth=(credentials.https_user, credentials.https_pass))
         f.write(r.content)
 
 
@@ -48,7 +48,7 @@ common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user,
 
 print(f'Retrieving latest record from ODS...')
 # r = requests.get('https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
-r = common.requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
+r = common.requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp', verify=False)
 r.raise_for_status()
 latest_ods_value = r.json()['records'][0]['fields']['timestamp']
 
@@ -68,7 +68,7 @@ for index, row in realtime_df.iterrows():
     payload = {'timestamp': timestamp_text, 'pegel': row.pegel, 'abfluss': row.abfluss}
     print(f'Pushing row {index} with with the following data to ODS: {payload}')
     # r = requests.post(credentials.ods_live_push_api_url, json=payload)
-    r = common.requests_post(url=credentials.ods_live_push_api_url, json=payload)
+    r = common.requests_post(url=credentials.ods_live_push_api_url, json=payload, verify=False)
     r.raise_for_status()
 
 print('Job successful!')
