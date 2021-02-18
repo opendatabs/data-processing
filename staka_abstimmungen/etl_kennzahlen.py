@@ -120,8 +120,8 @@ for data_file_name in data_file_names:
     print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
     for repl in gemein_replacements:
         df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]
-    print(f'Removing duplicate column stimmber_anz from {kennz_sheet_name}...')
-    df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
+    # print(f'Removing duplicate column stimmber_anz from {kennz_sheet_name}...')
+    # df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
     print('Joining all sheets into one...')
     frames_to_join = [all_df, df_kennz, df_stimmber]
     df_merged = reduce(lambda left,right: pd.merge(left,right,on=['Gemein_Name'], how='inner'), frames_to_join)
