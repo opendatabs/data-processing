@@ -56,7 +56,7 @@ print('Filtering stations with altitude not set to null, only those are live...'
 live_df = df.loc[pd.notnull(df['position.altitude'])]
 
 
-filename_val = f"{credentials.path}csv/val/stations--{datetime.now().replace(':', '-').replace(' ', 'T')}.csv"
+filename_val = f"{credentials.path}csv/val/stations--{datetime.now().strftime('%Y-%m-%dT%H-%M-%S%z')}.csv"
 print(f'Saving live stations to {filename_val}...')
 live_val = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'config.timezone_offset', 'meta.time', 'meta.rh', 'meta.airTemp', 'meta.rain24h.vals', 'meta.rain24h.sum', 'meta.rain48h.sum']]
 print("Getting last hour's precipitation...")
