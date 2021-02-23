@@ -55,8 +55,9 @@ print('Filtering stations with altitude not set to null, only those are live...'
 #                             & ~stations_frame['name.custom'].str.contains('A2')]
 live_df = df.loc[pd.notnull(df['position.altitude'])]
 
-
-filename_val = f"{credentials.path}csv/val/stations--{datetime.now().strftime('%Y-%m-%dT%H-%M-%S%z')}.csv"
+now = datetime.now()
+folder = now.strftime('%Y-%m')
+filename_val = f"{credentials.path}csv/val/stations--{now.strftime('%Y-%m-%dT%H-%M-%S%z')}.csv"
 print(f'Saving live stations to {filename_val}...')
 live_val = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'config.timezone_offset', 'meta.time', 'meta.rh', 'meta.airTemp', 'meta.rain24h.vals', 'meta.rain24h.sum', 'meta.rain48h.sum']]
 print("Getting last hour's precipitation...")
@@ -86,6 +87,7 @@ live_map.to_csv(filename_stations_map, index=False)
 
 
 common.upload_ftp(filename_stations_map, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'map')
-common.upload_ftp(filename_val, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'val')
+common.ensure_ftp_dir(credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, f'val/{folder}')
+common.upload_ftp(filename_val, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, f'val/{folder}')
 
 print('Job successful!')
