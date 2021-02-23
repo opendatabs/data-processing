@@ -104,6 +104,21 @@ def download_ftp(files, server, user, password, remote_path, local_path):
     return
 
 
+@retry(ftp_errors_to_handle, tries=6, delay=2, backoff=1)
+def ensure_ftp_dir(server, user, password, folder):
+    print(f'Connecting to FTP server {server} to make sure folder {folder} exists...')
+    ftp = ftplib.FTP(server, user, password)
+    try:
+        ftp.mkd(folder)
+    except ftplib.all_errors as e:
+        if str(e).split(None, 1)[1] == "Can't create directory: File exists":
+            print(f'Folder (or file with same name) exists already, doing nothing. ')
+        else:
+            raise(e)
+    finally:
+        ftp.quit()
+
+
 # Tell Opendatasoft to (re-)publish datasets
 # How to get the dataset_uid from ODS:
 # curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
