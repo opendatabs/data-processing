@@ -1,4 +1,5 @@
 from datetime import datetime
+import urllib3
 import numpy as np
 import os
 import pandas as pd
@@ -48,6 +49,7 @@ common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user,
 
 print(f'Retrieving latest record from ODS...')
 # r = requests.get('https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
+urllib3.disable_warnings()
 r = common.requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp', verify=False)
 r.raise_for_status()
 latest_ods_value = r.json()['records'][0]['fields']['timestamp']
