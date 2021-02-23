@@ -2,6 +2,7 @@ from requests.auth import AuthBase
 from Crypto.Hash import HMAC  # use package pycryptodome
 from Crypto.Hash import SHA256
 from datetime import datetime
+import pathlib
 import json
 from meteoblue_wolf import credentials
 import pandas as pd
@@ -57,7 +58,9 @@ live_df = df.loc[pd.notnull(df['position.altitude'])]
 
 now = datetime.now()
 folder = now.strftime('%Y-%m')
-filename_val = f"{credentials.path}csv/val/stations--{now.strftime('%Y-%m-%dT%H-%M-%S%z')}.csv"
+local_folder = f'{credentials.path}csv/val/{folder}'
+pathlib.Path(local_folder).mkdir(parents=True, exist_ok=True)
+filename_val = f"{local_folder}/stations--{now.strftime('%Y-%m-%dT%H-%M-%S%z')}.csv"
 print(f'Saving live stations to {filename_val}...')
 live_val = live_df[['name.original', 'name.custom', 'dates.min_date', 'dates.max_date', 'config.timezone_offset', 'meta.time', 'meta.rh', 'meta.airTemp', 'meta.rain24h.vals', 'meta.rain24h.sum', 'meta.rain48h.sum']]
 print("Getting last hour's precipitation...")
