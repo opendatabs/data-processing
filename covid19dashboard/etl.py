@@ -3,9 +3,15 @@ import pandas as pd
 import os
 import common
 
+
+@common.retry(common.http_errors_to_handle, tries=6, delay=10, backoff=1)
+def read_data_from_url(uri):
+    return pd.read_csv(uri)
+
+
 sourcefile = 'https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv'
-print(f'Reading date from {sourcefile}...')
-df = pd.read_csv(sourcefile)
+print(f'Reading data from {sourcefile}...')
+df = read_data_from_url(sourcefile)
 print('Getting rid of unnecessary columns...')
 df.drop(columns=['time', 'source', 'ncumul_tested', 'new_hosp', 'current_vent'], inplace=True)
 
