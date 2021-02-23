@@ -6,7 +6,7 @@ import pandas as pd
 import common
 from bafu_hydrodaten import credentials
 
-
+urllib3.disable_warnings()
 print(f'Connecting to HTTPS Server to read data...')
 local_path = os.path.join(credentials.path, 'bafu_hydrodaten/data')
 files = [credentials.abfluss_file, credentials.pegel_file]
@@ -49,7 +49,6 @@ common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user,
 
 print(f'Retrieving latest record from ODS...')
 # r = requests.get('https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
-urllib3.disable_warnings()
 r = common.requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp', verify=False)
 r.raise_for_status()
 latest_ods_value = r.json()['records'][0]['fields']['timestamp']
