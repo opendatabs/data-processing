@@ -16,7 +16,7 @@ r = common.requests_get('https://data.bs.ch/api/records/1.0/search/?dataset=1000
 r.raise_for_status()
 latest_ods_timestamp = r.json()['records'][0]['fields']['zeitstempel']
 print(f'Latest timestamp in ODS is {latest_ods_timestamp}.')
-print(f'Latest timestamp in retrieved new data is {df.timestamp.max().strftime("%d.%m.%Y %H:%M:%S")}')
+print(f'Latest timestamp in retrieved new data is {df.timestamp.max().strftime("%Y.%m.%dT%H:%M:%S%z")}')
 print(f'Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API...')
 realtime_df = df[df['timestamp'] > latest_ods_timestamp]
 
