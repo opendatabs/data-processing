@@ -5,6 +5,7 @@ import time
 import urllib3
 import ssl
 from functools import wraps
+import pandas as pd
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
@@ -152,3 +153,8 @@ def get_ods_uid_by_id(ods_id, creds):
         print(f'Error message: {response.text}')
         response.raise_for_status()
     return response.json()['datasets'][0]['dataset_uid']
+
+
+@retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
+def pandas_read_csv(*args, **kwargs):
+    return pd.read_csv(*args, **kwargs)
