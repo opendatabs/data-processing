@@ -16,7 +16,7 @@ df_bs['positivity_rate'] = df_bs['entries_pos'] / df_bs['entries']
 df_bs = df_bs.rename(columns={'entries_neg': 'negative_tests', 'entries_pos': 'positive_tests', 'entries': 'total_tests'})
 print(f'Calculating columns...')
 df_bs['dayofweek'] = pd.to_datetime(df_bs['datum']).dt.dayofweek + 1
-df_bs['woche'] = pd.to_datetime(df_bs['datum']).dt.week
+df_bs['woche'] = pd.to_datetime(df_bs['datum']).dt.isocalendar().week
 export_file_name = os.path.join(credentials.path, credentials.file_name)
 print(f'Exporting to file {export_file_name}...')
 df_bs.to_csv(export_file_name, index=False)
