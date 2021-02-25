@@ -1,9 +1,9 @@
-FROM python:3.7.6
+FROM python:3.9.2
 WORKDIR /code
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
-# RUN python3 -m pip install --user --no-cache-dir pandas
-RUN python3 -m pip install --user --no-cache-dir requests
+COPY requirements.txt .
+RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
 CMD ["/bin/bash", "/code/data-processing/stata_veranstaltungen/etl.sh"]
 
 

@@ -1,4 +1,4 @@
-FROM python:3.7.6
+FROM python:3.9.2
 WORKDIR /code/data-processing
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
