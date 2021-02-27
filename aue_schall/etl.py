@@ -90,6 +90,8 @@ today_data_file = os.path.join(credentials.path, f'schall_aktuell.csv')
 print(f"Exporting yesterday's and today's data to {today_data_file}...")
 all_data.to_csv(today_data_file, index=False)
 
+# todo: Simplify code by pushing yesterday's and today's data to ODS in one batch (as in lufthygiene_pm25)
+
 print('Creating stations file from current data file...')
 df_stations = all_data.drop_duplicates(['EUI'])[['station_id', 'Latitude', 'Longitude', 'EUI']]
 stations_file = os.path.join(credentials.path, 'stations/stations.csv')
