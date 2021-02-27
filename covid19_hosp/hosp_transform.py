@@ -21,8 +21,10 @@ print(f'Creating file copy, then replacing "0" with empty string in raw csv file
 shutil.copy2(filename, filename.replace('.csv', '_orig.csv'))
 with open(filename, 'r') as f:
     raw_data = f.read()
-# Replace 0 with '' when followed by comma or newline individually
-replaced_data1 = re.sub(',0\n', ',\n', raw_data)
+print(f'Add newline at the end of the file, just to be sure...')
+newline_data = raw_data + '\n'
+print(f'Replace 0 with "" when followed by comma or newline...')
+replaced_data1 = re.sub(',0\n', ',\n', newline_data)
 replaced_data2 = re.sub(',0,', ',,', replaced_data1)
 with open(filename, 'w') as f:
     f.write(replaced_data2)
