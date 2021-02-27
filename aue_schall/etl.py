@@ -52,36 +52,38 @@ for station in stations:
     latest_ods_timestamp = r.json()['records'][0]['fields']['timestamp']
     print(f'Latest timestamp is {latest_ods_timestamp}.')
     for date_string in [yesterday_string, today_string]:
-        print(f"Reading {local_files[(station, date_string)]}...")
-        df = pd.read_csv(local_files[(station, date_string)], sep=';', na_filter=False)
-        print(f'Calculating ISO8601 time string...')
-        df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich', ambiguous='infer')
-        df.set_index('timestamp', drop=False, inplace=True)
-        df['station_id'] = station
-        all_data = all_data.append(df, sort=True)
-        dfs[(station, date_string)] = df
+        try:
+            print(f"Reading {local_files[(station, date_string)]}...")
+            df = pd.read_csv(local_files[(station, date_string)], sep=';', na_filter=False)
+            print(f'Calculating ISO8601 time string...')
+            df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich', ambiguous='infer')
+            df.set_index('timestamp', drop=False, inplace=True)
+            df['station_id'] = station
+            all_data = all_data.append(df, sort=True)
+            dfs[(station, date_string)] = df
 
-        print(f'Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API...')
-        realtime_df = df[df['timestamp'] > latest_ods_timestamp]
+            print(f'Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API...')
+            realtime_df = df[df['timestamp'] > latest_ods_timestamp]
 
-        # Realtime API bootstrap data:
-        # {
-        #     "eui": "0004A30B00F156E2",
-        #     "timestamp": "2021-02-22T09:51:00+00:00",
-        #     "value": 24.1,
-        #     "longitude": 7.594749,
-        #     "latitude": 47.567005,
-        #     "station_id": "Feldbergstrasse"
-        # }
+            # Realtime API bootstrap data:
+            # {
+            #     "eui": "0004A30B00F156E2",
+            #     "timestamp": "2021-02-22T09:51:00+00:00",
+            #     "value": 24.1,
+            #     "longitude": 7.594749,
+            #     "latitude": 47.567005,
+            #     "station_id": "Feldbergstrasse"
+            # }
 
-        print(f'Pushing {realtime_df.timestamp.count()} rows to ODS realtime API...')
-        for index, row in realtime_df.iterrows():
-            timestamp_text = row.timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
-            payload = {'eui': row.EUI, 'timestamp': timestamp_text, 'value': row.Value, 'longitude': row.Longitude, 'latitude': row.Latitude, 'station_id': row.station_id}
-            print(f'Pushing row {index} with with the following data to ODS: {payload}')
-            r = common.requests_post(url=credentials.ods_live_push_api_url, json=payload, verify=False)
-            r.raise_for_status()
-
+            print(f'Pushing {realtime_df.timestamp.count()} rows to ODS realtime API...')
+            for index, row in realtime_df.iterrows():
+                timestamp_text = row.timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
+                payload = {'eui': row.EUI, 'timestamp': timestamp_text, 'value': row.Value, 'longitude': row.Longitude, 'latitude': row.Latitude, 'station_id': row.station_id}
+                print(f'Pushing row {index} with with the following data to ODS: {payload}')
+                r = common.requests_post(url=credentials.ods_live_push_api_url, json=payload, verify=False)
+                r.raise_for_status()
+        except KeyError as e:
+            print(f'No file found with keys {(station, date_string)}, ignoring...')
 
 all_data = all_data[['station_id', 'timestamp', 'Value', 'Latitude', 'Longitude', 'EUI', 'LocalDateTime']]
 today_data_file = os.path.join(credentials.path, f'schall_aktuell.csv')
