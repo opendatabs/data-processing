@@ -8,6 +8,8 @@ context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/co
 hosp_url = context_json['sources']['individual']['csv']['daily']['hospCapacity']
 print(f'Reading current csv into data frame...')
 df = common.pandas_read_csv(hosp_url)
+print(f'Keeping only non-forward-propagated data...')
+df = df[df.type_variant == 'nfp']
 print(f'Calculating columns...')
 df.date = pd.to_datetime(df['date'])
 df['dayofweek'] = df.date.dt.dayofweek
