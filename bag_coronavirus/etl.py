@@ -1,4 +1,4 @@
-from bag_coronavirus_tests import credentials
+from bag_coronavirus import credentials
 import os
 import common
 import pandas as pd
