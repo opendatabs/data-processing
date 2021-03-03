@@ -20,7 +20,6 @@ df_bs['woche'] = pd.to_datetime(df_bs['datum']).dt.isocalendar().week
 export_file_name = os.path.join(credentials.path, credentials.file_name)
 print(f'Exporting to file {export_file_name}...')
 df_bs.to_csv(export_file_name, index=False)
-print(f'Uploading to FTP...')
 common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag_coronavirus_tests')
 
 print(f'Job successful!')
