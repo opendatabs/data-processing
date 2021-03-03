@@ -27,7 +27,7 @@ pcr_antigen_path = os.path.join(credentials.path, 'covid19_testPcrAntigen.csv')
 print(f'Reading pcr/antigen csv from {pcr_antigen_path} into data frame...')
 df_pcr_antigen = pd.read_csv(pcr_antigen_path)
 df_type = df_pcr_antigen[['datum', 'entries', 'entries_neg', 'entries_pos', 'nachweismethode', 'geoRegion']]
-df_type_bs = df_type[df_type.geoRegion == 'BS']
+df_type_bs = df_type.query("geoRegion == 'BS'").copy(deep=False)
 df_type_bs['positivity_rate'] = df_type_bs.entries_pos / df_type_bs.entries
 df_type_bs['positivity_rate_percent'] = df_type_bs.positivity_rate * 100
 df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries', 'entries_neg', 'entries_pos', 'positivity_rate', 'positivity_rate_percent'])
@@ -36,6 +36,7 @@ df_pivot.columns = ["_".join(str(c) for c in col) for col in df_pivot.columns.va
 df_pivot = df_pivot.reset_index()
 df_pivot = df_pivot.drop(columns=['geoRegion'])
 df_bs_merged = df_bs.merge(df_pivot, how='left', on='datum')
+df_bs_merged = df_bs_merged.sort_values(by='datum', ascending='False')
 
 export_file_name_merged = os.path.join(credentials.path, 'covid19_tests_bs_all_nachweismethode.csv')
 print(f'Exporting file with data per nachweismethode added to file {export_file_name_merged}...')
