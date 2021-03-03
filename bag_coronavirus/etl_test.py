@@ -36,7 +36,7 @@ df_pivot.columns = ["_".join(str(c) for c in col) for col in df_pivot.columns.va
 df_pivot = df_pivot.reset_index()
 df_pivot = df_pivot.drop(columns=['geoRegion'])
 df_bs_merged = df_bs.merge(df_pivot, how='left', on='datum')
-df_bs_merged = df_bs_merged.sort_values(by='datum', ascending='False')
+df_bs_merged = df_bs_merged.sort_values(by='datum', ascending=False)
 
 export_file_name_merged = os.path.join(credentials.path, 'covid19_tests_bs_all_nachweismethode.csv')
 print(f'Exporting file with data per nachweismethode added to file {export_file_name_merged}...')
