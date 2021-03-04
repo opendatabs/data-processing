@@ -135,101 +135,107 @@ for index, row in joined_data.iterrows():
 
                 # In some geocat URLs there's a tab character, remove it.
                 geocat_uid = row['geocat'].rsplit('/', 1)[-1].replace('\t', '')
-                metadata_file = os.path.join(credentials.path_root, 'metadata', geocat_uid + '.json')
-                cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -s -k > ' + metadata_file
-                print('Running curl to get geocat.ch metadata: ')
-                resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
-                print('Processing geocat.ch metadata file ' + metadata_file + '...')
-                with open(metadata_file, 'r') as json_file:
-                    print('Adding shape ' + shpfilename_noext + ' to harverster csv...')
-                    json_string = json_file.read()
-                    metadata = json.loads(json_string)
+                geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/0.1/records/{geocat_uid}'
+                print(f'Getting metadata from {geocat_url}...')
+                r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'}, proxies={'https': credentials.proxy})
+                metadata = json.loads(r.json())
 
-                    modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
-                    schema_file = ''
+                # metadata_file = os.path.join(credentials.path_root, 'metadata', geocat_uid + '.json')
+                # cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -s -k > ' + metadata_file
+                # print('Running curl to get geocat.ch metadata: ')
+                # resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
+                # print('Processing geocat.ch metadata file ' + metadata_file + '...')
+                # with open(metadata_file, 'r') as json_file:
+                #     print('Adding shape ' + shpfilename_noext + ' to harverster csv...')
+                #     json_string = json_file.read()
+                #     metadata = json.loads(json_string)
+                #     # ...continue code on this level...
 
-                    # Get the correct title and ods_id from the list of titles in the title_nice column by checking the index of the current shpfile_noext in the shapes column
-                    # Current shape explicitly set in column "shapes"
-                    if shpfilename_noext in shapes_to_load:
-                        title = str(row['titel_nice']).split(';')[shp_to_load_number]
-                        ods_id = str(row['ods_id']).split(';')[shp_to_load_number]
-                        if row['schema_file'] == 'True':
-                            schema_file = ods_id + '.csv'
-                    # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
-                    elif len(shapes_to_load) == 0 and len(str(row['titel_nice'])) > 0 and len(shpfiles) == 1:
-                        title = str(row['titel_nice'])
-                        ods_id = str(row['ods_id'])
-                        if row['schema_file'] == 'True':
-                            schema_file = ods_id + '.csv'
-                    # Multiple shape files present
-                    elif len(shpfiles) > 1:
-                        title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
-                    # 1 shape file present
-                    else:
-                        title = row['titel'].replace(':', ': ')
-                        ods_id = row['ods_id']
+                modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
+                schema_file = ''
 
-                    # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
-                    geocat_description_textgroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
-                    geocat_description = geocat_description_textgroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(geocat_description_textgroup, list) else geocat_description_textgroup['gmd:LocalisedCharacterString']['#text']
-                    # Check if a description to the current shape is given in Metadata.csv
-                    description_list = str(row['beschreibung']).split(';')
-                    description = description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
+                # Get the correct title and ods_id from the list of titles in the title_nice column by checking the index of the current shpfile_noext in the shapes column
+                # Current shape explicitly set in column "shapes"
+                if shpfilename_noext in shapes_to_load:
+                    title = str(row['titel_nice']).split(';')[shp_to_load_number]
+                    ods_id = str(row['ods_id']).split(';')[shp_to_load_number]
+                    if row['schema_file'] == 'True':
+                        schema_file = ods_id + '.csv'
+                # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
+                elif len(shapes_to_load) == 0 and len(str(row['titel_nice'])) > 0 and len(shpfiles) == 1:
+                    title = str(row['titel_nice'])
+                    ods_id = str(row['ods_id'])
+                    if row['schema_file'] == 'True':
+                        schema_file = ods_id + '.csv'
+                # Multiple shape files present
+                elif len(shpfiles) > 1:
+                    title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
+                # 1 shape file present
+                else:
+                    title = row['titel'].replace(':', ': ')
+                    ods_id = row['ods_id']
 
-                    if str(row['dcat_ap_ch.domain']) != '':
-                        dcat_ap_ch_domain = str(row['dcat_ap_ch.domain'])
-                    else:
-                        dcat_ap_ch_domain = 'geoinformation-kanton-basel-stadt'
+                # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
+                geocat_description_textgroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
+                geocat_description = geocat_description_textgroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(geocat_description_textgroup, list) else geocat_description_textgroup['gmd:LocalisedCharacterString']['#text']
+                # Check if a description to the current shape is given in Metadata.csv
+                description_list = str(row['beschreibung']).split(';')
+                description = description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
 
-                    # Add entry to harvester file
-                    metadata_for_ods.append({
-                        'ods_id': ods_id,
-                        'name':  geocat_uid + ':' + shpfilename_noext,
-                        'title': title,
-                        'description': description if len(description) > 0 else geocat_description,
-                        # Only add nonempty strings as references
-                        'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
-                        'theme': str(row['theme']),
-                        'keyword': str(row['keyword']),
-                        'dcat_ap_ch.domain': dcat_ap_ch_domain,
-                        'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
-                        'dcat.contact_name': 'Fachstelle für OGD Basel-Stadt',
-                        'dcat.contact_email': 'opendata@bs.ch',
-                        # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
-                        # 'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                        #                                  'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'])
-                        #                      + ' '
-                        #                      + geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text',
-                        #                                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text']),
-                        # 'dcat.contact_email': geocat_value(row['geocat_email']),
-                        # 'dcat.contact_email': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
-                        #                                   'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
-                        #                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
-                        # 'dcat.created': geocat_value('geocat_created'),
-                        'dcat.created': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
-                                                    'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
-                        'dcat.creator': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                                                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
-                        'dcat.accrualperiodicity': row['dcat.accrualperiodicity'],
-                        # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
-                        # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
-                        # 'license': 'https://creativecommons.org/licenses/by/3.0/ch/deed.de',
-                        'attributions': 'Geodaten Kanton Basel-Stadt',
-                        # For some datasets, keyword is a list
-                        # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
-                        # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
-                        # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                        'publisher': row['kontakt_dienststelle'] if row['kontakt_dienststelle'] != "Zentrale Dienste" else "Erziehungsdepartement - Zentrale Dienste",
-                        'dcat.issued': row['dcat.issued'],
-                        # todo: give time in UTC
-                        'modified': modified,
-                        'language': 'de',
-                        'publizierende-organisation': row['publizierende_organisation'],
-                        'tags': row['tags'],
-                        'geodaten-modellbeschreibung': row['modellbeschreibung'],
-                        'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
-                        'schema_file': schema_file
-                    })
+                if str(row['dcat_ap_ch.domain']) != '':
+                    dcat_ap_ch_domain = str(row['dcat_ap_ch.domain'])
+                else:
+                    dcat_ap_ch_domain = 'geoinformation-kanton-basel-stadt'
+
+                # Add entry to harvester file
+                metadata_for_ods.append({
+                    'ods_id': ods_id,
+                    'name':  geocat_uid + ':' + shpfilename_noext,
+                    'title': title,
+                    'description': description if len(description) > 0 else geocat_description,
+                    # Only add nonempty strings as references
+                    'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
+                    'theme': str(row['theme']),
+                    'keyword': str(row['keyword']),
+                    'dcat_ap_ch.domain': dcat_ap_ch_domain,
+                    'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
+                    'dcat.contact_name': 'Fachstelle für OGD Basel-Stadt',
+                    'dcat.contact_email': 'opendata@bs.ch',
+                    # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
+                    # 'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                    #                                  'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'])
+                    #                      + ' '
+                    #                      + geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text',
+                    #                                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text']),
+                    # 'dcat.contact_email': geocat_value(row['geocat_email']),
+                    # 'dcat.contact_email': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
+                    #                                   'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
+                    #                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
+                    # 'dcat.created': geocat_value('geocat_created'),
+                    'dcat.created': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
+                                                'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
+                    'dcat.creator': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                                                'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
+                    'dcat.accrualperiodicity': row['dcat.accrualperiodicity'],
+                    # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
+                    # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
+                    # 'license': 'https://creativecommons.org/licenses/by/3.0/ch/deed.de',
+                    'attributions': 'Geodaten Kanton Basel-Stadt',
+                    # For some datasets, keyword is a list
+                    # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
+                    # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
+                    # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
+                    'publisher': row['kontakt_dienststelle'] if row['kontakt_dienststelle'] != "Zentrale Dienste" else "Erziehungsdepartement - Zentrale Dienste",
+                    'dcat.issued': row['dcat.issued'],
+                    # todo: give time in UTC
+                    'modified': modified,
+                    'language': 'de',
+                    'publizierende-organisation': row['publizierende_organisation'],
+                    'tags': row['tags'],
+                    'geodaten-modellbeschreibung': row['modellbeschreibung'],
+                    'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
+                    'schema_file': schema_file
+                })
             else:
                 print('No shapes to load in this topic.')
 
