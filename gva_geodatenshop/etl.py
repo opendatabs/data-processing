@@ -138,6 +138,7 @@ for index, row in joined_data.iterrows():
                 geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/0.1/records/{geocat_uid}'
                 print(f'Getting metadata from {geocat_url}...')
                 r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'}, proxies={'https': credentials.proxy})
+                r.raise_for_status()
                 metadata = r.json()
 
                 # metadata_file = os.path.join(credentials.path_root, 'metadata', geocat_uid + '.json')
