@@ -4,8 +4,6 @@ import os
 import sys
 import glob
 import zipfile
-import subprocess
-import json
 import common
 from gva_geodatenshop import credentials
 
@@ -157,6 +155,7 @@ for index, row in joined_data.iterrows():
 
                 # Get the correct title and ods_id from the list of titles in the title_nice column by checking the index of the current shpfile_noext in the shapes column
                 # Current shape explicitly set in column "shapes"
+                ods_id = ''
                 if shpfilename_noext in shapes_to_load:
                     title = str(row['titel_nice']).split(';')[shp_to_load_number]
                     ods_id = str(row['ods_id']).split(';')[shp_to_load_number]
