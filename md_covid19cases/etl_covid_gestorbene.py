@@ -16,7 +16,7 @@ df['Date'] = df.Date_of_publication
 df['Source'] = 'https://www.gesundheit.bs.ch'
 df['Area'] = 'Canton_BS'
 df['NewDeaths'] = 1
-df['CaseNumberPerDay'] = df.groupby(['date_of_death']).cumcount() + 1
+df['CaseNumberPerDay'] = df.groupby(['Date_of_death']).cumcount() + 1
 
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_gestorbene)
 print(f'Exporting data to {export_filename}...')
