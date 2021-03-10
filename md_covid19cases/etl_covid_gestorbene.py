@@ -6,13 +6,14 @@ import os
 filename = os.path.join(credentials.path, credentials.filename_gestorbene)
 print(f'Reading data from {filename}, renaming columns and performing some calculations...')
 df = pd.read_csv(filename, sep=';')
-df = df.rename(columns={'sterbe_datum': 'date_of_death',
-                        'melde_datum': 'date_of_publication',
+df = df.rename(columns={'sterbe_datum': 'Date_of_death',
+                        'melde_datum': 'Date_of_publication',
                         'alter': 'AgeYear',
                         'geschlecht': 'Gender',
                         'vorerkrankung': 'PreExistingCond',
                         'verstorbene_kumuliert': 'ncumul_deceased'})
-df['source'] = 'https://www.gesundheit.bs.ch'
+df['Date'] = df.date_of_publication
+df['Source'] = 'https://www.gesundheit.bs.ch'
 df['Area'] = 'Canton_BS'
 df['NewDeaths'] = 1
 df['CaseNumberPerDay'] = df.groupby(['date_of_death']).cumcount() + 1
