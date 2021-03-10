@@ -12,7 +12,7 @@ df = df.rename(columns={'sterbe_datum': 'Date_of_death',
                         'geschlecht': 'Gender',
                         'vorerkrankung': 'PreExistingCond',
                         'verstorbene_kumuliert': 'ncumul_deceased'})
-df['Date'] = df.date_of_publication
+df['Date'] = df.Date_of_publication
 df['Source'] = 'https://www.gesundheit.bs.ch'
 df['Area'] = 'Canton_BS'
 df['NewDeaths'] = 1
