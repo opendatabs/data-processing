@@ -7,7 +7,7 @@ filename = os.path.join(credentials.path, credentials.filename_gestorbene)
 print(f'Reading data from {filename}, renaming columns and performing some calculations...')
 df = pd.read_csv(filename, sep=';')
 df = df.rename(columns={'sterbe_datum': 'Date_of_death',
-                        'melde_datum': 'Date_of_publication',
+                        'melde_datum': 'Date',
                         'sterbe_alter': 'AgeYear',
                         'geschlecht': 'Gender',
                         'vorerkrankung': 'PreExistingCond',
@@ -19,7 +19,7 @@ df['NewDeaths'] = 1
 df['CaseNumberPerDay'] = df.groupby(['Date_of_death']).cumcount() + 1
 
 # Limit columns to be exported
-df = df[['Date_of_death', 'Date_of_publication', 'Date', 'Area', 'AgeYear', 'Gender', 'NewDeaths', 'PreExistingCond', 'Source', 'ncumul_deceased', 'CaseNumberPerDay']]
+df = df[['Date_of_death', 'Date', 'Area', 'AgeYear', 'Gender', 'NewDeaths', 'PreExistingCond', 'Source', 'ncumul_deceased', 'CaseNumberPerDay']]
 
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_gestorbene)
 print(f'Exporting data to {export_filename}...')
