@@ -19,7 +19,7 @@ df['NewDeaths'] = 1
 df['CaseNumberPerDay'] = df.groupby(['Date_of_death']).cumcount() + 1
 
 # Limit columns to be exported
-df = df[['Date_of_death', 'Date', 'Area', 'AgeYear', 'Gender', 'NewDeaths', 'PreExistingCond', 'Source', 'ncumul_deceased', 'CaseNumberPerDay']]
+df = df[['Date', 'Area', 'AgeYear', 'Gender', 'NewDeaths', 'PreExistingCond', 'Source', 'ncumul_deceased', 'CaseNumberPerDay']]
 
 export_filename = os.path.join(credentials.export_path, credentials.export_filename_gestorbene)
 print(f'Exporting data to {export_filename}...')
