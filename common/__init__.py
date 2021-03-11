@@ -125,7 +125,7 @@ def ensure_ftp_dir(server, user, password, folder):
 # curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
 
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(http_errors_to_handle, tries=6, delay=10, backoff=1)
+@retry(http_errors_to_handle, tries=6, delay=10, backoff=1.25)
 def publish_ods_dataset(dataset_uid, creds):
     print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
     response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
