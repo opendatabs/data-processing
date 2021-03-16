@@ -21,7 +21,7 @@ print(f'Creating file copy, then replacing "0" with empty string in raw csv file
 shutil.copy2(filename, filename.replace('.csv', '_orig.csv'))
 with open(filename, 'r') as f:
     raw_data = f.read()
-print(f'Add newline at the end of the file, just to be sure...')
+print(f'Add newline at the end of the file, because without a newline at the end the last 0 in the file cannot be replaced by NULL afterwards...')
 newline_data = raw_data + '\n'
 print(f'Replace 0 with "" when followed by comma or newline...')
 replaced_data1 = re.sub(',0\n', ',\n', newline_data)
@@ -34,7 +34,7 @@ df0 = parse_data_file(0)
 df = df0.copy()
 # df['hospital_count'] = df.drop(columns=['Datum']).count(axis='columns')
 df['hospital_count'] = df.count(axis='columns')
-df['date'] = pd.to_datetime(df['Datum'], format='%d/%m/%Y', errors='coerce')
+df['date'] = pd.to_datetime(df['Datum'], format='%d/%m/%Y')
 
 print(f'Counting sum of cases in hospitals...')
 df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
@@ -55,7 +55,7 @@ print(f'Merging datasets...')
 dfs = [df0, df1, df2]
 df_merged = reduce(lambda left,right: pd.merge(left, right, how='outer', on='Datum'), dfs)
 print(f'Reformatting date...')
-df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d/%m/%Y', errors='coerce')
+df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d/%m/%Y')
 print(f'Filtering columns...')
 df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp']]
 
