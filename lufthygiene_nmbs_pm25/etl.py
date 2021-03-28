@@ -13,7 +13,7 @@ url = 'https://data-bs.ch/lufthygiene/nmbs_pm25/airmet_bs_museum_pm25_aktuell.cs
 print(f'Downloading data from {url}...')
 df = read_data_from_url(url)
 print(f'Calculating ISO8601 time string...')
-df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')
+df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent='shift_forward')
 
 print(f'Reading latest timestamp from ODS dataset...')
 urllib3.disable_warnings()
