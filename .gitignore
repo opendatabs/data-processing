@@ -4,3 +4,4 @@ __pycache__/
 **/venv/*
 **/*.csv
 **/*.CSV
+**/*.xlsx
