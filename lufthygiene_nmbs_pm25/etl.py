@@ -3,15 +3,9 @@ import common
 import urllib3
 from lufthygiene_nmbs_pm25 import credentials
 
-
-@common.retry(common.http_errors_to_handle, tries=6, delay=10, backoff=1)
-def read_data_from_url(uri):
-    return pd.read_csv(uri, sep=';', encoding='cp1252', skiprows=range(1, 2))
-
-
 url = 'https://data-bs.ch/lufthygiene/nmbs_pm25/airmet_bs_museum_pm25_aktuell.csv'
 print(f'Downloading data from {url}...')
-df = read_data_from_url(url)
+df = common.pandas_read_csv(url, sep=';', encoding='cp1252', skiprows=range(1, 2))
 print(f'Calculating ISO8601 time string...')
 df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent='shift_forward')
 
