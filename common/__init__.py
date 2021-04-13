@@ -132,17 +132,23 @@ def publish_ods_dataset(dataset_uid, creds):
     if not response.ok:
         print(f'Received http error {response.status_code}:')
         print(f'Error message: {response.text}')
-        response.raise_for_status()
+        r_json = response.json()
+        if r_json['status_code'] == 400 and r_json['raw_params']['current_status'] == 'current_status':
+            print(f'ODS dataset is currently queued, thus all is ok.')
+        else:
+            response.raise_for_status()
 
-    # if response.status_code == 200:
-    #     print('ODS publish command successful.')
-    # elif response.status_code == 400:
-    #     print('ODS publish command returned http error 400, but experience shows that publishing works anyway.')
-    #     print(response)
-    # else:
-    #     print('Problem with OpenDataSoft Management API: ')
-    #     print(response)
-    #     raise RuntimeError('Problem with OpenDataSoft Management API: ' + response)
+        # Received http error 400:
+        # Error message: {
+        #   "status_code": 400,
+        #   "message": "Invalid precondition, dataset status is 'queued' but must be one of 'idle, error, limit_reached'",
+        #   "raw_params": {
+        #     "authorized_origin_status": "idle, error, limit_reached",
+        #     "current_status": "queued"
+        #   },
+        #   "raw_message": "Invalid precondition, dataset status is '{current_status}' but must be one of '{authorized_origin_status}'",
+        #   "error_key": "InvalidDatasetStatusPreconditionException"
+        # }
 
 
 def get_ods_uid_by_id(ods_id, creds):
