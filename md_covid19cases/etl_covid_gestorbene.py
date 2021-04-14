@@ -15,7 +15,7 @@ df = df.rename(columns={'sterbe_datum': 'Date_of_death',
 df['Source'] = 'https://www.gesundheit.bs.ch'
 df['Area'] = 'Canton_BS'
 df['NewDeaths'] = 1
-df['CaseNumberPerDay'] = df.groupby(['Date_of_death']).cumcount() + 1
+df['CaseNumberPerDay'] = df.groupby(['Date']).cumcount() + 1
 
 # Limit columns to be exported
 df = df[['Date', 'Area', 'AgeYear', 'Gender', 'NewDeaths', 'PreExistingCond', 'Source', 'ncumul_deceased', 'CaseNumberPerDay']]
