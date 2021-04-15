@@ -56,6 +56,6 @@ export_file_name = os.path.join(credentials.path, credentials.data_export)
 print(f'Exporting to {export_file_name}...')
 df_nototal.to_csv(export_file_name, index=False)
 
-common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+# common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 print('Job successful!')
 
