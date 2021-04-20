@@ -68,7 +68,6 @@ for index, row in realtime_df.iterrows():
     timestamp_text = row.timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
     payload = {'timestamp': timestamp_text, 'pegel': row.pegel, 'abfluss': row.abfluss}
     print(f'Pushing row {index} with with the following data to ODS: {payload}')
-    # r = requests.post(credentials.ods_live_push_api_url, json=payload)
     r = common.requests_post(url=credentials.ods_live_push_api_url, json=payload, verify=False)
     r.raise_for_status()
 
