@@ -1,54 +1,38 @@
 from datetime import datetime
 import urllib3
-import numpy as np
 import os
 import pandas as pd
 import common
+import requests
 from bafu_hydrodaten import credentials
 
-urllib3.disable_warnings()
-print(f'Connecting to HTTPS Server to read data...')
-local_path = os.path.join(credentials.path, 'bafu_hydrodaten/data')
-files = [credentials.abfluss_file, credentials.pegel_file]
-local_files = []
-for file in files:
-    local_file = os.path.join(local_path, file)
-    local_files.append(local_file)
-    print(f'Retrieving file {local_file}...')
-    with open(local_file, 'wb') as f:
-        uri = f'{credentials.https_url}/{file}'
-        print(f'Reading data from {uri}...')
-        # r = requests.get(url, auth=(credentials.https_user, credentials.https_pass))
-        r = common.requests_get(url=uri, verify=False, auth=(credentials.https_user, credentials.https_pass))
-        f.write(r.content)
-
-
 print('Loading data into data frames...')
-abfluss_df = pd.read_csv(local_files[0], sep='\t', skiprows=4, names=['datum', 'zeit', 'abfluss', 'intervall', 'qualitaet', 'messart'], usecols=['datum', 'zeit', 'abfluss', 'intervall'], header=None)
-pegel_df = pd.read_csv(local_files[1], sep='\t', skiprows=4, names=['datum', 'zeit', 'pegel', 'intervall', 'qualitaet', 'messart'], usecols=['datum', 'zeit', 'pegel', 'intervall'], header=None)
+dfs = []
+for file in [credentials.abfluss_file, credentials.pegel_file]:
+    response = common.requests_get(f'{credentials.https_url}/{file}', auth=requests.HTTPBasicAuth(credentials.https_user, credentials.https_pass), stream=True)
+    df = pd.read_csv(response.raw, parse_dates=True, infer_datetime_format=True)
+    dfs.append(df)
 
 print(f'Merging data frames...')
-merged_df = abfluss_df.merge(pegel_df, on=['datum', 'zeit', 'intervall'], how='outer')
+merged_df = dfs[0].merge(dfs[1], on=['Time'], how='outer')
 
 print('Processing data...')
-merged_df = merged_df.loc[merged_df.intervall == 5]
-print(f'Fixing entries with zeit == 24:00...')
-# Replacing 24:00 with 23:59
-merged_df.loc[merged_df.zeit == '24:00', 'zeit'] = '23:59'
-# Time is given in MEZ (UTC+1) thus use 'Etc/GMT-1' according to https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-# merged_df['timestamp'] = pd.to_datetime(merged_df.datum + ' ' + merged_df.zeit, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich')
-merged_df['timestamp'] = pd.to_datetime(merged_df.datum + ' ' + merged_df.zeit, format='%d.%m.%Y %H:%M').dt.tz_localize('Etc/GMT-1')
-# Adding a minute to entries with time 23:59 then replacing 23:59 with 24:00 again
-merged_df.timestamp = np.where(merged_df.zeit != '23:59', merged_df.timestamp, merged_df.timestamp + pd.Timedelta(minutes=1))
-merged_df.zeit = np.where(merged_df.zeit == '23:59', '24:00', merged_df.zeit)
+merged_df['timestamp'] = pd.to_datetime(merged_df.Time, infer_datetime_format=True)
+merged_df['datum'] = merged_df.timestamp.dt.strftime('%d.%m.%Y')
+merged_df['zeit'] = merged_df.timestamp.dt.strftime('%H:%M')
+merged_df['intervall'] = 5
+merged_df = merged_df.rename(columns={'BAFU_2289_AbflussRadar': 'abfluss', 'BAFU_2289_PegelRadar': 'pegel'})
+merged_df = merged_df[['datum', 'zeit', 'abfluss', 'intervall', 'pegel', 'timestamp']]
 
+local_path = os.path.join(credentials.path, 'bafu_hydrodaten/data')
 merged_filename = os.path.join(local_path, f'2289_pegel_abfluss_{datetime.today().strftime("%Y-%m-%d")}.csv')
+print(f'Exporting data to {merged_filename}...')
 merged_df.to_csv(merged_filename, index=False)
 
 common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_remote_dir)
 
 print(f'Retrieving latest record from ODS...')
-# r = requests.get('https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp')
+urllib3.disable_warnings()
 r = common.requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp', verify=False)
 r.raise_for_status()
 latest_ods_value = r.json()['records'][0]['fields']['timestamp']
