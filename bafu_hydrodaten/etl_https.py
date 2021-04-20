@@ -27,6 +27,8 @@ merged_df['intervall'] = 5
 merged_df['abfluss'] = merged_df['BAFU_2289_AbflussRadar']
 merged_df['pegel'] = merged_df['BAFU_2289_PegelRadar']
 merged_df = merged_df[['datum', 'zeit', 'abfluss', 'intervall', 'pegel', 'timestamp']]
+# drop rows if all cells are empty in certain columns
+merged_df = merged_df.dropna(subset=['abfluss', 'intervall', 'pegel'], how='all')
 
 local_path = os.path.join(credentials.path, 'bafu_hydrodaten/data')
 merged_filename = os.path.join(local_path, f'2289_pegel_abfluss_{datetime.today().strftime("%Y-%m-%d")}.csv')
