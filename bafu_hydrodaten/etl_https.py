@@ -3,13 +3,13 @@ import urllib3
 import os
 import pandas as pd
 import common
-import requests
+from requests.auth import HTTPBasicAuth
 from bafu_hydrodaten import credentials
 
 print('Loading data into data frames...')
 dfs = []
 for file in [credentials.abfluss_file, credentials.pegel_file]:
-    response = common.requests_get(f'{credentials.https_url}/{file}', auth=requests.HTTPBasicAuth(credentials.https_user, credentials.https_pass), stream=True)
+    response = common.requests_get(f'{credentials.https_url}/{file}', auth=HTTPBasicAuth(credentials.https_user, credentials.https_pass), stream=True)
     df = pd.read_csv(response.raw, parse_dates=True, infer_datetime_format=True)
     dfs.append(df)
 
