@@ -16,7 +16,9 @@ for file in credentials.files:
 
 print(f'Merging data frames...')
 all_df = reduce(lambda left, right: pd.merge(left, right, on=['Time'], how='outer'), dfs)
-all_df.to_csv(f"{os.path.join(credentials.path, 'bafu_hydrodaten/data/')}hydrodata_{datetime.today().strftime('%Y-%m-%d')}.csv", index=False)
+all_filename = f"{os.path.join(credentials.path, 'bafu_hydrodaten/data/')}hydrodata_{datetime.today().strftime('%Y-%m-%d')}.csv"
+all_df.to_csv(all_filename, index=False)
+common.upload_ftp(all_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_dir_all)
 
 print('Processing data...')
 merged_df = all_df.copy(deep=True)
