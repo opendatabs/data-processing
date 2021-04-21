@@ -71,5 +71,6 @@ else:
     # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
     # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
     r = common.requests_post(url=credentials.ods_live_push_api_url, data=payload, verify=False)
+    r.raise_for_status()
 
 print('Job successful!')
