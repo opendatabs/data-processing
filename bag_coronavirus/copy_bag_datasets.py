@@ -4,12 +4,17 @@ import common
 import pandas as pd
 
 
+
 def get_bag_data(dataset_name):
     url = context_json['sources']['individual']['csv']['daily'][dataset_name]
     print(f'Reading current csv from {url} into data frame...')
     df = common.pandas_read_csv(url)
-    print(f'Checking for date column and calculating columns...')
+    print(f'Checking which column contains the date...')
     date_column = 'datum' if 'datum' in df.columns else 'date'
+    print(f'Dropping lines with empty value in date column "{date_column}"...')
+    print(f'{df[date_column].isna()}')
+    df = df.dropna(subset=[date_column])
+    print(f'Calculating columns...')
     df['dayofweek'] = pd.to_datetime(df[date_column]).dt.dayofweek
     df['wochentag'] = df['dayofweek'].apply(lambda x: common.weekdays_german[x])
     df['week'] = pd.to_datetime(df[date_column]).dt.week
