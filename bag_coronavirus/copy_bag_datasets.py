@@ -4,9 +4,7 @@ import common
 import pandas as pd
 
 
-
-def get_bag_data(dataset_name):
-    url = context_json['sources']['individual']['csv']['daily'][dataset_name]
+def get_bag_data(dataset_name, url, suffix):
     print(f'Reading current csv from {url} into data frame...')
     df = common.pandas_read_csv(url)
     print(f'Checking which column contains the date...')
@@ -26,8 +24,18 @@ def get_bag_data(dataset_name):
 
 print(f"Getting today's data url...")
 context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/context').json()
-datasets = ['testPcrAntigen', 'hospCapacity', 'cases']
-for dataset in datasets:
-    get_bag_data(dataset)
+path_base_csv = context_json['sources']['individual']['csv']
+path_base_csv_daily = context_json['sources']['individual']['csv']['daily']
+datasets_daily = [{'name': 'testPcrAntigen',        'base_path': path_base_csv_daily,   'suffix': ''},
+                  {'name': 'hospCapacity',          'base_path': path_base_csv_daily,   'suffix': ''},
+                  {'name': 'cases',                 'base_path': path_base_csv_daily,   'suffix': ''},
+                  {'name': 'vaccDosesDelivered',    'base_path': path_base_csv,         'suffix': ''},
+                  {'name': 'vaccDosesAdministered', 'base_path': path_base_csv,         'suffix': ''},
+                  {'name': 'fullyVaccPersons',      'base_path': path_base_csv,         'suffix': ''},
+                  ]
+
+for dataset in datasets_daily:
+    name = dataset['name']
+    get_bag_data(dataset_name=name, url=dataset['base_path'][name], suffix=dataset['suffix'])
 
 print(f'Job successful!')
