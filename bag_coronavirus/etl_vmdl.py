@@ -4,6 +4,7 @@ import os
 import common
 import pandas as pd
 from io import StringIO
+from pandasql import sqldf
 from bag_coronavirus import credentials
 
 payload_token = f'client_id={credentials.vmdl_client_id}&scope={credentials.vmdl_scope}&username={credentials.vmdl_user}&password={credentials.vmdl_password}&grant_type=password'
@@ -30,12 +31,24 @@ with open(file_path, "w") as f:
 
 print(f'Reading data into dataframe...')
 df = pd.read_csv(file_path, sep=';')
-print(f'Calculating...')
-df_bs = df[df['reporting_unit_location_ctn']=='BS']
-# see https://medium.com/jbennetcodes/how-to-rewrite-your-sql-queries-in-pandas-and-more-149d341fc53e
-df_by = df.groupby(['vacc_date', 'vacc_count', 'reporting_unit_location_type']).size().to_frame('count').reset_index()
+
+print(f'Executing calculations...')
+pysqldf = lambda q: sqldf(q, globals())
+df_bs_by = sqldf('select vacc_date, vacc_count, reporting_unit_location_type, count(distinct person_anonymised_id) '
+                'from df '
+                'where reporting_unit_location_ctn = "BS" '
+                'group by vacc_date, vacc_count, reporting_unit_location_type;')
+
+
+
+
+
+# df_bs = df[df['reporting_unit_location_ctn']=='BS']
+# # see https://medium.com/jbennetcodes/how-to-rewrite-your-sql-queries-in-pandas-and-more-149d341fc53e
+# df_by = df.groupby(['vacc_date', 'vacc_count', 'reporting_unit_location_type']).size().to_frame('count').reset_index()
+
 by_file = os.path.join(credentials.vmdl_path, f'vmdl_by.csv')
 print(f'Exporting resulting data to {by_file}...')
-df_by.to_csv(by_file, index=False)
+df_bs_by.to_csv(by_file, index=False)
 
 print(f'Job successful!')
