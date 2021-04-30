@@ -31,24 +31,27 @@ with open(file_path, "w") as f:
 
 print(f'Reading data into dataframe...')
 df = pd.read_csv(file_path, sep=';')
+df['vacc_date_dt'] = pd.to_datetime(df.vacc_date, format='%Y-%m-%dT%H:%M:%S.%f%z')
 
 print(f'Executing calculations...')
 pysqldf = lambda q: sqldf(q, globals())
-df_bs_by = sqldf('select vacc_date, vacc_count, reporting_unit_location_type, count(distinct person_anonymised_id) '
-                'from df '
-                'where reporting_unit_location_ctn = "BS" '
-                'group by vacc_date, vacc_count, reporting_unit_location_type;')
-
+# sum type 1 and 99, filter by BS, count distinct persons
+df_bs_by = sqldf('select vacc_date, vacc_count, case reporting_unit_location_type when 1 then "vaccination_centre" when 99 then "vaccination_centre" when 6 then "hospital" else reporting_unit_location_type end as location_type, count(distinct person_anonymised_id) as count from df where reporting_unit_location_ctn = "BS" group by vacc_date, vacc_count, location_type;')
+# https://stackoverflow.com/questions/43617871/pandas-dataframe-transpose-multi-columns
+# df_pivot = df_bs_by.pivot(index=['vacc_date', 'vacc_count'], columns=['location_type'], values=['count']).reset_index()
+# https://pandas.pydata.org/docs/user_guide/reshaping.html
+# df_crosstab = pd.crosstab(index=df_bs_by.vacc_date, columns=[df_bs_by.vacc_count, df_bs_by.location_type], values=[df_bs_by.count], dropna=False)
+# df_crosstab = pd.crosstab(index=df_bs_by.vacc_date, columns=[df_bs_by.vacc_count], values=[df_bs_by.count] agg, dropna=False)
 
 
 
 
 # df_bs = df[df['reporting_unit_location_ctn']=='BS']
 # # see https://medium.com/jbennetcodes/how-to-rewrite-your-sql-queries-in-pandas-and-more-149d341fc53e
-# df_by = df.groupby(['vacc_date', 'vacc_count', 'reporting_unit_location_type']).size().to_frame('count').reset_index()
+# df_by = df_bs.groupby(['vacc_date', 'vacc_count', 'reporting_unit_location_type']).size().to_frame('count').reset_index()
 
-by_file = os.path.join(credentials.vmdl_path, f'vmdl_by.csv')
-print(f'Exporting resulting data to {by_file}...')
-df_bs_by.to_csv(by_file, index=False)
+bs_by_file = os.path.join(credentials.vmdl_path, f'vmdl_bs_by.csv')
+print(f'Exporting resulting data to {bs_by_file}...')
+df_bs_by.to_csv(bs_by_file, index=False)
 
 print(f'Job successful!')
