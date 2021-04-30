@@ -20,15 +20,16 @@ print(f'Downloading data...')
 resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download)
 # resp_download = requests.request("GET", credentials.vmdl_url_download, headers=headers_download, data=payload_download)
 resp_download.raise_for_status()
-print(f'Reading data into StringIO...')
-vmdl_text = StringIO(resp_download.text)
+# print(f'Reading data into StringIO...')
+# vmdl_text = StringIO(resp_download.content)
 file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_file)
 print(f'Writing data to file {file_path}...')
+resp_download.encoding = 'utf-8'
 with open(file_path, "w") as f:
-    f.write(vmdl_text)
+    f.write(resp_download.text)
 
 print(f'Reading data into dataframe...')
-df = pd.read_csv(vmdl_text, sep=';')
+df = pd.read_csv(file_path, sep=';')
 print(f'Calculating...')
 df_bs = df[df['reporting_unit_location_ctn']=='BS']
 # see https://medium.com/jbennetcodes/how-to-rewrite-your-sql-queries-in-pandas-and-more-149d341fc53e
