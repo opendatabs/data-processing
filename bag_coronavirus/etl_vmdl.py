@@ -52,6 +52,6 @@ df_bs_by = sqldf('select vacc_date, vacc_count, case reporting_unit_location_typ
 
 bs_by_file = os.path.join(credentials.vmdl_path, f'vmdl_bs_by.csv')
 print(f'Exporting resulting data to {bs_by_file}...')
-df_bs_by.to_csv(bs_by_file, index=False)
+df_bs_by.to_csv(bs_by_file, sep=';', index=False)
 
 print(f'Job successful!')
