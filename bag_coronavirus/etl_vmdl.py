@@ -32,26 +32,35 @@ with open(file_path, "w") as f:
 print(f'Reading data into dataframe...')
 df = pd.read_csv(file_path, sep=';')
 df['vacc_date_dt'] = pd.to_datetime(df.vacc_date, format='%Y-%m-%dT%H:%M:%S.%f%z')
+df['vacc_day'] = df.vacc_date.str.slice(stop=10)
 
 print(f'Executing calculations...')
 pysqldf = lambda q: sqldf(q, globals())
 # sum type 1 and 99, filter by BS, count distinct persons
-df_bs_by = sqldf('select vacc_date, vacc_count, case reporting_unit_location_type when 1 then "vaccination_centre" when 99 then "vaccination_centre" when 6 then "hospital" else reporting_unit_location_type end as location_type, count(distinct person_anonymised_id) as count from df where reporting_unit_location_ctn = "BS" group by vacc_date, vacc_count, location_type;')
-# https://stackoverflow.com/questions/43617871/pandas-dataframe-transpose-multi-columns
-# df_pivot = df_bs_by.pivot(index=['vacc_date', 'vacc_count'], columns=['location_type'], values=['count']).reset_index()
-# https://pandas.pydata.org/docs/user_guide/reshaping.html
-# df_crosstab = pd.crosstab(index=df_bs_by.vacc_date, columns=[df_bs_by.vacc_count, df_bs_by.location_type], values=[df_bs_by.count], dropna=False)
-# df_crosstab = pd.crosstab(index=df_bs_by.vacc_date, columns=[df_bs_by.vacc_count], values=[df_bs_by.count] agg, dropna=False)
+df_bs = sqldf('select * from df where reporting_unit_location_ctn = "BS"')
+df_bs_by = sqldf('select vacc_day, vacc_count, case reporting_unit_location_type when 1 then "vacc_centre" when 99 then "vacc_centre" when 6 then "hosp" else reporting_unit_location_type end as location_type, count(distinct person_anonymised_id) as count from df_bs group by vacc_day, vacc_count, location_type order by vacc_day asc;')
 
+df_pivot = df_bs_by.pivot_table(values='count', index=['vacc_day'], columns=['location_type', 'vacc_count'])
+# Replace the 2-level column names with a string that concatenates both strings
+df_pivot.columns = ["_".join(str(c) for c in col) for col in df_pivot.columns.values]
+df_pivot = df_pivot.reset_index()
 
+df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2
+df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2
+df_pivot['vacc_count_1'] = df_pivot.hosp_1 + df_pivot.vacc_centre_1
+df_pivot['vacc_count_2'] = df_pivot.hosp_2 + df_pivot.vacc_centre_2
 
+df_pivot['cum_1'] = df_pivot.vacc_count_1.cumsum()
+df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
+df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
 
-# df_bs = df[df['reporting_unit_location_ctn']=='BS']
-# # see https://medium.com/jbennetcodes/how-to-rewrite-your-sql-queries-in-pandas-and-more-149d341fc53e
-# df_by = df_bs.groupby(['vacc_date', 'vacc_count', 'reporting_unit_location_type']).size().to_frame('count').reset_index()
+df_total = sqldf('select vacc_day, count(distinct person_anonymised_id) as total from df_bs group by vacc_day order by vacc_day asc;')
+df_total['total_cum'] = df_total.total.cumsum()
+
+df_merged = df_pivot.merge(right=df_total, how='outer', on='vacc_day')
 
 bs_by_file = os.path.join(credentials.vmdl_path, f'vmdl_bs_by.csv')
 print(f'Exporting resulting data to {bs_by_file}...')
-df_bs_by.to_csv(bs_by_file, index=False)
+df_merged.to_csv(bs_by_file, index=False)
 
 print(f'Job successful!')
