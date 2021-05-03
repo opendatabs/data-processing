@@ -74,8 +74,10 @@ df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
 df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre
 df_pivot['total_cum'] = df_pivot.total.cumsum()
 
-bs_by_file = os.path.join(credentials.vmdl_path, f'vaccination_report_bs.csv')
-print(f'Exporting resulting data to {bs_by_file}...')
-df_pivot.to_csv(bs_by_file, index=False)
+export_df = df_pivot[['vacc_day', 'hosp_1', 'hosp_2', 'vacc_centre_1', 'vacc_centre_2', 'hosp', 'vacc_centre', 'vacc_count_1', 'vacc_count_2', 'cum_1', 'cum_2', 'only_1', 'total', 'total_cum']]
+
+export_file_name = os.path.join(credentials.vmdl_path, f'vaccination_report_bs.csv')
+print(f'Exporting resulting data to {export_file_name}...')
+export_df.to_csv(export_file_name, index=False)
 
 print(f'Job successful!')
