@@ -48,7 +48,7 @@ df_bs_by = sqldf('''
         when 6  then "hosp" 
         else reporting_unit_location_type 
         end as location_type, 
-    count(distinct person_anonymised_id) as count 
+    count(person_anonymised_id) as count 
     from df_bs 
     group by vacc_day, vacc_count, location_type
     order by vacc_day asc;''')
@@ -68,7 +68,7 @@ df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
 df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
 
 df_total = sqldf('''
-    select vacc_day, count(distinct person_anonymised_id) as total 
+    select vacc_day, count(person_anonymised_id) as total 
     from df_bs 
     group by vacc_day 
     order by vacc_day asc;''')
