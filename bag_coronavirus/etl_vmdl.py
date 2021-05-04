@@ -50,8 +50,6 @@ df_bs_by = sqldf('''
     group by vacc_day, vacc_count, location_type
     order by vacc_day asc;''')
 
-
-
 # Create empty table of all combinations
 df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
 df_all_vacc_count = sqldf('select distinct vacc_count from df;')
