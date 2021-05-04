@@ -65,7 +65,13 @@ df_pivot_table.columns = ["_".join(str(c) for c in col) for col in df_pivot_tabl
 df_pivot = df_pivot_table.reset_index()
 
 # Ensure other_1 and other_2 columns exist
-for column_name in ['other_1', 'other_2']:
+for column_name in [
+    'other_1',
+    'other_2',
+    'in_aph_verabreichte_impfungen_pro_tag',
+    'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+]:
     if column_name not in df_pivot.columns:
         df_pivot[column_name] = 0
 
@@ -80,10 +86,52 @@ df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
 df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
 df_pivot['total_cum'] = df_pivot.total.cumsum()
 
-export_df = df_pivot[['vacc_day', 'hosp_1', 'hosp_2', 'vacc_centre_1', 'vacc_centre_2', 'other_1', 'other_2', 'hosp', 'vacc_centre', 'other', 'vacc_count_1', 'vacc_count_2', 'cum_1', 'cum_2', 'only_1', 'total', 'total_cum']]
+
+# export_df = df_pivot[['vacc_day', 'hosp_1', 'hosp_2', 'vacc_centre_1', 'vacc_centre_2', 'other_1', 'other_2', 'hosp', 'vacc_centre', 'other', 'vacc_count_1', 'vacc_count_2', 'cum_1', 'cum_2', 'only_1', 'total', 'total_cum']]
+df_export = df_pivot.rename(columns={
+    'vacc_day':         'datum',
+    'hosp_1':           'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'hosp_2':           'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'vacc_centre_1':    'im_impfzentrum_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'vacc_centre_2':    'im_impfzentrum_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'other_1':          'anderswo_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'other_2':          'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'hosp':             'im_spital_verabreichte_impfungen_pro_tag',
+    'vacc_centre':      'im_impfzentrum_verabreichte_impfungen_pro_tag',
+    'other':            'anderswo_verabreichte_impfungen_pro_tag',
+    'vacc_count_1':     'total_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'vacc_count_2':     'total_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'cum_1':            'total_personen_mit_erster_dosis',
+    'cum_2':            'total_personen_mit_zweiter_dosis',
+    'only_1':           'total_personen_mit_ausschliesslich_erster_dosis',
+    'total':            'total_verabreichte_impfungen_pro_tag',
+    'total_cum':        'total_verabreichte_impfungen',
+})
+
+# Restrict columns to be exported
+df_export = df_export[[
+    'datum',
+    'total_verabreichte_impfungen',
+    'total_personen_mit_erster_dosis',
+    'total_personen_mit_ausschliesslich_erster_dosis',
+    'total_personen_mit_zweiter_dosis',
+    'im_impfzentrum_verabreichte_impfungen_pro_tag',
+    'im_impfzentrum_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'im_impfzentrum_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'in_aph_verabreichte_impfungen_pro_tag',
+    'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'im_spital_verabreichte_impfungen_pro_tag',
+    'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'anderswo_verabreichte_impfungen_pro_tag',
+    'anderswo_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+    'total_verabreichte_impfungen_pro_tag',
+]]
 
 export_file_name = os.path.join(credentials.vmdl_path, f'vaccination_report_bs.csv')
 print(f'Exporting resulting data to {export_file_name}...')
-export_df.to_csv(export_file_name, index=False)
+df_export.to_csv(export_file_name, index=False)
 
 print(f'Job successful!')
