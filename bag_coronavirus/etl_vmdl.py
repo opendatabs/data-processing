@@ -43,12 +43,14 @@ df_bs_by = sqldf('''
         when 1  then "vacc_centre" 
         when 99 then "vacc_centre" 
         when 6  then "hosp" 
-        else reporting_unit_location_type 
+        else "other" 
         end as location_type, 
     count(person_anonymised_id) as count 
     from df_bs 
     group by vacc_day, vacc_count, location_type
     order by vacc_day asc;''')
+
+
 
 # Create empty table of all combinations
 df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
@@ -64,17 +66,23 @@ df_pivot_table = df_bs_by_all.pivot_table(values='count', index=['vacc_day'], co
 df_pivot_table.columns = ["_".join(str(c) for c in col) for col in df_pivot_table.columns.values]
 df_pivot = df_pivot_table.reset_index()
 
+# Ensure other_1 and other_2 columns exist
+for column_name in ['other_1', 'other_2']:
+    if column_name not in df_pivot.columns:
+        df_pivot[column_name] = 0
+
 df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2
 df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2
-df_pivot['vacc_count_1'] = df_pivot.hosp_1 + df_pivot.vacc_centre_1
-df_pivot['vacc_count_2'] = df_pivot.hosp_2 + df_pivot.vacc_centre_2
+df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2
+df_pivot['vacc_count_1'] = df_pivot.hosp_1 + df_pivot.vacc_centre_1 + df_pivot.other_1
+df_pivot['vacc_count_2'] = df_pivot.hosp_2 + df_pivot.vacc_centre_2 + df_pivot.other_2
 df_pivot['cum_1'] = df_pivot.vacc_count_1.cumsum()
 df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
 df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
-df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre
+df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
 df_pivot['total_cum'] = df_pivot.total.cumsum()
 
-export_df = df_pivot[['vacc_day', 'hosp_1', 'hosp_2', 'vacc_centre_1', 'vacc_centre_2', 'hosp', 'vacc_centre', 'vacc_count_1', 'vacc_count_2', 'cum_1', 'cum_2', 'only_1', 'total', 'total_cum']]
+export_df = df_pivot[['vacc_day', 'hosp_1', 'hosp_2', 'vacc_centre_1', 'vacc_centre_2', 'other_1', 'other_2', 'hosp', 'vacc_centre', 'other', 'vacc_count_1', 'vacc_count_2', 'cum_1', 'cum_2', 'only_1', 'total', 'total_cum']]
 
 export_file_name = os.path.join(credentials.vmdl_path, f'vaccination_report_bs.csv')
 print(f'Exporting resulting data to {export_file_name}...')
