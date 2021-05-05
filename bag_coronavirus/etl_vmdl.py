@@ -2,7 +2,6 @@ import pandas as pd
 import requests
 import os
 import common
-import openpyxl
 from pandasql import sqldf
 from bag_coronavirus import credentials
 
@@ -67,10 +66,13 @@ df_pivot_table = df_bs_by_all.pivot_table(values='count', index=['vacc_day'], co
 df_pivot_table.columns = ["_".join(str(c) for c in col) for col in df_pivot_table.columns.values]
 df_pivot = df_pivot_table.reset_index()
 
-print(f'Ensure other_1 and other_2 columns exist...')
+print(f'Ensure columns exist...')
 for column_name in [
     'other_1',
     'other_2',
+    'in_aph_verabreichte_impfungen_pro_tag',
+    'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
 ]:
     if column_name not in df_pivot.columns:
         df_pivot[column_name] = 0
@@ -87,26 +89,8 @@ df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
 df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
 df_pivot['total_cum'] = df_pivot.total.cumsum()
 
-print(f'Loading aph data (legacy)...')
-aph_filename = os.path.join(credentials.vmdl_path, 'Impfungen_to-upload.xlsx')
-print(f'Load data from legacy file {aph_filename}...')
-df_aph = pd.read_excel(aph_filename)
-df_aph['vacc_day'] = df_aph.Datum.dt.strftime('%Y-%m-%d')
-df_aph = df_aph[['vacc_day', 'In APH verabreichte Impfungen pro Tag ', 'Im APH mit erster Dosis geimpfte Personen pro Tag', 'Im APH mit zweiter Dosis geimpfte Personen pro Tag']]
-df_aph = df_aph.rename(columns={
-    'In APH verabreichte Impfungen pro Tag ':               'in_aph_verabreichte_impfungen_pro_tag',
-    'Im APH mit erster Dosis geimpfte Personen pro Tag':    'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
-    'Im APH mit zweiter Dosis geimpfte Personen pro Tag':   'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag'
-})
-
-print(f'Subtracting aph data from vacc_centre...')
-df_corrected = df_pivot.merge(df_aph, on=['vacc_day'], how='left')
-df_corrected.vacc_centre = df_corrected.vacc_centre - df_corrected.in_aph_verabreichte_impfungen_pro_tag
-df_corrected.vacc_centre_1 = df_corrected.vacc_centre_1 - df_corrected.im_aph_mit_erster_dosis_geimpfte_personen_pro_tag
-df_corrected.vacc_centre_2 = df_corrected.vacc_centre_2 - df_corrected.im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag
-
 print(f'Renaming and restricting columns for export...')
-df_export = df_corrected.rename(columns={
+df_export = df_pivot.rename(columns={
     'vacc_day':         'datum',
     'hosp_1':           'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
     'hosp_2':           'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
