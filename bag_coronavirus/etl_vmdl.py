@@ -102,8 +102,8 @@ df_aph = df_aph.rename(columns={
 print(f'Subtracting aph data from vacc_centre...')
 df_corrected = df_pivot.merge(df_aph, on=['vacc_day'], how='left')
 df_corrected.vacc_centre = df_corrected.vacc_centre - df_corrected.in_aph_verabreichte_impfungen_pro_tag
-df_corrected.vacc_centre_1 = df_corrected.vacc_centre - df_corrected.im_aph_mit_erster_dosis_geimpfte_personen_pro_tag
-df_corrected.vacc_centre_2 = df_corrected.vacc_centre - df_corrected.im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag
+df_corrected.vacc_centre_1 = df_corrected.vacc_centre_1 - df_corrected.im_aph_mit_erster_dosis_geimpfte_personen_pro_tag
+df_corrected.vacc_centre_2 = df_corrected.vacc_centre_2 - df_corrected.im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag
 
 print(f'Renaming and restricting columns for export...')
 df_export = df_corrected.rename(columns={
