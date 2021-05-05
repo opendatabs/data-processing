@@ -134,5 +134,5 @@ df_export = df_export[[
 export_file_name = os.path.join(credentials.vmdl_path, f'vaccination_report_bs.csv')
 print(f'Exporting resulting data to {export_file_name}...')
 df_export.to_csv(export_file_name, index=False)
-
+common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
 print(f'Job successful!')
