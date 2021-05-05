@@ -2,6 +2,7 @@ import pandas as pd
 import requests
 import os
 import common
+import openpyxl
 from pandasql import sqldf
 from bag_coronavirus import credentials
 
@@ -31,7 +32,8 @@ df['vacc_day'] = df.vacc_date.str.slice(stop=10)
 
 print(f'Executing calculations...')
 pysqldf = lambda q: sqldf(q, globals())
-# sum type 1 and 99, filter by BS, count distinct persons
+
+print(f'Sum type 1 and 99, filter by BS, count persons...')
 df_bs = sqldf('''
     select * 
     from df 
@@ -50,31 +52,30 @@ df_bs_by = sqldf('''
     group by vacc_day, vacc_count, location_type
     order by vacc_day asc;''')
 
-# Create empty table of all combinations
+print(f'Create empty table of all combinations...')
 df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
 df_all_vacc_count = sqldf('select distinct vacc_count from df;')
 df_all_location_type = sqldf('select distinct location_type from df_bs_by')
 df_all_comb = sqldf('select *from df_all_days cross join df_all_vacc_count cross join df_all_location_type;')
 
-# Add days without vaccinations
+print(f'Adding days without vaccinations...')
 df_bs_by_all = df_all_comb.merge(df_bs_by, on=['vacc_day', 'vacc_count', 'location_type'], how='outer').fillna(0)
 
+print(f'Pivoting...')
 df_pivot_table = df_bs_by_all.pivot_table(values='count', index=['vacc_day'], columns=['location_type', 'vacc_count'], fill_value=0)
 # Replace the 2-level column names with a string that concatenates both strings
 df_pivot_table.columns = ["_".join(str(c) for c in col) for col in df_pivot_table.columns.values]
 df_pivot = df_pivot_table.reset_index()
 
-# Ensure other_1 and other_2 columns exist
+print(f'Ensure other_1 and other_2 columns exist...')
 for column_name in [
     'other_1',
     'other_2',
-    'in_aph_verabreichte_impfungen_pro_tag',
-    'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
-    'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
 ]:
     if column_name not in df_pivot.columns:
         df_pivot[column_name] = 0
 
+print(f'Calculating columns...')
 df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2
 df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2
 df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2
@@ -86,9 +87,26 @@ df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
 df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
 df_pivot['total_cum'] = df_pivot.total.cumsum()
 
+print(f'Loading aph data (legacy)...')
+aph_filename = os.path.join(credentials.vmdl_path, 'Impfungen_to-upload.xlsx')
+print(f'Load data from legacy file {aph_filename}...')
+df_aph = pd.read_excel(aph_filename)
+df_aph['vacc_day'] = df_aph.Datum.dt.strftime('%Y-%m-%d')
+df_aph = df_aph[['vacc_day', 'In APH verabreichte Impfungen pro Tag ', 'Im APH mit erster Dosis geimpfte Personen pro Tag', 'Im APH mit zweiter Dosis geimpfte Personen pro Tag']]
+df_aph = df_aph.rename(columns={
+    'In APH verabreichte Impfungen pro Tag ':               'in_aph_verabreichte_impfungen_pro_tag',
+    'Im APH mit erster Dosis geimpfte Personen pro Tag':    'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
+    'Im APH mit zweiter Dosis geimpfte Personen pro Tag':   'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag'
+})
 
-# export_df = df_pivot[['vacc_day', 'hosp_1', 'hosp_2', 'vacc_centre_1', 'vacc_centre_2', 'other_1', 'other_2', 'hosp', 'vacc_centre', 'other', 'vacc_count_1', 'vacc_count_2', 'cum_1', 'cum_2', 'only_1', 'total', 'total_cum']]
-df_export = df_pivot.rename(columns={
+print(f'Subtracting aph data from vacc_centre...')
+df_corrected = df_pivot.merge(df_aph, on=['vacc_day'], how='left')
+df_corrected.vacc_centre = df_corrected.vacc_centre - df_corrected.in_aph_verabreichte_impfungen_pro_tag
+df_corrected.vacc_centre_1 = df_corrected.vacc_centre - df_corrected.im_aph_mit_erster_dosis_geimpfte_personen_pro_tag
+df_corrected.vacc_centre_2 = df_corrected.vacc_centre - df_corrected.im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag
+
+print(f'Renaming and restricting columns for export...')
+df_export = df_corrected.rename(columns={
     'vacc_day':         'datum',
     'hosp_1':           'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
     'hosp_2':           'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
@@ -108,7 +126,6 @@ df_export = df_pivot.rename(columns={
     'total_cum':        'total_verabreichte_impfungen',
 })
 
-# Restrict columns to be exported
 df_export = df_export[[
     'datum',
     'total_verabreichte_impfungen',
