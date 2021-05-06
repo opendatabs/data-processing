@@ -55,7 +55,7 @@ print(f'Create empty table of all combinations...')
 df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
 df_all_vacc_count = sqldf('select distinct vacc_count from df;')
 df_all_location_type = sqldf('select distinct location_type from df_bs_by')
-df_all_comb = sqldf('select *from df_all_days cross join df_all_vacc_count cross join df_all_location_type;')
+df_all_comb = sqldf('select * from df_all_days cross join df_all_vacc_count cross join df_all_location_type;')
 
 print(f'Adding days without vaccinations...')
 df_bs_by_all = df_all_comb.merge(df_bs_by, on=['vacc_day', 'vacc_count', 'location_type'], how='outer').fillna(0)
