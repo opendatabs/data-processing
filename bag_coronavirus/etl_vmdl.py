@@ -32,11 +32,11 @@ df['vacc_day'] = df.vacc_date.str.slice(stop=10)
 print(f'Executing calculations...')
 pysqldf = lambda q: sqldf(q, globals())
 
-print(f'Sum type 1 and 99, filter by BS, count persons...')
+print(f'Filter by BS and vacc_date, sum type 1 and 99, create "other" type, count persons...')
 df_bs = sqldf('''
     select * 
     from df 
-    where reporting_unit_location_ctn = "BS"''')
+    where reporting_unit_location_ctn = "BS" and vacc_day < strftime("%Y-%m-%d", "now", "localtime")''')
 
 df_bs_by = sqldf('''
     select vacc_day, vacc_count, 
