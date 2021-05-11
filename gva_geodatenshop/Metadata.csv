@@ -58,3 +58,4 @@ AF\Abfuhrzonen;True;;Abfuhrzonen (Gemeinde Basel);100095;;;"Raum und Umwelt;Öffe
 DM\DatenmarktAdressen;True;;;100114;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
 DM\DatenmarktGebaeude;True;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
 BS\Liegenschaften;True;;;;;;;;;;;;
+CT\CoronaTeststellen;True;;Corona Teststellen;100134;;https://www.geocat.ch/geonetwork/srv/ger/md.viewer#/full_view/cbfb3123-a515-4a72-8c38-40da761070a0;Gesundheit;"Corona;COVID-19;Spital;Krankheit;Coronavirus;Virus;Pandemie;Test;Lungenentzündung";;http://purl.org/cld/freq/irregular;;2021-03-31;opendata.swiss
