@@ -1,11 +1,21 @@
 import requests
 import os
 import common
+from datetime import date, timedelta
 from bag_coronavirus import credentials
 
 
 def file_path():
     return os.path.join(credentials.vmdl_path, credentials.vmdl_file)
+
+
+def today_string():
+    return date.today().strftime('%Y-%m-%d')
+
+
+def yesterday_string():
+    yesterday = date.today() - timedelta(days=1)
+    return yesterday.strftime('%Y-%m-%d')
 
 
 def retrieve_vmdl_data():
