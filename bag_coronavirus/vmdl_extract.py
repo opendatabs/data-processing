@@ -4,6 +4,10 @@ import common
 from bag_coronavirus import credentials
 
 
+def file_path():
+    return os.path.join(credentials.vmdl_path, credentials.vmdl_file)
+
+
 def retrieve_vmdl_data():
     print(f'Retrieving vmdl data...')
     payload_token = f'client_id={credentials.vmdl_client_id}&scope={credentials.vmdl_scope}&username={credentials.vmdl_user}&password={credentials.vmdl_password}&grant_type=password'
@@ -25,3 +29,12 @@ def retrieve_vmdl_data():
     with open(file_path, "w") as f:
         f.write(resp_download.text)
     return file_path
+
+
+def main():
+    retrieve_vmdl_data()
+
+
+if __name__ == "__main__":
+    print(f'Executing {__file__}...')
+    main()
