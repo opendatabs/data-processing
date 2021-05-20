@@ -3,12 +3,12 @@ import os
 import common
 from pandasql import sqldf
 from bag_coronavirus import credentials
-from bag_coronavirus import vmdl_extract
+from bag_coronavirus import vmdl
 
 
 def main():
     # file_path = vmdl_extract.retrieve_vmdl_data()
-    file_path = vmdl_extract.file_path()
+    file_path = vmdl.file_path()
 
     print(f'Reading data into dataframe...')
     df = pd.read_csv(file_path, sep=';')
@@ -19,10 +19,10 @@ def main():
     pysqldf = lambda q: sqldf(q, globals())
 
     print(f'Filter by BS and vacc_date, sum type 1 and 99, create "other" type, count persons...')
-    df_bs = sqldf('''
+    df_bs = sqldf(f'''
         select * 
         from df 
-        where reporting_unit_location_ctn = "BS" and vacc_day < strftime("%Y-%m-%d", "now", "localtime")''')
+        where reporting_unit_location_ctn = "BS" and vacc_day < "{vmdl.today_string()}"''')
 
     df_bs_by = sqldf('''
         select vacc_day, vacc_count, 
@@ -38,7 +38,7 @@ def main():
         order by vacc_day asc;''')
 
     print(f'Create empty table of all combinations...')
-    df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
+    df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=vmdl.yesterday_string()).astype(str), columns=['vacc_day'])
     df_all_vacc_count = sqldf('select distinct vacc_count from df;')
     df_all_location_type = sqldf('select distinct location_type from df_bs_by')
     df_all_comb = sqldf('select * from df_all_days cross join df_all_vacc_count cross join df_all_location_type;')
