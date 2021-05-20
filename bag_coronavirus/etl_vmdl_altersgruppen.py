@@ -31,15 +31,6 @@ def main():
     labels =    ['Unbekannt',       '16-49',    '50-64',    '65-74',    '> 74']
     df_bs['age_group'] = pd.cut(df_bs.person_age, bins=bins, labels=labels, include_lowest=True)
 
-
-    print(f'Creating long table...')
-    df_bs_long = sqldf('''
-        select vacc_day, age_group, count(*) as vacc_count
-        from df_bs
-        group by vacc_day, age_group
-        order by vacc_day desc;
-    ''')
-
     print(f'Creating all combinations of days until {vmdl.yesterday_string()}...')
     df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=vmdl.yesterday_string()).astype(str), columns=['vacc_day'])
     df_all_days_indexed = df_all_days.set_index('vacc_day', drop=False)
@@ -49,10 +40,25 @@ def main():
 
     print(f'Adding all days without vaccinations to crosstab...')
     df_crosstab_all = df_crosstab.join(df_all_days_indexed, how='outer').fillna(0)
-    print(f'Reordering columns...')
-    cols = df_crosstab_all.columns.tolist()
-    cols = cols = cols[-1:] + cols[:-1]
-    df_crosstab_all = df_crosstab_all[cols]
+    # print(f'Reordering columns...')
+    # cols = df_crosstab_all.columns.tolist()
+    # cols = cols = cols[-1:] + cols[:-1]
+    # df_crosstab_all = df_crosstab_all[cols]
+
+    print(f'Calculating cumulative sums...')
+    df_crosstab_cumsum = df_crosstab_all.cumsum().drop(columns=['vacc_day'], axis=1)
+
+    print(f'Joining cumsums to crosstab...')
+    df_pivot = df_crosstab_all.drop(columns=['vacc_day'])\
+        .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum'))
+
+    print(f'Creating long table...')
+    df_bs_long = sqldf('''
+        select vacc_day, age_group, count(*) as vacc_count
+        from df_bs
+        group by vacc_day, age_group
+        order by vacc_day desc;
+    ''')
 
     print(f'Create empty table of all combinations for long df...')
     df_labels = pd.DataFrame(labels, columns=['age_group'])
@@ -62,8 +68,8 @@ def main():
     df_bs_long_all = df_all_comb.merge(df_bs_long, on=['vacc_day', 'age_group'], how='outer').fillna(0)
 
     for dataset in [
-        {'dataframe': df_crosstab_all, 'filename': f'vaccination_report_bs_age_group.csv'},
-        {'dataframe': df_bs_long_all,  'filename': f'vaccination_report_bs_age_group_long.csv'}
+        {'dataframe': df_pivot,         'filename': f'vaccination_report_bs_age_group.csv'},
+        {'dataframe': df_bs_long_all,   'filename': f'vaccination_report_bs_age_group_long.csv'}
     ]:
         export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
         print(f'Exporting resulting data to {export_file_name}...')
