@@ -31,8 +31,8 @@ def main():
     labels =    ['Unbekannt',       '16-49',    '50-64',    '65-74',    '> 74']
     df_bs['age_group'] = pd.cut(df_bs.person_age, bins=bins, labels=labels, include_lowest=True)
 
-    df_crosstab = pd.crosstab(df_bs.vacc_day, df_bs.age_group).sort_values(by='vacc_day', ascending=False)
 
+    print(f'Creating long table...')
     df_bs_long = sqldf('''
         select vacc_day, age_group, count(*) as vacc_count
         from df_bs
@@ -43,12 +43,21 @@ def main():
     print(f'Creating all combinations of days until {vmdl.yesterday_string()}...')
     df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=vmdl.yesterday_string()).astype(str), columns=['vacc_day'])
     df_all_days_indexed = df_all_days.set_index('vacc_day', drop=False)
+
+    print(f'Creating crosstab...')
+    df_crosstab = pd.crosstab(df_bs.vacc_day, df_bs.age_group).sort_values(by='vacc_day', ascending=False)
+
     print(f'Adding all days without vaccinations to crosstab...')
     df_crosstab_all = df_crosstab.join(df_all_days_indexed, how='outer').fillna(0)
+    print(f'Reordering columns...')
+    cols = df_crosstab_all.columns.tolist()
+    cols = cols = cols[-1:] + cols[:-1]
+    df_crosstab_all = df_crosstab_all[cols]
 
-    print(f'Create empty table of all combinations...')
+    print(f'Create empty table of all combinations for long df...')
     df_labels = pd.DataFrame(labels, columns=['age_group'])
     df_all_comb = sqldf('select * from df_all_days d cross join df_labels l;')
+
     print(f'Adding days without vaccinations to long df...')
     df_bs_long_all = df_all_comb.merge(df_bs_long, on=['vacc_day', 'age_group'], how='outer').fillna(0)
 
