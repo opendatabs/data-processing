@@ -50,7 +50,7 @@ def main():
 
     print(f'Joining cumsums to crosstab...')
     df_pivot = df_crosstab_all.drop(columns=['vacc_day'])\
-        .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum'))
+        .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum')).reset_index()
 
     print(f'Creating long table...')
     df_bs_long = sqldf('''
