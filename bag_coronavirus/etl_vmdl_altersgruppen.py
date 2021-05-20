@@ -4,12 +4,12 @@ import os
 import common
 from pandasql import sqldf
 from bag_coronavirus import credentials
-from bag_coronavirus import vmdl_extract
+from bag_coronavirus import vmdl
 
 
 def main():
     # file_path = vmdl_extract.retrieve_vmdl_data()
-    file_path = vmdl_extract.file_path()
+    file_path = vmdl.file_path()
 
     print(f'Reading data into dataframe...')
     df = pd.read_csv(file_path, sep=';')
@@ -19,11 +19,12 @@ def main():
     print(f'Executing calculations...')
     pysqldf = lambda q: sqldf(q, globals())
 
-    print(f'Filter by BS and vacc_date...')
-    df_bs = sqldf('''
+    print(f'Filter by BS and vacc_date < {vmdl.today_string()}...')
+
+    df_bs = sqldf(f'''
         select * 
         from df 
-        where person_residence_ctn = "BS" and vacc_day < strftime("%Y-%m-%d", "now", "localtime")''')
+        where person_residence_ctn = "BS" and vacc_day < "{vmdl.today_string()}"''')
 
     print(f'Calculating age groups - age < 16 currently must be errors, replacing with "Unbekannt"...')
     bins =      [numpy.NINF, 15,     49,         64,         74,         numpy.inf]
@@ -39,9 +40,10 @@ def main():
         order by vacc_day desc;
     ''')
 
-    print(f'Adding days without vaccinations to crosstab...')
-    df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
+    print(f'Creating all combinations of days until {vmdl.yesterday_string()}...')
+    df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=vmdl.yesterday_string()).astype(str), columns=['vacc_day'])
     df_all_days_indexed = df_all_days.set_index('vacc_day', drop=False)
+    print(f'Adding all days without vaccinations to crosstab...')
     df_crosstab_all = df_crosstab.join(df_all_days_indexed, how='outer').fillna(0)
 
     print(f'Create empty table of all combinations...')
@@ -57,7 +59,7 @@ def main():
         export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
         print(f'Exporting resulting data to {export_file_name}...')
         dataset['dataframe'].to_csv(export_file_name, index=False)
-        # common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
+        common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
 
     print(f'Job successful!')
 
