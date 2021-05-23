@@ -57,7 +57,6 @@ def main():
     df_vacc_count = pd.DataFrame([1,2], columns=['vacc_count'])
     df_all_comb = sqldf('select * from df_all_days cross join df_labels cross join df_vacc_count;')
 
-
     print(f'Creating long table...')
     df_bs_long = sqldf('''
         select vacc_day, age_group, vacc_count, count(*) as count
@@ -72,12 +71,15 @@ def main():
     # See https://stackoverflow.com/a/32847843
     df_bs_long_all['count_cum'] = df_bs_long_all.groupby(['age_group', 'vacc_count'])['count'].cumsum()
 
-    print(f'Retrieve population data from {credentials.pop_data_file_path}')
+    # Retrieve data from https://data.bs.ch/explore/dataset/100128
+    print(f'Retrieving population data from {credentials.pop_data_file_path}')
     df_pop = common.pandas_read_csv(credentials.pop_data_file_path, sep=';')
     print(f'Filter 2020-12-31 data, create age groups, and sum')
     df_pop_2020 = df_pop.loc[df_pop['datum'] == '2020-12-31'][['person_alter', 'anzahl']]
     df_pop_2020['age_group'] = pd.cut(df_pop_2020.person_alter, bins=bins, labels=labels, include_lowest=True)
     df_pop_age_group = df_pop_2020.groupby(['age_group'])['anzahl'].sum().reset_index().rename(columns={'anzahl': 'total_pop'})
+    print(f'Removing "Unbekannt" age group from population dataset...')
+    df_pop_age_group = df_pop_age_group.query('age_group != "Unbekannt"')
 
     print(f'Joining pop data and calculating percentages...')
     df_bs_perc = df_bs_long_all.merge(df_pop_age_group, on=['age_group'], how='left')
@@ -85,7 +87,7 @@ def main():
 
     for dataset in [
         {'dataframe': df_pivot,         'filename': f'vaccination_report_bs_age_group.csv'},
-        {'dataframe': df_bs_long_all,   'filename': f'vaccination_report_bs_age_group_long.csv'}
+        {'dataframe': df_bs_perc,   'filename': f'vaccination_report_bs_age_group_long.csv'}
     ]:
         export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
         print(f'Exporting resulting data to {export_file_name}...')
