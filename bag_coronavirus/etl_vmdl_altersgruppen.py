@@ -2,6 +2,7 @@ import numpy
 import pandas as pd
 import os
 import common
+import numpy as np
 from pandasql import sqldf
 from bag_coronavirus import credentials
 from bag_coronavirus import vmdl
@@ -71,6 +72,14 @@ def main():
     # See https://stackoverflow.com/a/32847843
     df_bs_long_all['count_cum'] = df_bs_long_all.groupby(['age_group', 'vacc_count'])['count'].cumsum()
 
+    # print(f'Calculating cumulative sums of _only_ first vaccinations...')
+    # df_only_first = df_bs_long_all.copy(deep=True)
+    # # Negate cumulative numbers of 2nd vacc, then sum cum numbers of vacc 1 and 2 to get the cum number of _only_ 1st vacc
+    # df_only_first.count_cum = np.where(df_only_first.vacc_count == 2, df_only_first.count_cum * -1, df_only_first.count_cum)
+    # df_only_first = df_only_first.groupby(['vacc_day', 'age_group'])['count_cum'].sum().reset_index()
+    # df_only_first['vacc_count'] = -1
+    # df_bs_long_all = df_bs_long_all.append(df_only_first)
+
     # Retrieve data from https://data.bs.ch/explore/dataset/100128
     print(f'Retrieving population data from {credentials.pop_data_file_path}')
     df_pop = common.pandas_read_csv(credentials.pop_data_file_path, sep=';')
@@ -94,7 +103,7 @@ def main():
         dataset['dataframe'].to_csv(export_file_name, index=False)
         common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
 
-    print(f'Job successful!')
+        print(f'Job successful!')
 
 
 if __name__ == "__main__":
