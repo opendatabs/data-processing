@@ -2,7 +2,6 @@ import numpy
 import pandas as pd
 import os
 import common
-import numpy as np
 from pandasql import sqldf
 from bag_coronavirus import credentials
 from bag_coronavirus import vmdl
@@ -75,7 +74,7 @@ def main():
     # print(f'Calculating cumulative sums of _only_ first vaccinations...')
     # df_only_first = df_bs_long_all.copy(deep=True)
     # # Negate cumulative numbers of 2nd vacc, then sum cum numbers of vacc 1 and 2 to get the cum number of _only_ 1st vacc
-    # df_only_first.count_cum = np.where(df_only_first.vacc_count == 2, df_only_first.count_cum * -1, df_only_first.count_cum)
+    # df_only_first.count_cum = numpy.where(df_only_first.vacc_count == 2, df_only_first.count_cum * -1, df_only_first.count_cum)
     # df_only_first = df_only_first.groupby(['vacc_day', 'age_group'])['count_cum'].sum().reset_index()
     # df_only_first['vacc_count'] = -1
     # df_bs_long_all = df_bs_long_all.append(df_only_first)
