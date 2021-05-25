@@ -27,7 +27,7 @@ def main():
     file_date = datetime.datetime.fromtimestamp(os.path.getmtime(impftermine_file)).strftime('%Y-%m-%d')
     df_agg['date'] = file_date
 
-    export_file_name = os.path.join(credentials.impftermine_path, f'impftermine_agg_{file_date}.csv')
+    export_file_name = os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg_{file_date}.csv')
     print(f'Exporting resulting data to {export_file_name}...')
     df_agg.to_csv(export_file_name, index=False)
 
