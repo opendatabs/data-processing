@@ -60,7 +60,6 @@ def get_reporting_df(df_bs_long_all):
     df_bs_cum = df_bs_long_all.copy(deep=True)
     df_bs_cum['count_cum'] = df_bs_cum.groupby(['age_group', 'vacc_count'])['count'].cumsum()
 
-
     print(f'Calculating cumulative sums of _only_ first vaccinations...')
     df_only_first = df_bs_cum.copy(deep=True)
     # Negate cumulative numbers of 2nd vacc, then sum cum numbers of vacc 1 and 2 to get the cum number of _only_ 1st vacc
@@ -71,7 +70,7 @@ def get_reporting_df(df_bs_long_all):
 
     print(f'Adding explanatory text for vacc_count...')
     vacc_count_desc = pd.DataFrame.from_dict({'vacc_count': [-1, 1, 2],
-                                              'vacc_count_description': ['Ausschliesslich erste Impfdosis', 'Erste Impfdosis', 'Erste und Zweite Impfdosis']})
+                                              'vacc_count_description': ['Ausschliesslich erste Impfdosis', 'Erste Impfdosis', 'Zweite Impfdosis']})
     df_bs_cum = df_bs_cum.merge(vacc_count_desc, on=['vacc_count'], how='left')
 
     # Retrieve data from https://data.bs.ch/explore/dataset/100128
@@ -87,6 +86,8 @@ def get_reporting_df(df_bs_long_all):
     print(f'Joining pop data and calculating percentages...')
     df_bs_perc = df_bs_cum.merge(df_pop_age_group, on=['age_group'], how='left')
     df_bs_perc['count_cum_percentage_of_total_pop'] = df_bs_perc.count_cum / df_bs_perc.total_pop * 100
+
+    return df_bs_perc
 
     # print(f'Creating crosstab...')
     # df_crosstab = pd.crosstab(df_bs.vacc_day, df_bs.age_group).sort_values(by='vacc_day', ascending=False)
@@ -104,8 +105,6 @@ def get_reporting_df(df_bs_long_all):
     # print(f'Joining cumsums to crosstab...')
     # df_pivot = df_crosstab_all.drop(columns=['vacc_day'])\
     #     .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum')).reset_index()
-
-    return df_bs_perc
 
 
 def main():
