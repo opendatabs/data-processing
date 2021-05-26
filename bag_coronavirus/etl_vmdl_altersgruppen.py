@@ -23,9 +23,7 @@ def get_raw_df():
     df['vacc_day'] = df.vacc_date.str.slice(stop=10)
 
     print(f'Executing calculations...')
-
     print(f'Filter by BS and vacc_date < {vmdl.today_string()}...')
-
     df_bs = sqldf(f'''
         select * 
         from df 
@@ -37,23 +35,6 @@ def get_raw_df():
     print(f'Creating all combinations of days until {vmdl.yesterday_string()}...')
     df_all_days = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=vmdl.yesterday_string()).astype(str), columns=['vacc_day'])
     df_all_days_indexed = df_all_days.set_index('vacc_day', drop=False)
-
-    # print(f'Creating crosstab...')
-    # df_crosstab = pd.crosstab(df_bs.vacc_day, df_bs.age_group).sort_values(by='vacc_day', ascending=False)
-    #
-    # print(f'Adding all days without vaccinations to crosstab...')
-    # df_crosstab_all = df_crosstab.join(df_all_days_indexed, how='outer').fillna(0)
-    # # print(f'Reordering columns...')
-    # # cols = df_crosstab_all.columns.tolist()
-    # # cols = cols = cols[-1:] + cols[:-1]
-    # # df_crosstab_all = df_crosstab_all[cols]
-    #
-    # print(f'Calculating cumulative sums...')
-    # df_crosstab_cumsum = df_crosstab_all.cumsum().drop(columns=['vacc_day'], axis=1)
-    #
-    # print(f'Joining cumsums to crosstab...')
-    # df_pivot = df_crosstab_all.drop(columns=['vacc_day'])\
-    #     .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum')).reset_index()
 
     print(f'Create empty table of all combinations for long df...')
     df_labels = pd.DataFrame(get_age_groups()['labels'], columns=['age_group'])
@@ -78,6 +59,7 @@ def get_reporting_df(df_bs_long_all):
     # See https://stackoverflow.com/a/32847843
     df_bs_cum = df_bs_long_all.copy(deep=True)
     df_bs_cum['count_cum'] = df_bs_cum.groupby(['age_group', 'vacc_count'])['count'].cumsum()
+
 
     print(f'Calculating cumulative sums of _only_ first vaccinations...')
     df_only_first = df_bs_cum.copy(deep=True)
@@ -105,6 +87,24 @@ def get_reporting_df(df_bs_long_all):
     print(f'Joining pop data and calculating percentages...')
     df_bs_perc = df_bs_cum.merge(df_pop_age_group, on=['age_group'], how='left')
     df_bs_perc['count_cum_percentage_of_total_pop'] = df_bs_perc.count_cum / df_bs_perc.total_pop * 100
+
+    # print(f'Creating crosstab...')
+    # df_crosstab = pd.crosstab(df_bs.vacc_day, df_bs.age_group).sort_values(by='vacc_day', ascending=False)
+    #
+    # print(f'Adding all days without vaccinations to crosstab...')
+    # df_crosstab_all = df_crosstab.join(df_all_days_indexed, how='outer').fillna(0)
+    # # print(f'Reordering columns...')
+    # # cols = df_crosstab_all.columns.tolist()
+    # # cols = cols = cols[-1:] + cols[:-1]
+    # # df_crosstab_all = df_crosstab_all[cols]
+    #
+    # print(f'Calculating cumulative sums...')
+    # df_crosstab_cumsum = df_crosstab_all.cumsum().drop(columns=['vacc_day'], axis=1)
+    #
+    # print(f'Joining cumsums to crosstab...')
+    # df_pivot = df_crosstab_all.drop(columns=['vacc_day'])\
+    #     .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum')).reset_index()
+
     return df_bs_perc
 
 
