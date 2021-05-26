@@ -55,6 +55,12 @@ def get_raw_df():
 
 
 def get_reporting_df(df_bs_long_all):
+    print(f'Calculating age group "Gesamtbevölkerung"...')
+    df_all_ages = df_bs_long_all.copy(deep=True)
+    df_all_ages = df_all_ages.groupby(['vacc_day', 'vacc_count']).sum().reset_index()
+    df_all_ages['age_group'] = 'Gesamtbevölkerung'
+    df_bs_long_all = df_bs_long_all.append(df_all_ages)
+
     print(f'Calculating cumulative sums for long df...')
     # See https://stackoverflow.com/a/32847843
     df_bs_cum = df_bs_long_all.copy(deep=True)
@@ -82,6 +88,8 @@ def get_reporting_df(df_bs_long_all):
     df_pop_age_group = df_pop_2020.groupby(['age_group'])['anzahl'].sum().reset_index().rename(columns={'anzahl': 'total_pop'})
     print(f'Removing "Unbekannt" age group from population dataset...')
     df_pop_age_group = df_pop_age_group.query('age_group != "Unbekannt"')
+    print(f'Calculating count of age group "Gesamtbevölkerung"...')
+    df_pop_age_group = df_pop_age_group.append({'age_group': 'Gesamtbevölkerung', 'total_pop': df_pop_2020.anzahl.sum()}, ignore_index=True)
 
     print(f'Joining pop data and calculating percentages...')
     df_bs_perc = df_bs_cum.merge(df_pop_age_group, on=['age_group'], how='left')
