@@ -26,11 +26,11 @@ def main():
     print(f'Get file modification datetime...')
     file_date = datetime.datetime.fromtimestamp(os.path.getmtime(impftermine_file)).strftime('%Y-%m-%d')
     df_agg['date'] = file_date
+    df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count']]
 
     export_file_name = os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg_{file_date}.csv')
     print(f'Exporting resulting data to {export_file_name}...')
     df_agg.to_csv(export_file_name, index=False)
-
     common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
 
     print(f'Job successful!')
