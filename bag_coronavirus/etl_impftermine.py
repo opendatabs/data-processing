@@ -31,7 +31,7 @@ def main():
     print(f'Exporting resulting data to {export_file_name}...')
     df_agg.to_csv(export_file_name, index=False)
 
-    #common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
+    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
 
     print(f'Job successful!')
 
