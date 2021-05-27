@@ -26,7 +26,7 @@ def main():
     print(f'Get file modification datetime...')
     file_date = datetime.datetime.fromtimestamp(os.path.getmtime(impftermine_file)).strftime('%Y-%m-%d')
     df_agg['date'] = file_date
-    df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count']]
+    df_agg = df_agg[['age_group', 'has_appointments', 'count', 'date']]
 
     export_file_name = os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg_{file_date}.csv')
     print(f'Exporting resulting data to {export_file_name}...')
