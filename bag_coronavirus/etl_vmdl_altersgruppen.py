@@ -51,9 +51,6 @@ def get_raw_df():
 
     print(f'Adding days without vaccinations to long df...')
     df_bs_long_all = df_all_comb.merge(df_bs_long, on=['vacc_day', 'age_group', 'vacc_count'], how='outer').fillna(0)
-
-    print(f'Removing entries with age_group "Unbekannt"...')
-    df_bs_long_all = df_bs_long_all.query('age_group != "Unbekannt"')
     return df_bs_long_all
 
 
