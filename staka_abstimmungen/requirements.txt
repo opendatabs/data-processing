@@ -1,4 +1,0 @@
-openpyxl==3.0.7
-requests==2.25.1
-pandas==1.2.4
-dateparser==1.0.0
