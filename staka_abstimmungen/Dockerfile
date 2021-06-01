@@ -3,7 +3,10 @@ WORKDIR /code
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 COPY requirements.txt .
-RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
+RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
+RUN python3 -m pip install --user --no-cache-dir requests==2.25.1
+RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.7
+RUN python3 -m pip install --user --no-cache-dir dateparser==1.0.0
 CMD ["/bin/bash", "/code/data-processing/staka_abstimmungen/etl.sh"]
 
 # Docker commands to create image and run container:

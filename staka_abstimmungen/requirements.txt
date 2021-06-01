@@ -1,5 +1,4 @@
-xlrd==1.2.0
-pandas==1.0.3
-requests==2.20.0
-pandas==1.0.3
-dateparser==0.7.6
+openpyxl==3.0.7
+requests==2.25.1
+pandas==1.2.4
+dateparser==1.0.0
