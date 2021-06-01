@@ -23,6 +23,9 @@ def main():
     print(f'Aggregating data...')
     df_agg = df.groupby(['age_group', 'has_appointments']).agg(len).reset_index().rename(columns={'age': 'count'})[['age_group', 'has_appointments', 'count']]
 
+    print(f'Filtering "Unbekannt"...')
+    df_agg = df_agg[df_agg.age_group != 'Unbekannt']
+
     print(f'Get file modification datetime...')
     file_date = datetime.datetime.fromtimestamp(os.path.getmtime(impftermine_file)).strftime('%Y-%m-%d')
     df_agg['date'] = file_date
