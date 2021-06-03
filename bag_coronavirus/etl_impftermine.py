@@ -22,12 +22,50 @@ def main():
         df_single['date'] = file_date
         df = df.append(df_single)
 
-    print(f'Dropping rows with no Birthdate, calculating age and age group...')
-    df = df.dropna(subset=['Birthdate']).reset_index()
+    print(f'Dropping rows with no Birthdate, parsing dates...')
+    df = df.dropna(subset=['Birthdate']).reset_index(drop=True)
     df['birthday'] = pd.to_datetime(df.Birthdate, format='%d.%m.%Y')
+    df['creation_day'] = pd.to_datetime(df['Creation date'], format='%d.%m.%Y')
+    df['appointment_1_dt'] = pd.to_datetime(df['Appointment 1'], format='%Y-%m-%d %H:%M:%S')
+    df['appointment_2_dt'] = pd.to_datetime(df['Appointment 2'], format='%Y-%m-%d %H:%M:%S')
+
+    print(f'Calculating age...')
     df['age'] = df.apply(lambda x: relativedelta(x['date'], x['birthday']).years, axis=1)
+    print(f'Calculating age group...')
     df['age_group'] = pd.cut(df.age, bins=vmdl.get_age_groups()['bins'], labels=vmdl.get_age_groups()['labels'], include_lowest=True)
-    df = df.rename(columns={'Has appointments': 'has_appointments'})
+
+    df = df.rename(columns={'Has appointments': 'has_appointments',
+                            'Appointment 1': 'appointment_1',
+                            'Appointment 2': 'appointment_2',
+                            'Creation date': 'creation_date'
+                            })
+
+    print(f'Calculating data for time before first data file...')
+    min_date = df.date.min()
+    min_date_text = min_date.strftime('%Y-%m-%d')
+    ts_start = df.creation_day.min()
+    ts_start_text = ts_start.strftime('%Y-%m-%d')
+    days_before = pd.date_range(ts_start, min_date, closed='left')
+
+    print(f'Using earliest dataset ({min_date_text}) for calculations...')
+    df_before = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
+    # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
+    df_before.has_appointments = 'Unknown'
+    df_simulated = pd.DataFrame()
+    for day in days_before:
+        day_text = day.strftime('%Y-%m-%d')
+
+        df_then = df_before.query(f'creation_day <= "{day_text}"').reset_index(drop=True)
+        # Set date to the day we are currently analysing so we can treat these data as if we had a data export from that day
+        df_then.date = day
+        print(f'Calculating day {day_text} with {len(df_then)} rows...')
+        df_simulated = df_simulated.append(df_then)
+
+    print(f'Appending calculated to retrieved data...')
+    df = df.append(df_simulated)
+
+    print(f'Keeping only entries that have not had their first vaccination...')
+    df = df.query('appointment_1.isnull() or date < appointment_1_dt').reset_index()
 
     print(f'Aggregating data...')
     df_agg = (df.groupby(['date', 'age_group', 'has_appointments'])
