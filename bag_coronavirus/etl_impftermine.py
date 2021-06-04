@@ -128,7 +128,7 @@ def filter_aggregate(df):
     print(f'Filtering age_group "Unbekannt"...')
     df_agg = df_agg[df_agg.age_group != 'Unbekannt']
     print(f'Removing lines with no counts...')
-    df_agg = df.agg.dropna(subset=['count']).reset_index(drop=True)
+    df_agg = df_agg.dropna(subset=['count']).reset_index(drop=True)
     print(f'Making sure only certain columns are exported...')
     df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count']]
     return df, df_agg
