@@ -1,5 +1,4 @@
 import numpy
-
 import common
 import datetime
 import os
@@ -16,12 +15,34 @@ def main():
     df = load_data()
     df = clean_parse(df)
     df = calculate_age(df)
-    df_calc = calculate_previous_data(df)
-    print(f'Appending calculated previous data to retrieved data...')
-    df = df.append(df_calc)
-    df, df_agg = filter_aggregate(df)
+    df = df.append(calculate_previous_data(df))
+    df = df.append(calculate_missing_dates(df))
+    (df, df_agg) = filter_aggregate(df)
     export_data(df, df_agg)
     print(f'Job successful!')
+
+
+def calculate_missing_dates(df):
+    print(f'Calculating data for missing days...')
+    existing_dates = df.date.unique()
+    d = pd.DataFrame(data=existing_dates, index=existing_dates, columns=['date'])
+
+    dr = pd.date_range(df.date.min(), df.date.max())
+    # find missing days using reindex, see https://stackoverflow.com/a/19324591
+    missing_dates = d.reindex(dr).query('date.isnull()').index.to_list()
+    print(f'Missing days: {missing_dates}')
+    df_calc = pd.DataFrame()
+    for date in missing_dates:
+        date_text = date.strftime("%Y-%m-%d")
+        # find next existing dataset after a missing day
+        # filter out calculated days, they have has_appointments set to Unknown
+        date_of_next = df.query(f'has_appointments != "Unknown" and date > "{date_text}"').date.min()
+        date_of_next_text = date_of_next.strftime("%Y-%m-%d")
+        df_for_calc = df.query(f'date == "{date_of_next_text}"').reset_index(drop=True).copy(deep=True)
+        df_single_day = calc_missing_single_day(day=date, df_for_calc=df_for_calc)
+        print(f'Calculated missing day {date_text} with {len(df_single_day)} rows using dataset of {date_of_next_text}...')
+        df_calc = df_calc.append(df_single_day)
+    return df_calc
 
 
 def load_data():
@@ -63,24 +84,35 @@ def calculate_age(df):
 
 def calculate_previous_data(df):
     print(f'Calculating data for time before first data file...')
-    min_date = df.date.min()
-    min_date_text = min_date.strftime('%Y-%m-%d')
-    ts_start = df.creation_day.min()
-    ts_start_text = ts_start.strftime('%Y-%m-%d')
-    days_before = pd.date_range(ts_start, min_date, closed='left')
+    # first day of registration
+    min_date = df.creation_day.min()
+    # earliest export file we have
+    max_date = df.date.min()
+    df_calc = calc_missing_data(df, min_date, max_date)
+    return df_calc
+
+
+def calc_missing_data(df, min_date, max_date):
+    min_date_text = max_date.strftime('%Y-%m-%d')
+    days_to_calc = pd.date_range(min_date, max_date, closed='left')
     print(f'Using earliest dataset ({min_date_text}) for calculations...')
-    df_before = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
-    # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
-    df_before.has_appointments = 'Unknown'
+    df_for_calc = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
     df_calc = pd.DataFrame()
-    for day in days_before:
-        day_text = day.strftime('%Y-%m-%d')
-        df_then = df_before.query(f'creation_day <= "{day_text}"').reset_index(drop=True)
-        # Set date to the day we are currently analysing so we can treat these data as if we had a data export from that day
-        df_then.date = day
-        print(f'Calculating day {day_text} with {len(df_then)} rows...')
+    for day in days_to_calc:
+        df_then = calc_missing_single_day(day, df_for_calc)
         df_calc = df_calc.append(df_then)
     return df_calc
+
+
+def calc_missing_single_day(day, df_for_calc):
+    day_text = day.strftime('%Y-%m-%d')
+    df_then = df_for_calc.query(f'creation_day <= "{day_text}"').reset_index(drop=True)
+    # Set date to the day we are currently analysing so we can treat these data as if we had a data export from that day
+    df_then.date = day
+    # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
+    df_then.has_appointments = 'Unknown'
+    print(f'Calculated day {day_text} with {len(df_then)} rows...')
+    return df_then
 
 
 def filter_aggregate(df):
@@ -88,10 +120,9 @@ def filter_aggregate(df):
     df = df.query('appointment_1.isnull() or date < appointment_1_dt').reset_index()
     print(f'Aggregating data...')
     df_agg = (df.groupby(['date', 'age_group', 'has_appointments'])
-        .agg(len)
-        .reset_index()
-        .rename(columns={'age': 'count'})[['date', 'age_group', 'has_appointments', 'count']]
-        )
+                .agg(len)
+                .reset_index()
+                .rename(columns={'age': 'count'})[['date', 'age_group', 'has_appointments', 'count']])
     print(f'Filtering "Unbekannt"...')
     df_agg = df_agg[df_agg.age_group != 'Unbekannt']
     print(f'Making sure only certain columns are exported...')
