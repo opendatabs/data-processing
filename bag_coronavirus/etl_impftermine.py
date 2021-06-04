@@ -15,7 +15,9 @@ def main():
     df = load_data()
     df = clean_parse(df)
     df = calculate_age(df)
+    # calculate data before the date of the first export file
     df = df.append(calculate_previous_data(df))
+    # calculate data for dates in between for which we don't have any export file
     df = df.append(calculate_missing_dates(df))
     (df, df_agg) = filter_aggregate(df)
     export_data(df, df_agg)
@@ -123,8 +125,10 @@ def filter_aggregate(df):
                 .agg(len)
                 .reset_index()
                 .rename(columns={'age': 'count'})[['date', 'age_group', 'has_appointments', 'count']])
-    print(f'Filtering "Unbekannt"...')
+    print(f'Filtering age_group "Unbekannt"...')
     df_agg = df_agg[df_agg.age_group != 'Unbekannt']
+    print(f'Removing lines with no counts...')
+    df_agg = df.agg.dropna(subset=['count']).reset_index(drop=True)
     print(f'Making sure only certain columns are exported...')
     df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count']]
     return df, df_agg
