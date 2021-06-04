@@ -1,3 +1,5 @@
+import numpy
+
 import common
 import datetime
 import os
@@ -14,9 +16,9 @@ def main():
     df = load_data()
     df = clean_parse(df)
     df = calculate_age(df)
-    df_simulated = calculate_previous_data(df)
+    df_calc = calculate_previous_data(df)
     print(f'Appending calculated previous data to retrieved data...')
-    df = df.append(df_simulated)
+    df = df.append(df_calc)
     df, df_agg = filter_aggregate(df)
     export_data(df, df_agg)
     print(f'Job successful!')
@@ -47,7 +49,7 @@ def clean_parse(df):
 
 def calculate_age(df):
     print(f'Calculating age...')
-    df['age'] = df.apply(lambda x: relativedelta(x['date'], x['birthday']).years, axis=1)
+    df['age'] = [relativedelta(a, b).years for a, b in zip(df.date, df.birthday)]
     print(f'Calculating age group...')
     df['age_group'] = pd.cut(df.age, bins=vmdl.get_age_groups()['bins'], labels=vmdl.get_age_groups()['labels'],
                              include_lowest=True)
@@ -70,16 +72,15 @@ def calculate_previous_data(df):
     df_before = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
     # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
     df_before.has_appointments = 'Unknown'
-    df_simulated = pd.DataFrame()
+    df_calc = pd.DataFrame()
     for day in days_before:
         day_text = day.strftime('%Y-%m-%d')
-
         df_then = df_before.query(f'creation_day <= "{day_text}"').reset_index(drop=True)
         # Set date to the day we are currently analysing so we can treat these data as if we had a data export from that day
         df_then.date = day
         print(f'Calculating day {day_text} with {len(df_then)} rows...')
-        df_simulated = df_simulated.append(df_then)
-    return df_simulated
+        df_calc = df_calc.append(df_then)
+    return df_calc
 
 
 def filter_aggregate(df):
