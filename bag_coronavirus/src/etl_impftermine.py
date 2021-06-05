@@ -41,9 +41,9 @@ def calculate_missing_dates(df, missing_dates):
         date_text = date.strftime("%Y-%m-%d")
         # find next existing dataset after a missing day
         # filter out calculated days, they have has_appointments set to Unknown
-        date_of_next = df.query(f'has_appointments != "Unknown" and date > "{date_text}"').date.min()
+        date_of_next = df.query(f'has_appointments != "Unknown" and date > @date_text').date.min()
         date_of_next_text = date_of_next.strftime("%Y-%m-%d")
-        df_for_calc = df.query(f'date == "{date_of_next_text}"').reset_index(drop=True).copy(deep=True)
+        df_for_calc = df.query(f'date == @date_of_next_text').reset_index(drop=True).copy(deep=True)
         df_single_day = calc_missing_date(day=date, df_for_calc=df_for_calc)
         print(f'Calculated missing day {date_text} with {len(df_single_day)} rows using dataset of {date_of_next_text}...')
         df_calc = df_calc.append(df_single_day)
@@ -52,7 +52,7 @@ def calculate_missing_dates(df, missing_dates):
 
 def calc_missing_date(day, df_for_calc):
     day_text = day.strftime('%Y-%m-%d')
-    df_then = df_for_calc.query(f'creation_day <= "{day_text}"').reset_index(drop=True)
+    df_then = df_for_calc.query(f'creation_day <= @day_text').reset_index(drop=True)
     # Set date to the day we are currently analysing so we can treat these data as if we had a data export from that day
     df_then.date = day
     # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
