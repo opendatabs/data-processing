@@ -30,10 +30,10 @@ def transform(df):
 
 
 def calc_missing_data(df, min_date, max_date):
-    min_date_text = max_date.strftime('%Y-%m-%d')
+    max_date_text = max_date.strftime('%Y-%m-%d')
     days_to_calc = pd.date_range(min_date, max_date, closed='left')
-    print(f'Using earliest dataset ({min_date_text}) for calculations...')
-    df_for_calc = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
+    print(f'Using earliest dataset ({max_date_text}) for calculations...')
+    df_for_calc = df.query(f'date == "{max_date_text}"').reset_index(drop=True).copy(deep=True)
     df_calc = pd.DataFrame()
     for day in days_to_calc:
         df_then = calc_missing_single_day(day, df_for_calc)
