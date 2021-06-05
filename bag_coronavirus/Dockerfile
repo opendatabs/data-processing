@@ -6,6 +6,7 @@ RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
 RUN python3 -m pip install --user --no-cache-dir requests==2.25.1
 RUN python3 -m pip install --user --no-cache-dir pandasql==0.7.3
 RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.7
+RUN python3 -m pip install --user --no-cache-dir pytest==6.2.4
 CMD ["/bin/bash", "/code/data-processing/bag_coronavirus/etl_bag_datasets.sh"]
 
 

@@ -1,4 +1,3 @@
-import numpy
 import common
 import datetime
 import os
@@ -13,15 +12,33 @@ import pandas as pd
 
 def main():
     df = load_data()
+    df, df_agg = transform(df)
+    export_data(df, df_agg)
+    print(f'Job successful!')
+
+
+def transform(df):
     df = clean_parse(df)
     df = calculate_age(df)
-    # calculate data before the date of the first export file
-    df = df.append(calculate_previous_data(df))
+    print(f'Calculating data for time before first data file...')
+    # min_date = first day of registration, max_date = earliest export file we have
+    df = df.append(calc_missing_data(df, df.creation_day.min(), df.date.min()))
     # calculate data for dates in between for which we don't have any export file
     df = df.append(calculate_missing_dates(df))
     (df, df_agg) = filter_aggregate(df)
-    export_data(df, df_agg)
-    print(f'Job successful!')
+    return df, df_agg
+
+
+def calc_missing_data(df, min_date, max_date):
+    min_date_text = max_date.strftime('%Y-%m-%d')
+    days_to_calc = pd.date_range(min_date, max_date, closed='left')
+    print(f'Using earliest dataset ({min_date_text}) for calculations...')
+    df_for_calc = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
+    df_calc = pd.DataFrame()
+    for day in days_to_calc:
+        df_then = calc_missing_single_day(day, df_for_calc)
+        df_calc = df_calc.append(df_then)
+    return df_calc
 
 
 def calculate_missing_dates(df):
@@ -82,28 +99,6 @@ def calculate_age(df):
                             'Creation date': 'creation_date'
                             })
     return df
-
-
-def calculate_previous_data(df):
-    print(f'Calculating data for time before first data file...')
-    # first day of registration
-    min_date = df.creation_day.min()
-    # earliest export file we have
-    max_date = df.date.min()
-    df_calc = calc_missing_data(df, min_date, max_date)
-    return df_calc
-
-
-def calc_missing_data(df, min_date, max_date):
-    min_date_text = max_date.strftime('%Y-%m-%d')
-    days_to_calc = pd.date_range(min_date, max_date, closed='left')
-    print(f'Using earliest dataset ({min_date_text}) for calculations...')
-    df_for_calc = df.query(f'date == "{min_date_text}"').reset_index(drop=True).copy(deep=True)
-    df_calc = pd.DataFrame()
-    for day in days_to_calc:
-        df_then = calc_missing_single_day(day, df_for_calc)
-        df_calc = df_calc.append(df_then)
-    return df_calc
 
 
 def calc_missing_single_day(day, df_for_calc):
