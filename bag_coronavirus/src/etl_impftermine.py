@@ -89,7 +89,8 @@ def clean_parse(df):
 
 def calculate_age(df):
     print(f'Calculating age...')
-    df['age'] = [relativedelta(a, b).years for a, b in zip(df.date, df.birthday)]
+    # df['age'] = [relativedelta(a, b).years for a, b in zip(df.date, df.birthday)]
+    df['age'] = (df.date - df.birthday).astype('timedelta64[Y]')
     print(f'Calculating age group...')
     df['age_group'] = pd.cut(df.age, bins=vmdl.get_age_groups()['bins'], labels=vmdl.get_age_groups()['labels'],
                              include_lowest=True)
