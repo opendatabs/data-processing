@@ -6,4 +6,5 @@ __pycache__/
 **/*.CSV
 **/*.xlsx
 **/*.pickle
+**/*.zip
 **/*.DS_Store
