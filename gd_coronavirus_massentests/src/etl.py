@@ -5,6 +5,7 @@ import zipfile
 import sqlite3
 import logging
 import pandas as pd
+import xml.etree.ElementTree as et
 from pandasql import sqldf
 import common
 from gd_coronavirus_massentests.src import credentials
@@ -18,24 +19,57 @@ def pysqldf(q):
 
 
 def main():
-    glob_string = os.path.join(credentials.data_path, "*.zip")
-    date, dfs = extract_data(glob.glob(glob_string))
+    date, dfs = extract_db_data(glob.glob(os.path.join(credentials.data_path_db, "*.zip")))
+    dfs['df_lab'] = extract_lab_data(os.path.join(credentials.data_path_xml, "*.xml"))
     add_global_dfs(dfs)
     convert_datetime_columns(dfs)
     # conn = create_db('../tests/fixtures/coronavirus_massentests.db', dfs)
     for report_def in [{'file_name': 'massentests_pool.csv', 'table_name': table_names[0]},
-                    {'file_name': 'massentests_single.csv', 'table_name': table_names[1]}]:
+                       {'file_name': 'massentests_single.csv', 'table_name': table_names[1]}]:
         report = calculate_report(report_def['table_name'])
         export_file = os.path.join(credentials.export_path, report_def['file_name'])
         logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
         report.to_csv(export_file, index=False)
+        #common.upload_ftp()
     # conn.close()
 
 
-def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
-    """Calculate the reports based on raw data table name.
+def extract_lab_data(glob_string: str):
+    """Extract lab data from xml files as a Pandas DataFrame"""
+    lab_df = pd.DataFrame()
+    for xml_file in glob.glob(glob_string):
+        with open(xml_file, 'r') as f:
+            xml_str = f.read().replace(' BS', 'BS')
+            root = et.fromstring(xml_str)
+        data = []
+        cols = []
+        for i, child in enumerate(root):
+            data.append(int(child.text))
+            cols.append(child.tag)
+        df = pd.DataFrame(data).T
+        df.columns = cols
+        lab_df = lab_df.append(df)
+    lab_df.Datum = pd.to_datetime(lab_df.Datum, format='%Y%m%d')
+    return lab_df
+
+
+def extract_db_data(g: glob) -> (str, dict[str, pd.DataFrame]):
     """
-    # todo: add column Kategorie
+    Load csv files from the first zip archive in the folder when ordered descending by name.
+    Returns a dict of Pandas DataFrames with the DataFrame name as key.
+    """
+    archive_path = sorted(g, reverse=True)[0]
+    date = os.path.basename(archive_path).split('_')[0]
+    zf = zipfile.ZipFile(archive_path)
+    dfs = {}
+    for data_file in zf.namelist():
+        df_name = data_file.split('.')[0]
+        dfs[df_name] = pd.read_csv(zf.open(data_file), sep=';')
+    return date, dfs
+
+
+def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
+    """Calculate the reports based on raw data table name."""
     # get start of week in sqlite using strftime: see https://stackoverflow.com/a/15810438
     results = sqldf(f'''
         select      strftime('%Y-%m-%d', ResultDate, 'weekday 0', '-6 day') as FirstDayOfWeek,
@@ -79,7 +113,19 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         from results r 
         left join positivity_rate p on r.WeekOfYear = p.WeekOfYear    
     ''')
-    return results_per_week
+    probes = sqldf('''
+        select      strftime("%W", Datum) as WeekOfYear, 
+                    sum(AnzahlProben) as CountProbes   
+        from df_lab
+        group by WeekOfYear
+    ''')
+    results_per_week_with_probes = sqldf('''
+        select r.*, p.CountProbes 
+        from results_per_week r left join probes p on r.WeekOfYear = p.WeekOfYear
+        order by WeekOfYear 
+    ''')
+    # Return column CountProbes only makes sense for LaborGroupOrder
+    return results_per_week_with_probes if table_name == 'LaborGroupOrder' else results_per_week
 
 
 def create_db(db, dfs):
@@ -104,21 +150,6 @@ def add_global_dfs(dfs):
     """Create global variable for each df so they can be used in sqldf"""
     for key in dfs:
         globals()[key] = dfs[key]
-
-
-def extract_data(g: glob) -> (str, dict[str, pd.DataFrame]):
-    """
-    Load csv files from the first zip archive in the folder when ordered descending by name.
-    Returns a dict of Pandas DataFrames with the DataFrame name as key.
-    """
-    archive_path = sorted(g, reverse=True)[0]
-    date = os.path.basename(archive_path).split('_')[0]
-    zf = zipfile.ZipFile(archive_path)
-    dfs = {}
-    for data_file in zf.namelist():
-        df_name = data_file.split('.')[0]
-        dfs[df_name] = pd.read_csv(zf.open(data_file), sep=';')
-    return date, dfs
 
 
 if __name__ == "__main__":
