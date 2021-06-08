@@ -30,7 +30,7 @@ def main():
         export_file = os.path.join(credentials.export_path, report_def['file_name'])
         logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
         report.to_csv(export_file, index=False)
-        #common.upload_ftp()
+        common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_gs/coronavirus_massenteststs')
     # conn.close()
 
 
