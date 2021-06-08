@@ -60,6 +60,7 @@ def extract_db_data(g: glob) -> (str, dict[str, pd.DataFrame]):
     """
     archive_path = sorted(g, reverse=True)[0]
     date = os.path.basename(archive_path).split('_')[0]
+    logging.info(f'Reading data from zip file {archive_path}...')
     zf = zipfile.ZipFile(archive_path)
     dfs = {}
     for data_file in zf.namelist():
