@@ -114,19 +114,19 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         from results r 
         left join positivity_rate p on r.WeekOfYear = p.WeekOfYear    
     ''')
-    probes = sqldf('''
+    samples = sqldf('''
         select      strftime("%W", Datum) as WeekOfYear, 
-                    sum(AnzahlProben) as CountProbes   
+                    sum(AnzahlProben) as CountSamples   
         from df_lab
         group by WeekOfYear
     ''')
-    results_per_week_with_probes = sqldf('''
-        select r.*, p.CountProbes 
-        from results_per_week r left join probes p on r.WeekOfYear = p.WeekOfYear
+    results_per_week_with_samples = sqldf('''
+        select r.*, p.CountSamples 
+        from results_per_week r left join samples p on r.WeekOfYear = p.WeekOfYear
         order by WeekOfYear 
     ''')
-    # Return column CountProbes only makes sense for LaborGroupOrder
-    return results_per_week_with_probes if table_name == 'LaborGroupOrder' else results_per_week
+    # Return column CountSamples only makes sense for LaborGroupOrder
+    return results_per_week_with_samples if table_name == 'LaborGroupOrder' else results_per_week
 
 
 def create_db(db, dfs):
