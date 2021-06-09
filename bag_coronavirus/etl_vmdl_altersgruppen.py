@@ -7,6 +7,21 @@ from bag_coronavirus import credentials
 from bag_coronavirus import vmdl
 
 
+def main():
+    pysqldf = lambda q: sqldf(q, globals())
+    df_bs_long_all = get_raw_df()
+    df_bs_perc = get_reporting_df(df_bs_long_all)
+    for dataset in [
+        {'dataframe': df_bs_long_all, 'filename': f'vaccinations_by_age_group.csv'},
+        {'dataframe': df_bs_perc, 'filename': f'vaccination_report_bs_age_group_long.csv'}
+    ]:
+        export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
+        print(f'Exporting resulting data to {export_file_name}...')
+        dataset['dataframe'].to_csv(export_file_name, index=False)
+        common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
+    print(f'Job successful!')
+
+
 def get_age_groups():
     bins =      [numpy.NINF, 15,     49,         64,         74,         numpy.inf]
     labels =    ['Unbekannt',       '16-49',    '50-64',    '65-74',    '> 74']
@@ -113,23 +128,6 @@ def get_reporting_df(df_bs_long_all):
     # print(f'Joining cumsums to crosstab...')
     # df_pivot = df_crosstab_all.drop(columns=['vacc_day'])\
     #     .merge(df_crosstab_cumsum, on=['vacc_day'], how='outer', suffixes=(None, '_cumsum')).reset_index()
-
-
-def main():
-    pysqldf = lambda q: sqldf(q, globals())
-    df_bs_long_all = get_raw_df()
-    df_bs_perc = get_reporting_df(df_bs_long_all)
-
-    for dataset in [
-        {'dataframe': df_bs_long_all,   'filename': f'vaccinations_by_age_group.csv'},
-        {'dataframe': df_bs_perc,       'filename': f'vaccination_report_bs_age_group_long.csv'}
-    ]:
-        export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
-        print(f'Exporting resulting data to {export_file_name}...')
-        dataset['dataframe'].to_csv(export_file_name, index=False)
-        common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
-
-    print(f'Job successful!')
 
 
 if __name__ == "__main__":
