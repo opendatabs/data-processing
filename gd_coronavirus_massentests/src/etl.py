@@ -99,7 +99,7 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
     positivity_rate = sqldf('''
         select      total.WeekOfYear,
                     total.CountTotal,
-                    cast(positive.CountPositive as real) / total.CountTotal * 100 as PositivityRatePercent
+                    coalesce(cast(positive.CountPositive as real) / total.CountTotal * 100, 0) as PositivityRatePercent
         from        total 
                     left join positive on total.WeekOfYear = positive.WeekOfYear
     
