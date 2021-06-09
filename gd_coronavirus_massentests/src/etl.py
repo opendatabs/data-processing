@@ -32,6 +32,7 @@ def main():
         report.to_csv(export_file, index=False)
         common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_gs/coronavirus_massenteststs')
     # conn.close()
+    logging.info(f'Job successful!')
 
 
 def extract_lab_data(glob_string: str):
@@ -104,6 +105,7 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
                     left join positive on total.WeekOfYear = positive.WeekOfYear
     
     ''')
+    # Filter out data for current week since we publish on a weekly basis
     results_per_week = sqldf('''
        select       r.FirstDayOfWeek,
                     r.WeekOfYear,
@@ -112,7 +114,8 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
                     p.CountTotal,
                     p.PositivityRatePercent
         from results r 
-        left join positivity_rate p on r.WeekOfYear = p.WeekOfYear    
+        left join positivity_rate p on r.WeekOfYear = p.WeekOfYear  
+        where r.FirstDayOfWeek < strftime('%Y-%m-%d', 'now', 'weekday 0', '-6 day')
     ''')
     samples = sqldf('''
         select      strftime("%W", Datum) as WeekOfYear, 
@@ -123,8 +126,7 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
     # Filter out test data for school mass testing before go-live 2021-05-17
     results_per_week_with_samples = sqldf('''
         select r.*, p.CountSamples 
-        from results_per_week r left join samples p on r.WeekOfYear = p.WeekOfYear
-        where r.FirstDayOfWeek >= date('2021-05-17')
+        from results_per_week r left join samples p on r.WeekOfYear = p.WeekOfYear        
         order by WeekOfYear 
     ''')
     # Return column CountSamples only makes sense for LaborGroupOrder
