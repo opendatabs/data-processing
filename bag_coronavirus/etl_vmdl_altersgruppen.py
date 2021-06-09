@@ -75,6 +75,10 @@ def get_reporting_df(df_bs_long_all):
     df_all_ages = df_all_ages.groupby(['vacc_day', 'vacc_count']).sum().reset_index()
     df_all_ages['age_group'] = 'Gesamtbevölkerung'
     df_bs_long_all = df_bs_long_all.append(df_all_ages)
+    print('calculating age grouop "Impfberechtigte Bevölkerung"...')
+    df_vacc_allowed = df_all_ages.copy()
+    df_vacc_allowed['age_group'] = 'Impfberechtigte Bevölkerung'
+    df_bs_long_all = df_bs_long_all.append(df_vacc_allowed)
 
     print(f'Calculating cumulative sums for long df...')
     # See https://stackoverflow.com/a/32847843
@@ -103,8 +107,12 @@ def get_reporting_df(df_bs_long_all):
     df_pop_age_group = df_pop_2020.groupby(['age_group'])['anzahl'].sum().reset_index().rename(columns={'anzahl': 'total_pop'})
     print(f'Removing "Unbekannt" age group from population dataset...')
     df_pop_age_group = df_pop_age_group.query('age_group != "Unbekannt"')
+    print(f'Calculating count of age group "Impfberechtige Bevölkerung"...')
+    df_pop_vacc_allowed = pd.DataFrame({'age_group': 'Impfberechtigte Bevölkerung', 'total_pop': df_pop_age_group.total_pop.sum()}, index=[0])
     print(f'Calculating count of age group "Gesamtbevölkerung"...')
-    df_pop_age_group = df_pop_age_group.append({'age_group': 'Gesamtbevölkerung', 'total_pop': df_pop_2020.anzahl.sum()}, ignore_index=True)
+    df_pop_total = pd.DataFrame({'age_group': 'Gesamtbevölkerung', 'total_pop': df_pop_2020.anzahl.sum()}, index=[0])
+    print(f'Appending totals for "Impfberechtigte Bevölkerung" and "Gesamtbevölkerung" ')
+    df_pop_age_group = df_pop_age_group.append(df_pop_vacc_allowed).append(df_pop_total)
 
     print(f'Joining pop data and calculating percentages...')
     df_bs_perc = df_bs_cum.merge(df_pop_age_group, on=['age_group'], how='left')
