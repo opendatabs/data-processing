@@ -120,9 +120,11 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         from df_lab
         group by WeekOfYear
     ''')
+    # Filter out test data for school mass testing before go-live 2021-05-17
     results_per_week_with_samples = sqldf('''
         select r.*, p.CountSamples 
         from results_per_week r left join samples p on r.WeekOfYear = p.WeekOfYear
+        where r.FirstDayOfWeek >= date('2021-05-17')
         order by WeekOfYear 
     ''')
     # Return column CountSamples only makes sense for LaborGroupOrder
