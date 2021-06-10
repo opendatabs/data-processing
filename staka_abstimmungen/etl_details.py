@@ -90,7 +90,7 @@ def main():
                                               concatenated_df['Abst_ID'])
 
     print('Creating column "Abst_ID_Titel"...')
-    all_df['Abst_ID_Titel'] = all_df['Abst_ID'].astype(str) + ': ' + all_df['Abst_Titel']
+    concatenated_df['Abst_ID_Titel'] = concatenated_df['Abst_ID'].astype(str) + ': ' + concatenated_df['Abst_Titel']
 
     export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{abst_date}.csv')
     print(f'Exporting to {export_file_name}...')
