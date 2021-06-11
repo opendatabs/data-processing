@@ -21,7 +21,14 @@ def main():
 
 def calculate_kennzahlen(data_file_names):
     print(f'Starting to work with data file(s) {data_file_names}...')
+    abst_date = ''
     appended_data = []
+    columns_to_keep = ['Gemein_Name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz',
+                       'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art',
+                       'Abst_ID',
+                       'anteil_ja_stimmen', 'Gemein_ID', 'Durchschn_Stimmbet_pro_Abst_Art',
+                       'Durchschn_Briefl_Ant_pro_Abst_Art', 'Stimmber_Anz',
+                       'Stimmber_Anz_M', 'Stimmber_Anz_F', 'abst_typ']
     for data_file_name in data_file_names:
         import_file_name = os.path.join(credentials.path, data_file_name)
         print(f'Reading dataset from {import_file_name} to retrieve sheet names...')
@@ -38,11 +45,14 @@ def calculate_kennzahlen(data_file_names):
 
         dat_sheets = []
         for sheet_name in dat_sheet_names:
+            is_gegenvorschlag = False  # Is this a sheet that contains a Gegenvorschlag?
             print(f'Reading Abstimmungstitel from {sheet_name}...')
             df_title = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=4, index_col=None)
             abst_title_raw = df_title.columns[1]
             # Get String that starts form ')' plus space + 1 characters to the right
             abst_title = abst_title_raw[abst_title_raw.find(')') + 2:]
+            if 'Gegenvorschlag' in abst_title:
+                is_gegenvorschlag = True
 
             print(f'Reading Abstimmungsart and Date from {sheet_name}...')
             df_meta = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None)
@@ -50,7 +60,6 @@ def calculate_kennzahlen(data_file_names):
             abst_type = 'kantonal' if title_string.startswith('Kantonal') else 'national'
             abst_date_raw = title_string[title_string.find('vom ') + 4:]
             abst_date = dateparser.parse(abst_date_raw).strftime('%Y-%m-%d')
-            result_type = df_meta.columns[8]
 
             print(f'Reading data from {sheet_name}...')
             df = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=6,
@@ -74,17 +83,47 @@ def calculate_kennzahlen(data_file_names):
             df['Abst_Titel'] = abst_title
             df['Abst_Art'] = abst_type
             df['Abst_Datum'] = abst_date
-            df['Result_Art'] = result_type
             df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
+            df['abst_typ'] = ''
 
+            df.Guelt_Anz.replace(0, pd.NA, inplace=True)
+
+            if is_gegenvorschlag:
+                print(f'Adding Gegenvorschlag data...')
+                result_type = df_meta.columns[15]
+                df.abst_typ = 'Initiative mit Gegenvorschlag und Stichfrage'
+                df.rename(columns={'Ja.1': 'Gege_Ja_Anz',
+                                   'Nein.1': 'Gege_Nein_Anz',
+                                   'Initiative': 'Sti_Initiative_Anz',
+                                   'Gegen-vorschlag': 'Sti_Gegenvorschlag_Anz',
+                                   'ohne gültige Antwort': 'Init_OGA_Anz',
+                                   'ohne gültige Antwort.1': 'Gege_OGA_Anz',
+                                   'ohne gültige Antwort.2': 'Sti_OGA_Anz'}, inplace=True)
+
+                print(f'Calculating anteil_ja_stimmen for Gegenvorschlag case...')
+                for column in [df.Ja_Anz, df.Nein_Anz, df.Gege_Ja_Anz, df.Gege_Nein_Anz, df.Sti_Initiative_Anz,
+                               df.Sti_Gegenvorschlag_Anz]:
+                    column.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
+
+                df['anteil_ja_stimmen'] = df.Ja_Anz / (df.Ja_Anz + df.Nein_Anz)
+                df['gege_anteil_ja_Stimmen'] = df.Gege_Ja_Anz / (df.Gege_Ja_Anz + df.Gege_Nein_Anz)
+                df['sti_anteil_init_stimmen'] = df.Sti_Initiative_Anz / (
+                            df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz)
+                columns_to_keep = columns_to_keep + ['Gege_Ja_Anz', 'Gege_Nein_Anz', 'Sti_Initiative_Anz',
+                                                     'Sti_Gegenvorschlag_Anz', 'gege_anteil_ja_Stimmen',
+                                                     'sti_anteil_init_stimmen', 'Init_OGA_Anz', 'Gege_OGA_Anz',
+                                                     'Sti_OGA_Anz']
+            else:
+                print(f'Adding data for case that is not with Gegenvorschlag...')
+                result_type = df_meta.columns[8]
+                print(f'Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag...')
+                df['anteil_ja_stimmen'] = df['Ja_Anz'] / df['Guelt_Anz']
+
+            df['Result_Art'] = result_type
             dat_sheets.append(df)
 
         print(f'Creating one dataframe for all Abstimmungen...')
         all_df = pd.concat(dat_sheets)
-
-        print(f'Calculating anteil_ja_stimmen...')
-        all_df.Guelt_Anz.replace(0, pd.NA, inplace=True)
-        all_df['anteil_ja_stimmen'] = all_df['Ja_Anz'] / all_df['Guelt_Anz']
 
         # Code specific for Kennzahlen dataset
         print(f'Cleaning up Gemeinde names in all_df...')
@@ -143,12 +182,7 @@ def calculate_kennzahlen(data_file_names):
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=['Gemein_Name'], how='inner'), frames_to_join)
 
         print('Keeping only necessary columns...')
-        df_merged = df_merged.filter(['Gemein_Name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz',
-                                      'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art',
-                                      'Abst_ID',
-                                      'anteil_ja_stimmen', 'Gemein_ID', 'Durchschn_Stimmbet_pro_Abst_Art',
-                                      'Durchschn_Briefl_Ant_pro_Abst_Art', 'Stimmber_Anz',
-                                      'Stimmber_Anz_M', 'Stimmber_Anz_F'])
+        df_merged = df_merged.filter(columns_to_keep)
 
         appended_data.append(df_merged)
     print(f'Concatenating data from all import files ({appended_data})...')
