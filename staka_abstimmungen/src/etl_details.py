@@ -5,9 +5,21 @@ import dateparser
 import numpy as np
 import common
 
+
 def main():
-    appended_data = []
     data_file_names = credentials.data_orig
+    abst_date, concatenated_df = calculate_details(data_file_names)
+
+    export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{abst_date}.csv')
+    print(f'Exporting to {export_file_name}...')
+    concatenated_df.to_csv(export_file_name, index=False)
+
+    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
+    print('Job successful!')
+
+
+def calculate_details(data_file_names):
+    appended_data = []
     print(f'Starting to work with data file(s) {data_file_names}...')
     for data_file_name in data_file_names:
         import_file_name = os.path.join(credentials.path, data_file_name)
@@ -19,7 +31,8 @@ def main():
             if key.startswith('DAT '):
                 dat_sheet_names.append(key)
 
-        valid_wahllokale = ['Bahnhof SBB', 'Rathaus', 'Polizeiwache Clara', 'Basel brieflich Stimmende', 'Riehen Gemeindehaus',
+        valid_wahllokale = ['Bahnhof SBB', 'Rathaus', 'Polizeiwache Clara', 'Basel brieflich Stimmende',
+                            'Riehen Gemeindehaus',
                             'Riehen brieflich Stimmende', 'Bettingen Gemeindehaus', 'Bettingen brieflich Stimmende',
                             'Persönlich an der Urne Stimmende AS', 'Brieflich Stimmende AS']
 
@@ -40,7 +53,8 @@ def main():
             result_type = df_meta.columns[8]
 
             print(f'Reading data from {sheet_name}...')
-            df = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=6, index_col=None)# , header=[0, 1, 2])
+            df = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=6,
+                               index_col=None)  # , header=[0, 1, 2])
             df.reset_index(inplace=True)
 
             print('Filtering out Wahllokale...')
@@ -73,14 +87,13 @@ def main():
         all_df['anteil_ja_stimmen'] = all_df['Ja_Anz'] / all_df['Guelt_Anz']
 
         print('Keeping only necessary columns...')
-        all_df = all_df.filter(['Wahllok_name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz', 'Ja_Anz', 'Nein_Anz',
-                       'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID', 'anteil_ja_stimmen'],)
+        all_df = all_df.filter(
+            ['Wahllok_name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz', 'Ja_Anz', 'Nein_Anz',
+             'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID', 'anteil_ja_stimmen'], )
 
         appended_data.append(all_df)
-
     print(f'Concatenating data from all import files ({appended_data})...')
     concatenated_df = pd.concat(appended_data)
-
     print(f'Calculating Abstimmungs-ID based on all data...')
     nat_df = concatenated_df[concatenated_df['Abst_Art'] == 'national']
     if 'national' in nat_df['Abst_Art'].unique():
@@ -88,16 +101,9 @@ def main():
         concatenated_df['Abst_ID'] = np.where(concatenated_df['Abst_Art'] == 'kantonal',
                                               max_nat_id + concatenated_df['Abst_ID'].astype('int32'),
                                               concatenated_df['Abst_ID'])
-
     print('Creating column "Abst_ID_Titel"...')
     concatenated_df['Abst_ID_Titel'] = concatenated_df['Abst_ID'].astype(str) + ': ' + concatenated_df['Abst_Titel']
-
-    export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{abst_date}.csv')
-    print(f'Exporting to {export_file_name}...')
-    concatenated_df.to_csv(export_file_name, index=False)
-
-    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
-    print('Job successful!')
+    return abst_date, concatenated_df
 
 
 if __name__ == "__main__":
