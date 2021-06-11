@@ -8,9 +8,20 @@ from functools import reduce
 
 
 def main():
-    appended_data = []
     data_file_names = credentials.data_orig
+    abst_date, concatenated_df = calculate_kennzahlen(data_file_names)
+
+    export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{abst_date}.csv')
+    print(f'Exporting to {export_file_name}...')
+    concatenated_df.to_csv(export_file_name, index=False)
+
+    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
+    print('Job successful!')
+
+
+def calculate_kennzahlen(data_file_names):
     print(f'Starting to work with data file(s) {data_file_names}...')
+    appended_data = []
     for data_file_name in data_file_names:
         import_file_name = os.path.join(credentials.path, data_file_name)
         print(f'Reading dataset from {import_file_name} to retrieve sheet names...')
@@ -22,7 +33,8 @@ def main():
                 dat_sheet_names.append(key)
 
         # specific for Kennzahlen dataset
-        valid_wahllokale = ['Total Basel', 'Total Riehen', 'Total Bettingen', 'Total Auslandschweizer (AS)', 'Total Kanton']
+        valid_wahllokale = ['Total Basel', 'Total Riehen', 'Total Bettingen', 'Total Auslandschweizer (AS)',
+                            'Total Kanton']
 
         dat_sheets = []
         for sheet_name in dat_sheet_names:
@@ -41,7 +53,8 @@ def main():
             result_type = df_meta.columns[8]
 
             print(f'Reading data from {sheet_name}...')
-            df = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=6, index_col=None)# , header=[0, 1, 2])
+            df = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=6,
+                               index_col=None)  # , header=[0, 1, 2])
             df.reset_index(inplace=True)
 
             print('Filtering out Wahllokale...')
@@ -110,15 +123,16 @@ def main():
 
         kennz_sheet_name = 'Abstimmungs-Kennzahlen'
         # number of empty rows may be different for KAN and EID files
-        skip_rows = 4 #if '_KAN' in import_file_name else 7
+        skip_rows = 4  # if '_KAN' in import_file_name else 7
         print(f'Reading data from {kennz_sheet_name}, skipping first {skip_rows} rows...')
         df_kennz = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, skiprows=skip_rows, index_col=None)
         df_kennz.rename(columns={'Unnamed: 0': 'empty',
-                                    'Unnamed: 1': 'Gemein_Name',
-                                    '\nStimmberechtigte': 'Stimmber_Anz',
-                                    'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
-                                    'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
-                                    'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'}, inplace=True)
+                                 'Unnamed: 1': 'Gemein_Name',
+                                 '\nStimmberechtigte': 'Stimmber_Anz',
+                                 'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
+                                 'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                 'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'},
+                        inplace=True)
         print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
         for repl in gemein_replacements:
             df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]
@@ -126,19 +140,19 @@ def main():
         # df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
         print('Joining all sheets into one...')
         frames_to_join = [all_df, df_kennz, df_stimmber]
-        df_merged = reduce(lambda left,right: pd.merge(left,right,on=['Gemein_Name'], how='inner'), frames_to_join)
+        df_merged = reduce(lambda left, right: pd.merge(left, right, on=['Gemein_Name'], how='inner'), frames_to_join)
 
         print('Keeping only necessary columns...')
         df_merged = df_merged.filter(['Gemein_Name', 'Stimmr_Anz', 'Eingel_Anz', 'Leer_Anz', 'Unguelt_Anz', 'Guelt_Anz',
-                                      'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art', 'Abst_ID',
-                                      'anteil_ja_stimmen', 'Gemein_ID', 'Durchschn_Stimmbet_pro_Abst_Art', 'Durchschn_Briefl_Ant_pro_Abst_Art', 'Stimmber_Anz',
+                                      'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art',
+                                      'Abst_ID',
+                                      'anteil_ja_stimmen', 'Gemein_ID', 'Durchschn_Stimmbet_pro_Abst_Art',
+                                      'Durchschn_Briefl_Ant_pro_Abst_Art', 'Stimmber_Anz',
                                       'Stimmber_Anz_M', 'Stimmber_Anz_F'])
 
         appended_data.append(df_merged)
-
     print(f'Concatenating data from all import files ({appended_data})...')
     concatenated_df = pd.concat(appended_data)
-
     print(f'Calculating Abstimmungs-ID based on all data...')
     nat_df = concatenated_df[concatenated_df['Abst_Art'] == 'national']
     if 'national' in nat_df['Abst_Art'].unique():
@@ -146,19 +160,11 @@ def main():
         concatenated_df['Abst_ID'] = np.where(concatenated_df['Abst_Art'] == 'kantonal',
                                               max_nat_id + concatenated_df['Abst_ID'].astype('int32'),
                                               concatenated_df['Abst_ID'])
-
     print('Creating column "Abst_ID_Titel"...')
     concatenated_df['Abst_ID_Titel'] = concatenated_df['Abst_ID'].astype(str) + ': ' + concatenated_df['Abst_Titel']
-
     # print(f'Calculating Stimmbeteiligung...')
     # concatenated_df['Stimmbet'] = concatenated_df['Eingel_Anz'] / concatenated_df['Stimmber_Anz']
-
-    export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{abst_date}.csv')
-    print(f'Exporting to {export_file_name}...')
-    concatenated_df.to_csv(export_file_name, index=False)
-
-    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
-    print('Job successful!')
+    return abst_date, concatenated_df
 
 
 if __name__ == "__main__":
