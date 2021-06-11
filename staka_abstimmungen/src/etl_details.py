@@ -19,7 +19,6 @@ def main():
 
 
 def calculate_details(data_file_names):
-    has_gegenvorschlag = False # Is there any abstimmung that contains a Gegenvorschlag?
     abst_date = ''
     appended_data = []
     print(f'Starting to work with data file(s) {data_file_names}...')
@@ -50,6 +49,8 @@ def calculate_details(data_file_names):
             abst_title_raw = df_title.columns[1]
             # Get String that starts form ')' plus space + 1 characters to the right
             abst_title = abst_title_raw[abst_title_raw.find(')') + 2:]
+            if 'Gegenvorschlag' in abst_title:
+                is_gegenvorschlag = True
 
             print(f'Reading Abstimmungsart and Date from {sheet_name}...')
             df_meta = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None)
@@ -85,25 +86,26 @@ def calculate_details(data_file_names):
 
             df.Guelt_Anz.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
-            if 'Gegenvorschlag' in abst_title:
-                is_gegenvorschlag = True
-                has_gegenvorschlag = True
+            if is_gegenvorschlag:
                 print(f'Adding Gegenvorschlag data...')
                 result_type = df_meta.columns[15]
                 df.abst_typ = 'Initiative mit Gegenvorschlag und Stichfrage'
                 df.rename(columns={'Ja.1': 'Gege_Ja_Anz',
                                    'Nein.1': 'Gege_Nein_Anz',
                                    'Initiative': 'Sti_Initiative_Anz',
-                                   'Gegen-vorschlag': 'Sti_Gegenvorschlag_Anz'}, inplace=True)
+                                   'Gegen-vorschlag': 'Sti_Gegenvorschlag_Anz',
+                                   'ohne gültige Antwort': 'Init_OGA_Anz',
+                                   'ohne gültige Antwort.1': 'Gege_OGA_Anz',
+                                   'ohne gültige Antwort.2': 'Sti_OGA_Anz'}, inplace=True)
 
                 print(f'Calculating anteil_ja_stimmen for Gegenvorschlag case...')
                 for column in [df.Ja_Anz, df.Nein_Anz, df.Gege_Ja_Anz, df.Gege_Nein_Anz, df.Sti_Initiative_Anz, df.Sti_Gegenvorschlag_Anz]:
-                    column.replace(0, pd.NA, inplace=True) # Prevent division by zero errors
+                    column.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
                 df['anteil_ja_stimmen'] = df.Ja_Anz / (df.Ja_Anz + df.Nein_Anz)
                 df['gege_anteil_ja_Stimmen'] = df.Gege_Ja_Anz / (df.Gege_Ja_Anz + df.Gege_Nein_Anz)
                 df['sti_anteil_init_stimmen'] = df.Sti_Initiative_Anz / (df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz)
-                columns_to_keep = columns_to_keep + ['Gege_Ja_Anz', 'Gege_Nein_Anz', 'Sti_Initiative_Anz', 'Sti_Gegenvorschlag_Anz', 'gege_anteil_ja_Stimmen', 'sti_anteil_init_stimmen']
+                columns_to_keep = columns_to_keep + ['Gege_Ja_Anz', 'Gege_Nein_Anz', 'Sti_Initiative_Anz', 'Sti_Gegenvorschlag_Anz', 'gege_anteil_ja_Stimmen', 'sti_anteil_init_stimmen', 'Init_OGA_Anz', 'Gege_OGA_Anz', 'Sti_OGA_Anz']
             else:
                 print(f'Adding data for case that is not with Gegenvorschlag...')
                 result_type = df_meta.columns[8]
@@ -136,4 +138,3 @@ def calculate_details(data_file_names):
 if __name__ == "__main__":
     print(f'Executing {__file__}...')
     main()
-
