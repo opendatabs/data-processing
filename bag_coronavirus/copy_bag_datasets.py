@@ -37,7 +37,7 @@ path_base_csv_weeklyVacc_byAge = context_json['sources']['individual']['csv']['w
 path_base_csv_weeklyVacc_bySex = context_json['sources']['individual']['csv']['weeklyVacc']['bySex']
 datasets = [
     {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
-    {'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
+    #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
     {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
     {'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
     {'name': 'testPcrAntigen',          'base_path': path_base_csv_daily,   'suffix': ''},
