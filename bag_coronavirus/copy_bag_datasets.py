@@ -45,7 +45,7 @@ datasets = [
     {'name': 'cases',                   'base_path': path_base_csv_daily,   'suffix': ''},
     {'name': 'vaccDosesDelivered',      'base_path': path_base_csv,         'suffix': ''},
     {'name': 'vaccDosesAdministered',   'base_path': path_base_csv,         'suffix': ''},
-    {'name': 'fullyVaccPersons',        'base_path': path_base_csv,         'suffix': ''},
+    #{'name': 'fullyVaccPersons',        'base_path': path_base_csv,         'suffix': ''},
 ]
 
 for dataset in datasets:
