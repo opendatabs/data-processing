@@ -117,13 +117,17 @@ def filter_aggregate(df):
 
 
 def export_data(df, df_agg):
-    agg_export_file_name = os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg.csv')
-    print(f'Exporting resulting data to {agg_export_file_name}...')
-    df_agg.to_csv(agg_export_file_name, index=False)
-    common.upload_ftp(agg_export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
+    print(f'Exporting resulting data to {agg_export_file_name()}...')
+    df_agg.to_csv(agg_export_file_name(), index=False)
+    common.upload_ftp(agg_export_file_name(), credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
     raw_export_file = os.path.join(credentials.impftermine_path, 'export', f'impftermine.csv')
     print(f'Exporting resulting data to {raw_export_file}...')
     df[['date', 'Birthdate', 'birthday', 'age', 'age_group', 'has_appointments']].to_csv(raw_export_file, index=False)
+
+
+def agg_export_file_name():
+    """Path to aggregated calculated reporting file"""
+    return os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg.csv')
 
 
 if __name__ == "__main__":
