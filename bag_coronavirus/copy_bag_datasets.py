@@ -1,3 +1,4 @@
+import logging
 from bag_coronavirus import credentials
 import os
 import common
@@ -29,27 +30,34 @@ def get_bag_data(dataset_name, url, suffix):
     common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
 
 
-print(f"Getting today's data url...")
-context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/context').json()
-path_base_csv = context_json['sources']['individual']['csv']
-path_base_csv_daily = context_json['sources']['individual']['csv']['daily']
-path_base_csv_weeklyVacc_byAge = context_json['sources']['individual']['csv']['weeklyVacc']['byAge']
-path_base_csv_weeklyVacc_bySex = context_json['sources']['individual']['csv']['weeklyVacc']['bySex']
-datasets = [
-    {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
-    #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
-    {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
-    #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
-    {'name': 'testPcrAntigen',          'base_path': path_base_csv_daily,   'suffix': ''},
-    {'name': 'hospCapacity',            'base_path': path_base_csv_daily,   'suffix': ''},
-    {'name': 'cases',                   'base_path': path_base_csv_daily,   'suffix': ''},
-    {'name': 'vaccDosesDelivered',      'base_path': path_base_csv,         'suffix': ''},
-    {'name': 'vaccDosesAdministered',   'base_path': path_base_csv,         'suffix': ''},
-    #{'name': 'fullyVaccPersons',        'base_path': path_base_csv,         'suffix': ''},
-]
+def main():
+    print(f"Getting today's data url...")
+    context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/context').json()
+    path_base_csv = context_json['sources']['individual']['csv']
+    path_base_csv_daily = context_json['sources']['individual']['csv']['daily']
+    path_base_csv_weeklyVacc_byAge = context_json['sources']['individual']['csv']['weeklyVacc']['byAge']
+    path_base_csv_weeklyVacc_bySex = context_json['sources']['individual']['csv']['weeklyVacc']['bySex']
+    datasets = [
+        {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
+        #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
+        {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
+        #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
+        {'name': 'testPcrAntigen',          'base_path': path_base_csv_daily,   'suffix': ''},
+        {'name': 'hospCapacity',            'base_path': path_base_csv_daily,   'suffix': ''},
+        {'name': 'cases',                   'base_path': path_base_csv_daily,   'suffix': ''},
+        {'name': 'vaccDosesDelivered',      'base_path': path_base_csv,         'suffix': ''},
+        {'name': 'vaccDosesAdministered',   'base_path': path_base_csv,         'suffix': ''},
+        #{'name': 'fullyVaccPersons',        'base_path': path_base_csv,         'suffix': ''},
+    ]
 
-for dataset in datasets:
-    name = dataset['name']
-    get_bag_data(dataset_name=name, url=dataset['base_path'][name], suffix=dataset['suffix'])
+    for dataset in datasets:
+        name = dataset['name']
+        get_bag_data(dataset_name=name, url=dataset['base_path'][name], suffix=dataset['suffix'])
 
-print(f'Job successful!')
+    print(f'Job successful!')
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
