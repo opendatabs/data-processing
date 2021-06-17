@@ -39,7 +39,7 @@ datasets = [
     {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
     #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
     {'name': 'vaccDosesAdministered',   'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
-    {'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
+    #{'name': 'fullyVaccPersons',        'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
     {'name': 'testPcrAntigen',          'base_path': path_base_csv_daily,   'suffix': ''},
     {'name': 'hospCapacity',            'base_path': path_base_csv_daily,   'suffix': ''},
     {'name': 'cases',                   'base_path': path_base_csv_daily,   'suffix': ''},
