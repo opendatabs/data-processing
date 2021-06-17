@@ -2,7 +2,7 @@ import logging
 import os
 import pandas as pd
 from pandasql import sqldf
-import etl_impftermine as impftermine
+from bag_coronavirus.src import etl_impftermine as impftermine
 from bag_coronavirus import credentials
 
 
