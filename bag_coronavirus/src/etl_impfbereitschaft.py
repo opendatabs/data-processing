@@ -22,7 +22,7 @@ def export_data(df):
 
 
 def calculate_report(df_wl, df_impf):
-    logging.info('Calculating peersons on waiting list, vaccinated, and population in age groups than can get vaccinated...')
+    logging.info('Calculating persons on waiting list, vaccinated, and population in age groups than can get vaccinated...')
     df_on_wl = sqldf('select date, sum(count) as auf_warteliste from df_wl group by date')
     df_geimpft = sqldf('''
         select 
