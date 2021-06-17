@@ -15,7 +15,7 @@ def main():
 
 
 def export_data(df):
-    export_file_name = os.path.join(credentials.vmdl_path, 'vacc_report_restbev.csv')
+    export_file_name = os.path.join(credentials.vmdl_path, 'impfbereitschaft.csv')
     logging.info(f'Exporting data to {export_file_name}...')
     df.to_csv(export_file_name, index=False)
     return export_file_name
