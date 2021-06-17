@@ -52,11 +52,15 @@ def calculate_report(df_wl, df_impf):
 
 def extract_data():
     """Read data from datasets created by the other jobs run before this one."""
+    logging.info(f'Reading data from {impftermine.agg_export_file_name()}...')
     df_wl = pd.read_csv(impftermine.agg_export_file_name())
-    df_impf = pd.read_csv(os.path.join(credentials.vmdl_path, 'vaccination_report_bs_age_group_long.csv'))
+    vacc_report_file = os.path.join(credentials.vmdl_path, 'vaccination_report_bs_age_group_long.csv')
+    logging.info(f'Reading data from {vacc_report_file}...')
+    df_impf = pd.read_csv(vacc_report_file)
     return df_wl, df_impf
 
 
 if __name__ == "__main__":
-    print(f'Executing {__file__}...')
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
     main()
