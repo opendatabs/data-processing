@@ -1,7 +1,10 @@
 import logging
 import os
 import pandas as pd
+import common
 from pandasql import sqldf
+
+import common
 from bag_coronavirus.src import etl_impftermine as impftermine
 from bag_coronavirus import credentials
 
@@ -18,6 +21,7 @@ def export_data(df):
     export_file_name = os.path.join(credentials.vmdl_path, 'impfbereitschaft.csv')
     logging.info(f'Exporting data to {export_file_name}...')
     df.to_csv(export_file_name, index=False)
+    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
     return export_file_name
 
 
