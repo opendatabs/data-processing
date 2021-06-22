@@ -10,8 +10,16 @@ from pandasql import sqldf
 import common
 from gd_coronavirus_massentests.src import credentials
 
-table_names = ['LaborGroupOrder', 'LaborSingleOrder']
 TABLE_NAME = typing.Literal['LaborGroupOrder', 'LaborSingleOrder']
+
+
+def get_table_names():
+    return ['LaborGroupOrder', 'LaborSingleOrder']
+
+
+def get_report_defs():
+    return [{'file_name': 'massentests_pool.csv', 'table_name': get_table_names()[0]},
+            {'file_name': 'massentests_single.csv', 'table_name': get_table_names()[1]}]
 
 
 def pysqldf(q):
@@ -24,8 +32,7 @@ def main():
     add_global_dfs(dfs)
     convert_datetime_columns(dfs)
     # conn = create_db('../tests/fixtures/coronavirus_massentests.db', dfs)
-    for report_def in [{'file_name': 'massentests_pool.csv', 'table_name': table_names[0]},
-                       {'file_name': 'massentests_single.csv', 'table_name': table_names[1]}]:
+    for report_def in get_report_defs():
         report = calculate_report(report_def['table_name'])
         export_file = os.path.join(credentials.export_path, report_def['file_name'])
         logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
@@ -117,6 +124,27 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         left join positivity_rate p on r.WeekOfYear = p.WeekOfYear  
         where r.FirstDayOfWeek < strftime('%Y-%m-%d', 'now', 'weekday 0', '-6 day')
     ''')
+
+    # Count the number of businesses that take part in testing per week
+    businesses_per_week = sqldf('''
+        select
+           strftime("%W", ResultDate) as WeekOfYear,
+           count(distinct BusinessId) as BusinessCount
+        from
+             LaborSingleOrder l left join
+             employee e on l.PersonId = e.EmployeeId
+        where 
+            Result is not null and 
+            ResultDate is not null
+        group by WeekOfYear
+        order by WeekOfYear desc
+    ''')
+
+    results_per_week_with_businesses = sqldf('''
+        select r.*, b.BusinessCount
+        from results_per_week r left join businesses_per_week b on r.WeekOfYear = b.WeekOfYear
+    ''')
+
     samples = sqldf('''
         select      strftime("%W", Datum) as WeekOfYear, 
                     sum(AnzahlProben) as CountSamples   
@@ -130,8 +158,8 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         where r.FirstDayOfWeek >= date('2021-05-17')
         order by WeekOfYear 
     ''')
-    # Return column CountSamples only makes sense for LaborGroupOrder
-    return results_per_week_with_samples if table_name == 'LaborGroupOrder' else results_per_week
+    # Return a different dataset for schools (LaborGroupOrder) vs. businesses (LaborSingleOrder)
+    return results_per_week_with_samples if table_name == 'LaborGroupOrder' else results_per_week_with_businesses
 
 
 def create_db(db, dfs):
