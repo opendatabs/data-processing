@@ -21,8 +21,8 @@ def test_regression(single_df, pool_df):
     # massentests_single.to_pickle(single_pickle_path)
 
     assert massentests_pool.equals(pool_df)
-    assert massentests_single.drop(columns=['BusinessCount']).equals(single_df)
-    # assert massentests_single.equals(single_df)
+    # assert massentests_single.drop(columns=['BusinessCount']).equals(single_df)
+    assert massentests_single.equals(single_df)
 
 
 def main():
