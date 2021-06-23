@@ -3,6 +3,8 @@ import os
 import common
 from datetime import date, timedelta
 from bag_coronavirus import credentials
+import zipfile
+import shutil
 
 
 def file_path():
@@ -33,11 +35,16 @@ def retrieve_vmdl_data():
     print(f'Downloading data...')
     resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download)
     resp_download.raise_for_status()
+    zip_file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_zip_file)
     file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_file)
-    print(f'Writing data to file {file_path}...')
-    resp_download.encoding = 'utf-8'
-    with open(file_path, "w") as f:
-        f.write(resp_download.text)
+    print(f'Writing zip data to file {zip_file_path}...')
+    # resp_download.encoding = 'utf-8'
+    with open(zip_file_path, "wb") as f:
+        f.write(resp_download.content)
+    print(f'Extracting csv data to file {file_path}...')
+    with zipfile.ZipFile(zip_file_path) as z:
+        with z.open('data.csv') as zf, open(file_path, 'wb') as f:
+            shutil.copyfileobj(zf, f)
     return file_path
 
 
