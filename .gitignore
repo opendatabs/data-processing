@@ -10,4 +10,5 @@ __pycache__/
 **/*.db
 **/*.xml
 **/*.sqlite
+**/*.sfv
 **/*.DS_Store
