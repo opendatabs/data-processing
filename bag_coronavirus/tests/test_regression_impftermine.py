@@ -5,9 +5,9 @@ from bag_coronavirus.src import etl_impftermine
 from bag_coronavirus.tests import conftest
 
 
-def test_regression(df, df_agg):
-    df_to_test, df_agg_to_test = etl_impftermine.transform(df)
-    assert df_agg.equals(df_agg_to_test)
+def test_regression_impftermine(impft_df, impft_df_agg):
+    df_to_test, df_agg_to_test = etl_impftermine.transform(impft_df)
+    assert impft_df_agg.equals(df_agg_to_test)
 
 
 def main():

@@ -3,7 +3,7 @@ import os
 import common
 from pandasql import sqldf
 from bag_coronavirus import credentials
-from bag_coronavirus import vmdl
+import vmdl
 
 
 def main():

@@ -5,7 +5,7 @@ import glob
 import openpyxl
 from datetime import datetime
 from bag_coronavirus import credentials
-from bag_coronavirus import etl_vmdl_altersgruppen as vmdl
+import etl_vmdl_altersgruppen as vmdl
 import pandas as pd
 
 

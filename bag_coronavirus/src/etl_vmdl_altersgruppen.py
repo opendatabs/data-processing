@@ -4,12 +4,12 @@ import os
 import common
 from pandasql import sqldf
 from bag_coronavirus import credentials
-from bag_coronavirus import vmdl
+import vmdl
 
 
 def main():
     pysqldf = lambda q: sqldf(q, globals())
-    df_bs_long_all = get_raw_df()
+    df_bs_long_all = get_raw_df(file_path=vmdl.file_path())
     df_bs_perc = get_reporting_df(df_bs_long_all)
     for dataset in [
         {'dataframe': df_bs_long_all, 'filename': f'vaccinations_by_age_group.csv'},
@@ -28,10 +28,7 @@ def get_age_groups():
     return {'bins': bins, 'labels': labels}
 
 
-def get_raw_df():
-    # file_path = vmdl_extract.retrieve_vmdl_data()
-    file_path = vmdl.file_path()
-
+def get_raw_df(file_path):
     print(f'Reading data into dataframe...')
     df = pd.read_csv(file_path, sep=';')
     # df['vacc_date_dt'] = pd.to_datetime(df.vacc_date, format='%Y-%m-%dT%H:%M:%S.%f%z')
