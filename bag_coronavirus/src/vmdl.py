@@ -20,7 +20,7 @@ def yesterday_string():
     return yesterday.strftime('%Y-%m-%d')
 
 
-def retrieve_vmdl_data():
+def retrieve_vmdl_data(csv_filename: str = '') -> str:
     print(f'Retrieving vmdl data...')
     payload_token = f'client_id={credentials.vmdl_client_id}&scope={credentials.vmdl_scope}&username={credentials.vmdl_user}&password={credentials.vmdl_password}&grant_type=password'
     headers_token = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -35,17 +35,21 @@ def retrieve_vmdl_data():
     print(f'Downloading data...')
     resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download)
     resp_download.raise_for_status()
-    zip_file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_zip_file)
-    file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_file)
+    if not csv_filename:
+        zip_file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_zip_file)
+        csv_filename = os.path.join(credentials.vmdl_path, credentials.vmdl_file)
+    else:
+        zip_file_path = csv_filename.replace('.csv', '.zip')
+        csv_filename = csv_filename
     print(f'Writing zip data to file {zip_file_path}...')
     # resp_download.encoding = 'utf-8'
     with open(zip_file_path, "wb") as f:
         f.write(resp_download.content)
-    print(f'Extracting csv data to file {file_path}...')
+    print(f'Extracting csv data to file {csv_filename}...')
     with zipfile.ZipFile(zip_file_path) as z:
-        with z.open('data.csv') as zf, open(file_path, 'wb') as f:
+        with z.open('data.csv') as zf, open(csv_filename, 'wb') as f:
             shutil.copyfileobj(zf, f)
-    return file_path
+    return csv_filename
 
 
 def main():
