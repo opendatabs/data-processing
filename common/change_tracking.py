@@ -26,6 +26,7 @@ def get_hash_file(filename, dir='') -> str:
     return sfv_filename
 
 
+# todo: take write_hash_file() out of here to reduce side-effects
 def has_changed(filename: str, hash_file_dir='') -> bool:
     sfv_filename = get_hash_file(filename, hash_file_dir)
     crc32_hasher = FileHash(hash_algorithm='crc32')
