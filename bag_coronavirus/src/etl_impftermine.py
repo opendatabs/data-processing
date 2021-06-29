@@ -62,7 +62,7 @@ def calc_missing_date(day, df_for_calc):
 
 
 def load_data():
-    files = sorted(glob.glob(os.path.join(credentials.impftermine_path, "*.xlsx")))
+    files = sorted(glob.glob(os.path.join(credentials.impftermine_path, "users-minimum-info2-????-??-??.xlsx")))
     df = pd.DataFrame()
     for f in files:
         print(f'Get date from filename...')
