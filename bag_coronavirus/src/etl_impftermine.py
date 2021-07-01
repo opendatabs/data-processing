@@ -1,3 +1,4 @@
+import logging
 import common
 import datetime
 import os
@@ -18,7 +19,7 @@ def main():
 
 def transform(df):
     df = clean_parse(df)
-    df = calculate_age(df)
+    df = calculate_age(df=df, bin_defs=vmdl.get_age_group_periods())
     df = df.append(calculate_missing_dates(df, find_missing_dates(df)))
     (df, df_agg) = filter_aggregate(df)
     return df, df_agg
@@ -84,13 +85,25 @@ def clean_parse(df):
     return df
 
 
-def calculate_age(df):
+def calculate_age(df, bin_defs):
     print(f'Calculating age...')
     # df['age'] = [relativedelta(a, b).years for a, b in zip(df.date, df.birthday)]
     df['age'] = (df.date - df.birthday).astype('timedelta64[Y]')
+    age_group_df = pd.DataFrame()
+    logging.info(f'Iterating over age_group periods...')
+    for bin_def in bin_defs:
+        from_date = bin_def['from_date']
+        until_date = bin_def['until_date']
+        temp_df = df.query('date >= @from_date and date <= @until_date').reset_index(drop=True)
+        logging.info(f'Treating period between {from_date} and {until_date}...')
+        temp_df = calculate_age_group(df=temp_df, bins=bin_def['bins'], labels=bin_def['labels'])
+        age_group_df = age_group_df.append(temp_df)
+    return age_group_df
+
+
+def calculate_age_group(df, bins, labels):
     print(f'Calculating age group...')
-    df['age_group'] = pd.cut(df.age, bins=vmdl.get_age_groups()['bins'], labels=vmdl.get_age_groups()['labels'],
-                             include_lowest=True)
+    df['age_group'] = pd.cut(df.age, bins=bins, labels=labels, include_lowest=True)
     df = df.rename(columns={'Has appointments': 'has_appointments',
                             'Appointment 1': 'appointment_1',
                             'Appointment 2': 'appointment_2',
@@ -127,9 +140,10 @@ def export_data(df, df_agg):
 
 def agg_export_file_name():
     """Path to aggregated calculated reporting file"""
-    return os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg.csv')
+    return os.path.join(credentials.impftermine_path, 'export', f'impftermine_with_changing_age_groups_agg.csv')
 
 
 if __name__ == "__main__":
-    print(f'Executing {__file__}...')
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
     main()
