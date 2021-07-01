@@ -10,8 +10,8 @@ from bag_coronavirus.src import vmdl
 
 def main():
     pysqldf = lambda q: sqldf(q, globals())
-    df_bs_long_all = get_raw_df(file_path=vmdl.file_path(), bins=get_age_groups_over_time())
-    df_bs_perc = get_reporting_df(file_path=vmdl.file_path(), bins=get_age_groups_over_time())
+    df_bs_long_all = get_raw_df(file_path=vmdl.file_path(), bins=get_age_group_periods())
+    df_bs_perc = get_reporting_df(file_path=vmdl.file_path(), bins=get_age_group_periods())
     for dataset in [
         {'dataframe': df_bs_long_all, 'filename': f'vaccinations_with_changing_age_groups.csv'},
         {'dataframe': df_bs_perc, 'filename': f'vaccination_report_with_changing_age_groups.csv'}
@@ -23,13 +23,7 @@ def main():
     print(f'Job successful!')
 
 
-def _get_age_groups():
-    bins =      [numpy.NINF, 11,        15,         49,         64,         74,         numpy.inf]
-    labels =    ['Unbekannt',           '12-15',    '16-49',    '50-64',    '65-74',    '> 74']
-    return {'bins': bins, 'labels': labels}
-
-
-def get_age_groups_over_time() -> list:
+def get_age_group_periods() -> list:
     return [
         {
             'from_date':  '2020-12-01',
