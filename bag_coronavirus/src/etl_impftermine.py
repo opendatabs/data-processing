@@ -1,4 +1,5 @@
 import logging
+import numpy
 import common
 import datetime
 import os
@@ -6,7 +7,6 @@ import glob
 import openpyxl
 from datetime import datetime
 from bag_coronavirus import credentials
-import bag_coronavirus.src.etl_vmdl_altersgruppen as vmdl
 import pandas as pd
 
 
@@ -19,7 +19,7 @@ def main():
 
 def transform(df):
     df = clean_parse(df)
-    df = calculate_age(df=df, bin_defs=vmdl.get_age_group_periods())
+    df = calculate_age(df=df, bin_defs=get_age_group_periods())
     df = df.append(calculate_missing_dates(df, find_missing_dates(df)))
     (df, df_agg) = filter_aggregate(df)
     return df, df_agg
@@ -127,6 +127,24 @@ def filter_aggregate(df):
     print(f'Making sure only certain columns are exported...')
     df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count']]
     return df, df_agg
+
+
+def get_age_group_periods() -> list:
+    return [
+        {
+            'from_date':  '2020-12-01',
+            'until_date': '2021-06-24',
+            'bins':      [numpy.NINF, 15,     49,         64,         74,         numpy.inf],
+            'labels':    ['Unbekannt',       '16-49',    '50-64',    '65-74',    '> 74']
+
+        },
+        {
+            'from_date':  '2021-06-25',
+            'until_date': '2099-12-31',
+            'bins':      [numpy.NINF, 11,        15,         49,         64,         74,         numpy.inf],
+            'labels':    ['Unbekannt',           '12-15',    '16-49',    '50-64',    '65-74',    '> 74']
+        }
+    ]
 
 
 def export_data(df, df_agg):
