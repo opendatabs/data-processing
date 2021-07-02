@@ -13,8 +13,8 @@ def main():
     df_bs_long_all = get_raw_df(file_path=vmdl.file_path(), bins=get_age_group_periods())
     df_bs_perc = get_reporting_df(file_path=vmdl.file_path(), bins=get_age_group_periods())
     for dataset in [
-        {'dataframe': df_bs_long_all, 'filename': f'vaccinations_with_changing_age_groups.csv'},
-        {'dataframe': df_bs_perc, 'filename': f'vaccination_report_with_changing_age_groups.csv'}
+        {'dataframe': df_bs_long_all, 'filename': f'vaccinations_by_age_group.csv'},
+        {'dataframe': df_bs_perc, 'filename': f'vaccination_report_bs_age_group_long.csv'}
     ]:
         export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
         print(f'Exporting resulting data to {export_file_name}...')

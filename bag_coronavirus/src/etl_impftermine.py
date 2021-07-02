@@ -158,7 +158,7 @@ def export_data(df, df_agg):
 
 def agg_export_file_name():
     """Path to aggregated calculated reporting file"""
-    return os.path.join(credentials.impftermine_path, 'export', f'impftermine_with_changing_age_groups_agg.csv')
+    return os.path.join(credentials.impftermine_path, 'export', f'impftermine_agg.csv')
 
 
 if __name__ == "__main__":
