@@ -27,13 +27,13 @@ def get_age_group_periods() -> list:
     return [
         {
             'from_date':  '2020-12-01',
-            'until_date': '2021-06-03',
+            'until_date': '2021-06-27',
             'bins':      [numpy.NINF, 15,     49,         64,         74,         numpy.inf],
             'labels':    ['Unbekannt',       '16-49',    '50-64',    '65-74',    '> 74']
 
         },
         {
-            'from_date':  '2021-06-04',
+            'from_date':  '2021-06-28',
             'until_date': '2099-12-31',
             'bins':      [numpy.NINF, 11,        15,         49,         64,         74,         numpy.inf],
             'labels':    ['Unbekannt',           '12-15',    '16-49',    '50-64',    '65-74',    '> 74']
