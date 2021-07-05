@@ -58,7 +58,8 @@ oberflaechengew = data.query('Probentyp == "WASSER" and '
                              'Probenahmestelle != "GEW_RHEIN_RUES" and '
                              'Probenahmestelle.str.contains("GEW_")')
 grundwasser = data.query('Probenahmestelle.str.contains("F_")')
-generated_datasets = [gew_rhein_rues_wasser, gew_rhein_rues_fest, oberflaechengew, grundwasser]
+luft = data.query('Probentyp == "LUFT"')
+generated_datasets = [gew_rhein_rues_wasser, gew_rhein_rues_fest, oberflaechengew, grundwasser, luft]
 
 current_filename = 'gew_rhein_rues_wasser_truncated'
 print('Creating dataset ' + current_filename + "...")
