@@ -42,7 +42,7 @@ def has_changed(filename: str, hash_file_dir='') -> bool:
         logging.info(f'File does not exist: {filename}')
         return True
     if not os.path.exists(sfv_filename):
-        logging.info(f'SFV file does not exist, calculating has for file: {sfv_filename}...')
+        logging.info(f'SFV file does not exist, calculating hash for file: {sfv_filename}...')
         hash_value = write_hash_file(filename, sfv_filename)
         logging.info(f'Hash value {hash_value} written into SFV file.')
         return True
