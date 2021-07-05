@@ -1,6 +1,8 @@
 import logging
 import numpy
 import common
+import common.change_tracking as ct
+import ods_publish.etl_id as odsp
 import datetime
 import os
 import glob
@@ -11,10 +13,18 @@ import pandas as pd
 
 
 def main():
-    df = load_data()
-    df, df_agg = transform(df)
-    export_data(df, df_agg)
-    print(f'Job successful!')
+    logging.info(f'Checking for new data...')
+    latest_data_file = list(reversed(get_data_files_list()))[0]
+    new_data = ct.has_changed(latest_data_file)
+    if new_data:
+        logging.info(f'New data found.')
+        df = load_data()
+        df, df_agg = transform(df)
+        export_data(df, df_agg)
+        odsp.publish_ods_dataset_by_id('100136')
+    else:
+        logging.info(f'No new data found - doing nothing. ')
+    logging.info(f'Job successful!')
 
 
 def transform(df):
@@ -63,7 +73,7 @@ def calc_missing_date(day, df_for_calc):
 
 
 def load_data():
-    files = sorted(glob.glob(os.path.join(credentials.impftermine_path, "users-minimum-info2-????-??-??.xlsx")))
+    files = sorted(get_data_files_list())
     df = pd.DataFrame()
     for f in files:
         print(f'Get date from filename...')
@@ -73,6 +83,10 @@ def load_data():
         df_single['date'] = file_date
         df = df.append(df_single)
     return df
+
+
+def get_data_files_list():
+    return glob.glob(os.path.join(credentials.impftermine_path, "users-minimum-info2-????-??-??.xlsx"))
 
 
 def clean_parse(df):
