@@ -1,4 +1,5 @@
 import logging
+import shutil
 import numpy
 import pandas as pd
 import os
@@ -6,20 +7,29 @@ import common
 from pandasql import sqldf
 from bag_coronavirus import credentials
 from bag_coronavirus.src import vmdl
+import common.change_tracking as ct
+import ods_publish.etl_id as odsp
 
 
 def main():
     pysqldf = lambda q: sqldf(q, globals())
-    df_bs_long_all = get_raw_df(file_path=vmdl.file_path(), bins=get_age_group_periods())
-    df_bs_perc = get_reporting_df(file_path=vmdl.file_path(), bins=get_age_group_periods())
-    for dataset in [
-        {'dataframe': df_bs_long_all, 'filename': f'vaccinations_by_age_group.csv'},
-        {'dataframe': df_bs_perc, 'filename': f'vaccination_report_bs_age_group_long.csv'}
-    ]:
-        export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
-        print(f'Exporting resulting data to {export_file_name}...')
-        dataset['dataframe'].to_csv(export_file_name, index=False)
-        common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
+    vmdl_copy_path = vmdl.file_path().replace('vmdl.csv', 'vmdl_altersgruppen.csv')
+    logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
+    shutil.copy(vmdl.file_path(), vmdl_copy_path)
+    if ct.has_changed(vmdl_copy_path):
+        df_bs_long_all = get_raw_df(file_path=vmdl_copy_path, bins=get_age_group_periods())
+        df_bs_perc = get_reporting_df(file_path=vmdl_copy_path, bins=get_age_group_periods())
+        for dataset in [
+            {'dataframe': df_bs_long_all, 'filename': f'vaccinations_by_age_group.csv', 'ods_id': '100135'},
+            {'dataframe': df_bs_perc, 'filename': f'vaccination_report_bs_age_group_long.csv', 'ods_id': '100137'}
+        ]:
+            export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
+            print(f'Exporting resulting data to {export_file_name}...')
+            dataset['dataframe'].to_csv(export_file_name, index=False)
+            common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
+            odsp.publish_ods_dataset_by_id(dataset['ods_id'])
+    else:
+        logging.info(f'Data have not changed, doing nothing ({vmdl_copy_path})')
     print(f'Job successful!')
 
 
@@ -75,7 +85,7 @@ def get_partial_raw_df(file_path: str, bin_def: dict) -> pd.DataFrame:
 
     print(f'Create empty table of all combinations for long df...')
     df_labels = pd.DataFrame(bin_def['labels'], columns=['age_group'])
-    df_vacc_count = pd.DataFrame([1,2], columns=['vacc_count'])
+    df_vacc_count = pd.DataFrame([1, 2], columns=['vacc_count'])
     df_all_comb = sqldf('select * from df_all_days cross join df_labels cross join df_vacc_count;')
 
     print(f'Creating long table...')
