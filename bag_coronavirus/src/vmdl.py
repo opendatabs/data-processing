@@ -30,7 +30,7 @@ def retrieve_vmdl_data(csv_filename: str = '') -> str:
     # token_type = resp_token.json()['token_type']
     auth_string = f'Bearer {resp_token.json()["access_token"]}'
 
-    payload_download={}
+    payload_download = {}
     headers_download = {'Authorization': auth_string}
     print(f'Downloading data...')
     resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download)
