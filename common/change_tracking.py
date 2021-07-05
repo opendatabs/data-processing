@@ -7,6 +7,11 @@ import os
 logging.basicConfig(level=logging.DEBUG)
 
 
+def get_hash_file_dir() -> str:
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(curr_dir, 'change_tracking')
+
+
 def write_hash_file(file_name, sfv_file_name) -> str:
     crc32_hasher = FileHash(hash_algorithm='crc32')
     logging.info(f'Ensuring that path exists...')
@@ -18,16 +23,19 @@ def write_hash_file(file_name, sfv_file_name) -> str:
     return file_hash
 
 
-def get_hash_file(filename, dir='') -> str:
-    if not dir:
-        dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'change_tracking')
+def get_hash_file(filename, folder='') -> str:
+    if not folder:
+        folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'change_tracking')
     f = blake2b(filename.encode('utf-8')).hexdigest()
-    sfv_filename = os.path.join(dir, f'{f}.sfv')
+    sfv_filename = os.path.join(folder, f'{f}.sfv')
     return sfv_filename
 
 
 # todo: take write_hash_file() out of here to reduce side-effects
 def has_changed(filename: str, hash_file_dir='') -> bool:
+    if not hash_file_dir:
+        logging.debug(f'Using default hash_file_dir {get_hash_file_dir()}...')
+        hash_file_dir = get_hash_file_dir()
     sfv_filename = get_hash_file(filename, hash_file_dir)
     crc32_hasher = FileHash(hash_algorithm='crc32')
     if not os.path.exists(filename):
