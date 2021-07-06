@@ -39,7 +39,7 @@ def vmdl_raw_df():
 
 
 def persist_vmdl_raw_df():
-    df_bs_long_all = etl_vmdl_altersgruppen.get_raw_df(file_path=VMDL_CSV_FILE)
+    df_bs_long_all = etl_vmdl_altersgruppen.get_raw_df(file_path=VMDL_CSV_FILE, bins=etl_vmdl_altersgruppen.get_age_group_periods())
     df_bs_long_all.to_pickle(VMDL_RAW_DF)
 
 
@@ -49,8 +49,8 @@ def vmdl_reporting_df():
 
 
 def persist_vmdl_reporting_df():
-    df_bs_long_all = etl_vmdl_altersgruppen.get_raw_df(file_path=VMDL_CSV_FILE)
-    df_bs_perc = etl_vmdl_altersgruppen.get_reporting_df(df_bs_long_all)
+    df_bs_long_all = etl_vmdl_altersgruppen.get_raw_df(file_path=VMDL_CSV_FILE, bins=etl_vmdl_altersgruppen.get_age_group_periods())
+    df_bs_perc = etl_vmdl_altersgruppen.get_reporting_df(file_path=VMDL_CSV_FILE, bins=etl_vmdl_altersgruppen.get_age_group_periods())
     df_bs_perc.to_pickle(VMDL_REPORTING_DF)
 
 
@@ -69,16 +69,13 @@ def persists_vmdl_csv():
     vmdl.retrieve_vmdl_data(VMDL_CSV_FILE)
 
 
-
-
-
-
-
 def main():
-    # persists_vmdl_csv()
-    # persist_vmdl_raw_df()
-    # persist_vmdl_reporting_df()
+    persists_vmdl_csv()
+    persist_vmdl_raw_df()
+    persist_vmdl_reporting_df()
     persist_vmdl_impf_overview_df()
+    persist_impft_df()
+    persist_impft_df_agg()
     pass
 
 

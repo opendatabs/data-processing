@@ -11,7 +11,7 @@ def test_regression_vmdl_raw(vmdl_raw_df):
 
 def test_regression_vmdl_reporting(vmdl_reporting_df):
     raw_df = etl_vmdl_altersgruppen.get_raw_df(conftest.VMDL_CSV_FILE, etl_vmdl_altersgruppen.get_age_group_periods())
-    rep_df = etl_vmdl_altersgruppen.get_reporting_df(raw_df, etl_vmdl_altersgruppen.get_age_group_periods())
+    rep_df = etl_vmdl_altersgruppen.get_reporting_df(conftest.VMDL_CSV_FILE, etl_vmdl_altersgruppen.get_age_group_periods())
     assert rep_df.equals(vmdl_reporting_df)
 
 
