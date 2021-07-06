@@ -62,7 +62,7 @@ def transform(df, suffix):
     return df
 
 
-def load(dataset_name:str, df: pd.DataFrame, suffix:str) -> str:
+def load(dataset_name: str, df: pd.DataFrame, suffix: str) -> str:
     suffix_string = f'_{suffix}' if suffix != '' else ''
     export_file_name = os.path.join(credentials.path, f'covid19_{dataset_name}{suffix_string}.csv')
     logging.info(f'Exporting to file {export_file_name}...')
