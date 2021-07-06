@@ -68,7 +68,7 @@ def calc_missing_date(day, df_for_calc):
     df_then.date = day
     # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
     df_then.has_appointments = 'Unknown'
-    print(f'Calculated day {day_text} with {len(df_then)} rows...')
+    # print(f'Calculated day {day_text} with {len(df_then)} rows...')
     return df_then
 
 
