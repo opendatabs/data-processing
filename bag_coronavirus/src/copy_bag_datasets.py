@@ -3,6 +3,7 @@ from bag_coronavirus import credentials
 import os
 import common
 import pandas as pd
+import ods_publish.etl_id as odsp
 
 
 def main():
@@ -13,26 +14,25 @@ def main():
         df_transformed = transform(df_raw, dataset['suffix'])
         export_file_name = load(name, df_transformed, dataset['suffix'])
         common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
-        # todo: ods_publish
-
+        odsp.publish_ods_dataset_by_id(dataset['ods_id'])
     logging.info(f'Job successful!')
 
 
 def get_dataset_metadata():
     logging.info(f"Getting today's data url...")
     context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/context').json()
-    path_base_csv = context_json['sources']['individual']['csv']
+    # path_base_csv = context_json['sources']['individual']['csv']
     path_base_csv_daily = context_json['sources']['individual']['csv']['daily']
-    path_base_csv_weeklyVacc_byAge = context_json['sources']['individual']['csv']['weeklyVacc']['byAge']
-    path_base_csv_weeklyVacc_bySex = context_json['sources']['individual']['csv']['weeklyVacc']['bySex']
+    # path_base_csv_weeklyVacc_byAge = context_json['sources']['individual']['csv']['weeklyVacc']['byAge']
+    # path_base_csv_weeklyVacc_bySex = context_json['sources']['individual']['csv']['weeklyVacc']['bySex']
     datasets = [
-        {'name': 'vaccDosesAdministered', 'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
-        {'name': 'vaccDosesAdministered', 'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
-        {'name': 'testPcrAntigen', 'base_path': path_base_csv_daily, 'suffix': ''},
-        {'name': 'hospCapacity', 'base_path': path_base_csv_daily, 'suffix': ''},
-        {'name': 'cases', 'base_path': path_base_csv_daily, 'suffix': ''},
-        {'name': 'vaccDosesDelivered', 'base_path': path_base_csv, 'suffix': ''},
-        {'name': 'vaccDosesAdministered', 'base_path': path_base_csv, 'suffix': ''},
+        # {'name': 'vaccDosesAdministered', 'base_path': path_base_csv_weeklyVacc_byAge, 'suffix': 'weekly_byAge'},
+        # {'name': 'vaccDosesAdministered', 'base_path': path_base_csv_weeklyVacc_bySex, 'suffix': 'weekly_bySex'},
+        {'name': 'testPcrAntigen', 'base_path': path_base_csv_daily, 'suffix': '', 'ods_id': '100116'},
+        {'name': 'hospCapacity', 'base_path': path_base_csv_daily, 'suffix': '', 'ods_id': '100119'},
+        {'name': 'cases', 'base_path': path_base_csv_daily, 'suffix': '', 'ods_id': '100123'},
+        # {'name': 'vaccDosesDelivered', 'base_path': path_base_csv, 'suffix': ''},
+        # {'name': 'vaccDosesAdministered', 'base_path': path_base_csv, 'suffix': ''},
     ]
     return datasets
 
