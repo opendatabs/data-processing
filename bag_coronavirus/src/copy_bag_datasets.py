@@ -2,6 +2,7 @@ import logging
 from bag_coronavirus import credentials
 import os
 import common
+import common.change_tracking as ct
 import pandas as pd
 import ods_publish.etl_id as odsp
 
@@ -13,8 +14,11 @@ def main():
         df_raw = extract(url=dataset['base_path'][name])
         df_transformed = transform(df_raw, dataset['suffix'])
         export_file_name = load(name, df_transformed, dataset['suffix'])
-        common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
-        odsp.publish_ods_dataset_by_id(dataset['ods_id'])
+        if ct.has_changed(export_file_name):
+            common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
+            odsp.publish_ods_dataset_by_id(dataset['ods_id'])
+        else:
+            logging.info(f'No changes detected, doing nothing for this dataset: {export_file_name}')
     logging.info(f'Job successful!')
 
 
@@ -47,7 +51,7 @@ def transform(df, suffix):
     logging.info(f'Checking which column contains the date...')
     date_column = 'datum' if 'datum' in df.columns else 'date'
     logging.info(f'Dropping lines with empty value in date column "{date_column}"...')
-    logging.info(f'{df[date_column].isna()}')
+    # logging.info(f'{df[date_column].isna()}')
     df = df.dropna(subset=[date_column])
     logging.info(f'Calculating columns...')
     if 'weekly' not in suffix:
