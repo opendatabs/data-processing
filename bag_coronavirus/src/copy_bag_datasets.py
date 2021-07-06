@@ -6,18 +6,19 @@ import pandas as pd
 
 
 def main():
-    datasets = get_datasets()
+    datasets = get_dataset_metadata()
     for dataset in datasets:
         name = dataset['name']
         df_raw = extract(url=dataset['base_path'][name])
-        suffix = dataset['suffix']
-        df_transformed = transform(df_raw, suffix)
-        suffix_string = f'_{suffix}' if suffix != '' else ''
-        load(name, df_transformed, suffix_string)
+        df_transformed = transform(df_raw, dataset['suffix'])
+        export_file_name = load(name, df_transformed, dataset['suffix'])
+        common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
+        # todo: ods_publish
+
     logging.info(f'Job successful!')
 
 
-def get_datasets():
+def get_dataset_metadata():
     logging.info(f"Getting today's data url...")
     context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/context').json()
     path_base_csv = context_json['sources']['individual']['csv']
@@ -61,12 +62,12 @@ def transform(df, suffix):
     return df
 
 
-def load(dataset_name, df, suffix_string):
+def load(dataset_name:str, df: pd.DataFrame, suffix:str) -> str:
+    suffix_string = f'_{suffix}' if suffix != '' else ''
     export_file_name = os.path.join(credentials.path, f'covid19_{dataset_name}{suffix_string}.csv')
     logging.info(f'Exporting to file {export_file_name}...')
     df.to_csv(export_file_name, index=False)
-    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
-    # todo: ods_publish
+    return export_file_name
 
 
 if __name__ == "__main__":
