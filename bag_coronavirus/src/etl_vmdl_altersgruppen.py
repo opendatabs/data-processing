@@ -26,10 +26,14 @@ def main():
             export_file_name = os.path.join(credentials.vmdl_path, dataset['filename'])
             print(f'Exporting resulting data to {export_file_name}...')
             dataset['dataframe'].to_csv(export_file_name, index=False)
-            common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
-            odsp.publish_ods_dataset_by_id(dataset['ods_id'])
+            logging.info(f'Checking if resulting csv has changed before uploading...')
+            if ct.has_changed(export_file_name):
+                common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
+                odsp.publish_ods_dataset_by_id(dataset['ods_id'])
+            else:
+                logging.info(f'No data changes detected, doing nothing for this dataset: {export_file_name} ')
     else:
-        logging.info(f'Data have not changed, doing nothing ({vmdl_copy_path})')
+        logging.info(f'No data changes detected, doing nothing for this dataset: {vmdl_copy_path}')
     print(f'Job successful!')
 
 
