@@ -33,6 +33,7 @@ def get_hash_file(filename, folder='') -> str:
 
 # todo: take write_hash_file() out of here to reduce side-effects
 def has_changed(filename: str, hash_file_dir='') -> bool:
+    logging.info(f'Checking for changes in file {filename}...')
     if not hash_file_dir:
         logging.debug(f'Using default hash_file_dir {get_hash_file_dir()}...')
         hash_file_dir = get_hash_file_dir()
