@@ -20,7 +20,7 @@ def main():
         load_data(df_export)
         odsp.publish_ods_dataset_by_id('100111')
     else:
-        logging.info(f'Data have not changed, doing nothing ({vmdl_copy_path})')
+        logging.info(f'Data have not changed, doing nothing for this dataset: {vmdl_copy_path}')
     logging.info(f'Job successful!')
 
 
