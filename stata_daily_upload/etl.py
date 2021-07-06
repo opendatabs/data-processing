@@ -18,6 +18,7 @@ def main():
                {'file': 'Bevoelkerung/03bevoelkerung_jahr_nach_heimat_geschlecht.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100126'},
                {'file': 'Bevoelkerung/04bevoelkerung_jahr_nach_vorname.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100129'},
                {'file': 'Bevoelkerung/05bevoelkerung_jahr_nach_nachname.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100127'},
+               {'file': 'Quartierradar/quartierradar_ogd.csv', 'dest_dir': 'quartierradar', 'ods_id': '100011'},
                ]
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
