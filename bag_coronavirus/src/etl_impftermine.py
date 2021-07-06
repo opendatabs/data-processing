@@ -14,7 +14,7 @@ import pandas as pd
 
 def main():
     logging.info(f'Checking for new data...')
-    latest_data_file = list(reversed(get_data_files_list()))[0]
+    latest_data_file = list(sorted(get_data_files_list(), reverse=True))[0]
     new_data = ct.has_changed(latest_data_file)
     if new_data:
         logging.info(f'New data found.')
