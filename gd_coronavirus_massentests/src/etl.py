@@ -140,11 +140,10 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         order by WeekOfYear desc
     ''')
 
-    #todo: remove drop() to go live with the new column
     results_per_week_with_businesses = sqldf('''
         select r.*, b.BusinessCount
         from results_per_week r left join businesses_per_week b on r.WeekOfYear = b.WeekOfYear
-    ''').drop(columns=['BusinessCount'])
+    ''')
 
     samples = sqldf('''
         select      strftime("%W", Datum) as WeekOfYear, 
