@@ -21,6 +21,8 @@ def main():
                {'file': 'Quartierradar/quartierradar_ogd.csv', 'dest_dir': 'quartierradar', 'ods_id': '100011'},
                {'file': 'Bevoelkerungsszenarien/Bevoelkerungsszenarien_Basel-Stadt.csv', 'dest_dir': 'bevoelkerungsszenarien', 'ods_id': '100007'},
                {'file': 'Leerstand/leerstand.csv', 'dest_dir': 'leerstand', 'ods_id': '100010'},
+               {'file': 'Bevoelkerung/OpenDataMigration.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100002'},
+               {'file': 'Bevoelkerung/OpenDataUmzuege.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100001'},
                ]
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
