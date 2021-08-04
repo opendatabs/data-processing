@@ -14,17 +14,18 @@ def main():
     vmdl_copy_path = vmdl.file_path().replace('vmdl.csv', 'vmdl_impf_uebersicht.csv')
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
-    if not ct.has_changed(vmdl_copy_path):
+    if False: # not ct.has_changed(vmdl_copy_path):
         logging.info(f'Data have not changed, doing nothing for this dataset: {vmdl_copy_path}')
     else:
         df = extract_data(vmdl_copy_path)
         df_export = transform_data(df)
         export_file_name = load_data(df_export)
-        if not ct.has_changed(export_file_name):
+        if False: # not ct.has_changed(export_file_name):
             logging.info(f'Data have not changed, doing nothing for this dataset: {export_file_name}')
         else:
-            common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
-            odsp.publish_ods_dataset_by_id('100111')
+            # common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
+            # odsp.publish_ods_dataset_by_id('100111')
+            pass
     logging.info(f'Job successful!')
 
 
@@ -70,23 +71,29 @@ def transform_data(df):
     df_pivot = df_pivot_table.reset_index()
     logging.info(f'Ensure columns exist...')
     for column_name in [
+        'hosp_3',
+        'vacc_centre_3',
         'other_1',
         'other_2',
+        'other_3',
         'in_aph_verabreichte_impfungen_pro_tag',
         'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'im_aph_mit_dritter_dosis_geimpfte_personen_pro_tag',
     ]:
         if column_name not in df_pivot.columns:
             df_pivot[column_name] = 0
     logging.info(f'Calculating columns...')
-    df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2
-    df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2
-    df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2
+    df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2 + df_pivot.hosp_3
+    df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2 + df_pivot.vacc_centre_3
+    df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2 + df_pivot.other_3
     df_pivot['vacc_count_1'] = df_pivot.hosp_1 + df_pivot.vacc_centre_1 + df_pivot.other_1
     df_pivot['vacc_count_2'] = df_pivot.hosp_2 + df_pivot.vacc_centre_2 + df_pivot.other_2
+    df_pivot['vacc_count_3'] = df_pivot.hosp_3 + df_pivot.vacc_centre_3 + df_pivot.other_3
     df_pivot['cum_1'] = df_pivot.vacc_count_1.cumsum()
     df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
-    df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
+    df_pivot['cum_3'] = df_pivot.vacc_count_3.cumsum()
+    df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2 - df_pivot.cum_3
     df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
     df_pivot['total_cum'] = df_pivot.total.cumsum()
     logging.info(f'Renaming and restricting columns for export...')
@@ -94,17 +101,22 @@ def transform_data(df):
         'vacc_day': 'datum',
         'hosp_1': 'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
         'hosp_2': 'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'hosp_3': 'im_spital_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'vacc_centre_1': 'im_impfzentrum_mit_erster_dosis_geimpfte_personen_pro_tag',
         'vacc_centre_2': 'im_impfzentrum_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'vacc_centre_3': 'im_impfzentrum_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'other_1': 'anderswo_mit_erster_dosis_geimpfte_personen_pro_tag',
         'other_2': 'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'other_3': 'anderswo_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'hosp': 'im_spital_verabreichte_impfungen_pro_tag',
         'vacc_centre': 'im_impfzentrum_verabreichte_impfungen_pro_tag',
         'other': 'anderswo_verabreichte_impfungen_pro_tag',
         'vacc_count_1': 'total_mit_erster_dosis_geimpfte_personen_pro_tag',
         'vacc_count_2': 'total_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'vacc_count_3': 'total_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'cum_1': 'total_personen_mit_erster_dosis',
         'cum_2': 'total_personen_mit_zweiter_dosis',
+        'cum_3': 'total_personen_mit_dritter_dosis',
         'only_1': 'total_personen_mit_ausschliesslich_erster_dosis',
         'total': 'total_verabreichte_impfungen_pro_tag',
         'total_cum': 'total_verabreichte_impfungen',
@@ -115,18 +127,23 @@ def transform_data(df):
         'total_personen_mit_erster_dosis',
         'total_personen_mit_ausschliesslich_erster_dosis',
         'total_personen_mit_zweiter_dosis',
+        'total_personen_mit_dritter_dosis',
         'im_impfzentrum_verabreichte_impfungen_pro_tag',
         'im_impfzentrum_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_impfzentrum_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'im_impfzentrum_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'in_aph_verabreichte_impfungen_pro_tag',
         'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'im_aph_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'im_spital_verabreichte_impfungen_pro_tag',
         'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'im_spital_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'anderswo_verabreichte_impfungen_pro_tag',
         'anderswo_mit_erster_dosis_geimpfte_personen_pro_tag',
         'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
+        'anderswo_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'total_verabreichte_impfungen_pro_tag',
     ]]
     return df_export
