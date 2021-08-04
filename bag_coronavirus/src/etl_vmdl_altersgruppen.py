@@ -89,7 +89,7 @@ def get_partial_raw_df(file_path: str, bin_def: dict) -> pd.DataFrame:
 
     print(f'Create empty table of all combinations for long df...')
     df_labels = pd.DataFrame(bin_def['labels'], columns=['age_group'])
-    df_vacc_count = pd.DataFrame([1, 2], columns=['vacc_count'])
+    df_vacc_count = pd.DataFrame([1, 2, 3], columns=['vacc_count'])
     df_all_comb = sqldf('select * from df_all_days cross join df_labels cross join df_vacc_count;')
 
     print(f'Creating long table...')
@@ -123,15 +123,16 @@ def get_reporting_df(file_path, bins) -> pd.DataFrame:
 
     print(f'Calculating cumulative sums of _only_ first vaccinations...')
     df_only_first = df_bs_cum.copy(deep=True)
-    # Negate cumulative numbers of 2nd vacc, then sum cum numbers of vacc 1 and 2 to get the cum number of _only_ 1st vacc
-    df_only_first.count_cum = numpy.where(df_only_first.vacc_count == 2, df_only_first.count_cum * -1, df_only_first.count_cum)
+    # Negate cumulative numbers of vaccinations with vacc_count > 1, then add the cum numbers of all vacc_count to get the cum number of _only_ 1st vacc
+    # only_first = (-1 * vacc_count_1_cum_sum) + all_vacc_count_cum_sum
+    df_only_first.count_cum = numpy.where(df_only_first.vacc_count > 1, df_only_first.count_cum * -1, df_only_first.count_cum)
     df_only_first = df_only_first.groupby(['vacc_day', 'age_group'])['count_cum'].sum().reset_index()
     df_only_first['vacc_count'] = -1
     df_bs_cum = df_bs_cum.append(df_only_first)
 
     print(f'Adding explanatory text for vacc_count...')
-    vacc_count_desc = pd.DataFrame.from_dict({'vacc_count': [-1, 1, 2],
-                                              'vacc_count_description': ['Ausschliesslich erste Impfdosis', 'Erste Impfdosis', 'Zweite Impfdosis']})
+    vacc_count_desc = pd.DataFrame.from_dict({'vacc_count': [-1, 1, 2, 3],
+                                              'vacc_count_description': ['Ausschliesslich erste Impfdosis', 'Erste Impfdosis', 'Zweite Impfdosis', 'Dritte Impfdosis']})
     df_bs_cum = df_bs_cum.merge(vacc_count_desc, on=['vacc_count'], how='left')
 
     df_bs_perc = pd.DataFrame()
