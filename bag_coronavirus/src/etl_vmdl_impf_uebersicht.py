@@ -14,18 +14,17 @@ def main():
     vmdl_copy_path = vmdl.file_path().replace('vmdl.csv', 'vmdl_impf_uebersicht.csv')
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
-    if False: # not ct.has_changed(vmdl_copy_path):
+    if not ct.has_changed(vmdl_copy_path):
         logging.info(f'Data have not changed, doing nothing for this dataset: {vmdl_copy_path}')
     else:
         df = extract_data(vmdl_copy_path)
         df_export = transform_data(df)
         export_file_name = load_data(df_export)
-        if False: # not ct.has_changed(export_file_name):
+        if not ct.has_changed(export_file_name):
             logging.info(f'Data have not changed, doing nothing for this dataset: {export_file_name}')
         else:
-            # common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
-            # odsp.publish_ods_dataset_by_id('100111')
-            pass
+            common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
+            odsp.publish_ods_dataset_by_id('100111')
     logging.info(f'Job successful!')
 
 
