@@ -119,6 +119,7 @@ for data_file in files_to_upload:
 
 if len(dfs) == 0:
     print(f'No raw data present at all.')
+    #todo: Should this throw an error?
 else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
