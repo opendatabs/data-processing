@@ -123,6 +123,8 @@ def ensure_ftp_dir(server, user, password, folder):
 # Tell Opendatasoft to (re-)publish datasets
 # How to get the dataset_uid from ODS:
 # curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
+# Or without proxy via terminal:
+# curl -i "https://data.bs.ch/api/management/v2/datasets/?where=datasetid=100001" -u username@bs.ch:password123
 
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(http_errors_to_handle, tries=6, delay=10, backoff=1)
