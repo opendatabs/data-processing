@@ -18,7 +18,7 @@ def get_table_names():
 
 
 def get_report_defs():
-    return [#{'file_name': 'massentests_pool.csv', 'table_name': get_table_names()[0]},
+    return [{'file_name': 'massentests_pool.csv', 'table_name': get_table_names()[0]},
             {'file_name': 'massentests_single.csv', 'table_name': get_table_names()[1]}]
 
 
