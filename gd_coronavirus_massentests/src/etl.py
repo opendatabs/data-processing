@@ -86,7 +86,7 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
                     Result,
                     count(*) as Count
         from        {table_name}
-        where       Result is not null and
+        where       Result in ("positiv", "negativ") and
                     ResultDate is not null and
                     WeekOfYear is not null
         group by    WeekOfYear, Result
