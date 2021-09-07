@@ -58,5 +58,5 @@ AF\Abfuhrzonen;True;;Abfuhrzonen (Gemeinde Basel);100095;;;"Raum und Umwelt;Öffe
 DM\DatenmarktAdressen;True;;;100114;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
 DM\DatenmarktGebaeude;True;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
 BS\Liegenschaften;True;;;;;;;;;;;;
-CT\CoronaTeststellen;True;;Coronavirus (Covid-19): Teststellen;100134;;;Gesundheit;"Corona;COVID-19;Spital;Krankheit;Coronavirus;Virus;Pandemie;Test;Lungenentzündung";;http://purl.org/cld/freq/irregular;True;2021-03-31;opendata.swiss
+CT\CoronaTeststellen;True;;Coronavirus (Covid-19): Teststellen;100134;;;Gesundheit;"Corona;COVID-19;Spital;Krankheit;Coronavirus;Virus;Pandemie;Test;Lungenentzündung";;http://purl.org/cld/freq/irregular;True;2021-03-31;
 OW\SportBewegung;True;;Sportanlagen;100151;;;"Kultur, Medien, Informationsgesellschaft, Sport;Geographie";"Sport;Sportanlagen";;http://purl.org/cld/freq/irregular;True;2021-07-23;opendata.swiss
