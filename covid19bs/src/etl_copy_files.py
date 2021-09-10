@@ -7,7 +7,7 @@ import ods_publish.etl_id as odsp
 
 
 def main():
-    uploads = [{'src_dir': credentials.path_orig, 'file': 'faelle_minderjaehrige_3j_klassen.csv', 'dest_dir': 'stata/covid19bs', 'ods_id': '100152'}
+    uploads = [{'src_dir': credentials.path_orig, 'file': 'faelle_minderjaehrige_3j_klassen.csv', 'dest_dir': 'covid19bs', 'ods_id': '100152'}
                ]
     upload_publish_if_changed(uploads)
     print('Job successful!')
