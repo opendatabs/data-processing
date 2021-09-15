@@ -8,6 +8,7 @@ import xml.etree.ElementTree as Et
 from pandasql import sqldf
 import common
 import common.change_tracking as ct
+import ods_publish.etl_id as odsp
 
 from gd_coronavirus_massentests.src import credentials
 
@@ -17,16 +18,19 @@ def get_report_defs():
              'report_defs': [{'file_name': 'massentests_pool_primarsek1.csv',
                               'table_name': 'LaborGroupOrder',
                               'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
-                              'organization_count_colname': 'SchoolCount'},
+                              'organization_count_colname': 'SchoolCount',
+                              'ods_id': '100145'},
                              {'file_name': 'massentests_single_betriebe.csv',
                               'table_name': 'LaborSingleOrder',
                               'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
-                              'organization_count_colname': 'BusinessCount'}]},
+                              'organization_count_colname': 'BusinessCount',
+                              'ods_id': '100146'}]},
             {'db_path': credentials.data_path_db_sek2,
              'report_defs': [{'file_name': 'massentests_single_sek2.csv',
                               'table_name': 'LaborSingleOrder',
                               'anzahl_proben_colname': 'AnzahlProbenSek2',
-                              'organization_count_colname': 'SchoolCount'}]}]
+                              'organization_count_colname': 'SchoolCount',
+                              'ods_id': '100153'}]}]
 
 
 def pysqldf(q):
@@ -56,7 +60,11 @@ def main():
                 export_file = os.path.join(credentials.export_path, report_def['file_name'])
                 logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
                 report.to_csv(export_file, index=False)
-                # common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
+                if ct.has_changed(export_file):
+                    common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
+                    # odsp.publish_ods_dataset_by_id(report_def['ods_id'])
+                else:
+                    logging.info(f'No data changes detected, doing nothing for this dataset: {export_file}')
             # conn.close()
         else:
             logging.info(f'No data changes detected, doing nothing for this dataset: {archive_path}')
