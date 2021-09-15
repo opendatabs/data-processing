@@ -62,7 +62,7 @@ def main():
                 report.to_csv(export_file, index=False)
                 if ct.has_changed(export_file):
                     common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
-                    # odsp.publish_ods_dataset_by_id(report_def['ods_id'])
+                    odsp.publish_ods_dataset_by_id(report_def['ods_id'])
                 else:
                     logging.info(f'No data changes detected, doing nothing for this dataset: {export_file}')
             # conn.close()
