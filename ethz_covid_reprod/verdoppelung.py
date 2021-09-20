@@ -7,11 +7,44 @@ sources:    Formulas:
             data source:
             https://github.com/covid-19-Re/dailyRe-Data/blob/master/CHE-estimates.csv
 """
+import logging
+import common
 import credentials
 import os
-import requests
+# import requests
 import numpy as np
 import pandas as pd
+
+def main():
+    logging.info(f"Getting today's data url...")
+    url = 'https://raw.githubusercontent.com/covid-19-Re/dailyRe-Data/master/CHE-estimates.csv'
+    req = common.requests_get(url, proxies=credentials.proxies)
+    with open(os.path.join(credentials.path, credentials.file_name), 'wb') as f:
+        f.write(req.content)
+    logging.info(f'Reading current csv into data frame...')
+    df_R = common.pandas_read_csv(credentials.file_name)
+    logging.info(f"Extending file...")
+    export_file_name = os.path.join(credentials.path, credentials.file_name_new)
+    return_data(export_file_name, df=df_R, T=4.8)
+
+    """
+    logging.info(f'Importing data...')
+    latest_data_file = list(sorted(get_data_files_list(), reverse=True))[0]
+    new_data = True
+    # new_data = ct.has_changed(latest_data_file)
+    if new_data:
+        logging.info(f'New data found.')
+        df = load_data()
+        df, df_agg = transform(df)
+        export_data(df, df_agg)
+        # odsp.publish_ods_dataset_by_id('100136')
+    else:
+        logging.info(f'No new data found - doing nothing. ')
+    logging.info(f'Job successful!')
+    """
+
+
+
 
 
 # growth rate r=(R-1)/T,  generation time T, abgeschätzt auf 4.8 (tweets Althaus)
@@ -21,9 +54,9 @@ def growth_rate(R, T=4.8):
 
 # add growth rate columns to the data frame
 def add_growth_rate(df, T=4.8):
-    df['Mittlere growth rate'] = growth_rate(df['Mittlere effektive Reproduktionszahl'], T)
-    df['Obere Grenze growth rate'] = growth_rate(df['Obere Grenze der effektiven Reproduktionszahl'], T)
-    df['Untere Grenze growth rate'] = growth_rate(df['Untere Grenze der effektiven Reproduktionszahl'], T)
+    df['Mittlere growth rate'] = growth_rate(df['median_R_mean'], T)
+    df['Obere Grenze growth rate'] = growth_rate(df['median_R_highHPD'], T)
+    df['Untere Grenze growth rate'] = growth_rate(df['median_R_lowHPD'], T)
     return df
 
 
@@ -47,19 +80,6 @@ def return_data(filename, df, T=4.8):
     df.to_csv(filename)
 
 
-if __name__ == '__main__':
-    print(f"Getting today's data url...")
-    url = 'https://raw.githubusercontent.com/covid-19-Re/dailyRe-Data/master/CHE-estimates.csv'
-    req = requests.get(url, proxies=credentials.proxies)
-    with open(os.path.join(credentials.path, credentials.file_name), 'wb') as f:
-        f.write(req.content)
-    print(f'Reading current csv into data frame...')
-    df_R = pd.read_csv(credentials.file_name)
-    print(f"Rename columns...")
-    df_R.rename(columns={'median_R_mean': 'Mittlere effektive Reproduktionszahl', 'median_R_highHPD': 'Obere Grenze der effektiven Reproduktionszahl', 'median_R_lowHPD': 'Untere Grenze der effektiven Reproduktionszahl'}, inplace=True)
-    print(f"Extending file...")
-    export_file_name = os.path.join(credentials.path, credentials.file_name_new)
-    return_data(export_file_name, df=df_R, T=4.8)
 
 
 
