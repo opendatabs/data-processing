@@ -162,7 +162,7 @@ def calculate_kennzahlen(data_file_names):
 
         kennz_sheet_name = 'Abstimmungs-Kennzahlen'
         # number of empty rows may be different for KAN and EID files
-        skip_rows = 4  # if '_KAN' in import_file_name else 7
+        skip_rows = 4 if '_KAN' in import_file_name else 7
         print(f'Reading data from {kennz_sheet_name}, skipping first {skip_rows} rows...')
         df_kennz = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, skiprows=skip_rows, index_col=None)
         df_kennz.rename(columns={'Unnamed: 0': 'empty',
