@@ -170,6 +170,7 @@ def calculate_kennzahlen(data_file_names):
                                  '\nStimmberechtigte': 'Stimmber_Anz',
                                  'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                 'Durchschnittlicher Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'},
                         inplace=True)
         print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
