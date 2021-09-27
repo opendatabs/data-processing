@@ -6,6 +6,8 @@ import urllib3
 import ssl
 from functools import wraps
 import pandas as pd
+import fnmatch
+import logging
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
@@ -90,12 +92,19 @@ def upload_ftp(filename, server, user, password, remote_path):
 # Download files from FTP server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
-def download_ftp(files, server, user, password, remote_path, local_path):
-    print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" to local path "{local_path}"...')
+def download_ftp(files: list, server: str, user: str, password: str, remote_path: str, local_path: str, pattern: str):
+    print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" or pattern "{pattern}" to local path "{local_path}"...')
     ftp = ftplib.FTP(server, user, password)
     ftp.cwd(remote_path)
+    files_to_download = []
+    if len(files) > 0:
+        files_to_download = files
+    elif len(pattern) > 0:
+        logging.info(f'Filtering list of files using pattern...')
+        files_to_download = fnmatch.filter(ftp.nlst(), pattern)
+
     local_files = []
-    for file in files:
+    for file in files_to_download:
         local_file = os.path.join(local_path, file)
         local_files.append(local_file)
         print(f'Retrieving file {local_file}...')
