@@ -1,6 +1,6 @@
 .idea
 __pycache__/
-**/credentials.py
+ethz_covid_reprod/credentials/credentials.py
 **/venv/*
 **/*.csv
 **/*.CSV
