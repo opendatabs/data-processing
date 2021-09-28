@@ -35,7 +35,7 @@ def get_hash_file(filename, folder='') -> str:
 def has_changed(filename: str, hash_file_dir='') -> bool:
     logging.info(f'Checking for changes in file {filename}...')
     if not hash_file_dir:
-        logging.debug(f'Using default hash_file_dir {get_hash_file_dir()}...')
+        # logging.debug(f'Using default hash_file_dir {get_hash_file_dir()}...')
         hash_file_dir = get_hash_file_dir()
     sfv_filename = get_hash_file(filename, hash_file_dir)
     crc32_hasher = FileHash(hash_algorithm='crc32')

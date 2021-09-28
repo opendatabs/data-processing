@@ -1,25 +1,36 @@
 import glob
 import os
-import typing
 import zipfile
 import sqlite3
 import logging
 import pandas as pd
-import xml.etree.ElementTree as et
+import xml.etree.ElementTree as Et
 from pandasql import sqldf
 import common
+import common.change_tracking as ct
+import ods_publish.etl_id as odsp
+
 from gd_coronavirus_massentests.src import credentials
-
-TABLE_NAME = typing.Literal['LaborGroupOrder', 'LaborSingleOrder']
-
-
-def get_table_names():
-    return ['LaborGroupOrder', 'LaborSingleOrder']
 
 
 def get_report_defs():
-    return [{'file_name': 'massentests_pool.csv', 'table_name': get_table_names()[0]},
-            {'file_name': 'massentests_single.csv', 'table_name': get_table_names()[1]}]
+    return [{'db_path': credentials.data_path_db,
+             'report_defs': [{'file_name': 'massentests_pool_primarsek1.csv',
+                              'table_name': 'LaborGroupOrder',
+                              'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
+                              'organization_count_colname': 'SchoolCount',
+                              'ods_id': '100145'},
+                             {'file_name': 'massentests_single_betriebe.csv',
+                              'table_name': 'LaborSingleOrder',
+                              'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
+                              'organization_count_colname': 'BusinessCount',
+                              'ods_id': '100146'}]},
+            {'db_path': credentials.data_path_db_sek2,
+             'report_defs': [{'file_name': 'massentests_single_sek2.csv',
+                              'table_name': 'LaborSingleOrder',
+                              'anzahl_proben_colname': 'AnzahlProbenSek2',
+                              'organization_count_colname': 'SchoolCount',
+                              'ods_id': '100153'}]}]
 
 
 def pysqldf(q):
@@ -27,18 +38,36 @@ def pysqldf(q):
 
 
 def main():
-    date, dfs = extract_db_data(glob.glob(os.path.join(credentials.data_path_db, "*.zip")))
-    dfs['df_lab'] = extract_lab_data(os.path.join(credentials.data_path_xml, "*.xml"))
-    add_global_dfs(dfs)
-    convert_datetime_columns(dfs)
-    # conn = create_db('../tests/fixtures/coronavirus_massentests.db', dfs)
-    for report_def in get_report_defs():
-        report = calculate_report(report_def['table_name'])
-        export_file = os.path.join(credentials.export_path, report_def['file_name'])
-        logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
-        report.to_csv(export_file, index=False)
-        common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_gs/coronavirus_massenteststs')
-    # conn.close()
+    df_lab = None
+    for db in get_report_defs():
+        archive_path = get_latest_archive(glob.glob(os.path.join(db['db_path'], "*.zip")))
+        if ct.has_changed(archive_path):
+            if df_lab is None:
+                logging.info(f'No lab data yet, processing...')
+                common.download_ftp([], credentials.down_ftp_server, credentials.down_ftp_user, credentials.down_ftp_pass, credentials.down_ftp_dir, credentials.data_path_xml, '*.xml')
+                df_lab = extract_lab_data(os.path.join(credentials.data_path_xml, "*.xml"))
+            else:
+                logging.info(f'Lab data already downloaded, no need to do it again. ')
+            date, dfs = extract_db_data(archive_path)
+            dfs['df_lab'] = df_lab
+            add_global_dfs(dfs)
+            convert_datetime_columns(dfs)
+            # conn = create_db('../tests/fixtures/coronavirus_massentests.db', dfs)
+            for report_def in db['report_defs']:
+                report = calculate_report(table_name=report_def['table_name'],
+                                          anzahl_proben_colname=report_def['anzahl_proben_colname'],
+                                          organization_count_colname=report_def['organization_count_colname'])
+                export_file = os.path.join(credentials.export_path, report_def['file_name'])
+                logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
+                report.to_csv(export_file, index=False)
+                if ct.has_changed(export_file):
+                    common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
+                    odsp.publish_ods_dataset_by_id(report_def['ods_id'])
+                else:
+                    logging.info(f'No data changes detected, doing nothing for this dataset: {export_file}')
+            # conn.close()
+        else:
+            logging.info(f'No data changes detected, doing nothing for this dataset: {archive_path}')
     logging.info(f'Job successful!')
 
 
@@ -47,8 +76,8 @@ def extract_lab_data(glob_string: str):
     lab_df = pd.DataFrame()
     for xml_file in glob.glob(glob_string):
         with open(xml_file, 'r') as f:
-            xml_str = f.read().replace(' BS', 'BS')
-            root = et.fromstring(xml_str)
+            xml_str = f.read()
+            root = Et.fromstring(xml_str)
         data = []
         cols = []
         for i, child in enumerate(root):
@@ -61,12 +90,20 @@ def extract_lab_data(glob_string: str):
     return lab_df
 
 
-def extract_db_data(g: glob) -> (str, dict[str, pd.DataFrame]):
+def get_latest_archive(g: glob):
     """
-    Load csv files from the first zip archive in the folder when ordered descending by name.
-    Returns a dict of Pandas DataFrames with the DataFrame name as key.
+    Load csv files from the first archive file in the folder when ordered descending by name.
+    :param g: file pattern
+    :return: Path of archive file
     """
     archive_path = sorted(g, reverse=True)[0]
+    return archive_path
+
+
+def extract_db_data(archive_path:str) -> (str, dict[str, pd.DataFrame]):
+    """
+    Returns a dict of Pandas DataFrames with the DataFrame name as key.
+    """
     date = os.path.basename(archive_path).split('_')[0]
     logging.info(f'Reading data from zip file {archive_path}...')
     zf = zipfile.ZipFile(archive_path)
@@ -77,7 +114,7 @@ def extract_db_data(g: glob) -> (str, dict[str, pd.DataFrame]):
     return date, dfs
 
 
-def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
+def calculate_report(table_name, anzahl_proben_colname, organization_count_colname) -> pd.DataFrame:
     """Calculate the reports based on raw data table name."""
     # get start of week in sqlite using strftime: see https://stackoverflow.com/a/15810438
     results = sqldf(f'''
@@ -125,11 +162,11 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         where r.FirstDayOfWeek < strftime('%Y-%m-%d', 'now', 'weekday 0', '-6 day')
     ''')
 
-    # Count the number of businesses that take part in testing per week
-    businesses_per_week = sqldf('''
+    # Count the number of businesses or schools that take part in testing per week
+    businesses_per_week = sqldf(f'''
         select
            strftime("%W", ResultDate) as WeekOfYear,
-           count(distinct BusinessId) as BusinessCount
+           count(distinct BusinessId) as {organization_count_colname}
         from
              LaborSingleOrder l left join
              employee e on l.PersonId = e.EmployeeId
@@ -140,22 +177,22 @@ def calculate_report(table_name: TABLE_NAME) -> pd.DataFrame:
         order by WeekOfYear desc
     ''')
 
-    results_per_week_with_businesses = sqldf('''
-        select r.*, b.BusinessCount
+    results_per_week_with_businesses = sqldf(f'''
+        select r.*, b.{organization_count_colname}
         from results_per_week r left join businesses_per_week b on r.WeekOfYear = b.WeekOfYear
     ''')
 
-    samples = sqldf('''
+    samples = sqldf(f'''
         select      strftime("%W", Datum) as WeekOfYear, 
-                    sum(AnzahlProben) as CountSamples   
+                    sum({anzahl_proben_colname}) as CountSamples   
         from df_lab
         group by WeekOfYear
     ''')
-    # Filter out test data for school mass testing before go-live 2021-05-17
+    # Filter out data before 2021-09-06: Starting then the number of samples is delivered in a new format
     results_per_week_with_samples = sqldf('''
         select r.*, p.CountSamples 
         from results_per_week r left join samples p on r.WeekOfYear = p.WeekOfYear
-        where r.FirstDayOfWeek >= date('2021-05-17')
+        where r.FirstDayOfWeek >= date('2021-09-06')
         order by WeekOfYear 
     ''')
     # Return a different dataset for schools (LaborGroupOrder) vs. businesses (LaborSingleOrder)
