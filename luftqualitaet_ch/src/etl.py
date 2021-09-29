@@ -58,7 +58,7 @@ def main():
         df.to_csv(export_file, index=False)
         if ct.has_changed(export_file):
             common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'lufthygiene_ch')
-            odsp.publish_ods_dataset_by_id('999999')
+            odsp.publish_ods_dataset_by_id('100049')
 
         # todo: ODS use realtime API to push new data.
         # If data is too big to be pushed to realtime api, create chunks < 5 mb: https://newbedev.com/pandas-slice-large-dataframe-in-chunks
