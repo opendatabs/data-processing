@@ -25,6 +25,7 @@ def main():
         'submit': 'Abfrage',
     }
     station_payload = [
+        # todo: uncomment CHrischona station when ODS problems are fixed
         # {
         #     'station': 'bsBET',  # Chrischona Bettingen
         #     'pollutants[]': ['O3'],
