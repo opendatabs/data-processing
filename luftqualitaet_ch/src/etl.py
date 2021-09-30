@@ -26,11 +26,11 @@ def main():
         'submit': 'Abfrage',
     }
     station_payload = [
-        {
-            'station': 'bsBET', # Chrischona Bettingen
-            'pollutants[]': ['O3'],
-            'ods_id': '100048'
-        },
+        # {
+        #     'station': 'bsBET', # Chrischona Bettingen
+        #     'pollutants[]': ['O3'],
+        #     'ods_id': '100048'
+        # },
         {
             'station': 'bsBSJ',  # St. Johannplatz
             'pollutants[]': ['PM10', 'PM2.5', 'O3', 'NO2'],
@@ -40,7 +40,7 @@ def main():
             'station': 'bsBFB', # Feldbergstrasse
             'pollutants[]': ['PM10', 'PM2.5', 'NO2'],
             'ods_id': '100050'
-        }
+        },
     ]
 
     for station in station_payload:
@@ -67,7 +67,7 @@ def main():
             logging.info('Removing empty lines...')
             cols = df.columns.to_list()
             data_cols = list(filter(lambda item: item not in ['Datum/Zeit'], cols))
-            df = df.dropna(how='all', subset=data_cols)
+            df = df.dropna(how='all', subset=data_cols).reset_index(drop=True)
             logging.info('Renaming columns...')
             df = df.rename(columns={'Datum/Zeit': 'datum_zeit',
                                     'PM10 (Stundenmittelwerte  [µg/m³])': 'pm10_stundenmittelwerte_ug_m3',
@@ -77,21 +77,31 @@ def main():
                                     })
             export_file = os.path.join(credentials.data_path, f'Luftqualitaet_ch-{station_abbrev}.csv')
             df.to_csv(export_file, index=False)
+            common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'luftqualitaet_ch')
             if ct.has_changed(export_file):
-                common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'luftqualitaet_ch')
-                odsp.publish_ods_dataset_by_id(station['ods_id'])
+                chunk_size = 25000
+                df_chunks = chunked(df.index, chunk_size)
+                for df_chunk_indexes in df_chunks:
+                    logging.info(f'Submitting a data chunk to ODS...')
+                    df_chunk = df.iloc[df_chunk_indexes]
+                    df_json = df_chunk.to_json(orient="records")
+                    # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
+                    # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
+                    urllib3.disable_warnings()
+                    rq = common.requests_post(url=credentials.ods_live_push_api_urls[station_abbrev], data=df_json, verify=False)
+                    warnings.resetwarnings()
+                    rq.raise_for_status()
+                # odsp.publish_ods_dataset_by_id(station['ods_id'])
 
-            # todo: ODS use realtime API to push new data.
-            # If data is too big to be pushed to realtime api, create chunks < 5 mb: https://newbedev.com/pandas-slice-large-dataframe-in-chunks
 
-            # Realtime API bootstrap data:
-            # {
-            #     "datum_zeit": "2000-01-01 01:00:00",
-            #     "pm10_stundenmittelwerte_ug_m3": "29.851",
-            #     "o3_stundenmittelwerte_ug_m3": "5.426",
-            #     "no2_stundenmittelwerte_ug_m3": "42.994",
-            #     "pm2_5_stundenmittelwerte_ug_m3": "15.618"
-            # }
+# Realtime API bootstrap data for St. Johannsplatz ()
+# {
+#     "datum_zeit": "2000-01-01 01:00:00",
+#     "pm10_stundenmittelwerte_ug_m3": 29.851,
+#     "o3_stundenmittelwerte_ug_m3": 5.426,
+#     "no2_stundenmittelwerte_ug_m3": 42.994,
+#     "pm2_5_stundenmittelwerte_ug_m3": 15.618
+# }
 
 
 if __name__ == "__main__":
