@@ -92,7 +92,7 @@ def main():
                     rq.raise_for_status()
 
 
-# Realtime API bootstrap data for St. Johannsplatz ()
+# Realtime API bootstrap data for St. Johannsplatz (https://data.bs.ch/explore/dataset/100049)
 # {
 #     "datum_zeit": "2000-01-01 01:00:00",
 #     "pm10_stundenmittelwerte_ug_m3": 29.851,
