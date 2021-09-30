@@ -25,12 +25,11 @@ def main():
         'submit': 'Abfrage',
     }
     station_payload = [
-        # todo: Uncomment Chrischona station when ODS problems are fixed
-        # {
-        #     'station': 'bsBET',  # Chrischona Bettingen
-        #     'pollutants[]': ['O3'],
-        #     'ods_id': '100048'
-        # },
+        {
+            'station': 'bsBET',  # Chrischona Bettingen
+            'pollutants[]': ['O3'],
+            'ods_id': '100048'
+        },
         {
             'station': 'bsBSJ',  # St. Johannplatz
             'pollutants[]': ['PM10', 'PM2.5', 'O3', 'NO2'],
