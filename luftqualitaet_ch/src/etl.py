@@ -27,7 +27,7 @@ def main():
     }
     station_payload = [
         # {
-        #     'station': 'bsBET', # Chrischona Bettingen
+        #     'station': 'bsBET',  # Chrischona Bettingen
         #     'pollutants[]': ['O3'],
         #     'ods_id': '100048'
         # },
@@ -37,7 +37,7 @@ def main():
             'ods_id': '100049'
         },
         {
-            'station': 'bsBFB', # Feldbergstrasse
+            'station': 'bsBFB',  # Feldbergstrasse
             'pollutants[]': ['PM10', 'PM2.5', 'NO2'],
             'ods_id': '100050'
         },
