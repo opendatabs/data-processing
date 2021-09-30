@@ -7,7 +7,6 @@ import urllib3
 from more_itertools import chunked
 import common
 from common import change_tracking as ct
-import ods_publish.etl_id as odsp
 import os
 
 
@@ -91,7 +90,6 @@ def main():
                     rq = common.requests_post(url=credentials.ods_live_push_api_urls[station_abbrev], data=df_json, verify=False)
                     warnings.resetwarnings()
                     rq.raise_for_status()
-                # odsp.publish_ods_dataset_by_id(station['ods_id'])
 
 
 # Realtime API bootstrap data for St. Johannsplatz ()
