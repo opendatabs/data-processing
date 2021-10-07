@@ -10,12 +10,12 @@ import os
 
 def main():
     logging.info(f'Reading 2017 data from csv...')
-    df_2020_07_27 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020-07-27/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
+    df_2020_07_27 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_07_27/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
     df_2020_07_27['Übertretungsdatum'] = pd.to_datetime(df_2020_07_27['Übertretungsdatum'], format='%d.%m.%Y')
     df_2017 = df_2020_07_27.query('Übertretungsjahr == 2017')
 
     logging.info(f'Reading 2018 data from csv...')
-    df_2020_10_15 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020-10-15/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
+    df_2020_10_15 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_10_15/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
     df_2020_10_15['Übertretungsdatum'] = pd.to_datetime(df_2020_10_15['Übertretungsdatum'], format='%d.%m.%Y')
     df_2020_10_15['Übertretungsjahr'] = df_2020_10_15['Übertretungsdatum'].dt.year
     df_2018 = df_2020_10_15.query('Übertretungsjahr == 2018') # .drop(columns=credentials.columns_to_drop)
