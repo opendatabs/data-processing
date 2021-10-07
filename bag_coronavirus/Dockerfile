@@ -3,7 +3,7 @@ WORKDIR /code/data-processing
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
-RUN python3 -m pip install --user --no-cache-dir certifi==2021.5.30
+RUN python3 -m pip install --user --no-cache-dir certifi==2021.5.30 # does not help
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir pandasql==0.7.3
 RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.7
