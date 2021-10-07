@@ -3,6 +3,7 @@ import pandas as pd
 from kapo_ordnungsbussen import credentials
 import common
 from common import change_tracking as ct
+import ods_publish.etl_id as odsp
 import openpyxl
 import os
 
@@ -34,9 +35,21 @@ def main():
 
     logging.info('Cleaning up data for export...')
     df_all['Laufnummer'] = range(1, 1 + len(df_all))
-    df_export = df_all[['Laufnummer', 'Bussen-Betrag', 'BuZi', 'BuZi Text', 'BuZi Zus.', 'GK-Limite', 'KAT BEZEICHNUNG',
-                        'Übertretungsjahr', 'Übertretungsmonat', 'Ü-Ort ORT', 'Ü-Ort PLZ', 'Wochentag',
-                        'Übertretungswochentag', 'ÜbertretungswochentagNummer']]
+    df_export = df_all[['Laufnummer',
+                        'KAT BEZEICHNUNG',
+                        'Wochentag',
+                        'ÜbertretungswochentagNummer',
+                        'Übertretungswochentag',
+                        'Übertretungsmonat',
+                        'Übertretungsjahr',
+                        'GK-Limite',
+                        'Ü-Ort PLZ',
+                        'Ü-Ort ORT',
+                        'Bussen-Betrag',
+                        'BuZi',
+                        'BuZi Zus.',
+                        'BuZi Text',
+                        ]]
     df_export = df_export.copy()
     df_export['BuZi Text'] = df_export['BuZi Text'].str.replace('"', '\'')
     # Remove newline, carriage return, and tab, see https://stackoverflow.com/a/67541987
@@ -50,6 +63,8 @@ def main():
     export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
     logging.info(f'Exporting data to {export_filename_data}...')
     df_export.to_csv(export_filename_data, index=False)
+    common.upload_ftp(export_filename_data, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
+    odsp.publish_ods_dataset_by_id('100058')
 
     logging.info('Exporting data for high Bussen, and for all found PLZ...')
     df_bussen_big.to_csv(os.path.join(credentials.export_path, 'big_bussen.csv'))
