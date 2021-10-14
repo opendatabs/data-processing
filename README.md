@@ -43,9 +43,9 @@ Usually, data is published from data-producing governmental entities on internal
  ### Data Harvesting Mechanisms
  #### Into the Data Platform
  
- 1. Single datasets are source via these mechanisms: 
+ 1. Single datasets are sourced via these mechanisms: 
     - Direct https source, e.g. [Coronavirus Fallzahlen Basel-Stadt](https://data.bs.ch/explore/dataset/100073)
-    - Opendatasoft real-time API, e.g. [Real-time occupation status of chargig stations](https://data.bs.ch/explore/dataset/100004)
+    - Opendatasoft real-time API, e.g. [Real-time occupation status of charging stations](https://data.bs.ch/explore/dataset/100004)
     - FTP(S) sourcing of a directory, e.g. [Smart Climate Schallpegelmessungen](https://data.bs.ch/explore/dataset/100087)
  
      About using an FTP(S) directory instead of a file as the source for a dataset: "Using a directory is often the prefered solution to automate incremental updates between a customer's information system and the platform. All the files in the directory need to have the same format and schema (e.g. CSV files with the same column titles). In case of automation, whenever the dataset is published, new and updated files are fetched from the remote location and processed and thanks to Opendatasoft's native deduplication strategy". For more technical information how these mechanisms work see the [Opendatasoft documentation](https://help.opendatasoft.com/platform/en/publishing_data/01_creating_a_dataset/sourcing_data.html#sourcing-remote-data-via-a-url).
