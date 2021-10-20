@@ -13,3 +13,4 @@ https://data.bs.ch/explore/dataset/100081
     - Uploading the created archive csv to the FTP Server
     - Updating the ODS data source to point to the newly created archive. 
     
+Why? We cannot simply use the FTP folder as ODS data source, because the data is in a wide format and must be melted first. 
