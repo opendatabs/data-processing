@@ -1,6 +1,7 @@
 .idea
 __pycache__/
 **/credentials.py
+**/secrets/*
 **/venv/*
 **/.pytest_cache/*
 **/*.csv
