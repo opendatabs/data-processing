@@ -35,19 +35,23 @@ def main():
         print(f'Dropping empty values...')
         realtime_df.PM25_Sensirion = realtime_df.PM25_Sensirion.replace(' ', numpy.nan)
         realtime_df = realtime_df.dropna(subset=['PM25_Sensirion'])
-        # Realtime API bootstrap data:
-        # {
-        #     "anfangszeit": "23.02.2021 10:30:00",
-        #     "pm25": 13.3
-        # }
-        payload = (realtime_df.rename(columns={'Anfangszeit': 'anfangszeit', 'PM25_Sensirion': 'pm25'})[['anfangszeit', 'pm25']]
-                   .to_json(orient="records")
-                   )
-        print(f'Pushing {realtime_df.Anfangszeit.count()} rows to ODS realtime API...')
-        # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
-        # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        r = common.requests_post(url=credentials.ods_live_push_api_url, data=payload, verify=False)
-        r.raise_for_status()
+        row_count = realtime_df.Anfangszeit.count()
+        if row_count == 0:
+            print(f'No rows to push to ODS... ')
+        else:
+            # Realtime API bootstrap data:
+            # {
+            #     "anfangszeit": "23.02.2021 10:30:00",
+            #     "pm25": 13.3
+            # }
+            payload = (realtime_df.rename(columns={'Anfangszeit': 'anfangszeit', 'PM25_Sensirion': 'pm25'})[['anfangszeit', 'pm25']]
+                       .to_json(orient="records")
+                       )
+            print(f'Pushing {row_count} rows to ODS realtime API...')
+            # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
+            # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
+            r = common.requests_post(url=credentials.ods_live_push_api_url, data=payload, verify=False)
+            r.raise_for_status()
 
     print('Job successful!')
 
