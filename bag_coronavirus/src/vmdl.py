@@ -33,6 +33,17 @@ def retrieve_vmdl_data(csv_filename: str = '') -> str:
     payload_download = {}
     headers_download = {'Authorization': auth_string}
     print(f'Downloading data...')
+
+    # How to treat the certificate files so we can use them in Python:  https://www.ibm.com/docs/en/slac/10.2.0?topic=uxws-convert-user-keys-certificates-pem-format-python-clients
+    # cd /path/to/folder/where_.p12_file_resides
+    # Get the key.pem file:
+    # openssl pkcs12 -nocerts -in filename.p12 -out key.pem -info
+    # Get the cert.pem file:
+    # openssl pkcs12 -clcerts -nokeys -in filename.p12 -out cert.pem
+    # Remove the passphrase from the key:
+    # openssl rsa -in key.pem -out key_nopass.pem
+
+    # resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download, cert=(credentials.vmdl_cert_path, credentials.vmdl_key_nopass_path))
     resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download)
     resp_download.raise_for_status()
     if not csv_filename:
