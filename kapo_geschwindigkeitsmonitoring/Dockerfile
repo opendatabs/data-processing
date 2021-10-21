@@ -2,8 +2,12 @@ FROM python:3.9.0
 WORKDIR /code
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
-COPY requirements.txt .
-RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
+RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
+RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
+RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
+RUN python3 -m pip install --user --no-cache-dir psycopg2==2.8.6
+RUN python3 -m pip install --user --no-cache-dir cchardet==2.1.7
+RUN python3 -m pip install --user --no-cache-dir pytest==6.2.4
 CMD ["/bin/bash", "/code/data-processing/kapo_geschwindigkeitsmonitoring/etl.sh"]
 
 

@@ -1,4 +1,0 @@
-pandas==1.2.0
-requests==2.25.1
-psycopg2==2.8.6
-cchardet==2.1.7
