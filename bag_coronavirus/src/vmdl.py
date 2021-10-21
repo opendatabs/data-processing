@@ -43,8 +43,7 @@ def retrieve_vmdl_data(csv_filename: str = '') -> str:
     # Remove the passphrase from the key:
     # openssl rsa -in key.pem -out key_nopass.pem
 
-    # resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download, cert=(credentials.vmdl_cert_path, credentials.vmdl_key_nopass_path))
-    resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download)
+    resp_download = common.requests_get(credentials.vmdl_url_download, headers=headers_download, data=payload_download, cert=(credentials.vmdl_cert_path, credentials.vmdl_key_nopass_path))
     resp_download.raise_for_status()
     if not csv_filename:
         zip_file_path = os.path.join(credentials.vmdl_path, credentials.vmdl_zip_file)
