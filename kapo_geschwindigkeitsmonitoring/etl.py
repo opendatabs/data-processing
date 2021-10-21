@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 import glob
 import pandas.io.sql as psql
@@ -34,13 +35,16 @@ con = pg.connect(credentials.pg_connection)
 print(f'Reading data into dataframe...')
 df = psql.read_sql('SELECT *, ST_AsGeoJSON(the_geom) as the_geom_json, ST_AsEWKT(the_geom) as the_geom_EWKT, ST_AsText(the_geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
 con.close()
+raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
+logging.info(f'Saving raw metadata (as received from db) to {raw_metadata_filename}...')
+df.to_csv(raw_metadata_filename, index=False)
 
 df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone',
        'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
        'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
       ]]
 metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
-print(f'Exporting data to {metadata_filename}...')
+print(f'Exporting processed metadata to {metadata_filename}...')
 df_metadata.to_csv(metadata_filename, index=False)
 common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
 
