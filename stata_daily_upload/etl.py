@@ -10,8 +10,8 @@ def main():
     uploads = [{'file': 'Bevoelkerung/sterbefaelle.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100079'},
                {'file': 'Bevoelkerung/geburten_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100092'},
                {'file': 'Bevoelkerung/geburten_nach_monat.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100099'},
-               {'file': 'Tourismus/tourismus-daily.csv', 'dest_dir': 'tourismus', 'ods_id': '100106'},
-               {'file': 'Tourismus/tourismus-monthly.csv', 'dest_dir': 'tourismus', 'ods_id': '100107'},
+               {'file': 'Tourismus/tourismus-daily.csv', 'dest_dir': 'tourismus', 'ods_id': '100106', 'embargo': True},
+               {'file': 'Tourismus/tourismus-monthly.csv', 'dest_dir': 'tourismus', 'ods_id': '100107', 'embargo': True},
                {'file': 'Veranstaltung/veranstaltungen.csv', 'dest_dir': 'veranstaltungen', 'ods_id': '100074'},
                {'file': 'Bevoelkerung/01bevoelkerung_monat_nach_bezirk.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100125'},
                {'file': 'Bevoelkerung/02bevoelkerung_jahr_nach_CH_A_geschlecht.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100128'},
@@ -27,11 +27,10 @@ def main():
                ]
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
-        if ct.has_changed(file_path):
-            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-            odsp.publish_ods_dataset_by_id(upload['ods_id'])
-        else:
-            logging.info(f'No changes detected, doing nothing for this dataset: {file_path}')
+        if upload.get('embargo') and common.is_embargo_over(file_path):
+            if ct.has_changed(file_path):
+                common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+                odsp.publish_ods_dataset_by_id(upload['ods_id'])
     print('Job successful!')
 
 
