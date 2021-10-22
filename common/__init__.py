@@ -9,7 +9,12 @@ import pandas as pd
 import fnmatch
 import logging
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+# see https://pypi.org/project/backports.zoneinfo/
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports import zoneinfo
+
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
