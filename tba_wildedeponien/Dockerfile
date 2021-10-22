@@ -7,7 +7,6 @@ RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 RUN python3 -m pip install --user --no-cache-dir geopandas==0.8.0
 RUN python3 -m pip install --user --no-cache-dir pygeos==0.7.1
-RUN python3 -m pip install --user --no-cache-dir backports.zoneinfo==0.2.1
 CMD ["/bin/bash", "/code/data-processing/tba_wildedeponien/etl.sh"]
 
 # Docker commands to create image and run container:
