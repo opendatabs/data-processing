@@ -5,8 +5,8 @@ ENV HTTPS_PROXY=$HTTPS_PROXY
 RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
-RUN python3 -m pip install --user --no-cache-dir geopandas==0.10.0
-RUN python3 -m pip install --user --no-cache-dir pygeos==0.10.2
+RUN python3 -m pip install --user --no-cache-dir geopandas==0.8.0
+RUN python3 -m pip install --user --no-cache-dir pygeos==0.7.1
 CMD ["/bin/bash", "/code/data-processing/tba_wildedeponien/etl.sh"]
 
 # Docker commands to create image and run container:
