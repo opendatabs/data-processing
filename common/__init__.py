@@ -8,6 +8,7 @@ from functools import wraps
 import pandas as pd
 import fnmatch
 import logging
+from datetime import datetime
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
@@ -124,7 +125,7 @@ def ensure_ftp_dir(server, user, password, folder):
         if str(e).split(None, 1)[1] == "Can't create directory: File exists":
             print(f'Folder (or file with same name) exists already, doing nothing. ')
         else:
-            raise(e)
+            raise e
     finally:
         ftp.quit()
 
@@ -179,3 +180,15 @@ def get_ods_uid_by_id(ods_id, creds):
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def pandas_read_csv(*args, **kwargs):
     return pd.read_csv(*args, **kwargs)
+
+
+def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
+    if embargo_file_path is None:
+        embargo_file_path = os.path.splitext(data_file_path)[0] + '_embargo.txt'
+    with open(embargo_file_path, 'r') as f:
+        embargo_datetime_str = f.readline()
+        logging.info(f'Read string {embargo_datetime_str} from file {embargo_file_path}')
+    embargo_datetime = datetime.fromisoformat(embargo_datetime_str)
+    embargo_over = datetime.now() > embargo_datetime
+    logging.info(f'Embargo over: {embargo_over}')
+    return embargo_over
