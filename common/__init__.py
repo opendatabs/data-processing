@@ -190,7 +190,6 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
         embargo_datetime_str = f.readline()
         logging.info(f'Read string {embargo_datetime_str} from file {embargo_file_path}')
     embargo_datetime = datetime.fromisoformat(embargo_datetime_str)
-    print(f'Timezone info: {embargo_datetime.tzinfo}')
     if embargo_datetime.tzinfo is None:
         logging.info(f'Datetime string is not timezone aware ("naive"), adding timezone info "Europe/Zurich"...')
         embargo_datetime = embargo_datetime.replace(tzinfo=ZoneInfo('Europe/Zurich'))
