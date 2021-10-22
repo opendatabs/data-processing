@@ -1,4 +1,0 @@
-python-dateutil==2.7.2
-pycryptodome==3.9.7
-requests==2.20.0
-pandas==1.0.3
