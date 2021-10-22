@@ -8,7 +8,8 @@ from functools import wraps
 import pandas as pd
 import fnmatch
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
@@ -189,6 +190,11 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
         embargo_datetime_str = f.readline()
         logging.info(f'Read string {embargo_datetime_str} from file {embargo_file_path}')
     embargo_datetime = datetime.fromisoformat(embargo_datetime_str)
-    embargo_over = datetime.now() > embargo_datetime
+    print(f'Timezone info: {embargo_datetime.tzinfo}')
+    if embargo_datetime.tzinfo is None:
+        logging.info(f'Datetime string is not timezone aware ("naive"), adding timezone info "Europe/Zurich"...')
+        embargo_datetime = embargo_datetime.replace(tzinfo=ZoneInfo('Europe/Zurich'))
+    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    embargo_over = now_in_switzerland > embargo_datetime
     logging.info(f'Embargo over: {embargo_over}')
     return embargo_over

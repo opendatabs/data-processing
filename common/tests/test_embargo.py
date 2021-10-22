@@ -1,7 +1,7 @@
 import logging
 import os
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import pandas as pd
 from random import random
 import pytest
@@ -25,7 +25,7 @@ def data_file_path(tmp_path):
 def embargo_file(tmp_path, data_file_path, request):
     embargo_file_path = data_file_path.replace('.csv', '_embargo.txt')
     minutes_add = int(request.node.get_closest_marker('minutes_add').args[0])
-    datetime_str = (datetime.now() + timedelta(minutes=minutes_add)).strftime('%Y-%m-%dT%H:%M')
+    datetime_str = (datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')) + timedelta(minutes=minutes_add)).strftime('%Y-%m-%dT%H:%M')
     with open(embargo_file_path, 'w') as f:
         f.write(datetime_str)
     yield embargo_file_path
