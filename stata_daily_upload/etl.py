@@ -24,6 +24,7 @@ def main():
                {'file': 'Bevoelkerung/OpenDataMigration.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100002'},
                {'file': 'Bevoelkerung/OpenDataUmzuege.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100001'},
                {'file': 'Bevoelkerung/scheidungen_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100139'},
+               {'file': 'Bevoelkerung/trauungen_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100156'},
                ]
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
