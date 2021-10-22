@@ -1,0 +1,9 @@
+name;label;description
+ID_EL;Id_El;Eindeutiger Identifikator
+STD_NAME;Standortname;Bezeichnung des Standortes
+STRASSE_NR;Strasse Nr;Strassename und Hausnummer
+PLZ;Postleitzahl;4 bis 5-stellige Postleitzahl
+ORT;Ort;Gemeinde
+KANTON;Kanton;Kantons Name
+TELEFON;Telefon;Telefonnummer
+LINK_HP;Link Homepage;Internetadresse
