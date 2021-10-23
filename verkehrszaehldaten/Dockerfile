@@ -1,9 +1,10 @@
-FROM python:3.7.6
+FROM python:3.10.0
 WORKDIR /code
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
-COPY requirements.txt .
-RUN python3 -m pip install --user --no-cache-dir --requirement requirements.txt
+RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
+RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
+RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 CMD ["/bin/bash", "/code/data-processing/verkehrszaehldaten/etl.sh"]
 
 
