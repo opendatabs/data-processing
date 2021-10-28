@@ -92,7 +92,7 @@ def transform_data(df):
     df_pivot['cum_1'] = df_pivot.vacc_count_1.cumsum()
     df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
     df_pivot['cum_3'] = df_pivot.vacc_count_3.cumsum()
-    df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2 - df_pivot.cum_3
+    df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
     df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
     df_pivot['total_cum'] = df_pivot.total.cumsum()
     logging.info(f'Renaming and restricting columns for export...')
