@@ -123,9 +123,10 @@ def get_reporting_df(file_path, bins) -> pd.DataFrame:
 
     print(f'Calculating cumulative sums of _only_ first vaccinations...')
     df_only_first = df_bs_cum.copy(deep=True)
-    # Negate cumulative numbers of vaccinations with vacc_count > 1, then add the cum numbers of all vacc_count to get the cum number of _only_ 1st vacc
-    # only_first = (-1 * vacc_count_1_cum_sum) + all_vacc_count_cum_sum
-    df_only_first.count_cum = numpy.where(df_only_first.vacc_count > 1, df_only_first.count_cum * -1, df_only_first.count_cum)
+    # Negate cumulative number of vaccinations with vacc_count == 2, add the (positive) cum number of vaccinations withh vacc_count == 1 to get the cum number of _only_ 1st vacc
+    df_only_first.count_cum = numpy.where(df_only_first.vacc_count == 1,
+                                          df_only_first.count_cum,
+                                          numpy.where(df_only_first.vacc_count == 2, df_only_first.count_cum * -1, 0))
     df_only_first = df_only_first.groupby(['vacc_day', 'age_group'])['count_cum'].sum().reset_index()
     df_only_first['vacc_count'] = -1
     df_bs_cum = df_bs_cum.append(df_only_first)
