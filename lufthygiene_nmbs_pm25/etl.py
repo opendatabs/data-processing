@@ -12,9 +12,7 @@ def main():
     urllib3.disable_warnings()
     df = common.pandas_read_csv(url, sep=';', encoding='cp1252', skiprows=range(1, 2))
     print(f'Calculating ISO8601 time string...')
-    df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich',
-                                                                                                ambiguous='infer',
-                                                                                                nonexistent='shift_forward')
+    df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
 
     # We simplify the code and re-push all current data all the time instead of checking for the latest timestamp in ODS.
     # print(f'Reading latest timestamp from ODS dataset...')
