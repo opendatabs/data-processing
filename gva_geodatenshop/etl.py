@@ -232,8 +232,8 @@ for index, row in joined_data.iterrows():
                     'modified': modified,
                     'language': 'de',
                     'publizierende-organisation': row['publizierende_organisation'],
-                    # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string via filter()
-                    'tags': list(filter(None, ';'.join(list(set(row['tags'].split(';') + ['opendata.swiss', 'geoportal']))))),
+                    # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
+                    'tags': ';'.join([i for i in list(set(row['tags'].split(';') + ['opendata.swiss', 'geoportal'])) if i != '']),
                     'geodaten-modellbeschreibung': row['modellbeschreibung'],
                     'source_dataset': 'https://data-bs.ch/opendatasoft/harvesters/GVA/' + zipfilepath_relative,
                     'schema_file': schema_file
