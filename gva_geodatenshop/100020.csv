@@ -1,7 +1,7 @@
 name;label;description
-id_el;Id_El;Eindeutiger Identifikator
+id_el;ID;Eindeutiger Identifikator
 std_name;Standortname;Bezeichnung des Standortes
-strasse_nr;Strasse Nr;Strassename und Hausnummer
+strasse_nr;Strasse;Strassename und Hausnummer
 plz;Postleitzahl;4 bis 5-stellige Postleitzahl
 ort;Ort;Gemeinde
 kanton;Kanton;Name des Kanton
