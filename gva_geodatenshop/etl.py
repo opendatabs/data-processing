@@ -261,8 +261,8 @@ if len(metadata_for_ods) > 0:
     print('Uploading ODS schema files to FTP Server...')
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
+            schemafile_with_path = os.path.join(credentials.path_root, schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
-                schemafile_with_path = os.path.join(credentials.path_root, schemafile)
                 print(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
                 common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
 
