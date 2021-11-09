@@ -3,7 +3,7 @@ BI\InteressanteOrte;True;;Basel Info: Interessante Orte (POI);100015;;;"Tourismu
 BS\PLZOrtschaft;True;"PL_PLZ6;PL_Ortschaft";"Postleitzahlenkreise;Gemeinden";"100016;100017";";Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen.";;"Geographie;Verwaltung;Statistische Grundlagen";"Post;Postleitzahl;Brief;Paket";;;;2019-11-06;
 BW\Allmendbewilligungen;True;;;100018;;;"Öffentliche Ordnung und Sicherheit;Bau- und Wohnungswesen;Geographie";"Baustelle;Plakat;Anlass;Fest;Party;Umleitung";;;;2019-11-06;
 DF\Defibrillatoren;True;;;100019;;;"Gesundheit;Geographie";"Notfall;Reanimation;CPR;Herz;Lunge;Wiederbelebung;Standort";;;;2019-11-06;
-EL\Elternberatung;True;;;100020;;;"Gesundheit;Bevölkerung;Geographie";"Kind;Baby;Mutter;Vater;Krankheit;Gesundheit";;;;2019-11-06;
+EL\Elternberatung;True;;;100020;;;"Gesundheit;Bevölkerung;Geographie";"Kind;Baby;Mutter;Vater;Krankheit;Gesundheit";;;True;2019-11-06;
 ES\Entsorgungsstellen;True;;;100021;;;"Öffentliche Ordnung und Sicherheit;Geographie";"Recycling;Wiederverwertung;Abfall;Müll;Entsorgen";amt-fur-umwelt-und-energie-kanton-basel-stadt;http://purl.org/cld/freq/irregular;;2019-11-06;
 GO\GueteklassenOeV;True;;Güteklassen öffentlicher Verkehr;100022;;;"Mobilität und Verkehr;Geographie";"Abdeckung;Tram;Bus;Distanz";amt-fur-mobilitat-kanton-basel-stadt;http://purl.org/cld/freq/irregular;;2020-01-29;
 HS\Hundesignalisation;True;;Hundesignalisation: Orte mit Leinenpflicht oder Hundeverbot;100023;;;"Öffentliche Ordnung und Sicherheit;Geographie";"Hund;Verbot;Leine;Leinenpflicht";;;;2019-11-06;
