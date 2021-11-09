@@ -46,14 +46,14 @@ def has_changed(filename: str, hash_file_dir='', update_hash_file=True) -> bool:
     if not os.path.exists(sfv_filename):
         logging.info(f'SFV file does not exist.')
         if update_hash_file:
-            hash_value = write_hash_file(filename)
+            write_hash_file(filename)
         return True
     logging.info(f'SFV file exists, checking for changes: {sfv_filename}...')
     hashes_differ = not crc32_hasher.verify_sfv(sfv_filename=sfv_filename)[0].hashes_match
     if hashes_differ:
         logging.info(f'Hashes do not match.')
         if update_hash_file:
-            hash_value = write_hash_file(filename)
+            write_hash_file(filename)
         return True
     else:
         logging.info(f'Hashes match...')
