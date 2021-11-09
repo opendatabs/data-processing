@@ -174,6 +174,9 @@ for index, row in joined_data.iterrows():
                 else:
                     title = row['titel'].replace(':', ': ')
                     ods_id = row['ods_id']
+                    if row['schema_file'] == 'True':
+                        schema_file = ods_id + '.csv'
+
 
                 # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
                 geocat_description_textgroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
