@@ -78,4 +78,15 @@ function git () {
     (docker run -ti --rm -v ${HOME}:/root -v $(pwd):/git alpine/git:v2.26.2 "$@")
 }
 ~~~ 
- 
+
+#### Embargo Feature
+- To create an embargo on a dataset based on a csv file named "data.csv", place a file named "data_embargo.txt" into the folder where the data file resides. 
+- The "_embargo.txt" file must contain a datetime string in the form YYYY-MM-DDThh:mm, e.g.
+~~~
+2021-10-22T09:00
+ ~~~
+- The data processing job must be enhanced to use the embargo function:
+~~~
+common.is_embargo_over(data_file_path, embargo_file_path=None)
+~~~
+- Always update the embargo file before uploading new data!
