@@ -67,7 +67,7 @@ Usually, data is published from data-producing governmental entities on internal
  - In the European Data portal (harvested from the above): https://www.europeandataportal.eu/data/datasets/100042-statistisches-amt-kanton-basel-stadt
     
  ### Miscellaneous
- ####Usage of git
+ #### Usage of git
  - On the data processing server we use the Docker container 'alpine/git:v2.26.2' as a git client, see https://hub.docker.com/r/alpine/git. 
  - First usage on the Docker host to download the Docker image and see `git --version`executed:
 `docker run -ti --rm -v ${HOME}:/root -v $(pwd):/git alpine/git:v2.26.2 --version` 
@@ -78,4 +78,15 @@ function git () {
     (docker run -ti --rm -v ${HOME}:/root -v $(pwd):/git alpine/git:v2.26.2 "$@")
 }
 ~~~ 
- 
+
+#### Embargo Feature
+- To create an embargo on a dataset based on a csv file named "data.csv", place a file named "data_embargo.txt" into the folder where the data file resides. 
+- The "_embargo.txt" file must contain a datetime string in the form YYYY-MM-DDThh:mm, e.g.
+~~~
+2021-10-22T09:00
+ ~~~
+- The data processing job must be enhanced to use the embargo function:
+~~~
+common.is_embargo_over(data_file_path, embargo_file_path=None)
+~~~
+- Always update the embargo file before uploading new data!
