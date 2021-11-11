@@ -87,6 +87,6 @@ function git () {
  ~~~
 - The data processing job must be enhanced to use the embargo function:
 ~~~
-common.is_embargo_over(data_file_path, embargo_file_path=None)
+common.is_embargo_over(data_file_path)
 ~~~
 - Always update the embargo file before uploading new data!
