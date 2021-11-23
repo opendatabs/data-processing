@@ -34,15 +34,14 @@ def get_hash_file(filename, folder='') -> str:
 
 
 def has_changed(filename: str, hash_file_dir='', update_hash_file=True) -> bool:
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f'File does not exist: {filename}')
     logging.info(f'Checking for changes in file {filename}...')
     if not hash_file_dir:
         # logging.debug(f'Using default hash_file_dir {get_hash_file_dir()}...')
         hash_file_dir = get_hash_file_dir()
     sfv_filename = get_hash_file(filename, hash_file_dir)
     crc32_hasher = FileHash(hash_algorithm='crc32')
-    if not os.path.exists(filename):
-        logging.info(f'File does not exist: {filename}')
-        return True
     if not os.path.exists(sfv_filename):
         logging.info(f'SFV file does not exist.')
         if update_hash_file:
