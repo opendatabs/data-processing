@@ -76,30 +76,32 @@ def main():
         logging.info(f'Pivoting dataframe...')
         df_pivot = (
             df_filled.pivot(index='vacc_day', columns=['type_id', 'type'], values='type_count_cumsum')
-            .fillna(method='ffill') # fill holes with last value
-            .fillna(0) # replace existing nans to the beginning of a series with 0
+            .fillna(method='ffill')  # fill holes with last value
+            .fillna(0)  # replace existing nans to the beginning of a series with 0
             .reset_index()
-            .sort_values(by='vacc_day', ascending=False)
+            .sort_values(by='vacc_day')
             .convert_dtypes()
         )
 
-        logging.info(f'Calculating type columns...')
-        # 'Vollständig geimpft': 1 + 100 + 12 + 101
-        # 'Impfung aufgefrischt': 23 + 102
-        # 'Teilweise geimpft': 11 - 12
-        # 'Irrelevant für Berechnung des Impfstatus': 22, 13, 19, 29
+        logging.info(f'Calculating type columns and differences...')
         teilw = df_pivot['11'].squeeze() - df_pivot['12'].squeeze()
         vollst = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['12'].squeeze() + df_pivot['101'].squeeze()
-        aufgefr = df_pivot['23'].squeeze() + df_pivot['102'].squeeze()
+        aufgefr = df_pivot['22'].squeeze() + df_pivot['23'].squeeze() + df_pivot['102'].squeeze()
+        neu_teilw = df_pivot['11'].diff()
         df_pivot.insert(1, column='Teilweise geimpft', value=teilw)
         df_pivot.insert(2, column='Vollstaendig geimpft', value=vollst)
         df_pivot.insert(3, column='Impfung aufgefrischt', value=aufgefr)
+        df_pivot.insert(4, column='Neu teilweise geimpft', value=neu_teilw)
+        neu_vollst = df_pivot['Vollstaendig geimpft'].diff()
+        neu_aufgefr = df_pivot['Impfung aufgefrischt'].diff()
+        df_pivot.insert(5, column='Neu vollstaendig geimpft', value=neu_vollst)
+        df_pivot.insert(6, column='Neu Impfung aufgefrischt', value=neu_aufgefr)
 
         logging.info(f'Cleaning up column names...')
         # Replace the 2-level multi-index column names with a string that concatenates both strings,
         # then remove trailing _, then replace space with _
         df_pivot.columns = ["_".join(str(c) for c in col).rstrip('_').replace(' ', '_') for col in df_pivot.columns.values]
-        df_pivot = df_pivot.rename(columns={'nan_nan': 'Anderer Typ'})
+        df_pivot = df_pivot.rename(columns={'nan_nan': 'Anderer Typ'}).sort_values(by='vacc_day', ascending=False)
 
         export_file_name = os.path.join(credentials.vmdl_path, 'vaccination_report_bs_impftyp.csv')
         logging.info(f'Exporting dataframe to file {export_file_name}...')
