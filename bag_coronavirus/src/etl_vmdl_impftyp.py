@@ -108,7 +108,7 @@ def main():
             common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
             ct.update_hash_file(export_file_name)
             odsp.publish_ods_dataset_by_id('100162')
-            ct.update_hash_file(vmdl_copy_path)
+        ct.update_hash_file(vmdl_copy_path)
 
 
 if __name__ == "__main__":
