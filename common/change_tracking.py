@@ -12,7 +12,7 @@ def get_hash_file_dir() -> str:
     return os.path.join(curr_dir, 'change_tracking')
 
 
-def do_update_hash_file(file_name, sfv_file_name='') -> str:
+def update_hash_file(file_name, sfv_file_name='') -> str:
     if not sfv_file_name:
         sfv_file_name = get_hash_file(file_name, get_hash_file_dir())
     crc32_hasher = FileHash(hash_algorithm='crc32')
@@ -33,7 +33,7 @@ def get_hash_file(filename, folder='') -> str:
     return sfv_filename
 
 
-def has_changed(filename: str, hash_file_dir='', update_hash_file=True) -> bool:
+def has_changed(filename: str, hash_file_dir='', do_update_hash_file=True) -> bool:
     if not os.path.exists(filename):
         raise FileNotFoundError(f'File does not exist: {filename}')
     logging.info(f'Checking for changes in file {filename}...')
@@ -44,15 +44,15 @@ def has_changed(filename: str, hash_file_dir='', update_hash_file=True) -> bool:
     crc32_hasher = FileHash(hash_algorithm='crc32')
     if not os.path.exists(sfv_filename):
         logging.info(f'SFV file does not exist.')
-        if update_hash_file:
-            do_update_hash_file(filename)
+        if do_update_hash_file:
+            update_hash_file(filename)
         return True
     logging.info(f'SFV file exists, checking for changes: {sfv_filename}...')
     hashes_differ = not crc32_hasher.verify_sfv(sfv_filename=sfv_filename)[0].hashes_match
     if hashes_differ:
         logging.info(f'Hashes do not match.')
-        if update_hash_file:
-            do_update_hash_file(filename)
+        if do_update_hash_file:
+            update_hash_file(filename)
         return True
     else:
         logging.info(f'Hashes match...')
