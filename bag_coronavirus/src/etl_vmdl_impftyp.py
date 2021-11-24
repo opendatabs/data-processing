@@ -69,6 +69,7 @@ def main():
         df_type_counts['type_count_cumsum'] = df_type_counts[['type_id', 'type_count']].groupby(['type_id']).cumsum()
 
         logging.info(f'Adding days with no vaccinations...')
+        # int columns become float once nan values are added
         df_date_range = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
         df_filled = df_type_counts.merge(df_date_range, how='right', on='vacc_day')
 
@@ -79,6 +80,7 @@ def main():
             .fillna(0) # replace existing nans to the beginning of a series with 0
             .reset_index()
             .sort_values(by='vacc_day', ascending=False)
+            .convert_dtypes()
         )
 
         logging.info(f'Calculating type columns...')
