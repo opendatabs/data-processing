@@ -65,7 +65,7 @@ def transform_data(df):
     df_bs_by_all = df_all_comb.merge(df_bs_by, on=['vacc_day', 'vacc_count', 'location_type'], how='outer').fillna(0)
     logging.info(f'Pivoting...')
     df_pivot_table = df_bs_by_all.pivot_table(values='count', index=['vacc_day'], columns=['location_type', 'vacc_count'], fill_value=0)
-    # Replace the 2-level column names with a string that concatenates both strings
+    # Replace the 2-level multi-index column names with a string that concatenates both strings
     df_pivot_table.columns = ["_".join(str(c) for c in col) for col in df_pivot_table.columns.values]
     df_pivot = df_pivot_table.reset_index()
     logging.info(f'Ensure columns exist...')
