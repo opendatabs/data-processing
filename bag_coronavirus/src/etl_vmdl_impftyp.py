@@ -106,9 +106,9 @@ def main():
         df_pivot.to_csv(export_file_name, index=False, sep=';')
         if ct.has_changed(export_file_name, update_hash_file=False):
             common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
-            ct.update_hash_file(export_file_name)
+            ct.do_update_hash_file(export_file_name)
             odsp.publish_ods_dataset_by_id('100162')
-        ct.update_hash_file(vmdl_copy_path)
+        ct.do_update_hash_file(vmdl_copy_path)
 
 
 if __name__ == "__main__":
