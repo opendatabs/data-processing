@@ -100,10 +100,10 @@ def main():
         df_pivot.insert(5, column='Neu teilweise geimpft', value=neu_teilw)
         df_pivot.insert(6, column='Neu vollstaendig geimpft', value=(df_pivot['Vollstaendig geimpft'].diff()))
         df_pivot.insert(7, column='Neu Impfung aufgefrischt', value=(df_pivot['Impfung aufgefrischt'].diff()))
-        df_pivot.insert(8, column='Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count)
-        df_pivot.insert(9, column='Anteil teilweise geimpft an Wohnbevoelkerung', value=teilw/pop_count)
-        df_pivot.insert(10, column='Anteil Impfung aufgefrischt an Wohnbevoelkerung', value=aufgefr/pop_count)
-        df_pivot.insert(11, column='Anteil mit mindestens einer Dosis geimpft', value=mind_1/pop_count)
+        df_pivot.insert(8, column='Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count*100)
+        df_pivot.insert(9, column='Anteil teilweise geimpft an Wohnbevoelkerung', value=teilw/pop_count*100)
+        df_pivot.insert(10, column='Anteil Impfung aufgefrischt an Wohnbevoelkerung', value=aufgefr/pop_count*100)
+        df_pivot.insert(11, column='Anteil mit mindestens einer Dosis geimpft', value=mind_1/pop_count*100)
 
         logging.info(f'Cleaning up column names...')
         # Replace the 2-level multi-index column names with a string that concatenates both strings,
