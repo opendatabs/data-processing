@@ -26,19 +26,18 @@ def main():
             ['22',  'Zweite Dosis mit einer Mehrdosisimpfung (Auffrischimpfung einer Impfung mit Einmaldosis)'],
             ['11',  'Erste Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
             ['12',  'Zweite Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
-            ['13',  'Dritte Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
-            ['19',  'Mindestens vierte Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
-            ['23',  'Dritte Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
-            ['29',  'Mindestens vierte Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
+            ['19',  'Mindestens dritte Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
+            ['29',  'Mindestens dritte Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
             ['101', 'Genesen mit erster Dosis einer Mehrdosisimpfung'],
             ['102', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
+            ['-1',  'Andere']
         ]
         df_types = pd.DataFrame(types, columns=['type_id', 'type'])
         logging.info(f'Filtering BS population, determining vaccination type...')
         # vacc_id = 5413868120110 --> Johnson & Johnson Einmaldosis
         df_bs = sqldf(f'''
             select 
-                vacc_day, vacc_count, serie,
+                *, -- vacc_day, vacc_count, serie,
                 case                  
                     when person_recovered_from_covid = 0.0 and vacc_count = 1 and vacc_id = 5413868120110 then '1'
                     when person_recovered_from_covid = 1.0 and vacc_count = 1 and vacc_id = 5413868120110 then '100'
@@ -47,10 +46,9 @@ def main():
                     when serie = 2 and vacc_count = 2 and vacc_id <> 5413868120110 then '22'
                     when serie = 1 and vacc_count = 1 and vacc_id <> 5413868120110 then '11'
                     when serie = 1 and vacc_count = 2 and vacc_id <> 5413868120110 then '12'
-                    when serie = 1 and vacc_count = 3 and vacc_id <> 5413868120110 then '13'
-                    when serie = 1 and vacc_count > 3 and vacc_id <> 5413868120110 then '19'
-                    when serie = 2 and vacc_count = 3 and vacc_id <> 5413868120110 then '23'
-                    when serie = 2 and vacc_count > 3 and vacc_id <> 5413868120110 then '29'
+                    when serie = 1 and vacc_count > 2 and vacc_id <> 5413868120110 then '19'
+                    when serie = 2 and vacc_count > 2 and vacc_id <> 5413868120110 then '29'
+                    else '-1'
                 end as type_id
             from df 
             where person_residence_ctn = "BS" and vacc_day < "{vmdl.today_string()}" 
@@ -83,25 +81,40 @@ def main():
             .convert_dtypes()
         )
 
-        logging.info(f'Calculating type columns and differences...')
+        logging.info(f'Retrieving current population count...')
+        # Retrieve data from https://data.bs.ch/explore/dataset/100128
+        print(f'Retrieving population data from {credentials.pop_data_file_path}')
+        df_pop = common.pandas_read_csv(credentials.pop_data_file_path, sep=';')
+        pop_count = df_pop.query('datum == "2020-12-31"')['anzahl'].sum()
+
+        logging.info(f'Calculating type columns, differences and precentages...')
         teilw = df_pivot['11'].squeeze() - df_pivot['12'].squeeze()
         vollst = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['12'].squeeze() + df_pivot['101'].squeeze()
-        aufgefr = df_pivot['22'].squeeze() + df_pivot['23'].squeeze() + df_pivot['102'].squeeze()
+        aufgefr = df_pivot['22'].squeeze() + df_pivot['29'].squeeze() + df_pivot['102'].squeeze()
+        mind_1 = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['11'].squeeze() + df_pivot['101'].squeeze()
         neu_teilw = df_pivot['11'].diff()
-        df_pivot.insert(1, column='Teilweise geimpft', value=teilw)
-        df_pivot.insert(2, column='Vollstaendig geimpft', value=vollst)
+        df_pivot.insert(1, column='Vollstaendig geimpft', value=vollst)
+        df_pivot.insert(2, column='Teilweise geimpft', value=teilw)
         df_pivot.insert(3, column='Impfung aufgefrischt', value=aufgefr)
-        df_pivot.insert(4, column='Neu teilweise geimpft', value=neu_teilw)
-        neu_vollst = df_pivot['Vollstaendig geimpft'].diff()
-        neu_aufgefr = df_pivot['Impfung aufgefrischt'].diff()
-        df_pivot.insert(5, column='Neu vollstaendig geimpft', value=neu_vollst)
-        df_pivot.insert(6, column='Neu Impfung aufgefrischt', value=neu_aufgefr)
+        df_pivot.insert(4, column='Mit mindestens einer Dosis geimpft', value=mind_1)
+        df_pivot.insert(5, column='Neu teilweise geimpft', value=neu_teilw)
+        df_pivot.insert(6, column='Neu vollstaendig geimpft', value=(df_pivot['Vollstaendig geimpft'].diff()))
+        df_pivot.insert(7, column='Neu Impfung aufgefrischt', value=(df_pivot['Impfung aufgefrischt'].diff()))
+        df_pivot.insert(8, column='Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count)
+        df_pivot.insert(9, column='Anteil teilweise geimpft an Wohnbevoelkerung', value=teilw/pop_count)
+        df_pivot.insert(10, column='Anteil Impfung aufgefrischt an Wohnbevoelkerung', value=aufgefr/pop_count)
+        df_pivot.insert(11, column='Anteil mit mindestens einer Dosis geimpft', value=mind_1/pop_count)
 
         logging.info(f'Cleaning up column names...')
         # Replace the 2-level multi-index column names with a string that concatenates both strings,
         # then remove trailing _, then replace space with _
         df_pivot.columns = ["_".join(str(c) for c in col).rstrip('_').replace(' ', '_') for col in df_pivot.columns.values]
-        df_pivot = df_pivot.rename(columns={'nan_nan': 'Anderer Typ'}).sort_values(by='vacc_day', ascending=False)
+        df_pivot = df_pivot.sort_values(by='vacc_day', ascending=False)
+
+        logging.info(f'Filling nan values with 0, droping unwanted columns...')
+        df_pivot = (df_pivot
+                    .fillna(0)
+                    .drop(columns=['nan_nan']))
 
         export_file_name = os.path.join(credentials.vmdl_path, 'vaccination_report_bs_impftyp.csv')
         logging.info(f'Exporting dataframe to file {export_file_name}...')
