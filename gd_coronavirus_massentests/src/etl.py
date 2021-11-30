@@ -212,7 +212,7 @@ def convert_datetime_columns(dfs):
     for key in dfs:
         for column_name in dfs[key]:
             if any(x in column_name for x in date_column_hints):
-                dfs[key][column_name] = pd.to_datetime(dfs[key][column_name], format='%m/%d/%Y %H:%M:%S')
+                dfs[key][column_name] = pd.to_datetime(dfs[key][column_name], format='%m/%d/%Y %H:%M:%S', errors='coerce')
 
 
 def add_global_dfs(dfs):
