@@ -1,6 +1,8 @@
+import logging
 from shutil import copy2
 import pandas as pd
 import common
+from common import change_tracking as ct
 from verkehrszaehldaten import credentials
 import sys
 import os
@@ -51,7 +53,6 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     conn = sqlite3.connect(db_filename)
     data.to_sql(name=db_filename.replace('.db', ''), con=conn, if_exists='replace', )
 
-
     # group by SiteName, get latest rows (data is already sorted by date and time) so that ODS limit
     # of 250K is not exceeded
     # print("Creating dataset truncated_" + filename + "...")
@@ -86,22 +87,36 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     return generated_filenames
 
 
-no_file_copy = False
-if 'no_file_copy' in sys.argv:
-    no_file_copy = True
-    print('Proceeding without copying files...')
+def main():
+    no_file_copy = False
+    if 'no_file_copy' in sys.argv:
+        no_file_copy = True
+        print('Proceeding without copying files...')
 
-filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
+    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
 
-# Upload processed and truncated data
-for datafile in filename_orig:
-    file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
+    # Upload processed and truncated data
+    for datafile in filename_orig:
+        datafile_with_path = os.path.join(credentials.path_orig, datafile)
+        if ct.has_changed(datafile_with_path, do_update_hash_file=False):
+            file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
+            if not no_file_copy:
+                for file in file_names:
+                    if ct.has_changed(file, do_update_hash_file=False):
+                        common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+                        ct.update_hash_file(file)
+            ct.update_hash_file(datafile_with_path)
+
+    # Upload original unprocessed data
     if not no_file_copy:
-        for file in file_names:
-            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        for orig_file in filename_orig:
+            path_to_file = os.path.join(credentials.path_dest, orig_file)
+            if ct.has_changed(path_to_file, do_update_hash_file=False):
+                common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+                ct.update_hash_file(path_to_file)
 
-# Upload original unprocessed data
-if not no_file_copy:
-    for orig_file in filename_orig:
-        path_to_file = os.path.join(credentials.path_dest, orig_file)
-        common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
