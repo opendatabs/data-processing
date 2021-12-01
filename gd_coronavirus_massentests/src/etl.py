@@ -41,7 +41,7 @@ def main():
     df_lab = None
     for db in get_report_defs():
         archive_path = get_latest_archive(glob.glob(os.path.join(db['db_path'], "*.zip")))
-        if ct.has_changed(archive_path):
+        if ct.has_changed(archive_path, False):
             if df_lab is None:
                 logging.info(f'No lab data yet, processing...')
                 common.download_ftp([], credentials.down_ftp_server, credentials.down_ftp_user, credentials.down_ftp_pass, credentials.down_ftp_dir, credentials.data_path_xml, '*.xml')
@@ -60,14 +60,12 @@ def main():
                 export_file = os.path.join(credentials.export_path, report_def['file_name'])
                 logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
                 report.to_csv(export_file, index=False)
-                if ct.has_changed(export_file):
+                if ct.has_changed(export_file, False):
                     common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
                     odsp.publish_ods_dataset_by_id(report_def['ods_id'])
-                else:
-                    logging.info(f'No data changes detected, doing nothing for this dataset: {export_file}')
+                    ct.update_hash_file(export_file)
             # conn.close()
-        else:
-            logging.info(f'No data changes detected, doing nothing for this dataset: {archive_path}')
+            ct.update_hash_file(archive_path)
     logging.info(f'Job successful!')
 
 
@@ -100,7 +98,7 @@ def get_latest_archive(g: glob):
     return archive_path
 
 
-def extract_db_data(archive_path:str) -> (str, dict[str, pd.DataFrame]):
+def extract_db_data(archive_path: str) -> (str, dict[str, pd.DataFrame]):
     """
     Returns a dict of Pandas DataFrames with the DataFrame name as key.
     """
@@ -214,7 +212,7 @@ def convert_datetime_columns(dfs):
     for key in dfs:
         for column_name in dfs[key]:
             if any(x in column_name for x in date_column_hints):
-                dfs[key][column_name] = pd.to_datetime(dfs[key][column_name], format='%m/%d/%Y %H:%M:%S')
+                dfs[key][column_name] = pd.to_datetime(dfs[key][column_name], format='%m/%d/%Y %H:%M:%S', errors='coerce')
 
 
 def add_global_dfs(dfs):
