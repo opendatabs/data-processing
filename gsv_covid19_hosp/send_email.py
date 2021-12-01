@@ -12,7 +12,7 @@ def make_email_dict(email_textfile):
 
 
 def send_email(hospital, email_dict):
-    with open('../data-processing/Spitalzahlen/Erinnerung_IES.txt', 'r') as file:
+    with open('../data-processing/gsv_covid19_hosp/Erinnerung_IES.txt', 'r') as file:
         text = file.read()
     msg = message(subject="test", text=text)
     email_receivers = email_dict[hospital].split(",")
