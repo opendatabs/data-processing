@@ -18,6 +18,7 @@ def main(value_id, value):
                               auth=(username, password))
     r.raise_for_status()
 
+
 def get_properties_list(hospital):
     if hospital == 'USB':
         properties_list = ['Betten_frei_Normal', 'Betten_frei_Normal_COVID', 'Betten_frei_IMCU',
