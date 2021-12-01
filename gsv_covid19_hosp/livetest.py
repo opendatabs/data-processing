@@ -3,7 +3,7 @@ import requests
 import credentials
 
 
-url = "https://www.ies.admin.ch/sap/opu/odata/ITIES/ODATA_HOKA_SRV/$metadata"
+url = credentials.url_meta
 
 
 payload = {}
@@ -23,15 +23,18 @@ print(response.text)
 #print(response.raise_for_status())
 
 
-url = "https://ies.admin.ch/sap/opu/odata/ITIES/ODATA_HOKA_SRV/HospCapAdultSet"
+url = credentials.url_hosp_adults
 response = requests.request("GET", url, headers=headers, data=payload)
 print(response.text)
 """
-url2 = "https://www.ies.admin.ch/sap/opu/odata/ITIES/ODATA_HOKA_SRV/HospCapAdultSet?$format=json&$filter=(( CapacStamp gt datetime'2021-11-12T00:00:00' or CapacStamp lt datetime'2021-11-12T23:59:59') and (NoauResid eq '00000000000000047212')  )"
+url2 = credentials.url_hosp_adults + "&$filter=(( CapacStamp gt datetime'2021-11-27T00:00:00' or CapacStamp lt datetime'2021-11-29T23:59:59') and (NoauResid eq '00000000000000047212')  )"
 response = requests.request("GET", url2, headers=headers, data=payload)
 print(response.text)
 
+
 print(response.json())
+
+
 """
 results = response.json()["d"]["results"]
 
