@@ -2,8 +2,8 @@ import pandas as pd
 import os
 import sys
 from shutil import copy2
-import ftplib
 import common
+import common.change_tracking as ct
 from aue_umweltlabor import credentials
 
 
@@ -95,6 +95,8 @@ if not no_file_copy:
     files_to_upload = generated_filenames
     files_to_upload.append(datafilename)
     for filename in files_to_upload:
-        common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        if ct.has_changed(credentials.path_work + filename, do_update_hash_file=False):
+            common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+            ct.update_hash_file(credentials.path_work + filename)
 
 print('Job successful.')
