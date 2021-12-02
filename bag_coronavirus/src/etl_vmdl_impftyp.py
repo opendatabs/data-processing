@@ -30,7 +30,8 @@ def main():
             ['29',  'Mindestens dritte Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
             ['101', 'Genesen mit erster Dosis einer Mehrdosisimpfung'],
             ['102', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
-            ['-1',  'Andere']
+            ['-21', 'Fehleingabe: serie 2, vacc_count 1'],
+            ['-1',  'Andere'],
         ]
         df_types = pd.DataFrame(types, columns=['type_id', 'type'])
         logging.info(f'Filtering BS population, determining vaccination type...')
@@ -48,6 +49,7 @@ def main():
                     when serie = 1 and vacc_count = 2 and vacc_id <> 5413868120110 then '12'
                     when serie = 1 and vacc_count > 2 and vacc_id <> 5413868120110 then '19'
                     when serie = 2 and vacc_count > 2 and vacc_id <> 5413868120110 then '29'
+                    when serie = 2 and vacc_count = 1 then '-21'
                     else '-1'
                 end as type_id
             from df 
@@ -90,7 +92,7 @@ def main():
         logging.info(f'Calculating type columns, differences and precentages...')
         teilw = df_pivot['11'].squeeze() - df_pivot['12'].squeeze()
         vollst = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['12'].squeeze() + df_pivot['101'].squeeze()
-        aufgefr = df_pivot['22'].squeeze() + df_pivot['29'].squeeze() + df_pivot['102'].squeeze()
+        aufgefr = df_pivot['22'].squeeze() + df_pivot['29'].squeeze() + df_pivot['-21'].squeeze()
         mind_1 = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['11'].squeeze() + df_pivot['101'].squeeze()
         neu_teilw = df_pivot['11'].diff()
         df_pivot.insert(1, column='Vollstaendig geimpft', value=vollst)
