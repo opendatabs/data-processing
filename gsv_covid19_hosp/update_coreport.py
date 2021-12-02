@@ -14,9 +14,12 @@ def main(value_id, value):
     username = credentials.username_coreport
     password = credentials.password_coreport
 
-    r = common.requests_patch(f'https://bl.coreport.ch/de/reports/api/submit/{value_id}', json=payload,
+
+    r = common.requests_patch(credentials.url_coreport, json=payload,
                               auth=(username, password))
     r.raise_for_status()
+
+
 
 def get_properties_list(hospital):
     if hospital == 'USB':
