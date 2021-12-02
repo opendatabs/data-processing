@@ -13,19 +13,19 @@ def namestr(obj, namespace):
     return [name for name in namespace if namespace[name] is obj]
 
 
-def main():
-    datafilename = 'OGD-Daten.CSV'
-    datafile_with_path = os.path.join(credentials.path_orig, datafilename)
-
+logging.basicConfig(level=logging.DEBUG)
+datafilename = 'OGD-Daten.CSV'
+datafile_with_path = os.path.join(credentials.path_orig, datafilename)
+if ct.has_changed(datafile_with_path, do_update_hash_file=False):
     no_file_copy = False
     if 'no_file_copy' in sys.argv:
         no_file_copy = True
-        logging.info(f'Proceeding without copying files to or from working folder...')
+        print('Proceeding without copying files to or from working folder...')
     else:
-        logging.info(f'Copying file {datafile_with_path} to directory {credentials.path_work}...')
+        print("Copying file " + datafile_with_path + " to directory " + credentials.path_work)
         copy2(datafile_with_path, credentials.path_work + datafilename)
 
-    logging.info(f'Reading data file from {credentials.path_work + datafilename} ...')
+    print('Reading data file from ' + credentials.path_work + datafilename + '...')
     datafile = credentials.path_work + datafilename
     data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252', dtype={
         'Probentyp': 'category',
@@ -41,7 +41,7 @@ def main():
         'Automatische Auswertung': 'category'
     })
 
-    logging.info(f'Calculating new columns...')
+    print('Calculating new columns...')
     # replacing spaces with '_' in column names
     data.columns = [column.replace(" ", "_") for column in data.columns]
     # create new columns
@@ -53,7 +53,7 @@ def main():
     data['Wert_num'] = pd.to_numeric(data['Wert'], errors='coerce')
     # data = data.drop(columns=['Wert_cleaned_for_num'])
 
-    logging.info(f'Create independent datasets:')
+    print('Create independent datasets:')
     gew_rhein_rues_fest = data.query('Probenahmestelle == "GEW_RHEIN_RUES" and Probentyp == "FESTSTOFF"')
     gew_rhein_rues_wasser = data.query('Probenahmestelle == "GEW_RHEIN_RUES" and Probentyp == "WASSER"')
     oberflaechengew = data.query('Probentyp == "WASSER" and '
@@ -63,7 +63,7 @@ def main():
     generated_datasets = [gew_rhein_rues_wasser, gew_rhein_rues_fest, oberflaechengew, grundwasser]
 
     current_filename = 'gew_rhein_rues_wasser_truncated'
-    logging.info(f'Creating dataset {current_filename}...')
+    print('Creating dataset ' + current_filename + "...")
     latest_year = gew_rhein_rues_wasser['Probenahmejahr'].max()
     years = [latest_year, latest_year - 1]
     gew_rhein_rues_wasser_truncated = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.isin(years)]
@@ -74,7 +74,7 @@ def main():
     for year in all_years:
         year_gew_rhein_rues_wasser[year] = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
         current_filename = 'gew_rhein_rues_wasser_' + str(year)
-        logging.info(f'Creating dataset {current_filename}...')
+        print('Creating dataset ' + current_filename + "...")
         # create variable name for current year
         dataset_name = 'gew_rhein_rues_wasser_' + str(year)
         globals()[dataset_name] = year_gew_rhein_rues_wasser[year]
@@ -85,22 +85,20 @@ def main():
     for dataset in reversed(generated_datasets):
         current_filename = namestr(dataset, globals())[0] + '.csv'
         generated_filenames.append(current_filename)
-        logging.info(f'Exporting dataset to {current_filename} ...')
+        print("Exporting dataset to " + current_filename + '...')
         dataset.to_csv(credentials.path_work + current_filename, sep=';', encoding='utf-8', index=False)
 
     if not no_file_copy:
+        ftp_server = credentials.ftp_server
+        ftp_user = credentials.ftp_user
+        ftp_pass = credentials.ftp_pass
+
         files_to_upload = generated_filenames
         files_to_upload.append(datafilename)
         for filename in files_to_upload:
-            filename_with_path = credentials.path_work + filename
-            if ct.has_changed(filename_with_path, do_update_hash_file=False):
-                common.upload_ftp(filename_with_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
-                ct.update_hash_file(filename_with_path)
+            if ct.has_changed(credentials.path_work + filename, do_update_hash_file=False):
+                common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+                ct.update_hash_file(credentials.path_work + filename)
 
-    logging.info(f'Job successful.')
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
-    main()
+    ct.update_hash_file(datafile_with_path)
+    print('Job successful.')
