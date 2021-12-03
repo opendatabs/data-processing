@@ -29,7 +29,8 @@ def main():
             ['19',  'Mindestens dritte Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
             ['29',  'Mindestens dritte Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
             ['101', 'Genesen mit erster Dosis einer Mehrdosisimpfung'],
-            ['102', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
+            ['102', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
+            ['202', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
             ['-21', 'Fehleingabe: serie 2, vacc_count 1'],
             ['-1',  'Andere'],
         ]
@@ -44,6 +45,7 @@ def main():
                     when person_recovered_from_covid = 1.0 and vacc_count = 1 and vacc_id = 5413868120110 then '100'
                     when person_recovered_from_covid = 1.0 and serie = 1 and vacc_count = 1 and vacc_id <> 5413868120110 then '101'
                     when person_recovered_from_covid = 1.0 and serie = 1 and vacc_count = 2 and vacc_id <> 5413868120110 then '102'
+                    when person_recovered_from_covid = 1.0 and serie = 2 and vacc_count = 2 and vacc_id <> 5413868120110 then '202'
                     when serie = 2 and vacc_count = 2 and vacc_id <> 5413868120110 then '22'
                     when serie = 1 and vacc_count = 1 and vacc_id <> 5413868120110 then '11'
                     when serie = 1 and vacc_count = 2 and vacc_id <> 5413868120110 then '12'
@@ -84,10 +86,10 @@ def main():
         )
 
         logging.info(f'Retrieving current population count...')
-        # Retrieve data from https://data.bs.ch/explore/dataset/100128
-        print(f'Retrieving population data from {credentials.pop_data_file_path}')
-        df_pop = common.pandas_read_csv(credentials.pop_data_file_path, sep=';')
-        pop_count = df_pop.query('datum == "2020-12-31"')['anzahl'].sum()
+        # # Retrieve data from https://data.bs.ch/explore/dataset/100128
+        # print(f'Retrieving population data from {credentials.pop_data_file_path}')
+        # df_pop = common.pandas_read_csv(credentials.pop_data_file_path, sep=';')
+        # pop_count = df_pop.query('datum == "2020-12-31"')['anzahl'].sum()
         # https://www.pxweb.bfs.admin.ch/pxweb/de/px-x-0102010000_101/px-x-0102010000_101/px-x-0102010000_101.px/table/tableViewLayout2/
         pop_count_statpop = 196735
 
@@ -105,17 +107,17 @@ def main():
         df_pivot.insert(6,  column='Neu vollstaendig geimpft', value=(df_pivot['Vollstaendig geimpft'].diff()))
         df_pivot.insert(7,  column='Neu Impfung aufgefrischt', value=(df_pivot['Impfung aufgefrischt'].diff()))
 
-        df_pivot.insert(8,  column='Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count*100)
-        df_pivot.insert(9,  column='Anteil teilweise geimpft an Wohnbevoelkerung', value=teilw/pop_count*100)
-        df_pivot.insert(10, column='Anteil Impfung aufgefrischt an Wohnbevoelkerung', value=aufgefr/pop_count*100)
-        df_pivot.insert(11, column='Anteil mit mindestens einer Dosis geimpft', value=mind_1/pop_count*100)
-        df_pivot.insert(12, column='Bevoelkerungszahl', value=pop_count)
+        df_pivot.insert(8,  column='Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count_statpop*100)
+        df_pivot.insert(9,  column='Anteil teilweise geimpft an Wohnbevoelkerung', value=teilw/pop_count_statpop*100)
+        df_pivot.insert(10, column='Anteil Impfung aufgefrischt an Wohnbevoelkerung', value=aufgefr/pop_count_statpop*100)
+        df_pivot.insert(11, column='Anteil mit mindestens einer Dosis geimpft', value=mind_1/pop_count_statpop*100)
+        df_pivot.insert(12, column='Bevoelkerungszahl STATPOP', value=pop_count_statpop)
 
-        df_pivot.insert(13, column='BFS Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count_statpop*100)
-        df_pivot.insert(14, column='BFS Anteil teilweise geimpft an Wohnbevoelkerung STATPOP', value=teilw/pop_count_statpop*100)
-        df_pivot.insert(15, column='BFS Anteil Impfung aufgefrischt an Wohnbevoelkerung STATPOP', value=aufgefr/pop_count_statpop*100)
-        df_pivot.insert(16, column='BFS Anteil mit mindestens einer Dosis geimpft STATPOP', value=mind_1/pop_count_statpop*100)
-        df_pivot.insert(17, column='BFS Bevoelkerungszahl', value=pop_count_statpop)
+        # df_pivot.insert(13, column='BFS Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count_statpop*100)
+        # df_pivot.insert(14, column='BFS Anteil teilweise geimpft an Wohnbevoelkerung STATPOP', value=teilw/pop_count_statpop*100)
+        # df_pivot.insert(15, column='BFS Anteil Impfung aufgefrischt an Wohnbevoelkerung STATPOP', value=aufgefr/pop_count_statpop*100)
+        # df_pivot.insert(16, column='BFS Anteil mit mindestens einer Dosis geimpft STATPOP', value=mind_1/pop_count_statpop*100)
+        # df_pivot.insert(17, column='BFS Bevoelkerungszahl', value=pop_count_statpop)
 
         logging.info(f'Cleaning up column names...')
         # Replace the 2-level multi-index column names with a string that concatenates both strings,
