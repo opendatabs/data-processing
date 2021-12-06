@@ -4,6 +4,9 @@ import credentials
 import calculation
 
 def main(value_id, value):
+
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
     payload = {
         "value": value,
         "comment": "Entered by bot"
@@ -14,11 +17,12 @@ def main(value_id, value):
     username = credentials.username_coreport
     password = credentials.password_coreport
 
+    url = credentials.url_coreport + str({value_id})
 
-    r = common.requests_patch(credentials.url_coreport, json=payload,
+
+    r = common.requests_patch(url, json=payload,
                               auth=(username, password))
     r.raise_for_status()
-
 
 
 def get_properties_list(hospital):
@@ -44,15 +48,18 @@ def write_in_coreport(df, hospital_list):
         properties = get_properties_list(hospital=hospital)
         for prop in properties:
             value_id = credentials.dict_coreport[hospital][prop]
-            value = df_hospital[prop][0]
+            value = int(df_hospital[prop][0])
             print(value_id, value)
+            print(type(value_id), type(value))
+            main(value_id=value_id, value=value)
+
 
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    main(value_id='422640', value=44)
+    main(value_id='422640', value=41)
 
 
 
