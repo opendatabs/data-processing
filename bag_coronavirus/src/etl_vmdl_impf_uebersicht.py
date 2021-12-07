@@ -14,15 +14,15 @@ def main():
     vmdl_copy_path = vmdl.file_path().replace('vmdl.csv', 'vmdl_impf_uebersicht.csv')
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
-    if ct.has_changed(vmdl_copy_path, do_update_hash_file=False):
+    if True: # ct.has_changed(vmdl_copy_path, do_update_hash_file=False):
         df = extract_data(vmdl_copy_path)
         df_export = transform_data(df)
         export_file_name = load_data(df_export)
-        if ct.has_changed(export_file_name, do_update_hash_file=False):
-            common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
-            odsp.publish_ods_dataset_by_id('100111')
-            ct.update_hash_file(export_file_name)
-        ct.update_hash_file(vmdl_copy_path)
+        # if ct.has_changed(export_file_name, do_update_hash_file=False):
+        #     common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
+        #     odsp.publish_ods_dataset_by_id('100111')
+        #     ct.update_hash_file(export_file_name)
+        # ct.update_hash_file(vmdl_copy_path)
     logging.info(f'Job successful!')
 
 
@@ -81,12 +81,12 @@ def transform_data(df):
         if column_name not in df_pivot.columns:
             df_pivot[column_name] = 0
     logging.info(f'Calculating columns...')
-    df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2 + df_pivot.hosp_3
-    df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2 + df_pivot.vacc_centre_3
-    df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2 + df_pivot.other_3
+    df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2 + df_pivot.hosp_3 + df_pivot.hosp_4
+    df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2 + df_pivot.vacc_centre_3 + df_pivot.vacc_centre_4
+    df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2 + df_pivot.other_3 + df_pivot.other_4
     df_pivot['vacc_count_1'] = df_pivot.hosp_1 + df_pivot.vacc_centre_1 + df_pivot.other_1
     df_pivot['vacc_count_2'] = df_pivot.hosp_2 + df_pivot.vacc_centre_2 + df_pivot.other_2
-    df_pivot['vacc_count_3'] = df_pivot.hosp_3 + df_pivot.vacc_centre_3 + df_pivot.other_3
+    df_pivot['vacc_count_3'] = df_pivot.hosp_3 + df_pivot.vacc_centre_3 + df_pivot.other_3 + df_pivot.hosp_4 + df_pivot.vacc_centre_4 + df_pivot.other_4
     df_pivot['cum_1'] = df_pivot.vacc_count_1.cumsum()
     df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
     df_pivot['cum_3'] = df_pivot.vacc_count_3.cumsum()
