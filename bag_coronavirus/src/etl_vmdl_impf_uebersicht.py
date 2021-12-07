@@ -14,17 +14,15 @@ def main():
     vmdl_copy_path = vmdl.file_path().replace('vmdl.csv', 'vmdl_impf_uebersicht.csv')
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
-    if not ct.has_changed(vmdl_copy_path):
-        logging.info(f'Data have not changed, doing nothing for this dataset: {vmdl_copy_path}')
-    else:
+    if ct.has_changed(vmdl_copy_path, do_update_hash_file=False):
         df = extract_data(vmdl_copy_path)
         df_export = transform_data(df)
         export_file_name = load_data(df_export)
-        if not ct.has_changed(export_file_name):
-            logging.info(f'Data have not changed, doing nothing for this dataset: {export_file_name}')
-        else:
+        if ct.has_changed(export_file_name, do_update_hash_file=False):
             common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
             odsp.publish_ods_dataset_by_id('100111')
+            ct.update_hash_file(export_file_name)
+        ct.update_hash_file(vmdl_copy_path)
     logging.info(f'Job successful!')
 
 
@@ -120,7 +118,32 @@ def transform_data(df):
         'total': 'total_verabreichte_impfungen_pro_tag',
         'total_cum': 'total_verabreichte_impfungen',
     })
-    df_export = df_export[[
+
+    logging.info(f'Calculating boosters...')
+    df_boost = sqldf('''
+        select vacc_day, count(vacc_day) as auffrischimpfungen_pro_tag
+        from df_bs
+        where vacc_count > 2 and serie = 2
+        group by vacc_day
+    ''')
+    df_3_non_boost = sqldf('''
+        select vacc_day, count(vacc_day) as drittimpfungen_u_m_grundimmunisierung_pro_tag
+        from df_bs
+        where vacc_count > 2 and serie = 1
+        group by vacc_day        
+    ''')
+
+    df_export_boost = sqldf('''
+        select * from df_export e
+        left join df_boost b on e.datum = b.vacc_day
+        left join df_3_non_boost nb on e.datum = nb.vacc_day
+        order by datum 
+    ''').fillna(0)
+
+    df_export_boost['total_auffrischimpfungen'] = df_export_boost['auffrischimpfungen_pro_tag'].cumsum()
+    df_export_boost['total_drittimpfungen_u_m_grundimmunisierung'] = df_export_boost['drittimpfungen_u_m_grundimmunisierung_pro_tag'].cumsum()
+    df_export_boost = df_export_boost.convert_dtypes()
+    df_export_boost = df_export_boost[[
         'datum',
         'total_verabreichte_impfungen',
         'total_personen_mit_erster_dosis',
@@ -144,8 +167,12 @@ def transform_data(df):
         'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'anderswo_mit_dritter_dosis_geimpfte_personen_pro_tag',
         'total_verabreichte_impfungen_pro_tag',
+        'total_auffrischimpfungen',
+        'auffrischimpfungen_pro_tag',
+        'total_drittimpfungen_u_m_grundimmunisierung',
+        'drittimpfungen_u_m_grundimmunisierung_pro_tag'
     ]]
-    return df_export
+    return df_export_boost
 
 
 def load_data(df_export: pd.DataFrame) -> str:
