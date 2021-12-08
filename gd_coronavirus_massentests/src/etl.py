@@ -41,7 +41,7 @@ def main():
     df_lab = None
     for db in get_report_defs():
         archive_path = get_latest_archive(glob.glob(os.path.join(db['db_path'], "*.zip")))
-        if ct.has_changed(archive_path, False):
+        if ct.has_changed(archive_path, do_update_hash_file=False):
             if df_lab is None:
                 logging.info(f'No lab data yet, processing...')
                 common.download_ftp([], credentials.down_ftp_server, credentials.down_ftp_user, credentials.down_ftp_pass, credentials.down_ftp_dir, credentials.data_path_xml, '*.xml')
@@ -60,7 +60,7 @@ def main():
                 export_file = os.path.join(credentials.export_path, report_def['file_name'])
                 logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
                 report.to_csv(export_file, index=False)
-                if ct.has_changed(export_file, False):
+                if ct.has_changed(export_file, do_update_hash_file=False):
                     common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
                     odsp.publish_ods_dataset_by_id(report_def['ods_id'])
                     ct.update_hash_file(export_file)
