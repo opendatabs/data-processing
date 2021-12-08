@@ -17,17 +17,20 @@ def get_report_defs():
     return [{'db_path': credentials.data_path_db_primar_sek1,
              'report_defs': [{'file_name': 'massentests_pool_primarsek1.csv',
                               'table_name': 'LaborGroupOrder',
+                              'where_clause': 'and KitNumber like "BS%" and FirstDayOfWeek >= date("2021-11-15")',
                               'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
                               'organization_count_colname': 'SchoolCount',
                               'ods_id': '100145'},
-                             {'file_name': 'massentests_single_betriebe.csv',
-                              'table_name': 'LaborSingleOrder',
+                             {'file_name': 'massentests_pool_betriebe.csv',
+                              'table_name': 'LaborGroupOrder',
+                              'where_clause': 'and KitNumber not like "BS%" and FirstDayOfWeek >= date("2021-11-15")',
                               'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
                               'organization_count_colname': 'BusinessCount',
                               'ods_id': '100146'}]},
             {'db_path': credentials.data_path_db_sek2,
              'report_defs': [{'file_name': 'massentests_single_sek2.csv',
                               'table_name': 'LaborSingleOrder',
+                              'where_clause': '',
                               'anzahl_proben_colname': 'AnzahlProbenSek2',
                               'organization_count_colname': 'SchoolCount',
                               'ods_id': '100153'}]}]
@@ -56,7 +59,8 @@ def main():
             for report_def in db['report_defs']:
                 report = calculate_report(table_name=report_def['table_name'],
                                           anzahl_proben_colname=report_def['anzahl_proben_colname'],
-                                          organization_count_colname=report_def['organization_count_colname'])
+                                          organization_count_colname=report_def['organization_count_colname'],
+                                          where_clause=report_def['where_clause'])
                 export_file = os.path.join(credentials.export_path, report_def['file_name'])
                 logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
                 report.to_csv(export_file, index=False)
@@ -112,7 +116,7 @@ def extract_db_data(archive_path: str) -> (str, dict[str, pd.DataFrame]):
     return date, dfs
 
 
-def calculate_report(table_name, anzahl_proben_colname, organization_count_colname) -> pd.DataFrame:
+def calculate_report(table_name, anzahl_proben_colname, organization_count_colname, where_clause) -> pd.DataFrame:
     """Calculate the reports based on raw data table name."""
     # get start of week in sqlite using strftime: see https://stackoverflow.com/a/15810438
     results = sqldf(f'''
@@ -123,7 +127,7 @@ def calculate_report(table_name, anzahl_proben_colname, organization_count_colna
         from        {table_name}
         where       Result in ("positiv", "negativ") and
                     ResultDate is not null and
-                    WeekOfYear is not null
+                    WeekOfYear is not null {where_clause}
         group by    WeekOfYear, Result
     ''')
     total = sqldf('''
