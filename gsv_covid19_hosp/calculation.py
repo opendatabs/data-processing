@@ -56,16 +56,16 @@ def calculate_numbers(ies_numbers):
 
 
     # numbers to return
-    df_coreport['Betten_frei_Normal_COVID'] = Total_Betten_COVID - Betriebene_IS_Betten_COVID - Betriebene_IMCU_Betten_COVID - Total_Pat_COVID + Total_IS_Pat_COVID + Total_IMCU_Pat_COVID
-    df_coreport['Betten_frei_Normal'] = Total_Betten - Betriebene_IS_Betten - Betriebene_IMCU_Betten - Total_Pat + Total_IS_Pat + Total_IMCU_Pat - df_coreport['Betten_frei_Normal_COVID']
-    df_coreport['Betten_frei_IMCU'] = Betriebene_IMCU_Betten - Total_IMCU_Pat
-    df_coreport['Betten_frei_IPS_ohne_Beatmung'] = df.apply(Betten_frei_IPS_ohne_Beatmung, axis=1)
-    df_coreport['Betten_frei_IPS_mit_Beatmung'] = df.apply(Betten_frei_IPS_mit_Beatmung, axis=1)
-    df_coreport['Betten_frei_ECMO'] = Betriebene_ECMO_Betten - Total_ECMO_Pat
-    df_coreport['Betten_belegt_Normal'] = Total_Pat - Total_IS_Pat - Total_IMCU_Pat
-    df_coreport['Betten_belegt_IMCU'] = Total_IMCU_Pat
-    df_coreport['Betten_belegt_IPS_ohne_Beatmung'] = Total_IS_Pat - Beatmete_IS_Pat
-    df_coreport['Betten_belegt_IPS_mit_Beatmung'] = Beatmete_IS_Pat
-    df_coreport['Betten_belegt_ECMO'] = Total_ECMO_Pat
+    df_coreport['Bettenanzahl frei "Normalstation" COVID'] = Total_Betten_COVID - Betriebene_IS_Betten_COVID - Betriebene_IMCU_Betten_COVID - Total_Pat_COVID + Total_IS_Pat_COVID + Total_IMCU_Pat_COVID
+    df_coreport['Bettenanzahl frei "Normalstation"'] = Total_Betten - Betriebene_IS_Betten - Betriebene_IMCU_Betten - Total_Pat + Total_IS_Pat + Total_IMCU_Pat - df_coreport['Bettenanzahl frei "Normalstation" COVID']
+    df_coreport['Bettenanzahl frei "IMCU"'] = Betriebene_IMCU_Betten - Total_IMCU_Pat
+    df_coreport['Bettenanzahl frei "IPS ohne Beatmung"'] = df.apply(Betten_frei_IPS_ohne_Beatmung, axis=1)
+    df_coreport['Bettenanzahl frei "IPS mit Beatmung"'] = df.apply(Betten_frei_IPS_mit_Beatmung, axis=1)
+    df_coreport['Bettenanzahl frei " IPS ECMO"'] = Betriebene_ECMO_Betten - Total_ECMO_Pat
+    df_coreport['Bettenanzahl belegt "Normalstation"'] = Total_Pat - Total_IS_Pat - Total_IMCU_Pat
+    df_coreport['Bettenanzahl belegt "IMCU"'] = Total_IMCU_Pat
+    df_coreport['Bettenanzahl belegt "IPS ohne Beatmung"'] = Total_IS_Pat - Beatmete_IS_Pat
+    df_coreport['Bettenanzahl belegt "IPS mit Beatmung"'] = Beatmete_IS_Pat
+    df_coreport['Bettenanzahl belegt "IPS ECMO"'] = Total_ECMO_Pat
 
     return df_coreport

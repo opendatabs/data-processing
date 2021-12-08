@@ -42,15 +42,15 @@ def all_together(date, list_hospitals):
     if get_data.check_day() == "Monday":
         saturday = date-datetime.timedelta(2)
         df_saturday, missing_saturday = get_df_for_date(date=saturday, list_hospitals=list_hospitals, weekend=True)
-        list_hospitals = [x for x in list_hospitals if x not in missing_saturday]
-        update_coreport.write_in_coreport(df_saturday, list_hospitals)
+        list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
+        update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
         sunday = date - datetime.timedelta(1)
         df_sunday, missing_sunday = get_df_for_date(date=sunday, list_hospitals=list_hospitals, weekend=True)
-        list_hospitals = [x for x in list_hospitals if x not in missing_sunday]
-        update_coreport.write_in_coreport(df_sunday, list_hospitals)
+        list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
+        update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
         df_monday, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
-        update_coreport.write_in_coreport(df_monday, filled_hospitals)
+        update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
         if not not missing_hospitals:
             print("repeat after 15 minutes for ", missing_hospitals)
             threading.Timer(10, function=retry, args=[date, missing_hospitals]).start()
@@ -58,7 +58,7 @@ def all_together(date, list_hospitals):
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
             filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
-            update_coreport.write_in_coreport(df, filled_hospitals)
+            update_coreport.write_in_coreport(df, filled_hospitals, date=date)
             print("entries in coreport for ", filled_hospitals)
         elif df.empty == True:
             print("dataframe is empty, nothing is entered into coreport")
@@ -87,8 +87,8 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
     number_of_entries = df_entries.shape[0]
     if number_of_entries == 0:
         if weekend:
-            print("Numbers for the weekend day " + str(date) + " are not available!")
-            return pd.Dataframe()
+            print("Numbers for the weekend day " + str(date) + " are not available for " + hospital +"!")
+            return pd.DataFrame()
         else:
             print("send reminder email for " + hospital)
             return pd.DataFrame()
@@ -98,7 +98,7 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
-    date = datetime.datetime.today().date() #+ datetime.timedelta(1)
+    date = datetime.datetime.today().date()
     list_hospitals = ['USB', 'Clara', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
