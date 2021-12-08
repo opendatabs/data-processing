@@ -14,7 +14,7 @@ from gd_coronavirus_massentests.src import credentials
 
 
 def get_report_defs():
-    return [{'db_path': credentials.data_path_db,
+    return [{'db_path': credentials.data_path_db_primar_sek1,
              'report_defs': [{'file_name': 'massentests_pool_primarsek1.csv',
                               'table_name': 'LaborGroupOrder',
                               'anzahl_proben_colname': 'AnzahlProbenPrimarSek1',
