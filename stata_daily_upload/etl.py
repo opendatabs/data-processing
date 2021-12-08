@@ -31,9 +31,10 @@ def main():
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
         if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
-            if ct.has_changed(file_path):
+            if ct.has_changed(file_path, do_update_hash_file=False):
                 common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
                 odsp.publish_ods_dataset_by_id(upload['ods_id'])
+                ct.update_hash_file(upload['ods_id'])
     print('Job successful!')
 
 
