@@ -44,10 +44,12 @@ def all_together(date, list_hospitals):
         df_saturday, missing_saturday = get_df_for_date(date=saturday, list_hospitals=list_hospitals, weekend=True)
         list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
         update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
+        print("Missing Saturday: ", missing_saturday)
         sunday = date - datetime.timedelta(1)
         df_sunday, missing_sunday = get_df_for_date(date=sunday, list_hospitals=list_hospitals, weekend=True)
         list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
         update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
+        print("Missing Sunday: ", missing_sunday)
         df_monday, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
         update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
@@ -101,7 +103,8 @@ if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     date = datetime.datetime.today().date()
     #list_hospitals = ['USB', 'Clara', 'UKBB']
-    list_hospitals = ['UKBB']
+    #list_hospitals = ['UKBB']
+    list_hospitals = ['USB', 'Clara']
     all_together(date=date, list_hospitals=list_hospitals)
 
 

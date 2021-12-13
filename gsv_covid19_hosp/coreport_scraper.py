@@ -1,11 +1,73 @@
 import datetime
 
+import pandas as pd
+
 from gsv_covid19_hosp import credentials
 import common
 import requests
 import os
 from bs4 import BeautifulSoup
 import mechanicalsoup
+
+
+def make_df_value_id(date, list_hospitals):
+    username = credentials.username_coreport
+    password = credentials.password_coreport
+
+    browser = mechanicalsoup.StatefulBrowser()
+    browser.open(credentials.url_login_coreport)
+    browser.select_form()
+    browser.form.print_summary()
+
+    browser["login"] = username
+    browser["password"] = password
+    browser.submit_selected()
+
+    date = date
+    date = date.strftime('%d.%m.%Y')
+    data_time = date + " 10:00"
+
+    properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
+                       'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
+                       'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
+                       'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
+                       'Bettenanzahl belegt "IPS mit Beatmung"', 'Bettenanzahl frei " IPS ECMO"',
+                       'Bettenanzahl belegt "IPS ECMO"']
+    df = pd.DataFrame()
+    df["Hospital"] = list_hospitals
+    df.set_index("Hospital", inplace=True)
+
+    for data_name in properties_list:
+        df[data_name + " value_id"] = ""
+
+    for hospital in list_hospitals:
+        if hospital == 'Clara':
+            response = browser.get(credentials.url_coreport_clara)
+            response.raise_for_status()
+            data_names = [x for x in properties_list if
+                          x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+        elif hospital == 'USB':
+            response = browser.get(credentials.url_coreport_usb)
+            response.raise_for_status()
+            data_names = properties_list
+        elif hospital == 'UKBB':
+            response = browser.get(credentials.url_coreport_ukbb)
+            response.raise_for_status()
+            data_names = [x for x in properties_list if
+                          x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+        for data_name in data_names:
+            print(hospital, data_name, data_time)
+            tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
+            value_id = tag["id"].replace('form-', '')
+            print(value_id)
+            print(df.loc[hospital, data_name + " value_id"])
+            df.loc[hospital, data_name + " value_id"] = value_id
+    browser.close()
+    file_name = "value_id_df_" + str(date) + ".pkl"
+    df.to_pickle(file_name)
+
 
 
 def add_value_id(df, date):
@@ -54,66 +116,16 @@ def add_value_id(df, date):
             print(df.loc[hospital, data_name + " value_id"])
             df.loc[hospital, data_name + " value_id"] = value_id
     browser.close()
+    file_name = str(date) + ".csv"
+    df.to_csv(file_name)
     return df
 
 
 
-"""
-today = datetime.datetime.today().date() + datetime.timedelta(1)
-datum = today.strftime('%d.%m.%Y')
-data_time = datum + " 10:00"
-list_of_data_names = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                      'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                      'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                      'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                      'Bettenanzahl belegt "IPS mit Beatmung"']
-
-for data_name in list_of_data_names:
-    tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
-    value_id = tag["id"].replace('form-', '')
-    time = tag["data-time"]
-    print(value_id, time)
-
-response = browser.get(credentials.url_coreport_ukbb)
-soup = BeautifulSoup(response.text, 'html.parser')
-html = soup.prettify("utf-8")
-# with open ("outputUKBB.html", "wb") as file:
-#     file.write(html)
-
-list_of_data_names = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                      'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                      'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                      'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                      'Bettenanzahl belegt "IPS mit Beatmung"']
-
-for data_name in list_of_data_names:
-    tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
-    value_id = tag["id"].replace('form-', '')
-    time = tag["data-time"]
-    print(value_id, time)
-
-
-response = browser.get(credentials.url_coreport_usb)
-soup = BeautifulSoup(response.text, 'html.parser')
-html = soup.prettify("utf-8")
-# with open ("outputUSB.html", "wb") as file:
-#     file.write(html)
-
-
-list_of_data_names = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                      'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                      'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                      'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                      'Bettenanzahl belegt "IPS mit Beatmung"']
-
-list_of_data_names.append(['Bettenanzahl frei "IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"'])
-
-for data_name in list_of_data_names:
-    tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
-    value_id = tag["id"].replace('form-', '')
-    time = tag["data-time"]
-    print(value_id, time)
-"""
+if __name__ == "__main__":
+    list_hospitals = ['USB', 'Clara', 'UKBB']
+    date = datetime.datetime.today().date() + datetime.timedelta(1)
+    make_df_value_id(date=date, list_hospitals=list_hospitals)
 
 
 
