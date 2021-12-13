@@ -31,7 +31,7 @@ def retry(date, list_hospitals):
     print("retrying")
     df, still_missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
     if df.empty == False:
-        update_coreport.write_in_coreport(df)
+        update_coreport.write_in_coreport(df, hospital_list=list_hospitals, date=date)
         filled_hospitals = [x for x in list_hospitals if x not in still_missing_hospitals]
         print("entries in coreport for ", filled_hospitals)
     if still_missing_hospitals is not []:
@@ -53,7 +53,7 @@ def all_together(date, list_hospitals):
         update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
         if not not missing_hospitals:
             print("repeat after 15 minutes for ", missing_hospitals)
-            threading.Timer(10, function=retry, args=[date, missing_hospitals]).start()
+            threading.Timer(900, function=retry, args=[date, missing_hospitals]).start()
     elif get_data.check_day() == "Other workday":
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
@@ -64,7 +64,7 @@ def all_together(date, list_hospitals):
             print("dataframe is empty, nothing is entered into coreport")
         if not not missing_hospitals:
             print("repeat after 15 minutes for ", missing_hospitals)
-            threading.Timer(10, function=retry, args=[date, missing_hospitals]).start()
+            threading.Timer(900, function=retry, args=[date, missing_hospitals]).start()
     else:
         print("It is weekend")
 
@@ -96,10 +96,12 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
         df_entry = df_entries[df_entries.CapacTime == df_entries.CapacTime.max()]
         return df_entry
 
+
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     date = datetime.datetime.today().date()
-    list_hospitals = ['USB', 'Clara', 'UKBB']
+    #list_hospitals = ['USB', 'Clara', 'UKBB']
+    list_hospitals = ['UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
 

@@ -1,8 +1,5 @@
 # Note: ECMO is only for USB
 import pandas as pd
-import get_data
-import credentials
-
 
 
 def add_discrepancy_in_ICU_beds_without_vent(ies_numbers):

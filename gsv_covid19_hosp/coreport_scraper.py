@@ -34,13 +34,16 @@ def add_value_id(df, date):
     for hospital in hospitals:
         if hospital == 'Clara':
             response = browser.get(credentials.url_coreport_clara)
-            data_names = [ x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+            response.raise_for_status()
+            data_names = [x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
         elif hospital == 'USB':
             response = browser.get(credentials.url_coreport_usb)
+            response.raise_for_status()
             data_names = columns
         elif hospital == 'UKBB':
             response = browser.get(credentials.url_coreport_ukbb)
-            data_names = [ x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+            response.raise_for_status()
+            data_names = [x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
 
         soup = BeautifulSoup(response.text, 'html.parser')
         for data_name in data_names:
@@ -52,18 +55,6 @@ def add_value_id(df, date):
             df.loc[hospital, data_name + " value_id"] = value_id
     browser.close()
     return df
-
-#get_value_id('Clara', '07.12.2021', 'Bettenanzahl frei "Normalstation"')
-
-# with open ("outputClara.html", "wb") as file:
-#     file.write(html)
-
-#print(soup.find_all(data-name='Bettenanzahl frei "Normalstation"'))
-#print(soup.find_all('form'))
-
-#print(soup.find_all('form', 'slot slot-form'))
-
-#print(soup.prettify())
 
 
 
