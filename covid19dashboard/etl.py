@@ -2,6 +2,8 @@ from covid19dashboard import credentials
 import pandas as pd
 import os
 import common
+import common.change_tracking as ct
+import ods_publish.etl_id as odsp
 
 
 @common.retry(common.http_errors_to_handle, tries=6, delay=10, backoff=1)
@@ -43,6 +45,8 @@ for canton in cantons:
 filename = os.path.join(credentials.path, credentials.filename)
 print(f'Exporting data to {filename}')
 df_filled.to_csv(filename, index=False)
-
-common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19dashboard')
+if ct.has_changed(filename, do_update_hash_file=False):
+    common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19dashboard')
+    odsp.publish_ods_dataset_by_id('100085')
+    ct.update_hash_file(filename)
 print('Job successful!')
