@@ -99,12 +99,44 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
         return df_entry
 
 
+def get_df_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
+                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
+                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats):
+
+    row = [[hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
+                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
+                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats]]
+    df = pd.DataFrame(row, columns=['Hospital', 'Date', 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds', 'OperIcuBedsC19',
+                'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19', 'TotalIcuPats',
+                'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats'])
+
+    return df
+
+
+def write_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
+                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
+                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats ):
+    df = get_df_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
+                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
+                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats)
+    # need still to make sure date format is correct
+    update_coreport.write_in_coreport(df=df, hospital_list=[hospital], date=date)
+
+
 if __name__ == "__main__":
+    """"
     pd.set_option('display.max_columns', None)
     date = datetime.datetime.today().date()
     #list_hospitals = ['USB', 'Clara', 'UKBB']
     #list_hospitals = ['UKBB']
     list_hospitals = ['USB', 'Clara']
     all_together(date=date, list_hospitals=list_hospitals)
+    """
 
+    pd.set_option('display.max_columns', None)
 
+    df = get_df_manually(hospital='Clara', date='13.12.2021', TotalAllBeds=213, TotalAllBedsC19=24, OperIcuBeds=8,
+                 OperIcuBedsC19=4, VentIcuBeds=8, OperImcBeds=4, OperImcBedsC19=0, TotalAllPats=162, TotalAllPatsC19=17,
+                 TotalIcuPats=5, TotalIcuPatsC19=3, VentIcuPats=4, TotalImcPats=0, TotalImcPatsC19=0, EcmoPats=0)
+
+    print(df)
