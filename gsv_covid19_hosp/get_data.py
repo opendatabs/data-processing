@@ -5,6 +5,7 @@ import credentials
 import datetime
 
 
+
 def check_day():
     if datetime.datetime.today().weekday() == 0:
         return "Monday"
@@ -13,19 +14,6 @@ def check_day():
     elif datetime.datetime.today().weekday() in [5, 6]:
         # print warning?
         return "Weekend"
-
-
-def filter_dates():
-    date = datetime.datetime.today().date()
-    if check_day() == "Monday":
-        start_date = datetime.date.today().date() - datetime.timedelta(2)
-        datefilter = "CapacStamp gt datetime'" + str(start_date) + "T00:00:00'" + "or CapacStamp lt datetime'" + str(
-            date) + "T23:59:59'"
-        return datefilter
-    elif check_day() == "Other workday":
-        datefilter = "(CapacStamp gt datetime'" + str(date) + "T00:00:00'" + "or CapacStamp lt datetime'" + str(
-            date) + "T23:59:59')"
-        return datefilter
 
 
 def filter_hospital(hospital):
@@ -56,6 +44,8 @@ def get_data(hospital, date):
     else:
         url2 = credentials.url_hosp_adults + get_filter(hospital, date)
     response = requests.request("GET", url2, headers=headers, data=payload)
+    response.raise_for_status()
+    #print(response.text)
     results = response.json()["d"]["results"]
     return results
 
@@ -77,9 +67,8 @@ def get_dataframe(hospital, date):
     return df
 
 
-def make_dataframe(list_hospitals):
-    df = pd.DataFrame()
-    for hospital in list_hospitals:
-        df_hospital = get_dataframe(hospital)
-        df = pd.concat([df, df_hospital])
-    return df
+if __name__ == "__main__":
+    datum = datetime.datetime.today().date()
+    get_data('UKBB', date=datum)
+    datum = datetime.datetime.today().date() + datetime.timedelta(1)
+    get_data('Clara', date=datum)
