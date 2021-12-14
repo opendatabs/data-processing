@@ -14,9 +14,10 @@ def main():
     f = open(file, 'wb')
     f.write(r.content)
     f.close()
-    if ct.has_changed(file):
+    if ct.has_changed(file, do_update_hash_file=False):
         common.upload_ftp(filename=file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_path)
         odsp.publish_ods_dataset_by_id('100057')
+        ct.update_hash_file(file)
 
 
 if __name__ == "__main__":

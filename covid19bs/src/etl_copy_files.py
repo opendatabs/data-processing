@@ -16,11 +16,10 @@ def main():
 def upload_publish_if_changed(uploads):
     for upload in uploads:
         file_path = os.path.join(upload['src_dir'], upload['file'])
-        if ct.has_changed(file_path):
+        if ct.has_changed(file_path, do_update_hash_file=False):
             common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
             odsp.publish_ods_dataset_by_id(upload['ods_id'])
-        else:
-            logging.info(f'No changes detected, doing nothing for this dataset: {file_path}')
+            ct.update_hash_file(file_path)
 
 
 if __name__ == "__main__":

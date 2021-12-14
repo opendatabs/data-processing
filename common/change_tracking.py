@@ -50,10 +50,10 @@ def has_changed(filename: str, hash_file_dir='', do_update_hash_file=True) -> bo
     logging.info(f'SFV file exists, checking for changes: {sfv_filename}...')
     hashes_differ = not crc32_hasher.verify_sfv(sfv_filename=sfv_filename)[0].hashes_match
     if hashes_differ:
-        logging.info(f'Hashes do not match.')
+        logging.info(f'Hashes do not match, file has changed.')
         if do_update_hash_file:
             update_hash_file(filename)
         return True
     else:
-        logging.info(f'Hashes match...')
+        logging.info(f'Hashes match, no changes detected.')
         return False

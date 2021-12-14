@@ -58,7 +58,7 @@ def main():
             for chunk in r.iter_content(chunk_size=128):
                 fd.write(chunk)
 
-        if ct.has_changed(raw_file):
+        if ct.has_changed(raw_file, do_update_hash_file=False):
             logging.info('Reading csv into df...')
             # Some lines have more than 5 columns, ignoring those.
             df = pd.read_csv(raw_file, skiprows=5, encoding='cp1252', sep=';', error_bad_lines=False)
@@ -77,7 +77,7 @@ def main():
             export_file = os.path.join(credentials.data_path, f'Luftqualitaet_ch-{station_abbrev}.csv')
             df.to_csv(export_file, index=False)
             common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'luftqualitaet_ch')
-            if ct.has_changed(export_file):
+            if ct.has_changed(export_file, do_update_hash_file=False):
                 chunk_size = 25000
                 df_chunks = chunked(df.index, chunk_size)
                 for df_chunk_indexes in df_chunks:
@@ -90,6 +90,8 @@ def main():
                     rq = common.requests_post(url=credentials.ods_live_push_api_urls[station_abbrev], data=df_json, verify=False)
                     warnings.resetwarnings()
                     rq.raise_for_status()
+                ct.update_hash_file(export_file)
+            ct.update_hash_file(raw_file)
 
 
 # Realtime API bootstrap data for St. Johannsplatz (https://data.bs.ch/explore/dataset/100049)
