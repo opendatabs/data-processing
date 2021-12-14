@@ -55,10 +55,15 @@ def get_dataframe(hospital, date):
     df = pd.DataFrame(results)
     if df.empty == False:
         if hospital == 'UKBB':
-            df = df[["NoauResid", "CapacDateStr", "CapacTimeStr", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
-                 'OperIcuBedsC19', 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19',
-                 'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats']]
-            df = df.rename(columns={"CapacDateStr": "CapacDate", "CapacTimeStr": "CapacTime"})
+            df = df[
+                ["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
+                 'OperIcuBedsC19',
+                 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19', 'TotalIcuPats',
+                 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats']]
+            #df = df[["NoauResid", "CapacDateStr", "CapacTimeStr", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
+            #     'OperIcuBedsC19', 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19',
+            #S   'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats']]
+            #df = df.rename(columns={"CapacDateStr": "CapacDate", "CapacTimeStr": "CapacTime"})
         else:
             df = df[
                 ["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds', 'OperIcuBedsC19',
