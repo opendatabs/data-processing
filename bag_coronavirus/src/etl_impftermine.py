@@ -34,13 +34,13 @@ def transform(df):
 
 
 def find_missing_dates(df):
-    print(f'Finding missing days...')
+    logging.info(f'Finding missing days...')
     existing_dates = df.date.unique()
     d = pd.DataFrame(data=existing_dates, index=existing_dates, columns=['date'])
     dr = pd.date_range(df.creation_day.min(), df.date.max())
     # find missing days using reindex, see https://stackoverflow.com/a/19324591
     missing_dates = d.reindex(dr).query('date.isnull()').index.to_list()
-    print(f'Missing days: {missing_dates}')
+    logging.info(f'Missing days: {missing_dates}')
     return missing_dates
 
 
@@ -54,7 +54,7 @@ def calculate_missing_dates(df, missing_dates):
         date_of_next_text = date_of_next.strftime("%Y-%m-%d")
         df_for_calc = df.query(f'date == @date_of_next_text').reset_index(drop=True).copy(deep=True)
         df_single_day = calc_missing_date(day=date, df_for_calc=df_for_calc)
-        print(f'Calculated missing day {date_text} with {len(df_single_day)} rows using dataset of {date_of_next_text}...')
+        logging.info(f'Calculated missing day {date_text} with {len(df_single_day)} rows using dataset of {date_of_next_text}...')
         df_calc = df_calc.append(df_single_day)
     return df_calc
 
@@ -62,11 +62,11 @@ def calculate_missing_dates(df, missing_dates):
 def calc_missing_date(day, df_for_calc):
     day_text = day.strftime('%Y-%m-%d')
     df_then = df_for_calc.query(f'creation_day <= @day_text').reset_index(drop=True)
-    # Set date to the day we are currently analysing so we can treat these data as if we had a data export from that day
+    # Set date to the day we are currently analysing, so we can treat these data as if we had a data export from that day
     df_then.date = day
     # We don't know when people received their appointment in retrospect, so set has_appointments to "Unknown"
     df_then.has_appointments = 'Unknown'
-    # print(f'Calculated day {day_text} with {len(df_then)} rows...')
+    # logging.info(f'Calculated day {day_text} with {len(df_then)} rows...')
     return df_then
 
 
@@ -74,11 +74,12 @@ def load_data():
     files = sorted(get_data_files_list())
     df = pd.DataFrame()
     for f in files:
-        print(f'Get date from filename...')
+        logging.info(f'Get date from filename...')
         file_date = datetime.strptime(f[-15:][:-5], '%Y-%m-%d')
-        print(f'Read data from {f}, add file date {file_date} as a new column, append...')
+        logging.info(f'Read data from {f}, add file date {file_date} as a new column...')
         df_single = pd.read_excel(f)
         df_single['date'] = file_date
+        logging.info(f'Appending...')
         df = df.append(df_single)
     return df
 
@@ -88,7 +89,7 @@ def get_data_files_list():
 
 
 def clean_parse(df):
-    print(f'Dropping rows with no Birthdate, parsing dates...')
+    logging.info(f'Dropping rows with no Birthdate, parsing dates...')
     df = df.dropna(subset=['Birthdate']).reset_index(drop=True)
     df['birthday'] = pd.to_datetime(df.Birthdate, format='%d.%m.%Y')
     df['creation_day'] = pd.to_datetime(df['Creation date'], format='%d.%m.%Y')
@@ -98,7 +99,7 @@ def clean_parse(df):
 
 
 def calculate_age(df, bin_defs):
-    print(f'Calculating age...')
+    logging.info(f'Calculating age...')
     # df['age'] = [relativedelta(a, b).years for a, b in zip(df.date, df.birthday)]
     df['age'] = (df.date - df.birthday).astype('timedelta64[Y]')
     age_group_df = pd.DataFrame()
@@ -114,7 +115,7 @@ def calculate_age(df, bin_defs):
 
 
 def calculate_age_group(df, bins, labels):
-    print(f'Calculating age group...')
+    logging.info(f'Calculating age group...')
     df['age_group'] = pd.cut(df.age, bins=bins, labels=labels, include_lowest=True)
     df = df.rename(columns={'Has appointments': 'has_appointments',
                             'Appointment 1': 'appointment_1',
@@ -125,19 +126,21 @@ def calculate_age_group(df, bins, labels):
 
 
 def filter_aggregate(df):
-    print(f'Keeping only entries that have not had their first vaccination...')
+    logging.info(f'Keeping only entries that have not had their first vaccination...')
     df = df.query('appointment_1.isnull() or date < appointment_1_dt').reset_index()
-    print(f'Aggregating data...')
+    logging.info(f'Aggregating data...')
     df_agg = (df.groupby(['date', 'age_group', 'has_appointments'])
                 .agg(len)
                 .reset_index()
                 .rename(columns={'age': 'count'})[['date', 'age_group', 'has_appointments', 'count']])
-    print(f'Filtering age_group "Unbekannt"...')
+    logging.info(f'Filtering age_group "Unbekannt"...')
     df_agg = df_agg[df_agg.age_group != 'Unbekannt']
-    print(f'Removing lines with no counts...')
+    logging.info(f'Removing lines with no counts...')
     df_agg = df_agg.dropna(subset=['count']).reset_index(drop=True)
-    print(f'Making sure only certain columns are exported...')
-    df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count']]
+    logging.info(f'Adding week of year...')
+    df_agg['week'] = df_agg['date'].dt.isocalendar().week
+    logging.info(f'Making sure only certain columns are exported...')
+    df_agg = df_agg[['date', 'age_group', 'has_appointments', 'count', 'week']]
     return df, df_agg
 
 
@@ -160,11 +163,11 @@ def get_age_group_periods() -> list:
 
 
 def export_data(df, df_agg):
-    print(f'Exporting resulting data to {agg_export_file_name()}...')
+    logging.info(f'Exporting resulting data to {agg_export_file_name()}...')
     df_agg.to_csv(agg_export_file_name(), index=False)
     common.upload_ftp(agg_export_file_name(), credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
     # raw_export_file = os.path.join(credentials.impftermine_path, 'export', f'impftermine.csv')
-    # print(f'Exporting resulting data to {raw_export_file}...')
+    # logging.info(f'Exporting resulting data to {raw_export_file}...')
     # df[['date', 'Birthdate', 'birthday', 'age', 'age_group', 'has_appointments']].to_csv(raw_export_file, index=False)
 
 
