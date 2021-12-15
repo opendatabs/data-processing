@@ -21,7 +21,7 @@ def main():
     df_2018 = df_2020_10_15.query('Übertretungsjahr == 2018') # .drop(columns=credentials.columns_to_drop)
 
     logging.info(f'Reading 2019+ data from xslx...')
-    df_ab_2019 = pd.read_excel(os.path.join(credentials.data_orig_path, '2021_03_31/OGD.xlsx'))
+    df_ab_2019 = pd.read_excel(os.path.join(credentials.data_orig_path, '2021_09_30/OGD.xlsx'))
 
     df_all = pd.concat([df_2017, df_2018, df_ab_2019], ignore_index=True)
     logging.info('Calculating weekday, weekday number, and its combination...')
@@ -32,6 +32,10 @@ def main():
 
     logging.info('Replacing wrong PLZ...')
     df_all['Ü-Ort PLZ'] = df_all['Ü-Ort PLZ'].replace(credentials.plz_replacements).astype(int)
+
+    logging.info(f'Replacing old BuZi with new ones using lookup table...')
+    df_lookup = pd.read_excel(os.path.join(credentials.data_orig_path, '2021_06_30', 'Lookup-Tabelle BuZi.xlsx'))
+    df_all['BuZi'] = df_all['BuZi'].replace(df_lookup.ALT.to_list(), df_lookup.NEU.to_list())
 
     logging.info('Cleaning up data for export...')
     df_all['Laufnummer'] = range(1, 1 + len(df_all))
