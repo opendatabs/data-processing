@@ -3,6 +3,8 @@ import os
 import pandas as pd
 import common
 from pandasql import sqldf
+from common import change_tracking as ct
+import ods_publish.etl_id as odsp
 
 import common
 from bag_coronavirus.src import etl_impftermine as impftermine
@@ -14,6 +16,10 @@ def main():
     df_wl, df_impf = extract_data()
     df = calculate_report(df_wl, df_impf)
     filename = export_data(df)
+    if ct.has_changed(filename, do_update_hash_file=False):
+        common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
+        odsp.publish_ods_dataset_by_id('100147')
+        ct.update_hash_file(filename)
     logging.info('Job successful!')
 
 
@@ -21,7 +27,6 @@ def export_data(df):
     export_file_name = os.path.join(credentials.vmdl_path, 'impfbereitschaft.csv')
     logging.info(f'Exporting data to {export_file_name}...')
     df.to_csv(export_file_name, index=False)
-    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
     return export_file_name
 
 
