@@ -91,7 +91,7 @@ def get_data_files_list():
 def clean_parse(df):
     logging.info(f'Dropping rows with no Birthdate, parsing dates...')
     df = df.dropna(subset=['Birthdate']).reset_index(drop=True)
-    df['birthday'] = pd.to_datetime(df.Birthdate, format='%d.%m.%Y')
+    df['birthday'] = pd.to_datetime(df.Birthdate)
     df['creation_day'] = pd.to_datetime(df['Creation date'], format='%d.%m.%Y')
     df['appointment_1_dt'] = pd.to_datetime(df['Appointment 1'], format='%Y-%m-%d %H:%M:%S')
     df['appointment_2_dt'] = pd.to_datetime(df['Appointment 2'], format='%Y-%m-%d %H:%M:%S')
