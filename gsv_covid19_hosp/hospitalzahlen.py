@@ -126,9 +126,7 @@ def write_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     date = datetime.datetime.today().date()
-    #list_hospitals = ['USB', 'Clara', 'UKBB']
-    #list_hospitals = ['UKBB']
-    list_hospitals = ['USB', 'Clara']
+    list_hospitals = ['USB', 'Clara', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
 
