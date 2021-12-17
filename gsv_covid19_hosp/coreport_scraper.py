@@ -117,7 +117,7 @@ def add_value_id(df, date):
             df.loc[hospital, data_name + " value_id"] = value_id
     browser.close()
     file_name = str(date) + ".csv"
-    df.to_csv(file_name)
+    #df.to_csv(file_name)
     return df
 
 
