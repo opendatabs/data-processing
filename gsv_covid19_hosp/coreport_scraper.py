@@ -1,7 +1,5 @@
 import datetime
-
 import pandas as pd
-
 from gsv_covid19_hosp import credentials
 import common
 import requests
