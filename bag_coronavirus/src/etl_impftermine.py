@@ -127,6 +127,7 @@ def calculate_age_group(df, bins, labels):
 
 def filter_aggregate(df):
     logging.info(f'Keeping only entries that have not had their first vaccination...')
+    # todo: take booster appointment dates into account
     df = df.query('appointment_1.isnull() or date < appointment_1_dt').reset_index()
     logging.info(f'Aggregating data...')
     df_agg = (df.groupby(['date', 'age_group', 'has_appointments'])
