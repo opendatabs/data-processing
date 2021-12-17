@@ -1,13 +1,11 @@
 import datetime
 import logging
-
 import pandas as pd
-
 import common
-import credentials
-import calculation
-import coreport_scraper
-import hospitalzahlen
+from gsv_covid19_hosp import credentials
+from gsv_covid19_hosp import calculation
+from gsv_covid19_hosp import coreport_scraper
+from gsv_covid19_hosp import hospitalzahlen
 
 def main(value_id, value):
 

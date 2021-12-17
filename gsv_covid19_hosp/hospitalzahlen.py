@@ -18,13 +18,13 @@ Calculate needed numbers: variabels in: day, data row ; variables out: day, new 
 enter numbers in CoReport
 """
 import pandas as pd
-import get_data
+from gsv_covid19_hosp import get_data
 #import send_email
-import calculation
+from gsv_covid19_hosp import calculation
 import datetime
 import threading
-import credentials
-import update_coreport
+from gsv_covid19_hosp import credentials
+from gsv_covid19_hosp import update_coreport
 
 
 def retry(date, list_hospitals):

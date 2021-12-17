@@ -1,6 +1,6 @@
 import pandas as pd
 import requests
-import credentials
+from gsv_covid19_hosp import credentials
 # import json
 import datetime
 

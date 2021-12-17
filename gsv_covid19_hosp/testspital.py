@@ -1,15 +1,15 @@
 import datetime
-import get_data
+from gsv_covid19_hosp import get_data
 import mechanicalsoup
 from bs4 import BeautifulSoup
-import credentials
+from gsv_covid19_hosp import credentials
 import logging
 import common
 import pandas as pd
 import threading
-import hospitalzahlen
-import calculation
-import update_coreport
+from gsv_covid19_hosp import hospitalzahlen
+from gsv_covid19_hosp import calculation
+from gsv_covid19_hosp import update_coreport
 import numpy as np
 from math import nan
 
