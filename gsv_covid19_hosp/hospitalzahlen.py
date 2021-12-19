@@ -31,21 +31,9 @@ from gsv_covid19_hosp import get_data
 # import send_email
 from gsv_covid19_hosp import calculation
 import datetime
-import threading
 import logging
 from gsv_covid19_hosp import credentials
 from gsv_covid19_hosp import update_coreport
-
-
-def retry(date, list_hospitals):
-    print("retrying")
-    df, still_missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
-    if df.empty == False:
-        update_coreport.write_in_coreport(df, hospital_list=list_hospitals, date=date)
-        filled_hospitals = [x for x in list_hospitals if x not in still_missing_hospitals]
-        print("entries in coreport for ", filled_hospitals)
-    if still_missing_hospitals is not []:
-        print("Still missing: ", still_missing_hospitals)
 
 
 def all_together(date, list_hospitals):
@@ -69,9 +57,6 @@ def all_together(date, list_hospitals):
         logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
         update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
         logging.info(f"There are no entries today for {missing_hospitals} in IES")
-        if not not missing_hospitals:
-            print("repeat after 15 minutes for ", missing_hospitals)
-            threading.Timer(900, function=retry, args=[date, missing_hospitals]).start()
     elif day_of_week == "Other workday":
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
@@ -81,9 +66,6 @@ def all_together(date, list_hospitals):
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
         elif df.empty == True:
             logging.info("There are no entries today in IES")
-        if not not missing_hospitals:
-            print("repeat after 15 minutes for ", missing_hospitals)
-            threading.Timer(900, function=retry, args=[date, missing_hospitals]).start()
     else:
         logging.info("It is weekend")
 
