@@ -1,28 +1,38 @@
-"""
-check which day it is, differentiate between monday and other weekdays, variables: day
+""""
+get_data.check_day(): check which day it is, differentiate between monday and other weekdays
 
-get data of the day at 9:15, and the weekend if it's Monday, variables: day, data
+for all days that need to be filled: at 9:15 get_df_for_date(date, list_hospitals, weekend), where weekend is boolean
+get_df_for_date returns dataframe with the latest entry of the day for each hospital (if available)
 
-if no data there, send email, check again after 15 minutes and get data, if still no data, give warning
+To be changed..:if no data there, send email, check again after 15 minutes and get data, if still no data, give warning
 
-make dataframe with data of the day (+weekend), variables in:day, data ; variables out: day, data frame
-
-Select latest entry of each day, variables in: day, dataframe, variables out: day, data row
-
-Calculate needed numbers: variabels in: day, data row ; variables out: day, new data row
-
+Calculate needed numbers:
+calculation.calculate_numbers(ies_numbers): takes dataframe of the day
+and returns the dataframe df_coreport which contains the numbers to be entered into CoReport:
 [Betten_frei_Normal, Betten_frei_Normal_COVID, Betten_frei_IMCU, Betten_frei_IPS_ohne_Beatmung,
       Betten_frei_IPS_mit_Beatmung, Betten_frei_ECMO, Betten_belegt_Normal, Betten_belegt_IMCU, Betten_belegt_IPS_ohne_Beatmung,
-      Betten_belegt_IPS_mit_Beatmung, Betten_belegt_ECMO] = calculate_numbers(ies_numbers)
+      Betten_belegt_IPS_mit_Beatmung, Betten_belegt_ECMO]
 
-enter numbers in CoReport
+Get value id's from CoReport
+coreport_scraper.make_df_value_id(date, list_hospitals) adds the value id's to df_coreport
+(alteratively, if no longer on the website,
+the pickle file with the value id's stored by coreport_scraper.add_value_id(df, date) can be joined with
+df_coreport)
+
+
+Write into CoReport:
+update_coreport.write_in_coreport(df, hospital_list, date) executes calculation.calculate_numbers
+and coreport_scraper.add_value_id, and then enters the numbers into CoReport
 """
+
+
 import pandas as pd
 from gsv_covid19_hosp import get_data
-#import send_email
+# import send_email
 from gsv_covid19_hosp import calculation
 import datetime
 import threading
+import logging
 from gsv_covid19_hosp import credentials
 from gsv_covid19_hosp import update_coreport
 
@@ -39,36 +49,43 @@ def retry(date, list_hospitals):
 
 
 def all_together(date, list_hospitals):
-    if get_data.check_day() == "Monday":
+    day_of_week = get_data.check_day(date)
+    if day_of_week == "Monday":
         saturday = date-datetime.timedelta(2)
+        logging.info("Read out data from Saturday in IES system")
         df_saturday, missing_saturday = get_df_for_date(date=saturday, list_hospitals=list_hospitals, weekend=True)
         list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
+        logging.info(f"Add Saturday entries of {list_hospitals_sat} into CoReport")
         update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
-        print("Missing Saturday: ", missing_saturday)
+        logging.info(f"There are no entries on Saturday for {missing_saturday} in IES")
         sunday = date - datetime.timedelta(1)
         df_sunday, missing_sunday = get_df_for_date(date=sunday, list_hospitals=list_hospitals, weekend=True)
         list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
+        logging.info(f"Add Sunday entries of {list_hospitals_sun} into CoReport")
         update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
-        print("Missing Sunday: ", missing_sunday)
+        logging.info(f"There are no entries on Sunday for {missing_sunday} in IES")
         df_monday, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
+        logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
         update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
+        logging.info(f"There are no entries today for {missing_hospitals} in IES")
         if not not missing_hospitals:
             print("repeat after 15 minutes for ", missing_hospitals)
             threading.Timer(900, function=retry, args=[date, missing_hospitals]).start()
-    elif get_data.check_day() == "Other workday":
+    elif day_of_week == "Other workday":
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
             filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
+            logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
             update_coreport.write_in_coreport(df, filled_hospitals, date=date)
-            print("entries in coreport for ", filled_hospitals)
+            logging.info(f"There are no entries today for {missing_hospitals} in IES")
         elif df.empty == True:
-            print("dataframe is empty, nothing is entered into coreport")
+            logging.info("There are no entries today in IES")
         if not not missing_hospitals:
             print("repeat after 15 minutes for ", missing_hospitals)
             threading.Timer(900, function=retry, args=[date, missing_hospitals]).start()
     else:
-        print("It is weekend")
+        logging.info("It is weekend")
 
 
 def get_df_for_date(date, list_hospitals, weekend=False):
@@ -87,51 +104,25 @@ def get_df_for_date(date, list_hospitals, weekend=False):
 def get_df_for_date_hospital(hospital, date, weekend=False):
     df_entries = get_data.get_dataframe(hospital=hospital, date=date)
     number_of_entries = df_entries.shape[0]
+    logging.info(f"Check if there were actually entries for {hospital} on {date}")
     if number_of_entries == 0:
         if weekend:
-            print("Numbers for the weekend day " + str(date) + " are not available for " + hospital +"!")
+            logging.warning(f"Numbers for the weekend day {date} are not available for {hospital}!")
             return pd.DataFrame()
         else:
-            print("send reminder email for " + hospital)
+            logging.warning(f"Numbers for {hospital} for {date} are not available, send email...")
             return pd.DataFrame()
     elif number_of_entries >= 1:
+        logging.info(f"There is at least one entry for {hospital} on {date}, we select the latest")
         df_entry = df_entries[df_entries.CapacTime == df_entries.CapacTime.max()]
         return df_entry
 
 
-def get_df_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
-                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
-                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats):
-
-    row = [[hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
-                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
-                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats]]
-    df = pd.DataFrame(row, columns=['Hospital', 'Date', 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds', 'OperIcuBedsC19',
-                'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19', 'TotalIcuPats',
-                'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats'])
-
-    return df
-
-
-def write_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
-                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
-                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats ):
-    df = get_df_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
-                 OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
-                 TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats)
-    # need still to make sure date format is correct
-    update_coreport.write_in_coreport(df=df, hospital_list=[hospital], date=date)
-
-
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
     pd.set_option('display.max_columns', None)
     date = datetime.datetime.today().date()
     list_hospitals = ['USB', 'Clara', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
-
-    """
-    df = get_df_manually(hospital='Clara', date='13.12.2021', TotalAllBeds=213, TotalAllBedsC19=24, OperIcuBeds=8,
-                 OperIcuBedsC19=4, VentIcuBeds=8, OperImcBeds=4, OperImcBedsC19=0, TotalAllPats=162, TotalAllPatsC19=17,
-                 TotalIcuPats=5, TotalIcuPatsC19=3, VentIcuPats=4, TotalImcPats=0, TotalImcPatsC19=0, EcmoPats=0)
-    """

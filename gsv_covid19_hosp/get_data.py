@@ -3,16 +3,19 @@ import requests
 from gsv_covid19_hosp import credentials
 # import json
 import datetime
+import logging
 
 
-
-def check_day():
-    if datetime.datetime.today().weekday() == 0:
+def check_day(date=datetime.datetime.today()):
+    logging.info("Check which day it is")
+    if date.weekday() == 0:
+        logging.info("It is Monday")
         return "Monday"
-    elif datetime.datetime.today().weekday() in [1, 2, 3, 4]:
+    elif date.weekday() in [1, 2, 3, 4]:
+        logging.info("It's a workday other than Monday")
         return "Other workday"
-    elif datetime.datetime.today().weekday() in [5, 6]:
-        # print warning?
+    elif date.weekday() in [5, 6]:
+        logging.info("It is weekend")
         return "Weekend"
 
 
@@ -34,6 +37,7 @@ def get_filter(hospital, date):
 
 
 def get_data(hospital, date):
+    logging.info(f"get entries out of IES for {hospital} on {date}")
     url = credentials.url_meta
     payload = {}
     headers = {
@@ -52,6 +56,7 @@ def get_data(hospital, date):
 
 def get_dataframe(hospital, date):
     results = get_data(hospital, date)
+    logging.info(f"Put IES entries into dataframe and filter out properties we need")
     df = pd.DataFrame(results)
     if df.empty == False:
             df = df[

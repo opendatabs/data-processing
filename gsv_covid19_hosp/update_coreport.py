@@ -8,9 +8,8 @@ from gsv_covid19_hosp import coreport_scraper
 from gsv_covid19_hosp import hospitalzahlen
 
 def main(value_id, value):
-
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    # logging.basicConfig(level=logging.DEBUG)
+    # logging.info(f'Executing {__file__}...')
     payload = {
         "value": value,
         "comment": "Entered by bot"
@@ -49,7 +48,9 @@ def get_properties_list(hospital):
 
 
 def write_in_coreport(df, hospital_list, date):
+    logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
+    logging.info("Get value id's from CoReport")
     df_coreport =coreport_scraper.add_value_id(df_coreport, date=date)
     """
     # with value id's already saved the day before:
@@ -59,8 +60,8 @@ def write_in_coreport(df, hospital_list, date):
     df_coreport.set_index("Hospital", inplace=True)
     df_coreport = df_coreport.join(df_value_id)
     """
-    print(df_coreport)
     for hospital in hospital_list:
+        logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)
         properties = get_properties_list(hospital=hospital)
         for prop in properties:
@@ -74,11 +75,7 @@ def write_in_coreport(df, hospital_list, date):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    # fill Clara 7.12.2021, betten frei normal
-    #value_id = coreport_scraper.get_value_id('Clara', '07.12.2021', 'Bettenanzahl frei "Normalstation"')
-    #main(value_id=value_id, value=39)
-    # fill Clara 6.12.2021, betten frei normal
-    # main(value_id='427624', value=37)
+
 
     df_value_id = pd.read_pickle('value_id_df_14.12.2021.pkl')
     today = datetime.datetime.today().date()
