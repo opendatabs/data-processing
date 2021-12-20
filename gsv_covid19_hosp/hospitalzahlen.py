@@ -46,21 +46,39 @@ def all_together(date, list_hospitals):
         saturday = date-timedelta(2)
         logging.info("Read out data from Saturday in IES system")
         df_saturday, missing_saturday = get_df_for_date(date=saturday, list_hospitals=list_hospitals, weekend=True)
-        list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
-        logging.info(f"Add Saturday entries of {list_hospitals_sat} into CoReport")
-        update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
-        logging.info(f"There are no entries on Saturday for {missing_saturday} in IES")
+        if df_saturday.empty == False:
+            list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
+            logging.info(f"Add Saturday entries of {list_hospitals_sat} into CoReport")
+            update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
+            logging.info(f"There are no entries on Saturday for {missing_saturday} in IES")
+            if not not missing_saturday:
+                logging.info("send email...")
+        elif df_saturday.empty == True:
+            logging.info(f"There are no entries on Saturday in the IES system")
+            logging.info("send email...")
         sunday = date - timedelta(1)
         df_sunday, missing_sunday = get_df_for_date(date=sunday, list_hospitals=list_hospitals, weekend=True)
-        list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
-        logging.info(f"Add Sunday entries of {list_hospitals_sun} into CoReport")
-        update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
-        logging.info(f"There are no entries on Sunday for {missing_sunday} in IES")
+        if df_sunday.empty == False:
+            list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
+            logging.info(f"Add Sunday entries of {list_hospitals_sun} into CoReport")
+            update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
+            logging.info(f"There are no entries on Sunday for {missing_sunday} in IES")
+            if not not missing_sunday:
+                logging.info("send email...")
+        elif df_sunday.empty == True:
+            logging.info(f"There are no entries on Sunday in the IES system")
+            logging.info("send email...")
         df_monday, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
-        filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
-        logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
-        update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
-        logging.info(f"There are no entries today for {missing_hospitals} in IES")
+        if df_monday.empty == False:
+            filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
+            logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
+            update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
+            logging.info(f"There are no entries today for {missing_hospitals} in IES")
+            if not not missing_hospitals:
+                logging.info("send email...")
+        elif df_monday.empty == True:
+            logging.info(f"There are no entries on Sunday in the IES system")
+            logging.info("send email...")
     elif day_of_week == "Other workday":
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
@@ -68,8 +86,10 @@ def all_together(date, list_hospitals):
             logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
             update_coreport.write_in_coreport(df, filled_hospitals, date=date)
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
+            logging.info("send email...")
         elif df.empty == True:
             logging.info("There are no entries today in IES")
+            logging.info("send email...")
     else:
         logging.info("It is weekend")
 
