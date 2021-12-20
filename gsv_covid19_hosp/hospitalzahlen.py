@@ -28,7 +28,7 @@ and coreport_scraper.add_value_id, and then enters the numbers into CoReport
 
 import pandas as pd
 from gsv_covid19_hosp import get_data
-# import send_email
+from gsv_covid19_hosp import send_email
 from gsv_covid19_hosp import calculation
 from datetime import timezone, datetime, timedelta
 import logging
@@ -52,10 +52,14 @@ def all_together(date, list_hospitals):
             update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
             logging.info(f"There are no entries on Saturday for {missing_saturday} in IES")
             if not not missing_saturday:
-                logging.info("send email...")
+                for hospital in missing_saturday:
+                    logging.info(f"send email for missing entries {hospital} on Saturday")
+                    send_email.send_email(hospital=hospital, day="Saturday")
         elif df_saturday.empty == True:
             logging.info(f"There are no entries on Saturday in the IES system")
-            logging.info("send email...")
+            for hospital in missing_saturday:
+                logging.info(f"send email for missing entries {hospital} on Saturday")
+                send_email.send_email(hospital=hospital, day="Saturday")
         sunday = date - timedelta(1)
         df_sunday, missing_sunday = get_df_for_date(date=sunday, list_hospitals=list_hospitals, weekend=True)
         if df_sunday.empty == False:
@@ -64,10 +68,14 @@ def all_together(date, list_hospitals):
             update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
             logging.info(f"There are no entries on Sunday for {missing_sunday} in IES")
             if not not missing_sunday:
-                logging.info("send email...")
+                for hospital in missing_sunday:
+                    logging.info(f"send email for missing entries {hospital} on Sunday")
+                    send_email.send_email(hospital=hospital, day="Sunday")
         elif df_sunday.empty == True:
             logging.info(f"There are no entries on Sunday in the IES system")
-            logging.info("send email...")
+            for hospital in missing_sunday:
+                logging.info(f"send email for missing entries {hospital} on Sunday")
+                send_email.send_email(hospital=hospital, day="Sunday")
         df_monday, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df_monday.empty == False:
             filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
@@ -75,11 +83,15 @@ def all_together(date, list_hospitals):
             update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
             if not not missing_hospitals and now_in_switzerland > time_for_email:
-                logging.info("send email...")
+                for hospital in missing_hospitals:
+                    logging.info(f"send email for missing entries {hospital} today")
+                    send_email.send_email(hospital=hospital)
         elif df_monday.empty == True:
             logging.info(f"There are no entries in the IES system")
             if now_in_switzerland > time_for_email:
-                logging.info("send email...")
+                for hospital in missing_hospitals:
+                    logging.info(f"send email for missing entries {hospital} today")
+                    send_email.send_email(hospital=hospital)
     elif day_of_week == "Other workday":
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
@@ -88,11 +100,15 @@ def all_together(date, list_hospitals):
             update_coreport.write_in_coreport(df, filled_hospitals, date=date)
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
             if not not missing_hospitals and now_in_switzerland > time_for_email:
-                logging.info("send email...")
+                for hospital in missing_hospitals:
+                    logging.info(f"send email for missing entries {hospital} today")
+                    send_email.send_email(hospital=hospital)
         elif df.empty == True:
             logging.info("There are no entries today in IES")
             if now_in_switzerland > time_for_email:
-                logging.info("send email...")
+                for hospital in missing_hospitals:
+                    logging.info(f"send email for missing entries {hospital} today")
+                    send_email.send_email(hospital=hospital)
     else:
         logging.info("It is weekend")
 
