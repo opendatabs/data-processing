@@ -74,11 +74,12 @@ def all_together(date, list_hospitals):
             logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
             update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
-            if not not missing_hospitals:
+            if not not missing_hospitals and now_in_switzerland > time_for_email:
                 logging.info("send email...")
         elif df_monday.empty == True:
-            logging.info(f"There are no entries on Sunday in the IES system")
-            logging.info("send email...")
+            logging.info(f"There are no entries in the IES system")
+            if now_in_switzerland > time_for_email:
+                logging.info("send email...")
     elif day_of_week == "Other workday":
         df, missing_hospitals = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=False)
         if df.empty == False:
@@ -86,10 +87,12 @@ def all_together(date, list_hospitals):
             logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
             update_coreport.write_in_coreport(df, filled_hospitals, date=date)
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
-            logging.info("send email...")
+            if not not missing_hospitals and now_in_switzerland > time_for_email:
+                logging.info("send email...")
         elif df.empty == True:
             logging.info("There are no entries today in IES")
-            logging.info("send email...")
+            if now_in_switzerland > time_for_email:
+                logging.info("send email...")
     else:
         logging.info("It is weekend")
 
