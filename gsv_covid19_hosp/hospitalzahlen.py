@@ -30,23 +30,27 @@ import pandas as pd
 from gsv_covid19_hosp import get_data
 # import send_email
 from gsv_covid19_hosp import calculation
-import datetime
+from datetime import timezone, datetime, timedelta
 import logging
 from gsv_covid19_hosp import credentials
 from gsv_covid19_hosp import update_coreport
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
     if day_of_week == "Monday":
-        saturday = date-datetime.timedelta(2)
+        saturday = date-timedelta(2)
         logging.info("Read out data from Saturday in IES system")
         df_saturday, missing_saturday = get_df_for_date(date=saturday, list_hospitals=list_hospitals, weekend=True)
         list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
         logging.info(f"Add Saturday entries of {list_hospitals_sat} into CoReport")
         update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
         logging.info(f"There are no entries on Saturday for {missing_saturday} in IES")
-        sunday = date - datetime.timedelta(1)
+        sunday = date - timedelta(1)
         df_sunday, missing_sunday = get_df_for_date(date=sunday, list_hospitals=list_hospitals, weekend=True)
         list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
         logging.info(f"Add Sunday entries of {list_hospitals_sun} into CoReport")
@@ -104,7 +108,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     pd.set_option('display.max_columns', None)
-    date = datetime.datetime.today().date()
+    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    date = now_in_switzerland.date()
+    time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=15)
     list_hospitals = ['USB', 'Clara', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
