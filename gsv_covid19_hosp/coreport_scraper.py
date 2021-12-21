@@ -4,7 +4,6 @@ from gsv_covid19_hosp import credentials
 import common
 import requests
 import os
-from bs4 import BeautifulSoup
 import mechanicalsoup
 
 
@@ -54,7 +53,7 @@ def make_df_value_id(date, list_hospitals):
             data_names = [x for x in properties_list if
                           x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = browser.get_current_page()
         for data_name in data_names:
             tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
             value_id = tag["id"].replace('form-', '')
@@ -100,7 +99,7 @@ def add_value_id(df, date):
             response = browser.get(credentials.url_coreport_ukbb)
             response.raise_for_status()
             data_names = [x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = browser.get_current_page()
         for data_name in data_names:
             tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
             value_id = tag["id"].replace('form-', '')
