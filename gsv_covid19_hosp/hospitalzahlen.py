@@ -50,6 +50,7 @@ def all_together(date, list_hospitals):
             list_hospitals_sat = [x for x in list_hospitals if x not in missing_saturday]
             logging.info(f"Add Saturday entries of {list_hospitals_sat} into CoReport")
             update_coreport.write_in_coreport(df_saturday, list_hospitals_sat, date=saturday)
+            logging.info(f"Entries added into CoReport for {list_hospitals_sat}")
             logging.info(f"There are no entries on Saturday for {missing_saturday} in IES")
             if not not missing_saturday:
                 for hospital in missing_saturday:
@@ -66,6 +67,7 @@ def all_together(date, list_hospitals):
             list_hospitals_sun = [x for x in list_hospitals if x not in missing_sunday]
             logging.info(f"Add Sunday entries of {list_hospitals_sun} into CoReport")
             update_coreport.write_in_coreport(df_sunday, list_hospitals_sun, date=sunday)
+            logging.info(f"Entries added into CoReport for {list_hospitals_sun}")
             logging.info(f"There are no entries on Sunday for {missing_sunday} in IES")
             if not not missing_sunday:
                 for hospital in missing_sunday:
@@ -81,6 +83,7 @@ def all_together(date, list_hospitals):
             filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
             logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
             update_coreport.write_in_coreport(df_monday, filled_hospitals, date=date)
+            logging.info(f"Entries added into CoReport for {filled_hospitals}")
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
             if not not missing_hospitals and now_in_switzerland > time_for_email:
                 for hospital in missing_hospitals:
@@ -98,6 +101,7 @@ def all_together(date, list_hospitals):
             filled_hospitals = [x for x in list_hospitals if x not in missing_hospitals]
             logging.info(f"Add today's entries of {filled_hospitals} into CoReport")
             update_coreport.write_in_coreport(df, filled_hospitals, date=date)
+            logging.info(f"Entries added into CoReport for {filled_hospitals}")
             logging.info(f"There are no entries today for {missing_hospitals} in IES")
             if not not missing_hospitals and now_in_switzerland > time_for_email:
                 for hospital in missing_hospitals:
@@ -135,10 +139,12 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
             logging.warning(f"Numbers for the weekend day {date} are not available for {hospital}!")
             return pd.DataFrame()
         else:
-            logging.warning(f"Numbers for {hospital} for {date} are not available, send email...")
+            logging.warning(f"Numbers for {hospital} for {date} are not available...")
             return pd.DataFrame()
     elif number_of_entries >= 1:
-        logging.info(f"There is at least one entry for {hospital} on {date}, we select the latest")
+        logging.info(f"There is at least one entry for {hospital} on {date}.")
+        latest_entry = df_entries.CapacTime.max()
+        logging.info(f"We take the latest entry for {hospital}, which was at {latest_entry}.")
         df_entry = df_entries[df_entries.CapacTime == df_entries.CapacTime.max()]
         return df_entry
 
