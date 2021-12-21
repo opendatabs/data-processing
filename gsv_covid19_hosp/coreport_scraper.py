@@ -4,7 +4,6 @@ from gsv_covid19_hosp import credentials
 import common
 import requests
 import os
-from bs4 import BeautifulSoup
 import mechanicalsoup
 
 
@@ -54,13 +53,10 @@ def make_df_value_id(date, list_hospitals):
             data_names = [x for x in properties_list if
                           x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = browser.get_current_page()
         for data_name in data_names:
-            print(hospital, data_name, data_time)
             tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
             value_id = tag["id"].replace('form-', '')
-            print(value_id)
-            print(df.loc[hospital, data_name + " value_id"])
             df.loc[hospital, data_name + " value_id"] = value_id
     browser.close()
     file_name = "value_id_df_" + str(date) + ".pkl"
@@ -88,7 +84,6 @@ def add_value_id(df, date):
     columns = list(df.columns[4:])
     for data_name in columns:
         df[data_name + " value_id"] = ""
-    print(df["Hospital"])
     hospitals = list(df["Hospital"])
     df.set_index("Hospital", inplace=True)
     for hospital in hospitals:
@@ -104,25 +99,19 @@ def add_value_id(df, date):
             response = browser.get(credentials.url_coreport_ukbb)
             response.raise_for_status()
             data_names = [x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
-
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = browser.get_current_page()
         for data_name in data_names:
-            print(hospital, data_name, data_time)
             tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
             value_id = tag["id"].replace('form-', '')
-            print(value_id)
-            print(df.loc[hospital, data_name + " value_id"])
             df.loc[hospital, data_name + " value_id"] = value_id
     browser.close()
-    file_name = str(date) + ".csv"
-    #df.to_csv(file_name)
     return df
 
 
 
 if __name__ == "__main__":
     list_hospitals = ['USB', 'Clara', 'UKBB']
-    date = datetime.datetime.today().date() + datetime.timedelta(1)
+    date = datetime.datetime.today().date() #- datetime.timedelta(1)
     make_df_value_id(date=date, list_hospitals=list_hospitals)
 
 
