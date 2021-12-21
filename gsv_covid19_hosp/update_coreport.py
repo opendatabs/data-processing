@@ -15,13 +15,11 @@ def main(value_id, value):
         "comment": "Entered by bot"
 }
 
-    #value_id = '422640'
-
     username = credentials.username_coreport
     password = credentials.password_coreport
 
     url = credentials.url_coreport + str(value_id)
-    print(url)
+    # print(url)
 
     r = common.requests_patch(url, json=payload,
                               auth=(username, password))
@@ -68,7 +66,7 @@ def write_in_coreport(df, hospital_list, date):
             #value_id = credentials.dict_coreport[hospital][prop]
             value = int(df_hospital[prop][0])
             value_id = df_hospital[prop + " value_id"][0]
-            print(value_id, value)
+            #print(value_id, value)
             main(value_id=value_id, value=value)
 
 
