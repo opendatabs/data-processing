@@ -8,4 +8,4 @@ MSG = "Subject: Test email mit python\n\nGuten Morgen Jonas, kommt dieses Email 
 server.sendmail(FROM, TO, MSG)
 
 server.quit()
-print ("Email Send")
+print ("Email Sent.")
