@@ -156,6 +156,7 @@ if __name__ == "__main__":
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     date = now_in_switzerland.date()
     time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=15)
-    list_hospitals = ['USB', 'Clara', 'UKBB']
+    # list_hospitals = ['USB', 'Clara', 'UKBB']
+    list_hospitals = ['USB', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
