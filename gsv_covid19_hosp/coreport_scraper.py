@@ -5,6 +5,7 @@ import common
 import requests
 import os
 import mechanicalsoup
+import logging
 
 
 def make_df_value_id(date, list_hospitals):
@@ -101,6 +102,8 @@ def add_value_id(df, date):
             data_names = [x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
         soup = browser.get_current_page()
         for data_name in data_names:
+            soup_found = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})
+            logging.info(f'Found the following results: {soup_found}')
             tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
             value_id = tag["id"].replace('form-', '')
             df.loc[hospital, data_name + " value_id"] = value_id
