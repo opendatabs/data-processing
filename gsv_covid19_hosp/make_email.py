@@ -9,7 +9,8 @@ def message(subject="Python Notification", text="", img=None, attachment=None):
     # build message contents
     msg = MIMEMultipart()
     msg['Subject'] = subject  # add in the subject
-    msg.attach(MIMEText(text))  # add text contents
+    #msg.attach(MIMEText(text))  # add text contents
+    msg.attach(MIMEText(text, 'plain'))  # add plain text contents
 
     # check if we have anything given in the img parameter
     if img is not None:
