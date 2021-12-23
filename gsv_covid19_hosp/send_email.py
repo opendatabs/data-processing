@@ -7,7 +7,7 @@ import smtplib
 def send_email(hospital, day="today"):
     email_dict = credentials.IES_emailadresses
     text_reminder = credentials.Errinerung_IES
-    email_receivers_hospital = email_dict[hospital].split(",")
+    email_receivers_hospital = email_dict[hospital]
     if day == "today":
         text = f"There are no entries in IES for {hospital} today. " \
             f"\n\n" \
@@ -16,14 +16,14 @@ def send_email(hospital, day="today"):
             f"{email_receivers_hospital}" \
             f"\n\n" \
             f"{text_reminder}"
-        subject = f"No IES entries {hospital} today"
+        subject = f"Erinnerung IES für {hospital}"
     else:
         text = f"There are no entries in IES for {hospital} on {day}. " \
                f"\n\n" \
                f"Send a message to receive the numbers by email to the following email-addresses:" \
                f"\n\n" \
                f"{email_receivers_hospital}"
-        subject = f"No IES entries {hospital} on {day}"
+        subject = f"Erinnerung IES für {hospital} ({day})"
 
     msg = make_email.message(subject=subject, text=text)
 
