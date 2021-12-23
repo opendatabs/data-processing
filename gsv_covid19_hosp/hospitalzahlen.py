@@ -34,11 +34,8 @@ from datetime import timezone, datetime, timedelta
 import logging
 from gsv_covid19_hosp import credentials
 from gsv_covid19_hosp import update_coreport
+from zoneinfo import ZoneInfo
 
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
 
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
@@ -155,7 +152,7 @@ if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     date = now_in_switzerland.date()
-    time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=7, minute=0).astimezone(ZoneInfo('Europe/Zurich'))
+    time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=8, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
     list_hospitals = ['USB', 'Clara', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)
 
