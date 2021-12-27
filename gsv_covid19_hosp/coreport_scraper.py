@@ -103,9 +103,12 @@ def add_value_id(df, date):
             data_names = [x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
         soup = BeautifulSoup(response.text, 'html.parser')
         for data_name in data_names:
-            tag = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})[0]
-            value_id = tag["id"].replace('form-', '')
-            df.loc[hospital, data_name + " value_id"] = value_id
+            tags = soup.find_all(attrs={'data-name': data_name, 'data-time': data_time})
+            # Check if tag for the respective combination is present at all
+            if len(tags) > 0:
+                tag = tags[0]
+                value_id = tag["id"].replace('form-', '')
+                df.loc[hospital, data_name + " value_id"] = value_id
     browser.close()
     return df
 
