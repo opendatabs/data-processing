@@ -20,7 +20,7 @@ def main(value_id, value):
 
     url = credentials.url_coreport + str(value_id)
     # print(url)
-
+    logging.info(f'Submitting value "{value}" to url {url}...')
     r = common.requests_patch(url, json=payload,
                               auth=(username, password))
     r.raise_for_status()
