@@ -122,8 +122,8 @@ for data_file in files_to_upload:
     common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
 
 if len(dfs) == 0:
-    print(f'No raw data present at all.')
-    #todo: Should this throw an error?
+    print(f'No raw data present at all, raising IOError...')
+    raise IOError()
 else:
     print(f'Creating one huge dataframe...')
     all_df = pd.concat(dfs)
