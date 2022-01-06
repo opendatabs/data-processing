@@ -64,6 +64,7 @@ def get_dataframe(hospital, date):
                 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19', 'TotalIcuPats',
                 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats']]
             df["Hospital"] = hospital
+            df.set_index("Hospital", inplace=True)
     return df
 
 
