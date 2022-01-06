@@ -1,12 +1,11 @@
 from datetime import timezone, datetime, timedelta
 from gsv_covid19_hosp import get_data
 import mechanicalsoup
-# from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 from gsv_covid19_hosp import credentials
 import logging
 import common
 import pandas as pd
-import threading
 from gsv_covid19_hosp import hospitalzahlen
 from gsv_covid19_hosp import calculation
 from gsv_covid19_hosp import update_coreport
@@ -18,22 +17,41 @@ print(now_in_switzerland)
 
 date = now_in_switzerland.date()
 
-
-time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=15).astimezone(ZoneInfo('Europe/Zurich'))
+time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=15).astimezone(
+    ZoneInfo('Europe/Zurich'))
 print(time_for_email)
 
 
 def run_test(hospital, date):
     list_hospitals = [hospital]
     day_of_week = get_data.check_day(date)
+    df_log_file = make_log_file(date, day_of_week, list_hospitals)
     if day_of_week == "Monday":
-        try_to_enter_in_coreport(date=date-timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
-        try_to_enter_in_coreport(date=date-timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
+        try_to_enter_in_coreport(date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
+        try_to_enter_in_coreport(date=date - timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
         try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
     elif day_of_week == "Other workday":
         try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
     else:
         logging.info("It is weekend")
+    print(df_log_file)
+    df_log_file.to_csv("log_file.csv")
+
+
+def make_log_file(date, day_of_week, list_hospitals):
+    df = pd.DataFrame()
+    l = len(list_hospitals)
+    if day_of_week == "Monday":
+        df["Date"] = [date - timedelta(2)] * l + [date - timedelta(1)] * l + [date] * l
+        df["Hospital"] = list_hospitals * 3
+    elif day_of_week == "Other workday":
+        df["Date"] = [date] * l
+        df["Hospital"] = list_hospitals * 3
+    df["IES entry"] = 0
+    df["CoReport filled"] = 0
+    df["email"] = 0
+    df["second email"] = 0
+    return df
 
 
 def write_in_coreport_test(df, hospital, date):
@@ -91,13 +109,13 @@ def main_test(value_id, value, comment="Entered by bot"):
     payload = {
         "value": value,
         "comment": comment
-}
+    }
 
     username = credentials.username_coreport_test
     password = credentials.password_coreport_test
 
     url = credentials.url_coreport + str(value_id)
-    #print(url)
+    # print(url)
 
     r = common.requests_patch(url, json=payload,
                               auth=(username, password))
@@ -135,7 +153,6 @@ def make_df_value_id(date):
     response = browser.get(credentials.url_coreport_test)
     response.raise_for_status()
 
-
     for data_name in properties_list:
         df[data_name + " value_id"] = ""
         if data_name == 'Bettenanzahl frei "Normalstation"' and data_time == '14.12.2021 10:00':
@@ -145,7 +162,7 @@ def make_df_value_id(date):
             value_id = tag["id"].replace('form-', '')
         print(value_id)
         df.loc[0, data_name + " value_id"] = value_id
-    #print(df)
+    # print(df)
     browser.close()
     file_name = "value_id_df_test_" + str(date) + ".pkl"
     df.to_pickle(file_name)
@@ -155,10 +172,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     # pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() # - timedelta(1)
+    datum = datetime.today().date() - timedelta(3)
     run_test('Clara', datum)
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.12.2021.pkl')
     # pd.set_option('display.max_columns', None)
     # print(df)
-    # print(df['Bettenanzahl frei " IPS ECMO" value_id'][0])
+    print(df)
