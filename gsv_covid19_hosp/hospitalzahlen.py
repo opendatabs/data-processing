@@ -59,14 +59,16 @@ def try_to_enter_in_coreport(date, day, list_hospitals, weekend):
         logging.info(f"Entries added into CoReport for {filled_hospitals}")
         logging.info(f"There are no entries of {missing} for {day} in IES")
         if not not missing:
-            for hospital in missing:
-                logging.info(f"send email for missing entries {hospital} of {day}")
-                send_email.send_email(hospital=hospital, day=day)
+            if now_in_switzerland > time_for_email or day in ["Saturday", "Sunday"]:
+                for hospital in missing:
+                    logging.info(f"send email for missing entries {hospital} of {day}")
+                    send_email.send_email(hospital=hospital, day=day)
     elif df.empty:
         logging.info(f"There are no entries for {day} in the IES system")
-        for hospital in missing:
-            logging.info(f"send email for missing entries {hospital} for {day}")
-            send_email.send_email(hospital=hospital, day=day)
+        if now_in_switzerland > time_for_email or day in ["Saturday", "Sunday"]:
+            for hospital in missing:
+                logging.info(f"send email for missing entries {hospital} for {day}")
+                send_email.send_email(hospital=hospital, day=day)
 
 
 def get_df_for_date(date, list_hospitals, weekend=False):
