@@ -37,7 +37,6 @@ def run_test(list_hospitals, date):
                     missing_date = row["Date"]
                     logging.info(f"No entry made in CoReport for {missing_hospital} on {missing_date}")
                 logging.info("Send email final status: not ok")
-
             df_log["email at 10"] = 1
     elif day_of_week == "Other workday":
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals, weekend=False)
@@ -203,7 +202,7 @@ if __name__ == "__main__":
     time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50, tzinfo=ZoneInfo('Europe/Zurich'))
     time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
     pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() - timedelta(1)
+    datum = datetime.today().date() + timedelta(1)
     run_test(['Clara', 'USB'], datum)
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.12.2021.pkl')
