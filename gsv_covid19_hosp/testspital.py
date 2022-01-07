@@ -68,20 +68,22 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
             logging.info(f"Entries added into CoReport for {hospital}")
         logging.info(f"There are no entries of {missing} for {day} in IES")
         if not not missing:
+            if now_in_switzerland > time_for_email or day in ["Saturday", "Sunday"]:
+                for hospital in missing:
+                    logging.info(f"send reminder email for missing entries {hospital} of {day}")
+                    # send_email.send_email(hospital=hospital, day=day)
+                    condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+                    time = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)
+                    df_log.loc[condition, "email reminder"] = f"send at {time}"
+    elif df.empty:
+        logging.info(f"There are no entries for {day} in the IES system")
+        if now_in_switzerland > time_for_email or day in ["Saturday", "Sunday"]:
             for hospital in missing:
-                logging.info(f"send reminder email for missing entries {hospital} of {day}")
+                logging.info(f"send email for missing entries {hospital} for {day}")
                 # send_email.send_email(hospital=hospital, day=day)
                 condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                 time = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)
                 df_log.loc[condition, "email reminder"] = f"send at {time}"
-    elif df.empty:
-        logging.info(f"There are no entries for {day} in the IES system")
-        for hospital in missing:
-            logging.info(f"send email for missing entries {hospital} for {day}")
-            # send_email.send_email(hospital=hospital, day=day)
-            condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-            time = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)
-            df_log.loc[condition, "email reminder"] = f"send at {time}"
     return df_log
 
 
