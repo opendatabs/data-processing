@@ -27,6 +27,18 @@ def run_test(list_hospitals, date):
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals, weekend=False)
+        if now_in_switzerland > time_for_email_final_status and (df_log["email at 10"] == 1).sum() == 0:
+            if (df_log["CoReport filled"] == "Yes").sum() == 3*len(list_hospitals):
+                logging.info("Send email final status: ok")
+            else:
+                df_missing = df_log[df_log["CoReport filled"]]
+                for row in df_missing:
+                    missing_hosital = row["Hospital"]
+                    missing_date = row["Date"]
+                    logging.info(f"No entry made in CoReport for {missing_hosital} on {missing_date}")
+                logging.info("Send email final status: not ok")
+
+            df_log["email at 10"] = 1
     elif day_of_week == "Other workday":
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals, weekend=False)
     else:
@@ -48,6 +60,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df["CoReport filled"] = "No"
     df["email reminder"] = "-"
     df["email for calling"] = "-"
+    df["email at 10"] = 0
     #df.set_index("Date", inplace=True)
     return df
 
