@@ -33,9 +33,9 @@ def run_test(list_hospitals, date):
             else:
                 df_missing = df_log[df_log["CoReport filled"]]
                 for row in df_missing:
-                    missing_hosital = row["Hospital"]
+                    missing_hospital = row["Hospital"]
                     missing_date = row["Date"]
-                    logging.info(f"No entry made in CoReport for {missing_hosital} on {missing_date}")
+                    logging.info(f"No entry made in CoReport for {missing_hospital} on {missing_date}")
                 logging.info("Send email final status: not ok")
 
             df_log["email at 10"] = 1
