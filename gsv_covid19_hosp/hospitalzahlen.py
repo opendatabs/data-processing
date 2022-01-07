@@ -48,7 +48,7 @@ def all_together(date, list_hospitals):
     else:
         logging.info("It is weekend")
 
-# need to re-enter time condition for sending email for today!
+
 def try_to_enter_in_coreport(date, day, list_hospitals, weekend):
     logging.info(f"Read out data for {day} in IES system")
     df, missing = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=weekend)
