@@ -67,7 +67,9 @@ def write_in_coreport(df, hospital_list, date):
             value = int(df_hospital[prop][0])
             value_id = df_hospital[prop + " value_id"][0]
             #print(value_id, value)
-            main(value_id=value_id, value=value)
+            # quick fix to ignore negative values
+            if value >= 0:
+                main(value_id=value_id, value=value)
 
 
 if __name__ == "__main__":
