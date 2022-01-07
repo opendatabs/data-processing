@@ -70,7 +70,8 @@ def write_in_coreport(df, hospital_list, date):
             # quick fix to ignore negative values
             if value >= 0:
                 main(value_id=value_id, value=value)
-
+            else:
+                logging.warning(f"Negative value for {prop} of {hospital}! send email...")
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
