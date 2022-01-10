@@ -52,7 +52,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     if day_of_week == "Monday":
         df["Date"] = [date - timedelta(2)] * numb_hosp + [date - timedelta(1)] * numb_hosp + [date] * numb_hosp
         df["Hospital"] = list_hospitals * 3
-    elif day_of_week == "Other workday":
+    else:
         df["Date"] = [date] * numb_hosp
         df["Hospital"] = list_hospitals
     df["IES entry"] = "No entry"
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50, tzinfo=ZoneInfo('Europe/Zurich'))
     time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
     pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() + timedelta(1)
+    datum = datetime.today().date() #+ timedelta(1)
     run_test(['Clara', 'USB'], datum)
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.12.2021.pkl')
