@@ -114,19 +114,19 @@ def emails_to_send(date, day, missing_hospitals, df_log):
                     logging.info(f"send email for missing entries {hospital} for {day}")
                     # send_email.send_email(hospital=hospital, day=day)
                     df_log.loc[condition, "email reminder"] = f"send at {time}"
-        else:
-            for hospital in missing_hospitals:
-                condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-                if time > time_for_email and df_log.loc[condition, "email reminder"] == "-":
-                    logging.info(f"send email for missing entries {hospital} for {day}")
-                    # send_email.send_email(hospital=hospital, day=day)
-                    df_log.loc[condition, "email reminder"] = f"send at {time}"
-                if time > time_for_email_to_call and df_log.loc[condition, "email for callling"] == "-":
-                    logging.info(f"send email to call {hospital} because of missing entries for {day}")
-                    # send_email.send_email_to_call(hospital=hospital, day=day)...
-                    df_log.loc[condition, "email reminder"] = f"send at {time}"
-                if time > time_for_email_final_status:
-                    logging.info("Send email with final status...")
+    else:
+        for hospital in missing_hospitals:
+            condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+            if time > time_for_email and df_log.loc[condition, "email reminder"] == "-":
+                logging.info(f"send email for missing entries {hospital} for {day}")
+                # send_email.send_email(hospital=hospital, day=day)
+                df_log.loc[condition, "email reminder"] = f"send at {time}"
+            if time > time_for_email_to_call and df_log.loc[condition, "email for callling"] == "-":
+                logging.info(f"send email to call {hospital} because of missing entries for {day}")
+                # send_email.send_email_to_call(hospital=hospital, day=day)...
+                df_log.loc[condition, "email reminder"] = f"send at {time}"
+            if time > time_for_email_final_status:
+                logging.info("Send email with final status...")
 
 
 def write_in_coreport_test(df, hospital, date):
