@@ -10,6 +10,7 @@ from gsv_covid19_hosp import hospitalzahlen
 from gsv_covid19_hosp import calculation
 from gsv_covid19_hosp import update_coreport
 from zoneinfo import ZoneInfo
+from gsv_covid19_hosp.tests import test_send_email2
 
 
 def run_test(list_hospitals, date):
