@@ -44,32 +44,30 @@ def main():
     df_lab = None
     for db in get_report_defs():
         archive_path = get_latest_archive(glob.glob(os.path.join(db['db_path'], "*.zip")))
-        if ct.has_changed(archive_path, do_update_hash_file=False):
-            if df_lab is None:
-                logging.info(f'No lab data yet, processing...')
-                common.download_ftp([], credentials.down_ftp_server, credentials.down_ftp_user, credentials.down_ftp_pass, credentials.down_ftp_dir, credentials.data_path_xml, '*.xml')
-                df_lab = extract_lab_data(os.path.join(credentials.data_path_xml, "*.xml"))
-            else:
-                logging.info(f'Lab data already downloaded, no need to do it again. ')
-            date, dfs = extract_db_data(archive_path)
-            dfs['df_lab'] = df_lab
-            add_global_dfs(dfs)
-            convert_datetime_columns(dfs)
-            # conn = create_db('../tests/fixtures/coronavirus_massentests.db', dfs)
-            for report_def in db['report_defs']:
-                report = calculate_report(table_name=report_def['table_name'],
-                                          anzahl_proben_colname=report_def['anzahl_proben_colname'],
-                                          organization_count_colname=report_def['organization_count_colname'],
-                                          where_clause=report_def['where_clause'])
-                export_file = os.path.join(credentials.export_path, report_def['file_name'])
-                logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
-                report.to_csv(export_file, index=False)
-                if ct.has_changed(export_file, do_update_hash_file=False):
-                    common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
-                    odsp.publish_ods_dataset_by_id(report_def['ods_id'])
-                    ct.update_hash_file(export_file)
-            # conn.close()
-            ct.update_hash_file(archive_path)
+        if df_lab is None:
+            logging.info(f'No lab data yet, processing...')
+            common.download_ftp([], credentials.down_ftp_server, credentials.down_ftp_user, credentials.down_ftp_pass, credentials.down_ftp_dir, credentials.data_path_xml, '*.xml')
+            df_lab = extract_lab_data(os.path.join(credentials.data_path_xml, "*.xml"))
+        else:
+            logging.info(f'Lab data already downloaded, no need to do it again. ')
+        date, dfs = extract_db_data(archive_path)
+        dfs['df_lab'] = df_lab
+        add_global_dfs(dfs)
+        convert_datetime_columns(dfs)
+        # conn = create_db('../tests/fixtures/coronavirus_massentests.db', dfs)
+        for report_def in db['report_defs']:
+            report = calculate_report(table_name=report_def['table_name'],
+                                      anzahl_proben_colname=report_def['anzahl_proben_colname'],
+                                      organization_count_colname=report_def['organization_count_colname'],
+                                      where_clause=report_def['where_clause'])
+            export_file = os.path.join(credentials.export_path, report_def['file_name'])
+            logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
+            report.to_csv(export_file, index=False)
+            if ct.has_changed(export_file, do_update_hash_file=False):
+                common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
+                odsp.publish_ods_dataset_by_id(report_def['ods_id'])
+                ct.update_hash_file(export_file)
+        # conn.close()
     logging.info(f'Job successful!')
 
 
