@@ -59,7 +59,8 @@ def make_log_file(date, day_of_week, list_hospitals):
     df["CoReport filled"] = "No"
     df["email reminder"] = "-"
     df["email for calling"] = "-"
-    df["email at 10"] = 0
+    df["email status at 10"] = 0
+    df["email all filled"] = 0
     #df.set_index("Date", inplace=True)
     return df
 
