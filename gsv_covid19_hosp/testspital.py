@@ -16,7 +16,7 @@ from gsv_covid19_hosp.tests import test_send_email2
 def run_test(list_hospitals, date):
     #list_hospitals = [hospital]
     day_of_week = get_data.check_day(date)
-    check_for_log_file(date, day_of_week, list_hospitals)
+    df_log = check_for_log_file(date, day_of_week, list_hospitals)
 
     if day_of_week == "Monday":
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
@@ -48,6 +48,8 @@ def check_for_log_file(date, day_of_week, list_hospitals):
                 df_log = make_log_file(date, day_of_week, list_hospitals)
     except OSError:
         df_log = make_log_file(date, day_of_week, list_hospitals)
+    return df_log
+
 
 def make_log_file(date, day_of_week, list_hospitals):
     df = pd.DataFrame()
