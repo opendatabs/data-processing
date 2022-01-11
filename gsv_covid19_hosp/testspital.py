@@ -15,13 +15,7 @@ from zoneinfo import ZoneInfo
 def run_test(list_hospitals, date):
     #list_hospitals = [hospital]
     day_of_week = get_data.check_day(date)
-    try:
-        with open("log_file.csv") as log_file:
-            df_log = pd.read_csv(log_file)
-            if date not in df_log["Date"]:
-                df_log = make_log_file(date, day_of_week, list_hospitals)
-    except OSError:
-        df_log = make_log_file(date, day_of_week, list_hospitals)
+    check_for_log_file(date, day_of_week, list_hospitals)
 
     if day_of_week == "Monday":
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
@@ -45,6 +39,14 @@ def run_test(list_hospitals, date):
     print(df_log)
     df_log.to_csv("log_file.csv")
 
+def check_for_log_file(date, day_of_week, list_hospitals):
+    try:
+        with open("log_file.csv") as log_file:
+            df_log = pd.read_csv(log_file)
+            if date not in df_log["Date"]:
+                df_log = make_log_file(date, day_of_week, list_hospitals)
+    except OSError:
+        df_log = make_log_file(date, day_of_week, list_hospitals)
 
 def make_log_file(date, day_of_week, list_hospitals):
     df = pd.DataFrame()
