@@ -1,4 +1,7 @@
 import logging
+import os
+from datetime import date
+from common import change_tracking as ct
 import pandas as pd
 import common
 import urllib3
@@ -32,6 +35,12 @@ def main():
     if row_count == 0:
         print(f'No rows to push to ODS... ')
     else:
+        export_file = os.path.join(credentials.data_path, f'luft_{date.today()}.csv')
+        df.to_csv(export_file, index=False)
+        if ct.has_changed(export_file, do_update_hash_file=False):
+            common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'smarte_strasse/luft')
+            ct.update_hash_file(export_file)
+
         print(f'Pushing {row_count} rows to ODS realtime API...')
         # Realtime API bootstrap data:
         # {
