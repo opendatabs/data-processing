@@ -35,6 +35,7 @@ def main():
     if row_count == 0:
         print(f'No rows to push to ODS... ')
     else:
+        # todo: Only upload rows in which there are non-null values
         export_file = os.path.join(credentials.data_path, f'luft_{date.today()}.csv')
         df.to_csv(export_file, index=False)
         if ct.has_changed(export_file, do_update_hash_file=False):
