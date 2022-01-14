@@ -8,7 +8,8 @@ from smarte_strasse_parking import credentials
 
 
 def main():
-    # df2 = retrieve_historical_data()
+    df2 = retrieve_historical_data()
+
     df1 = retrieve_current_state_data()
     df_curr = df1[['id', 'value_started', 'value_updated', 'value_received', 'value_label']]
     row_count = len(df_curr)
@@ -35,7 +36,7 @@ def main():
 
 
 def retrieve_current_state_data():
-    logging.info(f'Retrieivng current state data from API...')
+    logging.info(f'Retrieving current state data from API...')
     r = requests.get(credentials.api1_url, auth=HTTPBasicAuth(credentials.api1_user, credentials.api1_pw))
     r.raise_for_status()
     json = r.json()
@@ -45,10 +46,13 @@ def retrieve_current_state_data():
 
 
 def retrieve_historical_data():
-    r = requests.get(credentials.api2_url, auth=HTTPBasicAuth(credentials.api2_user, credentials.api2_pw))
+    headers = {'Authorization': f'Bearer {credentials.api2_token}'}
+    # todo: request at most 1 week of data per call
+    r = requests.get(credentials.api2_url, headers=headers)
     r.raise_for_status()
     json = r.json()
-    return pd.json_normalize(r.json(), record_path='attributes', meta=['id', 'type'])
+    df = pd.json_normalize(r.json(), record_path='data')
+    return df[['name', 'fromDate', 'toDate']]
 
 
 if __name__ == "__main__":
