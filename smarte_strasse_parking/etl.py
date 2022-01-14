@@ -37,7 +37,7 @@ def main():
 
 def retrieve_current_state_data():
     logging.info(f'Retrieving current state data from API...')
-    r = requests.get(credentials.api1_url, auth=HTTPBasicAuth(credentials.api1_user, credentials.api1_pw))
+    r = common.requests_get(credentials.api1_url, auth=HTTPBasicAuth(credentials.api1_user, credentials.api1_pw))
     r.raise_for_status()
     json = r.json()
     df = pd.json_normalize(r.json(), record_path='attributes', meta=['id', 'type'], sep='_')
@@ -48,7 +48,7 @@ def retrieve_current_state_data():
 def retrieve_historical_data():
     headers = {'Authorization': f'Bearer {credentials.api2_token}'}
     # todo: request at most 1 week of data per call
-    r = requests.get(credentials.api2_url, headers=headers)
+    r = common.requests_get(credentials.api2_url, headers=headers)
     r.raise_for_status()
     json = r.json()
     df = pd.json_normalize(r.json(), record_path='data')
