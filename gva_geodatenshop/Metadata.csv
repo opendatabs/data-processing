@@ -39,7 +39,7 @@ Die Nummerierung der Blockseiten setzt sich zusammen aus der zweistelligen Wohnv
 (sowohl im Label als auch in der ID durch einen Unterstrich verbunden):
 - Blockseiten haben wie die Blöcke keine Namensbezeichnung und werden lediglich über die Nummer referenziert.
 - Beispiel Blockseite mit der Clarakirche: BLS_ID 121014_1741, die Bezeichnung (BLS_Label) lautet 12.1.014_1741";https://www.statistik.bs.ch/dam/jcr:44166ae9-c59c-4fd8-a8aa-f2b00cd53eff/Statistische-Raumeinheiten.pdf;"Geographie;Statistische Grundlagen";"Statistik;Einteilung;Wohnblockseite";statistisches-amt-kanton-basel-stadt;;;2019-11-06;
-WE\Wohnviertel;True;;Statistische Raumeinheiten: Wohnviertel ;100042;"Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen. Die Stadt Basel ist in 19 statistische Wohnviertel gegliedert. Diese statistische Raumeinteilungen existiert seit über 100 Jahren unverändert und erlaubt somit kleinräumige Längsschnittanalysen des Kantons Basel-Stadt. 
+WE\Wohnviertel;True;;Statistische Raumeinheiten: Wohnviertel ;100042;"Zum Kanton Basel-Stadt zählen die Stadt Basel und die Gemeinden Riehen und Bettingen. Die Stadt Basel ist in 19 statistische Wohnviertel gegliedert. Diese statistische Raumeinteilungen existiert seit über 100 Jahren unverändert und erlaubt somit kleinräumige Längsschnittanalysen des Kantons Basel-Stadt.
 
 Statistische Nummerierung:
 Im Gegensatz zum amtlichen Gemeindeverzeichnis der Schweiz wird für räumliche Auswertungen auf Gemeinde-Ebene auf die Nummerierung der Wohnviertel zurückgegriffen:
@@ -55,8 +55,8 @@ LN\OeVLiniennetz;True;;Liniennetz des öffentlichen Verkehrs;100064;Der Datensatz
 LN\OeVTeilhaltestellen;True;;Teilhaltestellen des öffentlichen Verkehrs;100065;Der Datensatz zeigt die Teilhaltestellen (Haltebereich des Busses oder des Trams je Fahrtrichtung) des öffentlichen Verkehrs im Kanton Basel-Stadt sowie teilweise in der trinationalen Agglomeration. Es wird nach Liniennummer, Transportunternehmen, Art und Typ der Haltestelle unterschieden. ;;"Mobilität und Verkehr;Raum und Umwelt;Verwaltung";"Tram;Bus;Zug;Haltestelle;Baustelle;Umleitung;ÖV";amt-fur-mobilitat-kanton-basel-stadt;http://purl.org/cld/freq/irregular;True;2020-01-29;
 DS\Denkmalverzeichnis;True;;;;;;"Geographie;Raum und Umwelt;Verwaltung";"Denkmal;Altbau;Schutz;Abriss;Umbau;Bau;Baustelle";staedtebau-und-architektur-kanton-basel-stadt;;;2019-11-06;
 AF\Abfuhrzonen;True;;Abfuhrzonen (Gemeinde Basel);100095;;;"Raum und Umwelt;Öffentliche Ordnung und Sicherheit;Verwaltung";"Abfall;Recycling;Grüngut";;http://purl.org/cld/freq/irregular;;2020-08-24;opendata.swiss
-DM\DatenmarktAdressen;True;;;100114;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
-DM\DatenmarktGebaeude;True;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
-BS\Liegenschaften;True;;;;;;;;;;;;
+DM\DatenmarktAdressen;False;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
+DM\DatenmarktGebaeude;False;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
+BS\Liegenschaften;False;;;;;;;;;;;;
 CT\CoronaTeststellen;True;;Coronavirus (Covid-19): Teststellen;100134;;;Gesundheit;"Corona;COVID-19;Spital;Krankheit;Coronavirus;Virus;Pandemie;Test;Lungenentzündung";;http://purl.org/cld/freq/irregular;True;2021-03-31;opendata.swiss
 OW\SportBewegung;True;;Sportanlagen;100151;;;"Kultur, Medien, Informationsgesellschaft, Sport;Geographie";"Sport;Sportanlagen";;http://purl.org/cld/freq/irregular;True;2021-07-23;opendata.swiss
