@@ -8,7 +8,7 @@ from smarte_strasse_parking import credentials
 
 def main():
     df1 = push_current_state_data()
-    df2 = push_historical_data()
+    # df2 = push_historical_data()
     pass
 
 
