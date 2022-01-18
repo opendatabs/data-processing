@@ -43,7 +43,7 @@ def push_current_state_data():
 
 def push_historical_data():
     logging.info(f'Retrieving historical data from API...')
-
+    # todo: use local time zone
     now = datetime.datetime.now()
     end = now.strftime('%Y%m%d%H%M')
     start = (now - datetime.timedelta(days=7)).strftime('%Y%m%d%H%M')
