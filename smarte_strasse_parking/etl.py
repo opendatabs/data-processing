@@ -8,8 +8,9 @@ from smarte_strasse_parking import credentials
 
 def main():
     df1 = get_current_state_date()
-    push_data(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr, api_key=credentials.ods_api_key)
+    common.ods_realtime_push_df(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr, api_key=credentials.ods_api_key)
     push_timeseries_data(df=df1, min_time_delta_minutes=60, url=credentials.ods_realtime_push_url_hist, push_key=credentials.ods_realtime_push_key_hist, api_key=credentials.ods_api_key)
+    logging.info(f'Job successful!')
 
 
 def get_current_state_date():
@@ -43,28 +44,9 @@ def push_timeseries_data(df, min_time_delta_minutes, url, push_key, api_key):
         #     "value_updated": "2022-01-14T08:44:56.000Z",
         #     "value_label": "1"
         # }
-        push_data(df, url, push_key, api_key)
+        common.ods_realtime_push_df(df, url, push_key, api_key)
     else:
         logging.info(f"It's not time yet to push into time series dataset (minutes since last entry: {delta_minutes}).")
-
-
-def push_data(df, url, push_key, api_key):
-    row_count = len(df)
-    if row_count == 0:
-        print(f'No rows to push to ODS... ')
-    else:
-        print(f'Pushing {row_count} rows to ODS realtime API...')
-        # Realtime API bootstrap data:
-        # {
-        #     "id": 0,
-        #     "value_updated": "2022-01-14T08:44:56.000Z",
-        #     "value_label": "1"
-        # }
-        payload = df.to_json(orient="records")
-        # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
-        # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        r = common.requests_post(url=url, data=payload, params={'pushkey': push_key, 'apikey': api_key})
-        r.raise_for_status()
 
 
 # def push_detailed_historical_data():
