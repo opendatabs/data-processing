@@ -10,6 +10,7 @@ import pandas as pd
 from datetime import datetime
 from gd_coronavirus_abwassermonitoring import credentials
 import common
+import logging
 
 pop_BL = 66953
 pop_BS = 196735
@@ -18,6 +19,7 @@ def make_column_dt(df, column):
     df[column] = pd.to_datetime(df[column])
 
 def make_dataframe_BL():
+    logging.info(f"import and transfrom BL data")
     df_BL = pd.read_csv("Abwassermonitoring.csv", encoding="ISO-8859-1")
     # remove Gemeinde and Inc_7d
     df_BL.drop(columns=["Gemeinde", "Inc_7d"], inplace=True)
@@ -31,12 +33,14 @@ def make_dataframe_BL():
     return df_BL
 
 def make_dataframe_abwasserdaten():
+    logging.info("import and transform abwasserdaten")
     df_Abwasser = pd.read_excel("PROBENRASTER CoroWWmonitoring_Labor.xlsx", sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
     # rename date column and change format
     df_Abwasser.rename(columns={'Abwasser von Tag':'Datum'}, inplace=True)
     return df_Abwasser
 
 def make_dataframe_BS():
+    logging.info(f"import, transform and merge BS data")
     # get number of cases and 7d inz.
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100108/exports/json?order_by=test_datum&select=test_datum&select=faelle_bs&select=inzidenz07_bs")
     file = req.json()
@@ -72,6 +76,7 @@ def make_dataframe_BS():
     return df_BS
 
 def calculate_columns(df):
+    logging.info(f"calculate and add columns")
     df["pos_rate_BL"] = df["Anz_pos_BL"]/(df["Anz_pos_BL"]+df["Anz_neg_BL"]) * 100
     df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"]/pop_BL * 100000
@@ -84,6 +89,8 @@ def calculate_columns(df):
     return df
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
     pd.set_option('display.max_columns', None)
     df_BL = make_dataframe_BL()
     df_Abwasser = make_dataframe_abwasserdaten()
