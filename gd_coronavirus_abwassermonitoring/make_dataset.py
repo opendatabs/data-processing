@@ -8,6 +8,7 @@ sources:
 import requests
 import pandas as pd
 from datetime import datetime
+from gd_coronavirus_abwassermonitoring import credentials
 
 
 pop_BL = 66953
