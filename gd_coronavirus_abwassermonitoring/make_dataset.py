@@ -15,6 +15,16 @@ import logging
 pop_BL = 66953
 pop_BS = 196735
 
+def main():
+    df_BL = make_dataframe_BL()
+    df_Abwasser = make_dataframe_abwasserdaten()
+    df_all = df_Abwasser.merge(df_BL, how='right')
+    df_BS = make_dataframe_BS()
+    df_all = df_all.merge(df_BS, how='right')
+    df_all = calculate_columns(df_all)
+    df_all.to_csv("Datensatz_Charts.csv")
+
+
 def make_column_dt(df, column):
     df[column] = pd.to_datetime(df[column])
 
@@ -91,11 +101,4 @@ def calculate_columns(df):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    pd.set_option('display.max_columns', None)
-    df_BL = make_dataframe_BL()
-    df_Abwasser = make_dataframe_abwasserdaten()
-    df_all = df_Abwasser.merge(df_BL, how='right')
-    df_BS = make_dataframe_BS()
-    df_all = df_all.merge(df_BS, how='right')
-    df_all = calculate_columns(df_all)
-    df_all.to_csv("Datensatz_Charts.csv")
+    main()
