@@ -5,7 +5,7 @@ sources:
 - COVID data BL: credentials.url_BL
 - Abwasserdaten: credentials.url_proben
 """
-import requests
+
 import pandas as pd
 from datetime import datetime
 from gd_coronavirus_abwassermonitoring import credentials
