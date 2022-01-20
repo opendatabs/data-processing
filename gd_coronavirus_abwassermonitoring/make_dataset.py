@@ -85,7 +85,6 @@ def make_dataframe_BS():
     df_BS = pd.concat([df.set_index('Datum') for df in dfs], axis=1, join='outer').reset_index()
     # take date from 1 July 2021
     df_BS = df_BS[df_BS['Datum'] >= datetime(2021, 7, 1)]
-    print(df_BS)
     return df_BS
 
 def calculate_columns(df):
