@@ -39,10 +39,11 @@ raw_metadata_filename = os.path.join(credentials.path, credentials.filename.repl
 logging.info(f'Saving raw metadata (as received from db) to {raw_metadata_filename}...')
 df.to_csv(raw_metadata_filename, index=False)
 
-df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone',
+df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
        'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
        'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
       ]]
+df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
 metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
 print(f'Exporting processed metadata to {metadata_filename}...')
 df_metadata.to_csv(metadata_filename, index=False)

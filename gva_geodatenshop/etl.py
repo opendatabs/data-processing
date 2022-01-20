@@ -136,6 +136,7 @@ for index, row in joined_data.iterrows():
                 geocat_uid = row['geocat'].rsplit('/', 1)[-1].replace('\t', '')
                 geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/0.1/records/{geocat_uid}'
                 print(f'Getting metadata from {geocat_url}...')
+                # todo: Locally save geocat metadata file and use this if the https request fails (which seems to happen often)
                 r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'}, proxies={'https': credentials.proxy})
                 r.raise_for_status()
                 metadata = r.json()

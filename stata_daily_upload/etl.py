@@ -27,6 +27,7 @@ def main():
                {'file': 'StatA/Bevoelkerung/trauungen_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100156'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_primarsek1_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100145'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_betriebe_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100146'},
+               {'file': 'StatA/Bevoelkerung/wanderungen.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100138'}
                ]
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
