@@ -23,6 +23,7 @@ def main():
     df_all = df_all.merge(df_BS, how='right')
     df_all = calculate_columns(df_all)
     df_all.to_csv("Datensatz_Charts.csv")
+    logging.info('Job successful!')
 
 
 def make_column_dt(df, column):
