@@ -10,18 +10,13 @@ from gsv_covid19_hosp import hospitalzahlen
 from gsv_covid19_hosp import calculation
 from gsv_covid19_hosp import update_coreport
 from zoneinfo import ZoneInfo
+from gsv_covid19_hosp.tests import test_send_email2
 
 
 def run_test(list_hospitals, date):
     #list_hospitals = [hospital]
     day_of_week = get_data.check_day(date)
-    try:
-        with open("log_file.csv") as log_file:
-            df_log = pd.read_csv(log_file)
-            if date not in df_log["Date"]:
-                df_log = make_log_file(date, day_of_week, list_hospitals)
-    except OSError:
-        df_log = make_log_file(date, day_of_week, list_hospitals)
+    df_log = check_for_log_file(date, day_of_week, list_hospitals)
 
     if day_of_week == "Monday":
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
@@ -45,6 +40,16 @@ def run_test(list_hospitals, date):
     print(df_log)
     df_log.to_csv("log_file.csv")
 
+def check_for_log_file(date, day_of_week, list_hospitals):
+    try:
+        with open("log_file.csv") as log_file:
+            df_log = pd.read_csv(log_file)
+            if date not in df_log["Date"]:
+                df_log = make_log_file(date, day_of_week, list_hospitals)
+    except OSError:
+        df_log = make_log_file(date, day_of_week, list_hospitals)
+    return df_log
+
 
 def make_log_file(date, day_of_week, list_hospitals):
     df = pd.DataFrame()
@@ -52,14 +57,15 @@ def make_log_file(date, day_of_week, list_hospitals):
     if day_of_week == "Monday":
         df["Date"] = [date - timedelta(2)] * numb_hosp + [date - timedelta(1)] * numb_hosp + [date] * numb_hosp
         df["Hospital"] = list_hospitals * 3
-    elif day_of_week == "Other workday":
+    else:
         df["Date"] = [date] * numb_hosp
         df["Hospital"] = list_hospitals
     df["IES entry"] = "No entry"
     df["CoReport filled"] = "No"
     df["email reminder"] = "-"
     df["email for calling"] = "-"
-    df["email at 10"] = 0
+    df["email status at 10"] = 0
+    df["email all filled"] = 0
     #df.set_index("Date", inplace=True)
     return df
 
@@ -99,6 +105,30 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     return df_log
 
 
+def emails_to_send(date, day, missing_hospitals, df_log):
+    time = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)
+    if day in ["Saturday", "Sunday"]:
+            for hospital in missing_hospitals:
+                condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+                if df_log.loc[condition, "email reminder"] == "-":
+                    logging.info(f"send email for missing entries {hospital} for {day}")
+                    # send_email.send_email(hospital=hospital, day=day)
+                    df_log.loc[condition, "email reminder"] = f"send at {time}"
+    else:
+        for hospital in missing_hospitals:
+            condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+            if time > time_for_email and df_log.loc[condition, "email reminder"] == "-":
+                logging.info(f"send email for missing entries {hospital} for {day}")
+                # send_email.send_email(hospital=hospital, day=day)
+                df_log.loc[condition, "email reminder"] = f"send at {time}"
+            if time > time_for_email_to_call and df_log.loc[condition, "email for callling"] == "-":
+                logging.info(f"send email to call {hospital} because of missing entries for {day}")
+                # send_email.send_email_to_call(hospital=hospital, day=day)...
+                df_log.loc[condition, "email reminder"] = f"send at {time}"
+            if time > time_for_email_final_status:
+                logging.info("Send email with final status...")
+
+
 def write_in_coreport_test(df, hospital, date):
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
@@ -125,7 +155,11 @@ def write_in_coreport_test(df, hospital, date):
         value = int(df_hospital[prop][0])
         value_id = df_hospital[prop + " value_id"][0]
         # print(value_id, value)
-        main_test(value_id=value_id, value=value)
+        # quick fix to ignore negative values
+        if value >= 0:
+            main_test(value_id=value_id, value=value)
+        else:
+            logging.warning(f"Negative value for {prop} of {hospital}! send email...")
 
 
 def main_test(value_id, value, comment="Entered by bot"):
@@ -202,7 +236,7 @@ if __name__ == "__main__":
     time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50, tzinfo=ZoneInfo('Europe/Zurich'))
     time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
     pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() + timedelta(1)
+    datum = datetime.today().date() #+ timedelta(1)
     run_test(['Clara', 'USB'], datum)
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.12.2021.pkl')
