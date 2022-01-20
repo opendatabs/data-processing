@@ -31,7 +31,9 @@ def make_column_dt(df, column):
 
 def make_dataframe_BL():
     logging.info(f"import and transfrom BL data")
-    df_BL = pd.read_csv("Abwassermonitoring.csv", encoding="ISO-8859-1")
+    url = credentials.url_BL
+    print(f'Downloading data from {url}...')
+    df_BL = pd.read_csv(url, encoding="ISO-8859-1")
     # remove Gemeinde and Inc_7d
     df_BL.drop(columns=["Gemeinde", "Inc_7d"], inplace=True)
     # add suffix BL for all but date column
@@ -45,7 +47,9 @@ def make_dataframe_BL():
 
 def make_dataframe_abwasserdaten():
     logging.info("import and transform abwasserdaten")
-    df_Abwasser = pd.read_excel("PROBENRASTER CoroWWmonitoring_Labor.xlsx", sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
+    url = credentials.url_proben
+    print(f'Downloading data from {url}...')
+    df_Abwasser = pd.read_excel(url, sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
     # rename date column and change format
     df_Abwasser.rename(columns={'Abwasser von Tag':'Datum'}, inplace=True)
     return df_Abwasser
