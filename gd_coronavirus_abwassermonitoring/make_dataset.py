@@ -108,6 +108,8 @@ def calculate_columns(df):
     df["death_BS+BL"] = df["Anz_death_BL"] + df["ndiff_deceased"]
     df["7t_inz_BS+BL"] = (df["7t_inz_BL"] * pop_BL + df["inzidenz07_bs"] * pop_BS)/(pop_BS + pop_BL)
     df["pos_rate_BS+BL"] = (df["pos_rate_BL"] * pop_BL + df["positivity_rate_percent"] * pop_BS)/(pop_BS + pop_BL)
+    df["isolierte_BS+BL"] = df["Anz_Iso_BL"] + df["current_isolated"]
+    df["Ratio_Isolierte/daily_cases"] = df["isolierte_BS+BL"]/df["daily_cases_BS+BL"]
     return df
 
 if __name__ == "__main__":
