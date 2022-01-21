@@ -62,7 +62,6 @@ def make_dataframe_BS():
     logging.info(f"import, transform and merge BS data")
     # get number of cases and 7d inz.
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100108/exports/json?order_by=test_datum&select=test_datum&select=faelle_bs&select=inzidenz07_bs")
-    # todo: Add .raise_for_status() after each request to make sure an error is raised on http errors
     req.raise_for_status()
     file = req.json()
     df_zahlen_BS = pd.DataFrame.from_dict(file)
@@ -70,6 +69,7 @@ def make_dataframe_BS():
     make_column_dt(df_zahlen_BS, "Datum")
     # get hosp, ips, deceased and isolated BS
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100073/exports/json?order_by=timestamp&select=timestamp&select=current_hosp&select=current_icu&select=ndiff_deceased&select=current_isolated")
+    req.raise_for_status()
     file = req.json()
     df_hosp = pd.DataFrame.from_dict(file)
     df_hosp.rename(columns={'timestamp': 'Datum'}, inplace=True)
@@ -77,12 +77,14 @@ def make_dataframe_BS():
     make_column_dt(df_hosp, "Datum")
     # get positivity rate
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100094/exports/json?order_by=datum&select=datum&select=positivity_rate_percent")
+    req.raise_for_status()
     file = req.json()
     df_pos_rate = pd.DataFrame.from_dict(file)
     df_pos_rate.rename(columns={'datum': 'Datum'}, inplace=True)
     make_column_dt(df_pos_rate, "Datum")
     # get Effektive mittlere Reproduktionszahl, with estimate_type:Cori_slidingWindow and data_type=Confirmed cases
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100110/exports/json?refine=region:BS&refine=estimate_type:Cori_slidingWindow&refine=data_type:Confirmed+cases&order_by=date&select=date&select=median_r_mean")
+    req.raise_for_status()
     file = req.json()
     df_repr = pd.DataFrame.from_dict(file)
     df_repr.rename(columns={'date': 'Datum'}, inplace=True)
