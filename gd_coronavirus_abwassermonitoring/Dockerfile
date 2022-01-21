@@ -1,4 +1,4 @@
-FROM python:3.10.0
+FROM python:3.10.2-slim-buster
 WORKDIR /code/data-processing
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
