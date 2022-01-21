@@ -22,7 +22,7 @@ def main():
     df_BS = make_dataframe_BS()
     df_all = df_all.merge(df_BS, how='right')
     df_all = calculate_columns(df_all)
-    df_all.to_csv("Datensatz_Charts.csv")
+    df_all.to_csv(credentials.path_export_file)
     logging.info('Job successful!')
 
 
