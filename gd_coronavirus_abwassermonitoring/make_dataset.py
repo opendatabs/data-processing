@@ -11,6 +11,8 @@ from datetime import datetime
 from gd_coronavirus_abwassermonitoring import credentials
 import common
 import logging
+from common import change_tracking as ct
+import ods_publish.etl_id as odsp
 
 pop_BL = 66953
 pop_BS = 196735
@@ -23,6 +25,11 @@ def main():
     df_all = df_all.merge(df_BS, how='right')
     df_all = calculate_columns(df_all)
     df_all.to_csv(credentials.path_export_file)
+    if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
+        common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
+        # todo: publish in ods
+        odsp.publish_ods_dataset_by_id('100167')
+        ct.update_hash_file(credentials.path_export_file)
     logging.info('Job successful!')
 
 
