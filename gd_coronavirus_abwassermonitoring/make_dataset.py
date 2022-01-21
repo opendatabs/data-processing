@@ -56,6 +56,8 @@ def make_dataframe_BS():
     logging.info(f"import, transform and merge BS data")
     # get number of cases and 7d inz.
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100108/exports/json?order_by=test_datum&select=test_datum&select=faelle_bs&select=inzidenz07_bs")
+    # todo: Add .raise_for_status() after each request to make sure an error is raised on http errors
+    req.raise_for_status()
     file = req.json()
     df_zahlen_BS = pd.DataFrame.from_dict(file)
     df_zahlen_BS.rename(columns={'test_datum': 'Datum'}, inplace=True)
