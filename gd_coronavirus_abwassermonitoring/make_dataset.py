@@ -24,7 +24,7 @@ def main():
     df_BS = make_dataframe_BS()
     df_all = df_all.merge(df_BS, how='right')
     df_all = calculate_columns(df_all)
-    df_all.to_csv(credentials.path_export_file)
+    df_all.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
         odsp.publish_ods_dataset_by_id('100167')
