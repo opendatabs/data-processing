@@ -1,5 +1,4 @@
 import pandas as pd
-import io
 from mkb_sammlung_europa import credentials
 import common
 import logging
