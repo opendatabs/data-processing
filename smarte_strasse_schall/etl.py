@@ -21,8 +21,8 @@ def push_vehicles(auth):
     # end = now.isoformat()
     # start = (now - datetime.timedelta(hours=6)).isoformat()
     url = credentials.url + 'api/vehicle-detections'
-    params = {'sort': 'timestamp', 'order': 'desc',  'size': '10000'}
-    logging.info(f'Querying PAI using url {url} with parameters {params}...')
+    params = {'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    logging.info(f'Querying API using url {url} with parameters {params}...')
     # r = common.requests_get(url=url, params={'start_time': start, 'size': '10000'}, auth=auth)
     r = common.requests_get(url=url, params=params, auth=auth)
     r.raise_for_status()
