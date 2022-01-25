@@ -5,6 +5,7 @@ from common import change_tracking as ct
 import pandas as pd
 import common
 import urllib3
+import numpy as np
 from smarte_strasse_luft import credentials
 
 
@@ -18,19 +19,20 @@ def main():
     df = df.reset_index(drop=True)
     df = df.rename(columns={
         'Anfangszeit_Unnamed: 0_level_1_Unnamed: 0_level_2_Unnamed: 0_level_3_Unnamed: 0_level_4': 'Anfangszeit',
-        'bl_Gundeldingerstrasse107_NO2_NO2_Sensiriron_min30_µg/m3': 'G107_NO2',
+        'bl_Gundeldingerstrasse107_NO2_NO2_Sensirion_min30_µg/m3': 'G107_NO2',
         'bl_Gundeldingerstrasse107_O3_O3_Sensirion_min30_µg/m3': 'G107_03',
         'bl_Gundeldingerstrasse107_PM2.5_PM25_Sensirion_min30_ug/m3': 'G107_PM25',
-        'bl_Gundeldingerstrasse125_NO2_NO2_Sensiriron_min30_µg/m3': 'G125_NO2',
+        'bl_Gundeldingerstrasse125_NO2_NO2_Sensirion_min30_µg/m3': 'G125_NO2',
         'bl_Gundeldingerstrasse125_O3_O3_Sensirion_min30_µg/m3': 'G125_O3',
         'bl_Gundeldingerstrasse125_PM2.5_PM25_Sensirion_min30_ug/m3': 'G125_PM25',
-        'bl_Gundeldingerstrasse131_NO2_NO2_Sensiriron_min30_µg/m3': 'G131_NO2',
+        'bl_Gundeldingerstrasse131_NO2_NO2_Sensirion_min30_µg/m3': 'G131_NO2',
         'bl_Gundeldingerstrasse131_O3_O3_Sensirion_min30_µg/m3': 'G131_O3',
         'bl_Gundeldingerstrasse131_PM2.5_PM25_Sensirion_min30_ug/m3': 'G131_PM25'
     })
 
     print(f'Calculating ISO8601 time string...')
     df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
+    df = df.replace(' ', np.nan).dropna(thresh=3).reset_index(drop=True)
     row_count = len(df)
     if row_count == 0:
         print(f'No rows to push to ODS... ')
