@@ -43,8 +43,8 @@ def find_missing_values(df):
 
 # extract irrelevant text in Datierung using Hackathon file
 def remove_irrelevant(df_MKB):
-    new_file = "MKB_Sammlung_Europa_GLAMhack2021_Data_FINAL_ab_1990_(IV_6526)_einlieferer_zensiert.csv"
-    df_new = pd.read_csv(new_file)
+    path = credentials.path_hackathon
+    df_new = common.pandas_read_csv(path)
     text_to_remove = list(df_new["Datierung_Info"].unique())
 
     # after inspection remove some items from list that should stay
