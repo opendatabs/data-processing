@@ -5,6 +5,7 @@ from common import change_tracking as ct
 import pandas as pd
 import common
 import urllib3
+import numpy as np
 from smarte_strasse_luft import credentials
 
 
@@ -31,6 +32,7 @@ def main():
 
     print(f'Calculating ISO8601 time string...')
     df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
+    df = df.replace(' ', np.nan).dropna(thresh=3).reset_index(drop=True)
     row_count = len(df)
     if row_count == 0:
         print(f'No rows to push to ODS... ')
