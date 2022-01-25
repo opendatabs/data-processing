@@ -25,7 +25,7 @@ def main():
     df_MKB.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
-                          credentials.ftp_pass, 'MKB/sammlung_europa')
+                          credentials.ftp_pass, 'mkb/sammlung_europa')
         odsp.publish_ods_dataset_by_id('100148')
         ct.update_hash_file(credentials.path_export_file)
     logging.info('Job successful!')
