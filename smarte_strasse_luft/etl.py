@@ -18,13 +18,13 @@ def main():
     df = df.reset_index(drop=True)
     df = df.rename(columns={
         'Anfangszeit_Unnamed: 0_level_1_Unnamed: 0_level_2_Unnamed: 0_level_3_Unnamed: 0_level_4': 'Anfangszeit',
-        'bl_Gundeldingerstrasse107_NO2_NO2_Sensiriron_min30_µg/m3': 'G107_NO2',
+        'bl_Gundeldingerstrasse107_NO2_NO2_Sensirion_min30_µg/m3': 'G107_NO2',
         'bl_Gundeldingerstrasse107_O3_O3_Sensirion_min30_µg/m3': 'G107_03',
         'bl_Gundeldingerstrasse107_PM2.5_PM25_Sensirion_min30_ug/m3': 'G107_PM25',
-        'bl_Gundeldingerstrasse125_NO2_NO2_Sensiriron_min30_µg/m3': 'G125_NO2',
+        'bl_Gundeldingerstrasse125_NO2_NO2_Sensirion_min30_µg/m3': 'G125_NO2',
         'bl_Gundeldingerstrasse125_O3_O3_Sensirion_min30_µg/m3': 'G125_O3',
         'bl_Gundeldingerstrasse125_PM2.5_PM25_Sensirion_min30_ug/m3': 'G125_PM25',
-        'bl_Gundeldingerstrasse131_NO2_NO2_Sensiriron_min30_µg/m3': 'G131_NO2',
+        'bl_Gundeldingerstrasse131_NO2_NO2_Sensirion_min30_µg/m3': 'G131_NO2',
         'bl_Gundeldingerstrasse131_O3_O3_Sensirion_min30_µg/m3': 'G131_O3',
         'bl_Gundeldingerstrasse131_PM2.5_PM25_Sensirion_min30_ug/m3': 'G131_PM25'
     })
