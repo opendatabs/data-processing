@@ -16,7 +16,7 @@ CMD ["/bin/bash", "/code/data-processing/mkb_sammlung_europa/etl.sh"]
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd mkb_sammlung_europa
-# docker build -t gd_coronavirus_abwassermonitoring --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
+# docker build -t mkb_sammlung_europa --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing -v "//bs.ch/dfs/BS/PD/PD-StatA-FST-OGD-DataExch/PD-Kultur-MKB":/code/data-processing/mkb_sammlung_europa/data  --name mkb_sammlung_europa mkb_sammlung_europa
 
