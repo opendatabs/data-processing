@@ -24,6 +24,23 @@ def load_data(df_export):
     # export_file = os.path.join(credentials.data_path, f'charges_{date.today()}.csv')
     # df_export.to_csv(export_file, index=False)
     # common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'smarte_strasse/elektroauto-ladestation/charges')
+    #
+    # {
+    #     "startTime": "2022-01-17T20:08:21+02:00",
+    #     "stopTime": "2022-01-18T08:42:20+02:00",
+    #     "duration": 754,
+    #     "wattHour": 37410,
+    #     "connectorId": 2,
+    #     "station.location.coordinates.lat": 47.54177,
+    #     "station.location.coordinates.lng": 7.5880887,
+    #     "kiloWattHour": 37.41,
+    #     "station.capacity": 22,
+    #     "station.connectorType": 2,
+    #     "startTimeText": "2022-01-17T20:08:21+02:00",
+    #     "stopTimeText": "2022-01-18T08:42:20+02:00",
+    #     "station.location": "47.54177,7.5880887"
+    # }
+
     df_export_json = df_export.to_json(orient="records")
     logging.info(f'Pushing {df_export.shape[0]} rows to ods realtime API...')
     r = common.requests_post(url=credentials.ods_push_api_url, params={'apikey': credentials.ods_api_key}, data=df_export_json)
@@ -33,6 +50,7 @@ def load_data(df_export):
 def transform_data(df):
     logging.info(f'Transforming data for export...')
     df_export = df[['startTime', 'stopTime', 'duration', 'wattHour', 'connectorId', 'station.location.coordinates.lat', 'station.location.coordinates.lng']].copy(deep=True)
+    df_export['kiloWattHour'] = df_export['wattHour'] / 1000
     df_export['station.capacity'] = 22
     df_export['station.connectorType'] = 2
     df_export['startTimeText'] = df_export.startTime
