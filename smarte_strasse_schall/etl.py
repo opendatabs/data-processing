@@ -21,8 +21,8 @@ def push_vehicles(auth):
     # end = now.isoformat()
     # start = (now - datetime.timedelta(hours=6)).isoformat()
     url = credentials.url + 'api/vehicle-detections'
-    params = {'sort': 'timestamp', 'order': 'desc',  'size': '10000'}
-    logging.info(f'Querying PAI using url {url} with parameters {params}...')
+    params = {'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    logging.info(f'Querying API using url {url} with parameters {params}...')
     # r = common.requests_get(url=url, params={'start_time': start, 'size': '10000'}, auth=auth)
     r = common.requests_get(url=url, params=params, auth=auth)
     r.raise_for_status()
@@ -49,13 +49,38 @@ def push_sound_levels(auth):
     now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     end = now.isoformat()
     start = (now - datetime.timedelta(hours=6)).isoformat()
-    r = common.requests_get(url=credentials.url + 'api/sound-levels', auth=auth, params={'start_time': start, 'size': '10000'})
+
+    # r = common.requests_get(url=credentials.url + 'api/sound-levels', auth=auth, params={'start_time': start, 'size': '10000'})
     # r = common.requests_get(url=credentials.url + 'api/sound-levels/aggs/avg', auth=auth, params={'start_time': start, 'size': '10000'})
+
+    # agg_type=avg does not seem to be used, despite being mentioned in the documentation
+    # r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?agg_type=avg&size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:15:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
+
+    # with the following query I get the data we need, but only the raw values every 2.5 s, and only over a short time interval (not the interval defined in the url).
+    r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:05:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
     r.raise_for_status()
     json = r.json()
-    df = pd.json_normalize(json, record_path='results')
-    df_sound_levels = ''
-    pass
+    df = pd.json_normalize(json['results'], record_path='levels', meta='timestamp')
+    return df
+
+    # manually querying all center_freq values seems to always retrieve the same value for each timestamp...!?
+    # center_freqs = [25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000]
+    # dfs = []
+    # for center_freq in center_freqs:
+    #     r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg?field=level&timespan=15m&center_freq={center_freq}', auth=auth, params={'start_time': start, 'size': '10000'})
+    #     r.raise_for_status()
+    #     json = r.json()
+    #     df = pd.json_normalize(json, record_path='results').assign(center_freq = center_freq)
+    #     dfs.append(df)
+    # # df_all = pd.concat([df.set_index('timestamp') for df in dfs], axis=1, join='outer').reset_index()
+    # df_all = pd.concat(dfs, ignore_index=True)
+    # r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg?field=level&timespan=15m', auth=auth, params={'start_time': start, 'size': '10000'})
+    # r.raise_for_status()
+    # json = r.json()
+    # df = pd.json_normalize(json, record_path='results').assign(center_freq=0)
+    # df_all = df_all.append(df)
+    # df_pivot = df_all.pivot_table(columns=['center_freq'], values=['value'], index=['timestamp'])
+    # return df
 
 
 if __name__ == "__main__":

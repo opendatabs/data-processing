@@ -30,7 +30,8 @@ def extract():
     # extract necessary info from the login form
     login_form_url = credentials.hosp_domain + credentials.hosp_url_path
     logging.info(f'Getting content of login form at {login_form_url}...')
-    resp_loginform = session.get(login_form_url)
+    resp_loginform = session.get(login_form_url, timeout=10)
+    resp_loginform.raise_for_status()
     soup_login = BeautifulSoup(resp_loginform.content, 'html.parser')
     # logging.info(soup_login.prettify())
     action_url = soup_login.find('form').get('action')
@@ -45,7 +46,8 @@ def extract():
                    password=credentials.hosp_password,
                    csrfmiddlewaretoken=token,
                    next=next_url)
-    req_spital_bs = session.post(login_form_action_url, data=payload, headers=dict(Referer=login_form_url))
+    req_spital_bs = session.post(login_form_action_url, data=payload, headers=dict(Referer=login_form_url), timeout=10)
+    req_spital_bs.raise_for_status()
     soup_spital_bs = BeautifulSoup(req_spital_bs.content, 'html.parser')
     # logging.info(soup_spital_bs.prettify())
     for data_spec in credentials.hosp_data_files:
