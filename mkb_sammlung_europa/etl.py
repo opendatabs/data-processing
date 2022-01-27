@@ -117,12 +117,9 @@ def join_duplicates(df_MKB):
 
     # first remove all duplicates
     df_MKB_without_duplicates = df_MKB.drop(index_duplicates)
-    print(df_MKB_without_duplicates.info())
     # split duplicates into two dataframes
     list_inventar_duplicates_1 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep='first')].reset_index()
-    print("duplicates1: ", list_inventar_duplicates_1.info(), list_inventar_duplicates_1)
     list_inventar_duplicates_2 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep='last')].reset_index()
-    print("duplicates2: ", list_inventar_duplicates_2.info(), list_inventar_duplicates_2)
     # make dataframe with one entry for each duplicate, with two different entries for Herkunft separated by a comma
     df_duplicates = list_inventar_duplicates_1[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung", \
                      "Material & Technik", "Masse", "Einlauf-Info"]]
