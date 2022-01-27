@@ -110,6 +110,9 @@ def calculate_columns(df):
     df["pos_rate_BS+BL"] = (df["pos_rate_BL"] * pop_BL + df["positivity_rate_percent"] * pop_BS)/(pop_BS + pop_BL)
     df["isolierte_BS+BL"] = df["Anz_Iso_BL"] + df["current_isolated"]
     df["Ratio_Isolierte/daily_cases"] = df["isolierte_BS+BL"]/df["daily_cases_BS+BL"]
+    df["7t_median_BL"] = df["Anz_pos_BL"].rolling(window=7).median()
+    df["7t_median_BS"] = df["faelle_bs"].rolling(window=7).median()
+    df["7t_median_BS+BL"] = df["daily_cases_BS+BL"].rolling(window=7).median()
     return df
 
 if __name__ == "__main__":
