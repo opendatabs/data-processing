@@ -15,6 +15,8 @@ def main():
     df_MKB[['Kurzbezeichnung', 'Titel']] = df_MKB['Kurzbezeichnung und Titel'].str.split(':', expand=True, n=1)
     # split off Einlaufnummer from Einlauf-Info
     df_MKB[['Einlaufnummer', 'Einlauf-Info']] = df_MKB['Einlauf-Info'].str.split(',', expand=True, n=1)
+    # remove Einlaufnummern VI_0000.1, VI_0000.2
+    df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
     df_MKB = df_MKB[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung", \
                      "Material & Technik", "Masse", "Herkunft", "Einlauf-Info"]]
@@ -35,10 +37,20 @@ def remove_commas_at_end(df):
         df[column] = df[column].str.rstrip(', ')
     return df
 
+
 def find_missing_values(df):
     for column in list(df.columns):
         missing = pd.isnull(df[column]).sum()
         print("there are " + str(missing) + " missing in the column " + column)
+
+
+# remove Einlaufnummern VI_0000.1, VI_0000.2
+def remove_einlaufnummern(df):
+    df1 = df[df["Einlaufnummer"] == 'VI_0000.1']
+    df2 = df[df["Einlaufnummer"] == 'VI_0000.2']
+    df_without_df1 = df.drop(df1.index)
+    df_without_df1_df2 = df_without_df1.drop(df2.index)
+    return df_without_df1_df2
 
 
 # extract irrelevant text in Datierung using Hackathon file
