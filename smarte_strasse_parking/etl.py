@@ -18,9 +18,25 @@ def get_current_state_date():
     r = common.requests_get(credentials.api1_url, auth=HTTPBasicAuth(credentials.api1_user, credentials.api1_pw))
     r.raise_for_status()
     json = r.json()
+
+    # showcase data
     df = pd.json_normalize(r.json(), record_path='attributes', meta=['id', 'type'], sep='_')
     df['id'] = df.id.astype(int)
     df_curr = df[['id', 'value_updated', 'value_label']]
+
+    # 1 row per spot
+    # headers = {'Authorization': f'Bearer {credentials.api3_token}'}
+    # r = common.requests_get(credentials.api3_url, headers=headers)
+    # r.raise_for_status()
+    # json = r.json()
+    # df = pd.json_normalize(json, record_path='spots', meta='latest_timestamp')
+    # df['id'] = df.id.astype(int)
+    # df_curr = df[['id', 'occupied', 'status']]
+
+    # 1 row in total
+    # df = pd.json_normalize(json)
+    # df_curr = df[['latest_timestamp', 'statistics.total.total_spots', 'statistics.total.occupied_spots', 'statistics.total.available_spots']]
+
     return df_curr
 
 
