@@ -110,7 +110,7 @@ def add_value_id(df, date):
                 value_id = tag["id"].replace('form-', '')
                 df.loc[hospital, data_name + " value_id"] = value_id
             else:
-                logging.WARNING(f"No tag for {data_name} and {data_time} present!")
+                logging.warning(f"No tag for {data_name} and {data_time} present!")
     browser.close()
     return df
 
