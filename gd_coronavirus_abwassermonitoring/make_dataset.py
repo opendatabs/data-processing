@@ -27,9 +27,63 @@ def main():
     df_all.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
-        odsp.publish_ods_dataset_by_id('100167')
+#        odsp.publish_ods_dataset_by_id('100167')
         ct.update_hash_file(credentials.path_export_file)
     logging.info('Job successful!')
+    payload = df_all.to_json(orient="records")
+    # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
+    # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
+    push_url = credentials.ods_live_realtime_push_url
+    push_key = credentials.ods_live_realtime_push_key
+
+    r = common.requests_post(url=push_url, data=payload,
+                             params={'pushkey': push_key})
+    r.raise_for_status()
+
+
+#print(f'Pushing {row_count} rows to ODS realtime API...')
+
+
+# Realtime API bootstrap data:
+# {
+#     "datum": "2021-07-11",
+#     "ba_nr": "Ba210336",
+#     "mean_e_n1_n2_qty_l_ww": "0.5",
+#     "7_tagemedian_of_e_n1_n2_mean": "0.5",
+#     "n1_n2_e_normalized_pmmov": "0.5",
+#     "7_tagemedian_of_pmmov_normalized_data": "0.5",
+#     "e_n1_n2_pro_tag_und_100_000_pers_prorheno_260_449_einw": "0.5",
+#     "7_tagemedian_of_e_n1_n2_pro_tag_100_000_pers": "0.5",
+#     "anz_neg_bl": "1",
+#     "anz_pos_bl": "1",
+#     "anz_hosp_bl": "1",
+#     "anz_icu_bl": "1",
+#     "anz_death_bl": "1",
+#     "anz_iso_bl": "1",
+#     "faelle_bs": "1",
+#     "inzidenz07_bs": "0.5",
+#     "current_isolated": "1",
+#     "current_hosp": "1",
+#     "current_icu": "1",
+#     "ndiff_deceased": "1",
+#     "positivity_rate_percent": "0.5",
+#     "median_r_mean": "0.5",
+#     "pos_rate_bl": "0.5",
+#     "sum_7t_bl": "1",
+#     "7t_inz_bl": "0.5",
+#     "daily_cases_bs_bl": "1",
+#     "hospitalized_bs_bl": "1",
+#     "ic_bs_bl": "1",
+#     "death_bs_bl": "1",
+#     "7t_inz_bs_bl": "0.5",
+#     "pos_rate_bs_bl": "0.5",
+#     "isolierte_bs_bl": "1",
+#     "ratio_isolierte_daily_cases": "0.5",
+#     "7t_median_bl": "0.5",
+#     "7t_median_bs": "0.5",
+#     "7t_median_bs_bl": "0.5"
+# }
+
 
 
 def make_column_dt(df, column):
