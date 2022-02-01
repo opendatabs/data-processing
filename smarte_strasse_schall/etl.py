@@ -17,18 +17,22 @@ def main():
 
 
 def push_vehicles(auth):
-    # now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # end = now.isoformat()
-    # start = (now - datetime.timedelta(hours=6)).isoformat()
-    url = credentials.url + 'api/vehicle-detections'
-    params = {'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    start = (now - datetime.timedelta(hours=3)).isoformat()
+    url = credentials.url + 'api/detections2'
+    params = {'start_time': start, 'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
     logging.info(f'Querying API using url {url} with parameters {params}...')
-    # r = common.requests_get(url=url, params={'start_time': start, 'size': '10000'}, auth=auth)
     r = common.requests_get(url=url, params=params, auth=auth)
     r.raise_for_status()
     json = r.json()
     df = pd.json_normalize(json, record_path='results')
-    df_vehicles = df[['localDateTime', 'classification']].copy(deep=True)
+    df_classifications = pd.DataFrame.from_dict({
+        'classificationIndex': [-1, 0, 1, 2, 3],
+        'classification': ['Unknown', 'Car', 'Bicycle / Motorbike', 'Truck / Bus', 'Van / Suv']
+    })
+    df_class = df.merge(df_classifications, on='classificationIndex', how='left')
+    df_vehicles = df_class[['localDateTime', 'classificationIndex', 'classification']].copy(deep=True)
     # todo: Retrieve real values for speed and sound level as soon as API provides them
     df_vehicles['speed'] = numpy.NAN
     df_vehicles['level'] = numpy.NAN
@@ -36,7 +40,8 @@ def push_vehicles(auth):
     common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url, credentials.ods_push_key, credentials.ods_api_key)
     # {
     #     "localDateTime": "2022-01-19T08:17:13.896+01:00",
-    #     "classification": "UNKNOWN",
+    #     "classificationIndex": -1,
+    #     "classification": "Unknown",
     #     "timestamp_text": "2022-01-19T08:17:13.896+01:00",
     #     "speed": 49.9,
     #     "level": 50.1
