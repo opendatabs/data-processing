@@ -8,7 +8,7 @@ from smarte_strasse_parking import credentials
 
 def main():
     df1 = get_current_state_date()
-    common.ods_realtime_push_df(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr, api_key=credentials.ods_api_key)
+    common.ods_realtime_push_df(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
     push_timeseries_data(df=df1, min_time_delta_minutes=60, url=credentials.ods_realtime_push_url_hist, push_key=credentials.ods_realtime_push_key_hist, api_key=credentials.ods_api_key)
     logging.info(f'Job successful!')
 
@@ -60,7 +60,7 @@ def push_timeseries_data(df, min_time_delta_minutes, url, push_key, api_key):
         #     "value_updated": "2022-01-14T08:44:56.000Z",
         #     "value_label": "1"
         # }
-        common.ods_realtime_push_df(df, url, push_key, api_key)
+        common.ods_realtime_push_df(df, url, push_key)
     else:
         logging.info(f"It's not time yet to push into time series dataset (minutes since last entry: {delta_minutes}).")
 

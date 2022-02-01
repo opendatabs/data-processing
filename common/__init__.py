@@ -209,7 +209,7 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
     return embargo_over
 
 
-def ods_realtime_push_df(df, url, push_key, api_key):
+def ods_realtime_push_df(df, url, push_key):
     row_count = len(df)
     if row_count == 0:
         print(f'No rows to push to ODS... ')
@@ -224,5 +224,5 @@ def ods_realtime_push_df(df, url, push_key, api_key):
         payload = df.to_json(orient="records")
         # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        r = requests_post(url=url, data=payload, params={'pushkey': push_key, 'apikey': api_key})
+        r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()

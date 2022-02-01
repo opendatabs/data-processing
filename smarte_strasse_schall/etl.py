@@ -37,7 +37,7 @@ def push_vehicles(auth):
     df_vehicles['speed'] = numpy.NAN
     df_vehicles['level'] = numpy.NAN
     df_vehicles['timestamp_text'] = df_vehicles.localDateTime
-    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url, credentials.ods_push_key, credentials.ods_api_key)
+    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url, credentials.ods_push_key)
     # {
     #     "localDateTime": "2022-01-19T08:17:13.896+01:00",
     #     "classificationIndex": -1,
