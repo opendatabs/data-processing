@@ -62,7 +62,10 @@ def push_sound_levels(auth):
     # r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?agg_type=avg&size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:15:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
 
     # with the following query I get the data we need, but only the raw values every 2.5 s, and only over a short time interval (not the interval defined in the url).
-    r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:05:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
+    # r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:05:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
+
+    # GET /api/sound-levels/aggs/avg?timespan=5m&filter=deviceId:00000000XXXX&start_time=2022-02-01T14:00:00.000Z
+    r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg?timespan=5m&filter=deviceId:{credentials.device_id}&start_time=2022-02-01T14:00:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
     r.raise_for_status()
     json = r.json()
     df = pd.json_normalize(json['results'], record_path='levels', meta='timestamp')
