@@ -14,7 +14,7 @@ def main():
     auth = HTTPBasicAuth(credentials.username, credentials.password)
     df_vehicles = push_vehicles(auth)
     df_sound_levels = push_noise_levels(auth)
-    df_vehicles = push_vehicle_speed_level(auth)
+    df_vehicles_speed = push_vehicle_speed_level(auth)
     pass
 
 
@@ -47,7 +47,8 @@ def push_vehicle_speed_level(auth):
     logging.info(f'Starting process to update vehicles with speed and noise level dataset...')
     now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # If the dataset is empty, set a default start timestampt for the api call
-    start = (now - datetime.timedelta(hours=37)).isoformat()
+    # start = (now - datetime.timedelta(hours=37)).isoformat()
+    start = '2022-02-01T00:00:00.000000+01:00'
     end = now.isoformat()
     logging.info(f'Checking timestamp of latest entry ods...')
     latest_data_url = f'https://data.bs.ch/api/records/1.0/search/?dataset=100175&q=&rows=1&sort=localdatetime_interval_end&apikey={credentials.ods_api_key}'
@@ -66,14 +67,17 @@ def push_vehicle_speed_level(auth):
     n = 5
     df5 = df_reorder.iloc[::n, :]
     df_merged = df_reorder.merge(right=df5, how='left', left_index=True, right_index=True, suffixes=(None, '_start'))
-    # Calculate start and end timestamp of each interval of n vehicles
+    logging.info(f'Calculating start and end timestamp of each interval of {n} vehicles...')
     df_merged['localDateTime_interval_end'] = df_merged.localDateTime_start.shift(-1)
     df_merged['localDateTime_interval_start'] = df_merged.localDateTime_start.fillna(method='ffill')
     df_merged['localDateTime_interval_end'] = df_merged.localDateTime_interval_end.fillna(method='bfill')
     logging.info(f"Removing last interval in which we don't have {n} vehicles yet..")
     df_merged = df_merged.dropna(subset=['localDateTime_interval_end'])
-    df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'classificationIndex', 'classification', 'level', 'speed']].copy(deep=True)
-    df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'classificationIndex', 'classification', 'level', 'speed']].copy(deep=True)
+    logging.info(f'Calculating interval length...')
+    df_merged['interval_length_seconds'] = (pd.to_datetime(df_merged.localDateTime_interval_end) - pd.to_datetime(df_merged.localDateTime_interval_start)).dt.total_seconds()
+    df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds']].copy(deep=True)
+    df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds']].copy(deep=True)
+
     df_vehicles['localDateTime_interval_start_text'] = df_vehicles.localDateTime_interval_start
     df_vehicles['localDateTime_interval_end_text'] = df_vehicles.localDateTime_interval_end
     # Random sorting within time interval
@@ -91,10 +95,9 @@ def push_vehicle_speed_level(auth):
     #     "vehicle_rand_number": 0,
     #     "localDateTime_interval_start": "2022-02-02T08:40:13.875+01:00",
     #     "localDateTime_interval_end": "2022-02-02T08:50:45.923+01:00",
-    #     "classificationIndex": 0,
-    #     "classification": "Car",
     #     "level": 30.0,
     #     "speed": 20.4,
+    #     "interval_length_seconds": 121.735,
     #     "localDateTime_interval_start_text": "2022-02-02T08:44:13.875+01:00",
     #     "localDateTime_interval_end_text": "2022-02-02T08:44:45.923+01:00"
     # }
