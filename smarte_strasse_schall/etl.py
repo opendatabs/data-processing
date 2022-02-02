@@ -3,6 +3,7 @@ import datetime
 from datetime import timezone
 from zoneinfo import ZoneInfo
 import numpy
+import numpy as np
 import pandas as pd
 import common
 from smarte_strasse_schall import credentials
@@ -13,6 +14,7 @@ def main():
     auth = HTTPBasicAuth(credentials.username, credentials.password)
     df_vehicles = push_vehicles(auth)
     df_sound_levels = push_noise_levels(auth)
+    df_vehicles = push_vehicle_speed_level(auth)
     pass
 
 
@@ -22,6 +24,80 @@ def push_vehicles(auth):
     start = (now - datetime.timedelta(hours=3)).isoformat()
     url = credentials.url + 'api/detections2'
     params = {'start_time': start, 'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    df_class = query_sensor_api(auth, params, url)
+    df_vehicles = df_class[['localDateTime', 'classificationIndex', 'classification']].copy(deep=True)
+    # todo: Retrieve real values for speed and sound level as soon as API provides them
+    df_vehicles['speed'] = numpy.NAN
+    df_vehicles['level'] = numpy.NAN
+    df_vehicles['timestamp_text'] = df_vehicles.localDateTime
+    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh, credentials.ods_push_key_veh)
+    # {
+    #     "localDateTime": "2022-01-19T08:17:13.896+01:00",
+    #     "classificationIndex": -1,
+    #     "classification": "Unknown",
+    #     "timestamp_text": "2022-01-19T08:17:13.896+01:00",
+    #     "speed": 49.9,
+    #     "level": 50.1
+    # }
+    return df_vehicles
+
+
+def push_vehicle_speed_level(auth):
+    now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    # If the dataset is empty, set a default start timestampt for the api call
+    start = (now - datetime.timedelta(hours=37)).isoformat()
+    end = now.isoformat()
+    logging.info(f'Checking timestamp of latest entry ods...')
+    latest_data_url = f'https://data.bs.ch/api/records/1.0/search/?dataset=100175&q=&rows=1&sort=localdatetime_interval_end&apikey={credentials.ods_api_key}'
+    r = common.requests_get(url=latest_data_url)
+    json = r.json()
+    results = len(json['records'])
+    if results > 0:
+        # start = (datetime.datetime.fromisoformat(json['records'][0]['fields']['localdatetime_interval_end_text']) - datetime.timedelta(milliseconds=1)).isoformat()
+        start = datetime.datetime.fromisoformat(json['records'][0]['fields']['localdatetime_interval_end_text']).isoformat()
+
+    url = credentials.url + 'api/detections2'
+    params = {'start_time': start, 'end_time': end, 'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    df_class = query_sensor_api(auth, params, url)
+    df_reorder = df_class.sort_values(by='localDateTime').reset_index(drop=True)
+    # select every 5th row,starting once from 0 and once from 1. See also https://stackoverflow.com/a/25057724
+    df5 = df_reorder.iloc[::5, :]
+    df_merged = df_reorder.merge(right=df5, how='left', left_index=True, right_index=True, suffixes=(None, '_start'))
+    # Calculate start and end timestamp of each interval of n vehicles
+    df_merged['localDateTime_interval_end'] = df_merged.localDateTime_start.shift(-1)
+    df_merged['localDateTime_interval_start'] = df_merged.localDateTime_start.fillna(method='ffill')
+    df_merged['localDateTime_interval_end'] = df_merged.localDateTime_interval_end.fillna(method='bfill')
+    # Remove last rows in which we don't have n vehicles yet
+    df_merged = df_merged.dropna(subset=['localDateTime_interval_end'])
+    df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'classificationIndex', 'classification', 'level', 'speed']].copy(deep=True)
+    df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'classificationIndex', 'classification', 'level', 'speed']].copy(deep=True)
+    df_vehicles['localDateTime_interval_start_text'] = df_vehicles.localDateTime_interval_start
+    df_vehicles['localDateTime_interval_end_text'] = df_vehicles.localDateTime_interval_end
+    # Random sorting within time interval
+    df_vehicles['random_number'] = np.random.randint(0, 10000, size=(len(df_vehicles), 1))
+    df_vehicles = (df_vehicles
+                   .sort_values(by=['localDateTime_interval_start', 'random_number'])
+                   .reset_index(drop=True)
+                   .drop(columns=['random_number'])
+                   )
+    df_vehicles['vehicle_rand_number'] = df_vehicles.index % 5
+    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh_speed, credentials.ods_push_key_veh_speed)
+    return df_vehicles
+
+    # {
+    #     "vehicle_rand_number": 0,
+    #     "localDateTime_interval_start": "2022-02-02T08:40:13.875+01:00",
+    #     "localDateTime_interval_end": "2022-02-02T08:50:45.923+01:00",
+    #     "classificationIndex": 0,
+    #     "classification": "Car",
+    #     "level": 30.0,
+    #     "speed": 20.4,
+    #     "localDateTime_interval_start_text": "2022-02-02T08:44:13.875+01:00",
+    #     "localDateTime_interval_end_text": "2022-02-02T08:44:45.923+01:00"
+    # }
+
+
+def query_sensor_api(auth, params, url):
     logging.info(f'Querying API using url {url} with parameters {params}...')
     r = common.requests_get(url=url, params=params, auth=auth)
     r.raise_for_status()
@@ -32,21 +108,8 @@ def push_vehicles(auth):
         'classification': ['Unknown', 'Car', 'Bicycle / Motorbike', 'Truck / Bus', 'Van / Suv']
     })
     df_class = df.merge(df_classifications, on='classificationIndex', how='left')
-    df_vehicles = df_class[['localDateTime', 'classificationIndex', 'classification']].copy(deep=True)
-    # todo: Retrieve real values for speed and sound level as soon as API provides them
-    df_vehicles['speed'] = numpy.NAN
-    df_vehicles['level'] = numpy.NAN
-    df_vehicles['timestamp_text'] = df_vehicles.localDateTime
-    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh1, credentials.ods_push_key_veh1)
-    # {
-    #     "localDateTime": "2022-01-19T08:17:13.896+01:00",
-    #     "classificationIndex": -1,
-    #     "classification": "Unknown",
-    #     "timestamp_text": "2022-01-19T08:17:13.896+01:00",
-    #     "speed": 49.9,
-    #     "level": 50.1
-    # }
-    return df_vehicles
+    logging.info(f'Received {len(df_class)} records from API...')
+    return df_class
 
 
 def push_noise_levels(auth):
