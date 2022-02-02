@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
-    from backports import zoneinfo
+    from backports import ZoneInfo
 
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
@@ -26,8 +26,8 @@ ftp_errors_to_handle = ftplib.error_temp, ftplib.error_perm, BrokenPipeError, Co
 def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
     """Retry calling the decorated function using an exponential backoff.
 
-    http://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
-    original from: http://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+    https://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
+    original from: https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
 
     :param ExceptionToCheck: the exception to check. may be a tuple of
         exceptions to check
@@ -68,17 +68,23 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_get(*args, **kwargs):
-    return requests.get(*args, **kwargs)
+    r = requests.get(*args, **kwargs)
+    r.raise_for_status()
+    return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_post(*args, **kwargs):
-    return requests.post(*args, **kwargs)
+    r = requests.post(*args, **kwargs)
+    r.raise_for_status()
+    return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_patch(*args, **kwargs):
-    return requests.patch(*args, **kwargs)
+    r = requests.patch(*args, **kwargs)
+    r.raise_for_status()
+    return r
 
 
 # Upload file to FTP Server
@@ -225,7 +231,7 @@ def ods_realtime_push_df(df, url, push_key):
         # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
         r = requests_post(url=url, data=payload, params={'pushkey': push_key})
-        r.raise_for_status()
+        return r
 
 
 def collapse_multilevel_column_names(df: pd.DataFrame, sep='_'):
