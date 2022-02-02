@@ -15,6 +15,7 @@ def main():
     df_vehicles = push_vehicles(auth)
     df_sound_levels = push_noise_levels(auth)
     df_vehicles_speed = push_vehicle_speed_level(auth)
+    logging.info(f'Job succcessful!')
     pass
 
 
