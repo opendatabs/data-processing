@@ -226,3 +226,9 @@ def ods_realtime_push_df(df, url, push_key):
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
         r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()
+
+
+def collapse_multilevel_column_names(df: pd.DataFrame, sep='_'):
+    # Replace the 2-level column names with a string that concatenates both strings
+    df.columns = [sep.join(str(c) for c in col) for col in df.columns.values]
+    return df
