@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
-    from backports import ZoneInfo
+    from backports import zoneinfo
 
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
