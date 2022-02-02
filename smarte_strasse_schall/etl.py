@@ -41,6 +41,7 @@ def push_vehicles(auth):
     #     "speed": 49.9,
     #     "level": 50.1
     # }
+    logging.info(f'That worked out successfully!')
     return df_vehicles
 
 
@@ -90,6 +91,7 @@ def push_vehicle_speed_level(auth):
                    )
     df_vehicles['vehicle_rand_number'] = df_vehicles.index % 5
     common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh_speed, credentials.ods_push_key_veh_speed)
+    logging.info(f'That worked out successfully!')
     return df_vehicles
 
     # {
@@ -136,6 +138,7 @@ def push_noise_levels(auth):
     df_pivot = df_pivot.rename(columns={'timestamp_': 'timestamp', 'general_level_': 'general_level'})
     df_pivot['timestamp_text'] = df_pivot.timestamp
     common.ods_realtime_push_df(df_pivot, credentials.ods_dataset_url_noise, credentials.ods_push_key_noise)
+    logging.info(f'That worked out successfully!')
     return df_pivot
 
 # {
