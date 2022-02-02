@@ -16,7 +16,6 @@ def main():
 def get_current_state_date():
     logging.info(f'Retrieving current state data from API...')
     r = common.requests_get(credentials.api1_url, auth=HTTPBasicAuth(credentials.api1_user, credentials.api1_pw))
-    r.raise_for_status()
     json = r.json()
 
     # showcase data
@@ -27,7 +26,6 @@ def get_current_state_date():
     # 1 row per spot
     # headers = {'Authorization': f'Bearer {credentials.api3_token}'}
     # r = common.requests_get(credentials.api3_url, headers=headers)
-    # r.raise_for_status()
     # json = r.json()
     # df = pd.json_normalize(json, record_path='spots', meta='latest_timestamp')
     # df['id'] = df.id.astype(int)
@@ -44,7 +42,6 @@ def push_timeseries_data(df, min_time_delta_minutes, url, push_key, api_key):
     logging.info(f'Checking timestamp of latest entry in time series...')
     latest_data_url = f'https://data.bs.ch/api/records/1.0/search/?dataset=100171&q=&rows=1&sort=-value_updated&apikey={api_key}'
     r = common.requests_get(url=latest_data_url)
-    r.raise_for_status()
     json = r.json()
     results = len(json['records'])
     delta_minutes = -1
@@ -73,7 +70,6 @@ def push_timeseries_data(df, min_time_delta_minutes, url, push_key, api_key):
 #     start = (now - datetime.timedelta(days=7)).strftime('%Y%m%d%H%M')
 #     headers = {'Authorization': f'Bearer {credentials.api2_token}'}
 #     r = common.requests_get(credentials.api2_url, params={'timezone': 'Europe/Zurich', 'starts': start, 'ends': end}, headers=headers)
-#     r.raise_for_status()
 #     json = r.json()
 #     df = pd.json_normalize(r.json(), record_path='data')
 #     df['id'] = df.name.astype(int)
@@ -93,7 +89,6 @@ def push_timeseries_data(df, min_time_delta_minutes, url, push_key, api_key):
 #         # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
 #         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
 #         r = common.requests_post(url=credentials.ods_realtime_push_url_hist, data=payload, params={'pushkey': credentials.ods_realtime_push_key_curr, 'apikey': credentials.ods_api_key})
-#         r.raise_for_status()
 #     return df_hist
 
 
