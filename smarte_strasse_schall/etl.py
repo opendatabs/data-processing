@@ -19,6 +19,7 @@ def main():
 
 
 def push_vehicles(auth):
+    logging.info(f'Starting process to update vehicles dataset...')
     now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # end = now.isoformat()
     start = (now - datetime.timedelta(hours=3)).isoformat()
@@ -43,6 +44,7 @@ def push_vehicles(auth):
 
 
 def push_vehicle_speed_level(auth):
+    logging.info(f'Starting process to update vehicles with speed and noise level dataset...')
     now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # If the dataset is empty, set a default start timestampt for the api call
     start = (now - datetime.timedelta(hours=37)).isoformat()
@@ -113,6 +115,7 @@ def query_sensor_api(auth, params, url):
 
 
 def push_noise_levels(auth):
+    logging.info(f'Starting process to update noise level dataset...')
     now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # end = now.isoformat()
     # datetime needed in military "Zulu" notation using %Z
