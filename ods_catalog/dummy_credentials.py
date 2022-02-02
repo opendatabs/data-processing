@@ -1,12 +1,4 @@
-api_key = 'dummy_ods_api_key'
-proxy = 'https://USER:PASSWORD@PROXYSERVER:PORT/'
 ods_user = 'USERNAME@BS.CH'
 ods_password = 'PASSWORD'
-
-ftp_server = 'FTP.EXAMPLE.COM'
-ftp_user = 'USER@DOMAIN@SERVER'
-ftp_pass = 'PASSWORD'
-ftp_path = 'SOME_PATH'
-
-path = 'SOME/PATH'
-filename = 'FILENAME.csv'
+ods_push_url = 'https://data.bs.ch/api/push/1.0/100057/echtzeit/push/'
+ods_push_key = 'XYZ'
