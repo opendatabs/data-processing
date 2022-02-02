@@ -63,13 +63,14 @@ def push_vehicle_speed_level(auth):
     df_class = query_sensor_api(auth, params, url)
     df_reorder = df_class.sort_values(by='localDateTime').reset_index(drop=True)
     # select every 5th row,starting once from 0 and once from 1. See also https://stackoverflow.com/a/25057724
-    df5 = df_reorder.iloc[::5, :]
+    n = 5
+    df5 = df_reorder.iloc[::n, :]
     df_merged = df_reorder.merge(right=df5, how='left', left_index=True, right_index=True, suffixes=(None, '_start'))
     # Calculate start and end timestamp of each interval of n vehicles
     df_merged['localDateTime_interval_end'] = df_merged.localDateTime_start.shift(-1)
     df_merged['localDateTime_interval_start'] = df_merged.localDateTime_start.fillna(method='ffill')
     df_merged['localDateTime_interval_end'] = df_merged.localDateTime_interval_end.fillna(method='bfill')
-    # Remove last rows in which we don't have n vehicles yet
+    logging.info(f"Removing last interval in which we don't have {n} vehicles yet..")
     df_merged = df_merged.dropna(subset=['localDateTime_interval_end'])
     df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'classificationIndex', 'classification', 'level', 'speed']].copy(deep=True)
     df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'classificationIndex', 'classification', 'level', 'speed']].copy(deep=True)
