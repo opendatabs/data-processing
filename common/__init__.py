@@ -211,7 +211,11 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
     return embargo_over
 
 
-def ods_realtime_push_df(df, url, push_key):
+def ods_realtime_push_df(df, url, push_key=''):
+    if not push_key:
+        t = url.partition('?pushkey=')
+        url = t[0]
+        push_key = t[2]
     row_count = len(df)
     if row_count == 0:
         print(f'No rows to push to ODS... ')
