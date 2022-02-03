@@ -10,6 +10,7 @@ def main():
     df1 = get_current_state_date()
     # {"timestamp":"2022-02-03T16:43:09+00:00","Blue_occupied":4,"Yellow_occupied":2,"Blue_available":0,"Yellow_available":0,"Blue_total":4,"Yellow_total":2,"timestamp_text":"2022-02-03T16:43:09+00:00"}
     common.ods_realtime_push_df(df1, url=credentials.ods_push_url)
+    # todo: Save csv file
 
     # common.ods_realtime_push_df(df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
     # common.ods_realtime_push_df(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
