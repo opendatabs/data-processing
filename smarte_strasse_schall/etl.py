@@ -65,10 +65,10 @@ def push_vehicle_speed_level(auth):
     params = {'start_time': start, 'end_time': end, 'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
     df_class = query_sensor_api(auth, params, url)
     df_reorder = df_class.sort_values(by='localDateTime').reset_index(drop=True)
-    # select every 5th row,starting once from 0 and once from 1. See also https://stackoverflow.com/a/25057724
-    n = 5
-    df5 = df_reorder.iloc[::n, :]
-    df_merged = df_reorder.merge(right=df5, how='left', left_index=True, right_index=True, suffixes=(None, '_start'))
+    # select every nth row,starting once from 0 and once from 1. See also https://stackoverflow.com/a/25057724
+    n = 20
+    dfn = df_reorder.iloc[::n, :]
+    df_merged = df_reorder.merge(right=dfn, how='left', left_index=True, right_index=True, suffixes=(None, '_start'))
     logging.info(f'Calculating start and end timestamp of each interval of {n} vehicles...')
     df_merged['localDateTime_interval_end'] = df_merged.localDateTime_start.shift(-1)
     df_merged['localDateTime_interval_start'] = df_merged.localDateTime_start.fillna(method='ffill')
@@ -90,7 +90,7 @@ def push_vehicle_speed_level(auth):
                    .reset_index(drop=True)
                    .drop(columns=['random_number'])
                    )
-    df_vehicles['vehicle_rand_number'] = df_vehicles.index % 5
+    df_vehicles['vehicle_rand_number'] = df_vehicles.index % n
     common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh_speed, credentials.ods_push_key_veh_speed)
     logging.info(f'That worked out successfully!')
     return df_vehicles
