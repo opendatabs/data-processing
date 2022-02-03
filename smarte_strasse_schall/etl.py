@@ -77,8 +77,9 @@ def push_vehicle_speed_level(auth):
     df_merged = df_merged.dropna(subset=['localDateTime_interval_end'])
     logging.info(f'Calculating interval length...')
     df_merged['interval_length_seconds'] = (pd.to_datetime(df_merged.localDateTime_interval_end) - pd.to_datetime(df_merged.localDateTime_interval_start)).dt.total_seconds()
-    df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds']].copy(deep=True)
-    df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds']].copy(deep=True)
+    df_merged['interval_length_string'] = pd.to_datetime(df_merged['interval_length_seconds'], unit='s').dt.strftime("%H:%M:%S.%f")
+    df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds', 'interval_length_string']].copy(deep=True)
+    df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds', 'interval_length_string']].copy(deep=True)
 
     df_vehicles['localDateTime_interval_start_text'] = df_vehicles.localDateTime_interval_start
     df_vehicles['localDateTime_interval_end_text'] = df_vehicles.localDateTime_interval_end
@@ -101,8 +102,9 @@ def push_vehicle_speed_level(auth):
     #     "level": 30.0,
     #     "speed": 20.4,
     #     "interval_length_seconds": 121.735,
+    #     "interval_length_string": "00:00:45.963000",
     #     "localDateTime_interval_start_text": "2022-02-02T08:44:13.875+01:00",
-    #     "localDateTime_interval_end_text": "2022-02-02T08:44:45.923+01:00"
+    #     "localDateTime_interval_end_text": "2022-02-02T08:44:45.923+01:00",
     # }
 
 
