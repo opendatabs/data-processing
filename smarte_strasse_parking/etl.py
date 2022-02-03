@@ -8,7 +8,10 @@ from smarte_strasse_parking import credentials
 
 def main():
     df1 = get_current_state_date()
-    common.ods_realtime_push_df(df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
+    # {"timestamp":"2022-02-03T16:43:09+00:00","Blue_occupied":4,"Yellow_occupied":2,"Blue_available":0,"Yellow_available":0,"Blue_total":4,"Yellow_total":2,"timestamp_text":"2022-02-03T16:43:09+00:00"}
+    common.ods_realtime_push_df(df1, url=credentials.ods_push_url)
+
+    # common.ods_realtime_push_df(df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
     # common.ods_realtime_push_df(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
     # push_timeseries_data(df=df1, min_time_delta_minutes=60, url=credentials.ods_realtime_push_url_hist, push_key=credentials.ods_realtime_push_key_hist, api_key=credentials.ods_api_key)
     logging.info(f'Job successful!')
@@ -28,15 +31,14 @@ def get_current_state_date():
     df_count = df_min.groupby(['timestamp', 'status', 'type']).size().reset_index(name='count')
     df_pivot = pd.pivot_table(df_count, values=['count'], index=['timestamp'], columns=['type', 'status'], aggfunc='sum')
     df_wide = common.collapse_multilevel_column_names(df_pivot['count']).reset_index()
+    # Ensure colums exist
+    for column_name in ['Blue_occupied', 'Blue_available', 'Yellow_occupied',  'Yellow_available']:
+        if column_name not in df_wide.columns:
+            df_wide[column_name] = 0
+    df_wide['Blue_total'] = 4
+    df_wide['Yellow_total'] = 2
+    df_wide['timestamp_text'] = df_wide.timestamp
     return df_wide
-
-    # {
-    #     "timestamp":"2022-02-03T16:21:10+00:00",
-    #     "Blue_available":1,
-    #     "Blue_occupied":3,
-    #     "Yellow_available":2,
-    #     "Yellow_occupied": 0
-    # }
 
 
     # 1 row in total
