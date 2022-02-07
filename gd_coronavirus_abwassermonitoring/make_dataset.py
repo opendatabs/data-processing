@@ -27,7 +27,7 @@ def main():
     df_all.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
-#       odsp.publish_ods_dataset_by_id('100167')
+        odsp.publish_ods_dataset_by_id('100167')
         ct.update_hash_file(credentials.path_export_file)
         logging.info("push data to ODS realtime API")
         payload = df_all.to_json(orient="records")
