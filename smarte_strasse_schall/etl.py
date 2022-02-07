@@ -3,6 +3,7 @@ import datetime
 from datetime import timezone
 from zoneinfo import ZoneInfo
 import numpy
+import numpy as np
 import pandas as pd
 import common
 from smarte_strasse_schall import credentials
@@ -12,75 +13,170 @@ from requests.auth import HTTPBasicAuth
 def main():
     auth = HTTPBasicAuth(credentials.username, credentials.password)
     df_vehicles = push_vehicles(auth)
-    # df_sound_levels = push_sound_levels(auth)
+    df_sound_levels = push_noise_levels(auth)
+    df_vehicles_speed = push_vehicle_speed_level(auth)
+    logging.info(f'Job succcessful!')
     pass
 
 
 def push_vehicles(auth):
-    # now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    logging.info(f'Starting process to update vehicles dataset...')
+    now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # end = now.isoformat()
-    # start = (now - datetime.timedelta(hours=6)).isoformat()
-    url = credentials.url + 'api/vehicle-detections'
-    params = {'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
-    logging.info(f'Querying API using url {url} with parameters {params}...')
-    # r = common.requests_get(url=url, params={'start_time': start, 'size': '10000'}, auth=auth)
-    r = common.requests_get(url=url, params=params, auth=auth)
-    r.raise_for_status()
-    json = r.json()
-    df = pd.json_normalize(json, record_path='results')
-    df_vehicles = df[['localDateTime', 'classification']].copy(deep=True)
+    start = (now - datetime.timedelta(hours=3)).isoformat()
+    url = credentials.url + 'api/detections2'
+    params = {'start_time': start, 'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    df_class = query_sensor_api(auth, params, url)
+    df_vehicles = df_class[['localDateTime', 'classificationIndex', 'classification']].copy(deep=True)
     # todo: Retrieve real values for speed and sound level as soon as API provides them
     df_vehicles['speed'] = numpy.NAN
     df_vehicles['level'] = numpy.NAN
     df_vehicles['timestamp_text'] = df_vehicles.localDateTime
-    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url, credentials.ods_push_key, credentials.ods_api_key)
+    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh, credentials.ods_push_key_veh)
     # {
     #     "localDateTime": "2022-01-19T08:17:13.896+01:00",
-    #     "classification": "UNKNOWN",
+    #     "classificationIndex": -1,
+    #     "classification": "Unknown",
     #     "timestamp_text": "2022-01-19T08:17:13.896+01:00",
     #     "speed": 49.9,
     #     "level": 50.1
     # }
+    logging.info(f'That worked out successfully!')
     return df_vehicles
 
 
-# todo: Implement as soon as API is ready.
-def push_sound_levels(auth):
+def push_vehicle_speed_level(auth):
+    logging.info(f'Starting process to update vehicles with speed and noise level dataset...')
     now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    # If the dataset is empty, set a default start timestampt for the api call
+    # start = (now - datetime.timedelta(hours=37)).isoformat()
+    start = '2022-02-01T00:00:00.000000+01:00'
     end = now.isoformat()
-    start = (now - datetime.timedelta(hours=6)).isoformat()
+    logging.info(f'Checking timestamp of latest entry ods...')
+    latest_data_url = f'https://data.bs.ch/api/records/1.0/search/?dataset=100175&q=&rows=1&sort=localdatetime_interval_end&apikey={credentials.ods_api_key}'
+    r = common.requests_get(url=latest_data_url)
+    json = r.json()
+    results = len(json['records'])
+    if results > 0:
+        # start = (datetime.datetime.fromisoformat(json['records'][0]['fields']['localdatetime_interval_end_text']) - datetime.timedelta(milliseconds=1)).isoformat()
+        start = datetime.datetime.fromisoformat(json['records'][0]['fields']['localdatetime_interval_end_text']).isoformat()
 
-    # r = common.requests_get(url=credentials.url + 'api/sound-levels', auth=auth, params={'start_time': start, 'size': '10000'})
-    # r = common.requests_get(url=credentials.url + 'api/sound-levels/aggs/avg', auth=auth, params={'start_time': start, 'size': '10000'})
+    url = credentials.url + 'api/detections2'
+    params = {'start_time': start, 'end_time': end, 'sort': 'timestamp', 'order': 'desc',  'size': '10000', 'filter': f'deviceId:{credentials.device_id}'}
+    df_class = query_sensor_api(auth, params, url)
+    df_reorder = df_class.sort_values(by='localDateTime').reset_index(drop=True)
+    # select every nth row,starting once from 0 and once from 1. See also https://stackoverflow.com/a/25057724
+    n = 20
+    dfn = df_reorder.iloc[::n, :]
+    df_merged = df_reorder.merge(right=dfn, how='left', left_index=True, right_index=True, suffixes=(None, '_start'))
+    logging.info(f'Calculating start and end timestamp of each interval of {n} vehicles...')
+    df_merged['localDateTime_interval_end'] = df_merged.localDateTime_start.shift(-1)
+    df_merged['localDateTime_interval_start'] = df_merged.localDateTime_start.fillna(method='ffill')
+    df_merged['localDateTime_interval_end'] = df_merged.localDateTime_interval_end.fillna(method='bfill')
+    logging.info(f"Removing last interval in which we don't have {n} vehicles yet..")
+    df_merged = df_merged.dropna(subset=['localDateTime_interval_end'])
+    logging.info(f'Calculating interval length...')
+    df_merged['interval_length_seconds'] = (pd.to_datetime(df_merged.localDateTime_interval_end) - pd.to_datetime(df_merged.localDateTime_interval_start)).dt.total_seconds()
+    df_merged['interval_length_string'] = pd.to_datetime(df_merged['interval_length_seconds'], unit='s').dt.strftime("%H:%M:%S.%f")
+    df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds', 'interval_length_string']].copy(deep=True)
+    df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds', 'interval_length_string']].copy(deep=True)
 
-    # agg_type=avg does not seem to be used, despite being mentioned in the documentation
-    # r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?agg_type=avg&size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:15:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
+    df_vehicles['localDateTime_interval_start_text'] = df_vehicles.localDateTime_interval_start
+    df_vehicles['localDateTime_interval_end_text'] = df_vehicles.localDateTime_interval_end
+    # Random sorting within time interval
+    df_vehicles['random_number'] = np.random.randint(0, 10000, size=(len(df_vehicles), 1))
+    df_vehicles = (df_vehicles
+                   .sort_values(by=['localDateTime_interval_start', 'random_number'])
+                   .reset_index(drop=True)
+                   .drop(columns=['random_number'])
+                   )
+    df_vehicles['vehicle_rand_number'] = df_vehicles.index % n
+    common.ods_realtime_push_df(df_vehicles, credentials.ods_dataset_url_veh_speed, credentials.ods_push_key_veh_speed)
+    logging.info(f'That worked out successfully!')
+    return df_vehicles
 
-    # with the following query I get the data we need, but only the raw values every 2.5 s, and only over a short time interval (not the interval defined in the url).
-    r = common.requests_get(url=credentials.url + 'api/sound-levels/unified?size=10000&field=level&start_time=2022-01-26T09:00:00.000Z&end_time=2022-01-26T09:05:00.000Z', auth=auth)  # ,  params={'start_time': start, 'size': '10000'})
+    # {
+    #     "vehicle_rand_number": 0,
+    #     "localDateTime_interval_start": "2022-02-02T08:40:13.875+01:00",
+    #     "localDateTime_interval_end": "2022-02-02T08:50:45.923+01:00",
+    #     "level": 30.0,
+    #     "speed": 20.4,
+    #     "interval_length_seconds": 121.735,
+    #     "interval_length_string": "00:00:45.963000",
+    #     "localDateTime_interval_start_text": "2022-02-02T08:44:13.875+01:00",
+    #     "localDateTime_interval_end_text": "2022-02-02T08:44:45.923+01:00"
+    # }
+
+
+def query_sensor_api(auth, params, url):
+    logging.info(f'Querying API using url {url} with parameters {params}...')
+    r = common.requests_get(url=url, params=params, auth=auth)
     r.raise_for_status()
     json = r.json()
-    df = pd.json_normalize(json['results'], record_path='levels', meta='timestamp')
-    return df
+    df = pd.json_normalize(json, record_path='results')
+    df_classifications = pd.DataFrame.from_dict({
+        'classificationIndex': [-1, 0, 1, 2, 3],
+        'classification': ['Unknown', 'Car', 'Bicycle / Motorbike', 'Truck / Bus', 'Van / Suv']
+    })
+    df_class = df.merge(df_classifications, on='classificationIndex', how='left')
+    logging.info(f'Received {len(df_class)} records from API...')
+    return df_class
 
-    # manually querying all center_freq values seems to always retrieve the same value for each timestamp...!?
-    # center_freqs = [25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000]
-    # dfs = []
-    # for center_freq in center_freqs:
-    #     r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg?field=level&timespan=15m&center_freq={center_freq}', auth=auth, params={'start_time': start, 'size': '10000'})
-    #     r.raise_for_status()
-    #     json = r.json()
-    #     df = pd.json_normalize(json, record_path='results').assign(center_freq = center_freq)
-    #     dfs.append(df)
-    # # df_all = pd.concat([df.set_index('timestamp') for df in dfs], axis=1, join='outer').reset_index()
-    # df_all = pd.concat(dfs, ignore_index=True)
-    # r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg?field=level&timespan=15m', auth=auth, params={'start_time': start, 'size': '10000'})
-    # r.raise_for_status()
-    # json = r.json()
-    # df = pd.json_normalize(json, record_path='results').assign(center_freq=0)
-    # df_all = df_all.append(df)
-    # df_pivot = df_all.pivot_table(columns=['center_freq'], values=['value'], index=['timestamp'])
-    # return df
+
+def push_noise_levels(auth):
+    logging.info(f'Starting process to update noise level dataset...')
+    now = datetime.datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    # end = now.isoformat()
+    # datetime needed in military "Zulu" notation using %Z
+    start = (now - datetime.timedelta(hours=3)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg', params={'timespan': '5m', 'filter': f'deviceId:{credentials.device_id}', 'start_time': start}, auth=auth)
+    r.raise_for_status()
+    json = r.json()
+    df = pd.json_normalize(json['results'], record_path='levels', meta=['general_level', 'timestamp'])
+    # make sure we get the correct column order by converting center_freq to str with zero-padding
+    df.center_freq = df.center_freq.str.zfill(7).replace('\.0', '', regex=True)
+    df_pivot = df.pivot_table(columns=['center_freq'], values=['level'], index=['timestamp', 'general_level']).reset_index()
+    df_pivot = common.collapse_multilevel_column_names(df_pivot)
+    df_pivot = df_pivot.rename(columns={'timestamp_': 'timestamp', 'general_level_': 'general_level'})
+    df_pivot['timestamp_text'] = df_pivot.timestamp
+    common.ods_realtime_push_df(df_pivot, credentials.ods_dataset_url_noise, credentials.ods_push_key_noise)
+    logging.info(f'That worked out successfully!')
+    return df_pivot
+
+# {
+#     "timestamp":"2022-02-02T05:00:00.000Z",
+#     "general_level":45.6390674286,
+#     "level_00025":75.4284092296,
+#     "level_00031.5":70.0897727446,
+#     "level_00040":64.7340911952,
+#     "level_00050":62.1863636104,
+#     "level_00063":57.2306817662,
+#     "level_00080":49.3363636624,
+#     "level_00100":46.9568182338,
+#     "level_00125":47.5886362683,
+#     "level_00160":48.9204545021,
+#     "level_00200":53.775000052,
+#     "level_00250":40.3454545628,
+#     "level_00315":40.962499922,
+#     "level_00400":40.2965911085,
+#     "level_00500":44.3704547449,
+#     "level_00630":45.4193181558,
+#     "level_00800":44.9034093077,
+#     "level_01000":44.8590909568,
+#     "level_01250":44.8306817358,
+#     "level_01600":44.5568181168,
+#     "level_02000":40.801136342,
+#     "level_02500":39.0386363593,
+#     "level_03150":38.1295454936,
+#     "level_04000":33.3102273291,
+#     "level_05000":36.4613636407,
+#     "level_06300":33.539772814,
+#     "level_08000":29.9056818052,
+#     "level_10000":36.0590908744,
+#     "level_12500":37.0579545281,
+#     "level_16000":32.438636368,
+#     "timestamp_text":"2022-02-02T05:00:00.000Z"
+# }
 
 
 if __name__ == "__main__":

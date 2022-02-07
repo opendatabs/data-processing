@@ -26,8 +26,8 @@ ftp_errors_to_handle = ftplib.error_temp, ftplib.error_perm, BrokenPipeError, Co
 def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
     """Retry calling the decorated function using an exponential backoff.
 
-    http://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
-    original from: http://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+    https://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
+    original from: https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
 
     :param ExceptionToCheck: the exception to check. may be a tuple of
         exceptions to check
@@ -68,17 +68,23 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_get(*args, **kwargs):
-    return requests.get(*args, **kwargs)
+    r = requests.get(*args, **kwargs)
+    r.raise_for_status()
+    return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_post(*args, **kwargs):
-    return requests.post(*args, **kwargs)
+    r = requests.post(*args, **kwargs)
+    r.raise_for_status()
+    return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_patch(*args, **kwargs):
-    return requests.patch(*args, **kwargs)
+    r = requests.patch(*args, **kwargs)
+    r.raise_for_status()
+    return r
 
 
 # Upload file to FTP Server
@@ -181,10 +187,6 @@ def publish_ods_dataset(dataset_uid, creds):
 def get_ods_uid_by_id(ods_id, creds):
     print(f'Retrieving ods uid for ods id {id}...')
     response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', auth=(creds.user_name, creds.password), proxies={'https': creds.proxy})
-    if not response.ok:
-        print(f'Received http error {response.status_code}:')
-        print(f'Error message: {response.text}')
-        response.raise_for_status()
     return response.json()['datasets'][0]['dataset_uid']
 
 
@@ -209,7 +211,11 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
     return embargo_over
 
 
-def ods_realtime_push_df(df, url, push_key, api_key):
+def ods_realtime_push_df(df, url, push_key=''):
+    if not push_key:
+        t = url.partition('?pushkey=')
+        url = t[0]
+        push_key = t[2]
     row_count = len(df)
     if row_count == 0:
         print(f'No rows to push to ODS... ')
@@ -224,5 +230,12 @@ def ods_realtime_push_df(df, url, push_key, api_key):
         payload = df.to_json(orient="records")
         # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        r = requests_post(url=url, data=payload, params={'pushkey': push_key, 'apikey': api_key})
+        r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()
+        return r
+
+
+def collapse_multilevel_column_names(df: pd.DataFrame, sep='_'):
+    # Replace the 2-level column names with a string that concatenates both strings
+    df.columns = [sep.join(str(c) for c in col) for col in df.columns.values]
+    return df
