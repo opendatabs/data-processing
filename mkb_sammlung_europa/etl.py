@@ -15,6 +15,8 @@ def main():
     df_MKB[['Kurzbezeichnung', 'Titel']] = df_MKB['Kurzbezeichnung und Titel'].str.split(':', expand=True, n=1)
     # split off Einlaufnummer from Einlauf-Info
     df_MKB[['Einlaufnummer', 'Einlauf-Info']] = df_MKB['Einlauf-Info'].str.split(',', expand=True, n=1)
+    # "Aus rechtlichen Gründen nicht angezeigt" should appear in both columns
+    df_MKB['Einlauf-Info'].fillna('Aus rechtlichen Gründen nicht angezeigt', inplace=True)
     # remove Einlaufnummern VI_0000.1, VI_0000.2
     df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
