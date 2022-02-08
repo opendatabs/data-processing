@@ -21,10 +21,29 @@ def main():
 
 
 def publish_ods_dataset_by_id(dataset_id: str):
-    print(f'Retrieving dataset uid for id {dataset_id} from ODS...')
     dataset_uid = common.get_ods_uid_by_id(dataset_id, credentials)
-    print(f'Received dataset uid "{dataset_uid}"...')
     common.publish_ods_dataset(dataset_uid, credentials)
+
+
+def ods_set_general_access_policy(dataset_id: str, access_policy: str, do_publish=True):
+    possible_values = ['domain', 'restricted']
+    if access_policy not in possible_values:
+        raise NotImplementedError(f'You can only use policies {possible_values}.')
+    dataset_uid = common.get_ods_uid_by_id(dataset_id, credentials)
+    logging.info(f'Getting General Access Policy before setting it...')
+    url = f'https://data.bs.ch/api/management/v2/datasets/{dataset_uid}/security/access_policy'
+    r = common.requests_get(url=url, auth=(credentials.user_name, credentials.password), proxies={'https': credentials.proxy})
+    r.raise_for_status()
+    existing_policy = r.text
+    data = f'"{access_policy}"'
+    if existing_policy != data:
+        logging.info(f'Setting General Access Policy to {data}...')
+        r = common.requests_put(url=url, data=data, auth=(credentials.user_name, credentials.password), proxies={'https': credentials.proxy})
+        r.raise_for_status()
+        if do_publish:
+            logging.info(f'Publishing dataset...')
+            common.publish_ods_dataset(dataset_uid, credentials)
+    return r
 
 
 if __name__ == "__main__":
