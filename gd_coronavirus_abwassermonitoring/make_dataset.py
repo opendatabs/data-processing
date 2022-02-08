@@ -33,13 +33,9 @@ def main():
         odsp.publish_ods_dataset_by_id('100167')
         ct.update_hash_file(credentials.path_export_file)
         logging.info("push data to ODS realtime API")
-        payload = df_all.to_json(orient="records")
-        # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
         push_url = credentials.ods_live_realtime_push_url
         push_key = credentials.ods_live_realtime_push_key
-
-        common.requests_post(url=push_url, data=payload,
-                             params={'pushkey': push_key})
+        common.ods_realtime_push_df(df_all, url=push_url, push_key=push_key)
     logging.info('Job successful!')
 
 
