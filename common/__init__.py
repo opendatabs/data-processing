@@ -221,12 +221,6 @@ def ods_realtime_push_df(df, url, push_key=''):
         print(f'No rows to push to ODS... ')
     else:
         print(f'Pushing {row_count} rows to ODS realtime API...')
-        # Realtime API bootstrap data:
-        # {
-        #     "id": 0,
-        #     "value_updated": "2022-01-14T08:44:56.000Z",
-        #     "value_label": "1"
-        # }
         payload = df.to_json(orient="records")
         # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
