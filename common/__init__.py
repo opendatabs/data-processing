@@ -87,6 +87,13 @@ def requests_patch(*args, **kwargs):
     return r
 
 
+@retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
+def requests_put(*args, **kwargs):
+    r = requests.put(*args, **kwargs)
+    r.raise_for_status()
+    return r
+
+
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
@@ -185,7 +192,7 @@ def publish_ods_dataset(dataset_uid, creds):
 
 
 def get_ods_uid_by_id(ods_id, creds):
-    print(f'Retrieving ods uid for ods id {id}...')
+    print(f'Retrieving ods uid for ods id {ods_id}...')
     response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', auth=(creds.user_name, creds.password), proxies={'https': creds.proxy})
     return response.json()['datasets'][0]['dataset_uid']
 
