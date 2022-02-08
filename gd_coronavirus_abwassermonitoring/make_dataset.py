@@ -1,6 +1,7 @@
 """
 sources:
-- population 2020 for normalisation: https://www.bfs.admin.ch/bfs/de/home/statistiken/bevoelkerung/stand-entwicklung/raeumliche-verteilung.assetdetail.18344310.html
+- population 2020 for normalisation:
+    https://www.bfs.admin.ch/bfs/de/home/statistiken/bevoelkerung/stand-entwicklung/raeumliche-verteilung.assetdetail.18344310.html
 - COVID data BS: https://data.bs.ch/
 - COVID data BL: credentials.path_BL
 - Abwasserdaten: credentials.path_proben
@@ -12,32 +13,30 @@ from gd_coronavirus_abwassermonitoring import credentials
 import common
 import logging
 from common import change_tracking as ct
-import ods_publish.etl_id as odsp
+
 
 pop_BL = 66953
 pop_BS = 196735
 
+
 def main():
-    df_BL = make_dataframe_BL()
-    df_Abwasser = make_dataframe_abwasserdaten()
-    df_all = df_Abwasser.merge(df_BL, how='right')
-    df_BS = make_dataframe_BS()
-    df_all = df_all.merge(df_BS, how='right')
+    df_bl = make_dataframe_bl()
+    df_abwasser = make_dataframe_abwasserdaten()
+    df_all = df_abwasser.merge(df_bl, how='right')
+    df_bs = make_dataframe_bs()
+    df_all = df_all.merge(df_bs, how='right')
     df_all = calculate_columns(df_all)
     df_all.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
-        common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
-        odsp.publish_ods_dataset_by_id('100167')
+        common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
         ct.update_hash_file(credentials.path_export_file)
         logging.info("push data to ODS realtime API")
-        payload = df_all.to_json(orient="records")
-        # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
         push_url = credentials.ods_live_realtime_push_url
         push_key = credentials.ods_live_realtime_push_key
-
-        common.requests_post(url=push_url, data=payload,
-                             params={'pushkey': push_key})
+        common.ods_realtime_push_df(df_all, url=push_url, push_key=push_key)
     logging.info('Job successful!')
+
 
 # Realtime API bootstrap data:
 # {
@@ -80,67 +79,76 @@ def main():
 # }
 
 
-
 def make_column_dt(df, column):
     df[column] = pd.to_datetime(df[column])
 
-def make_dataframe_BL():
+
+def make_dataframe_bl():
     logging.info(f"import and transfrom BL data")
     path = credentials.path_BL
-    df_BL = pd.read_csv(path, encoding="ISO-8859-1")
+    df_bl = pd.read_csv(path, encoding="ISO-8859-1")
     # remove Gemeinde and Inc_7d
-    df_BL.drop(columns=["Gemeinde", "Inc_7d"], inplace=True)
+    df_bl.drop(columns=["Gemeinde", "Inc_7d"], inplace=True)
     # add suffix BL for all but date column
-    df_BL = df_BL.add_suffix('_BL')
-    df_BL.rename(columns={'Datum_BL':'Datum'}, inplace=True)
+    df_bl = df_bl.add_suffix('_BL')
+    df_bl.rename(columns={'Datum_BL': 'Datum'},
+                 inplace=True)
     # make datetime column
-    make_column_dt(df_BL, "Datum")
+    make_column_dt(df_bl, "Datum")
     # sum over date to get total of all together per date
-    df_BL = df_BL.groupby(by=["Datum"], as_index=False).sum()
-    return df_BL
+    df_bl = df_bl.groupby(by=["Datum"], as_index=False).sum()
+    return df_bl
+
 
 def make_dataframe_abwasserdaten():
     logging.info("import and transform abwasserdaten")
     path = credentials.path_proben
-    df_Abwasser = pd.read_excel(path, sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
+    df_abwasser = pd.read_excel(path, sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
     # rename date column and change format
-    df_Abwasser.rename(columns={'Abwasser von Tag':'Datum'}, inplace=True)
-    return df_Abwasser
+    df_abwasser.rename(columns={'Abwasser von Tag': 'Datum'}, inplace=True)
+    return df_abwasser
 
-def make_dataframe_BS():
+
+def make_dataframe_bs():
     logging.info(f"import, transform and merge BS data")
     # get number of cases and 7d inz.
-    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100108/exports/json?order_by=test_datum&select=test_datum&select=faelle_bs&select=inzidenz07_bs")
+    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100108/exports/"
+                              "json?order_by=test_datum&select=test_datum&select=faelle_bs&select=inzidenz07_bs")
     file = req.json()
-    df_zahlen_BS = pd.DataFrame.from_dict(file)
-    df_zahlen_BS.rename(columns={'test_datum': 'Datum'}, inplace=True)
-    make_column_dt(df_zahlen_BS, "Datum")
+    df_zahlen_bs = pd.DataFrame.from_dict(file)
+    df_zahlen_bs.rename(columns={'test_datum': 'Datum'}, inplace=True)
+    make_column_dt(df_zahlen_bs, "Datum")
     # get hosp, ips, deceased and isolated BS
-    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100073/exports/json?order_by=timestamp&select=timestamp&select=current_hosp&select=current_icu&select=ndiff_deceased&select=current_isolated")
+    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100073/exports/"
+                              "json?order_by=timestamp&select=timestamp&select=current_hosp"
+                              "&select=current_icu&select=ndiff_deceased&select=current_isolated")
     file = req.json()
     df_hosp = pd.DataFrame.from_dict(file)
     df_hosp.rename(columns={'timestamp': 'Datum'}, inplace=True)
     df_hosp['Datum'] = pd.to_datetime(df_hosp['Datum']).dt.date
     make_column_dt(df_hosp, "Datum")
     # get positivity rate
-    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100094/exports/json?order_by=datum&select=datum&select=positivity_rate_percent")
+    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100094/exports/"
+                              "json?order_by=datum&select=datum&select=positivity_rate_percent")
     file = req.json()
     df_pos_rate = pd.DataFrame.from_dict(file)
     df_pos_rate.rename(columns={'datum': 'Datum'}, inplace=True)
     make_column_dt(df_pos_rate, "Datum")
     # get Effektive mittlere Reproduktionszahl, with estimate_type:Cori_slidingWindow and data_type=Confirmed cases
-    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100110/exports/json?refine=region:BS&refine=estimate_type:Cori_slidingWindow&refine=data_type:Confirmed+cases&order_by=date&select=date&select=median_r_mean")
+    req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100110/exports/"
+                              "json?refine=region:BS&refine=estimate_type:Cori_slidingWindow"
+                              "&refine=data_type:Confirmed+cases&order_by=date&select=date&select=median_r_mean")
     file = req.json()
     df_repr = pd.DataFrame.from_dict(file)
     df_repr.rename(columns={'date': 'Datum'}, inplace=True)
     make_column_dt(df_repr, "Datum")
     # join the datasets
-    dfs = [df_zahlen_BS, df_hosp, df_pos_rate, df_repr]
-    # dfs = [df_zahlen_BS, df_hosp]
-    df_BS = pd.concat([df.set_index('Datum') for df in dfs], axis=1, join='outer').reset_index()
+    dfs = [df_zahlen_bs, df_hosp, df_pos_rate, df_repr]
+    df_bs = pd.concat([df.set_index('Datum') for df in dfs], axis=1, join='outer').reset_index()
     # take date from 1 July 2021
-    df_BS = df_BS[df_BS['Datum'] >= datetime(2021, 7, 1)]
-    return df_BS
+    df_bs = df_bs[df_bs['Datum'] >= datetime(2021, 7, 1)]
+    return df_bs
+
 
 def calculate_columns(df):
     logging.info(f"calculate and add columns")
@@ -159,6 +167,7 @@ def calculate_columns(df):
     df["7t_median_BS"] = df["faelle_bs"].rolling(window=7).median()
     df["7t_median_BS+BL"] = df["daily_cases_BS+BL"].rolling(window=7).median()
     return df
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
