@@ -130,7 +130,6 @@ def check_embargos(active_abst, active_active_size):
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     do_process = active_abst.Ignore_changes_before[0] <= now_in_switzerland < active_abst.Ignore_changes_after[0]
     make_live_public = active_abst.Embargo[0] <= now_in_switzerland < active_abst.Ignore_changes_after[0]
-    logging.info(f'We are currently within active time period for Test and live: {do_process}.')
     return do_process, make_live_public
 
 
