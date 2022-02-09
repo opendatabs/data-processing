@@ -61,7 +61,7 @@ def send_update_email(what_changed):
     logging.info(f'Is it time to send an update email? {what_changed["send_update_email"]}')
     if what_changed['send_update_email']:
         text += f'\n\nKind regards, \nYour automated Open Data Basel-Stadt Python Job'
-        msg = common.email_message(subject='Abstimmungen: Updates in ODS', text=text)
+        msg = common.email_message(subject='Abstimmungen: Updates have been automatically pushed to ODS', text=text)
         host = credentials.email_server
         smtp = smtplib.SMTP(host)
         smtp.sendmail(from_addr='opendata@bs.ch', to_addrs=credentials.email_receivers, msg=msg.as_string())
