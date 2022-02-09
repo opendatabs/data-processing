@@ -18,7 +18,9 @@ def main():
     active_abst = df.query('Active == True')
     active_active_size = active_abst.Active.size
     if active_active_size == 1:
+        logging.info(f'Processing Abstimmung for date {active_abst.Abstimmungs_datum[0]}...')
         do_process, make_live_public = check_embargos(active_abst, active_active_size)
+        logging.info(f'Should we check for changes in data files now? {do_process}')
         if do_process:
             active_files = find_data_files_for_active_abst(active_abst)
             data_files_changed = have_data_files_changed(active_files)
@@ -26,11 +28,9 @@ def main():
                 details_changed, kennz_changed = calculate_and_upload(active_files)
                 # todo: Create live datasets in ODS as a copy of the test datasets if they do not exist yet.
                 # todo: Use ods realtime push instead of FTP pull.
-                logging.info(f'Should we publish datasets now? {do_process}')
-                if do_process:
-                    publish_datasets(active_abst, details_changed, kennz_changed)
-                    for file in active_files:
-                        ct.update_hash_file(os.path.join(credentials.path, file))
+                publish_datasets(active_abst, details_changed, kennz_changed)
+                for file in active_files:
+                    ct.update_hash_file(os.path.join(credentials.path, file))
             logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
             if make_live_public:
                 make_datasets_public(active_abst, active_files)
@@ -52,11 +52,11 @@ def make_datasets_public(active_abst, active_files):
 
 def publish_datasets(active_abst, details_changed, kennz_changed):
     if kennz_changed:
-        logging.info(f'Publishing Kennzahlen datasets (Test and live)...')
+        logging.info(f'Kennzahlen have changed, publishing datasets (Test and live)...')
         odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Live[0])
         odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Test[0])
     if details_changed:
-        logging.info(f'Publishing Details datasets (Test and live)...')
+        logging.info(f'Details have changed, publishing datasets (Test and live)...')
         odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Live[0])
         odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Test[0])
 
