@@ -1,2 +1,2 @@
-Active;Abstimmungs_datum;Embargo_Test;Embargo_Live;Ignore_changes_after;ODS_id_Kennzahlen_Live;ODS_id_Details_Live;ODS_id_Kennzahlen_Test;ODS_id_Details_Test
+Active;Abstimmungs_datum;Ignore_changes_before;Embargo;Ignore_changes_after;ODS_id_Kennzahlen_Live;ODS_id_Details_Live;ODS_id_Kennzahlen_Test;ODS_id_Details_Test
 True;2022-02-13;2022-02-07T12:00;2022-02-13T12:00;2022-02-13T18:00;100169;100168;100141;100142
