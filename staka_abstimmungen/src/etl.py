@@ -18,15 +18,17 @@ def main():
     active_abst = df.query('Active == True')
     active_active_size = active_abst.Active.size
     if active_active_size == 1:
-        process_live, process_test, make_live_public = check_embargos(active_abst, active_active_size)
-        if process_test or process_live:
+        do_process, make_live_public = check_embargos(active_abst, active_active_size)
+        if do_process:
             active_files = find_data_files_for_active_abst(active_abst)
             data_files_changed = have_data_files_changed(active_files)
             if data_files_changed:
                 details_changed, kennz_changed = calculate_and_upload(active_files)
                 # todo: Create live datasets in ODS as a copy of the test datasets if they do not exist yet.
                 # todo: Use ods realtime push instead of FTP pull.
-                publish_datasets(active_abst, details_changed, kennz_changed, process_live, process_test)
+                logging.info(f'Should we publish datasets now? {do_process}')
+                if do_process:
+                    publish_datasets(active_abst, details_changed, kennz_changed)
                 for file in active_files:
                     ct.update_hash_file(os.path.join(credentials.path, file))
             logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
@@ -48,24 +50,22 @@ def make_datasets_public(active_abst, active_files):
         # todo: Send email upon change of general access policy
 
 
-def publish_datasets(active_abst, details_changed, kennz_changed, process_live, process_test):
-    logging.info(f'Publishing ODS datasets for Kennzahlen and Details if the export file has changed, and it is time to publish...')
-    if process_live:
-        if kennz_changed:
-            odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Live[0])
-        if details_changed:
-            odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Live[0])
-    if process_test:
-        if kennz_changed:
-            odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Test[0])
-        if details_changed:
-            odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Test[0])
+def publish_datasets(active_abst, details_changed, kennz_changed):
+    if kennz_changed:
+        logging.info(f'Publishing Kennzahlen datasets (Test and live)...')
+        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Live[0])
+        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Test[0])
+    if details_changed:
+        logging.info(f'Publishing Details datasets (Test and live)...')
+        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Live[0])
+        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Test[0])
 
 
 def calculate_and_upload(active_files):
     details_abst_date, de_details = calculate_details(active_files)
     details_export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{details_abst_date}.csv')
     details_changed = upload_ftp_if_changed(de_details, details_export_file_name)
+
     kennz_abst_date, df_kennz = calculate_kennzahlen(active_files)
     kennz_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{kennz_abst_date}.csv')
     kennz_changed = upload_ftp_if_changed(df_kennz, kennz_file_name)
@@ -94,11 +94,10 @@ def check_embargos(active_abst, active_active_size):
     for column in ['Ignore_changes_before', 'Embargo', 'Ignore_changes_after']:
         active_abst[column] = active_abst[column].dt.tz_localize('Europe/Zurich')
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    process_test = active_abst.Ignore_changes_before[0] <= now_in_switzerland < active_abst.Ignore_changes_after[0]
-    process_live = active_abst.Ignore_changes_before[0] <= now_in_switzerland < active_abst.Ignore_changes_after[0]
+    do_process = active_abst.Ignore_changes_before[0] <= now_in_switzerland < active_abst.Ignore_changes_after[0]
     make_live_public = active_abst.Embargo[0] <= now_in_switzerland < active_abst.Ignore_changes_after[0]
-    logging.info(f'We are currently within active time period for Test: {process_test} - for Live: {process_live}.')
-    return process_live, process_test, make_live_public
+    logging.info(f'We are currently within active time period for Test and live: {do_process}.')
+    return do_process, make_live_public
 
 
 def upload_ftp_if_changed(df, file_name):
