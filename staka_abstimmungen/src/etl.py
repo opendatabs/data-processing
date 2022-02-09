@@ -10,6 +10,7 @@ import pandas as pd
 from staka_abstimmungen import credentials
 from staka_abstimmungen.src.etl_details import calculate_details
 from staka_abstimmungen.src.etl_kennzahlen import calculate_kennzahlen
+import smtplib
 
 
 def main():
@@ -17,23 +18,27 @@ def main():
     df = pd.read_csv(os.path.join(credentials.path, 'control.csv'), sep=';', parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])
     active_abst = df.query('Active == True')
     active_active_size = active_abst.Active.size
+    what_changed = {'updated_ods_datasets': [], 'datasets_changed_to_public': [], 'send_update_email': False}
     if active_active_size == 1:
-        logging.info(f'Processing Abstimmung for date {active_abst.Abstimmungs_datum[0]}...')
+        abst_date = active_abst.Abstimmungs_datum[0]
+        logging.info(f'Processing Abstimmung for date {abst_date}...')
         do_process, make_live_public = check_embargos(active_abst, active_active_size)
         logging.info(f'Should we check for changes in data files now? {do_process}')
         if do_process:
             active_files = find_data_files_for_active_abst(active_abst)
-            data_files_changed = have_data_files_changed(active_files)
+            data_files_changed = have_data_files_changed(active_files)            
             if data_files_changed:
                 details_changed, kennz_changed = calculate_and_upload(active_files)
                 # todo: Create live datasets in ODS as a copy of the test datasets if they do not exist yet.
                 # todo: Use ods realtime push instead of FTP pull.
-                publish_datasets(active_abst, details_changed, kennz_changed)
+                what_changed = publish_datasets(active_abst, details_changed, kennz_changed, what_changed=what_changed)
                 for file in active_files:
                     ct.update_hash_file(os.path.join(credentials.path, file))
+                
             logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
             if make_live_public:
-                make_datasets_public(active_abst, active_files)
+                what_changed = make_datasets_public(active_abst, active_files, what_changed)
+            send_update_email(what_changed)
     elif active_active_size == 0:
         logging.info(f'No active Abstimmung, nothing to do for the moment. ')
     elif active_active_size > 1:
@@ -41,24 +46,53 @@ def main():
     logging.info(f'Job Successful!')
 
 
-def make_datasets_public(active_abst, active_files):
+def send_update_email(what_changed):
+    text = ''
+    if len(what_changed['updated_ods_datasets']) > 0:
+        what_changed['send_update_email'] = True
+        text += f'Updated ODS Datasets: \n'
+        for ods_id in what_changed['updated_ods_datasets']:
+            text += f'- {ods_id}: https://data.bs.ch/explore/dataset/{ods_id} \n'
+    if len(what_changed['datasets_changed_to_public']) > 0:
+        what_changed['send_update_email'] = True
+        text += f'Datasets changed from restricted to domain (public): \n'
+        for ods_id in what_changed['datasets_changed_to_public']:
+            text += f'- {ods_id}: https://data.bs.ch/explore/dataset/{ods_id} \n'
+    logging.info(f'Is it time to send an update email? {what_changed["send_update_email"]}')
+    if what_changed['send_update_email']:
+        text += f'\n\nKind regards, \nYour automated Open Data Basel-Stadt Python Job'
+        msg = common.email_message(subject='Abstimmungen: Updates in ODS', text=text)
+        host = credentials.email_server
+        smtp = smtplib.SMTP(host)
+        smtp.sendmail(from_addr='opendata@bs.ch', to_addrs=credentials.email_receivers, msg=msg.as_string())
+        smtp.quit()
+        logging.info(f'Update email sent: ')
+        logging.info(text)
+    return what_changed['send_update_email'], text
+
+
+def make_datasets_public(active_abst, active_files, what_changed):
     vorlage_in_filename = [f for f in active_files if 'Vorlage' in f]
     logging.info(f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: setting live ods datasets to public...')
     if len(vorlage_in_filename) == 0:
-        r_kennz = odsp.ods_set_general_access_policy(active_abst.ODS_id_Kennzahlen_Live[0], 'domain')
-        r_details = odsp.ods_set_general_access_policy(active_abst.ODS_id_Details_Live[0], 'domain')
-        # todo: Send email upon change of general access policy
+        for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Details_Live[0]]:
+            r = odsp.ods_set_general_access_policy(ods_id, 'domain')
+            what_changed['datasets_changed_to_public'].append(ods_id)
+    return what_changed
 
 
-def publish_datasets(active_abst, details_changed, kennz_changed):
+def publish_datasets(active_abst, details_changed, kennz_changed, what_changed):
     if kennz_changed:
         logging.info(f'Kennzahlen have changed, publishing datasets (Test and live)...')
-        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Live[0])
-        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Kennzahlen_Test[0])
+        for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Kennzahlen_Test[0]]:             
+            odsp.publish_ods_dataset_by_id(ods_id)
+            what_changed['updated_ods_datasets'].append(ods_id)        
     if details_changed:
         logging.info(f'Details have changed, publishing datasets (Test and live)...')
-        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Live[0])
-        odsp.publish_ods_dataset_by_id(active_abst.ODS_id_Details_Test[0])
+        for ods_id in [active_abst.ODS_id_Details_Live[0], active_abst.ODS_id_Details_Test[0]]: 
+            odsp.publish_ods_dataset_by_id(ods_id)
+            what_changed['updated_ods_datasets'].append(ods_id)
+    return what_changed
 
 
 def calculate_and_upload(active_files):
