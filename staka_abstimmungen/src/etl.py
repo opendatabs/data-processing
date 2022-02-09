@@ -29,8 +29,8 @@ def main():
                 logging.info(f'Should we publish datasets now? {do_process}')
                 if do_process:
                     publish_datasets(active_abst, details_changed, kennz_changed)
-                for file in active_files:
-                    ct.update_hash_file(os.path.join(credentials.path, file))
+                    for file in active_files:
+                        ct.update_hash_file(os.path.join(credentials.path, file))
             logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
             if make_live_public:
                 make_datasets_public(active_abst, active_files)
