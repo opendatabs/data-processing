@@ -1,5 +1,5 @@
 from datetime import timezone, datetime, timedelta
-from gsv_covid19_hosp_auto import get_data
+from gsv_covid19_hosp_auto import get_data, send_email2
 import mechanicalsoup
 # from bs4 import BeautifulSoup
 from gsv_covid19_hosp_auto import credentials
@@ -10,7 +10,6 @@ from gsv_covid19_hosp_auto import hospitalzahlen
 from gsv_covid19_hosp_auto import calculation
 from gsv_covid19_hosp_auto import update_coreport
 from zoneinfo import ZoneInfo
-from gsv_covid19_hosp_auto.tests import send_email2
 
 
 def run_test(list_hospitals, date):
