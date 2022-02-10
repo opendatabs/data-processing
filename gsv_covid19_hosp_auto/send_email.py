@@ -1,5 +1,5 @@
-from gsv_covid19_hosp import credentials
-from gsv_covid19_hosp import make_email
+from gsv_covid19_hosp_auto import credentials
+from gsv_covid19_hosp_auto import make_email
 import smtplib
 
 

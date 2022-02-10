@@ -1,6 +1,6 @@
 import datetime
 import pandas as pd
-from gsv_covid19_hosp import credentials
+from gsv_covid19_hosp_auto import credentials
 import common
 import requests
 import os

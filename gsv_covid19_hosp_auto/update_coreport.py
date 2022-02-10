@@ -2,10 +2,10 @@ import datetime
 import logging
 import pandas as pd
 import common
-from gsv_covid19_hosp import credentials
-from gsv_covid19_hosp import calculation
-from gsv_covid19_hosp import coreport_scraper
-from gsv_covid19_hosp import hospitalzahlen
+from gsv_covid19_hosp_auto import credentials
+from gsv_covid19_hosp_auto import calculation
+from gsv_covid19_hosp_auto import coreport_scraper
+from gsv_covid19_hosp_auto import hospitalzahlen
 
 def main(value_id, value):
     # logging.basicConfig(level=logging.DEBUG)

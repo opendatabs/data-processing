@@ -27,13 +27,13 @@ and coreport_scraper.add_value_id, and then enters the numbers into CoReport
 
 
 import pandas as pd
-from gsv_covid19_hosp import get_data
-from gsv_covid19_hosp import send_email
-from gsv_covid19_hosp import calculation
+from gsv_covid19_hosp_auto import get_data
+from gsv_covid19_hosp_auto import send_email
+from gsv_covid19_hosp_auto import calculation
 from datetime import timezone, datetime, timedelta
 import logging
-from gsv_covid19_hosp import credentials
-from gsv_covid19_hosp import update_coreport
+from gsv_covid19_hosp_auto import credentials
+from gsv_covid19_hosp_auto import update_coreport
 from zoneinfo import ZoneInfo
 
 

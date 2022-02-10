@@ -3,9 +3,9 @@ import os
 
 import pandas as pd
 
-from gsv_covid19_hosp import testspital
-from gsv_covid19_hosp import credentials
-from gsv_covid19_hosp import make_email
+from gsv_covid19_hosp_auto import testspital
+from gsv_covid19_hosp_auto import credentials
+from gsv_covid19_hosp_auto import make_email
 import smtplib
 from datetime import timezone, datetime, timedelta, time
 from zoneinfo import ZoneInfo
