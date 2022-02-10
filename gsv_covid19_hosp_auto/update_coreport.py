@@ -1,4 +1,5 @@
 import datetime
+from datetime import timezone
 import logging
 import pandas as pd
 import common
@@ -6,6 +7,8 @@ from gsv_covid19_hosp_auto import credentials
 from gsv_covid19_hosp_auto import calculation
 from gsv_covid19_hosp_auto import coreport_scraper
 from gsv_covid19_hosp_auto import hospitalzahlen
+from gsv_covid19_hosp_auto import send_email2
+from zoneinfo import ZoneInfo
 
 def main(value_id, value):
     # logging.basicConfig(level=logging.DEBUG)
@@ -45,7 +48,7 @@ def get_properties_list(hospital):
     return properties_list
 
 
-def write_in_coreport(df, hospital_list, date):
+def write_in_coreport(df, hospital_list, date, day, df_log, current_time= datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
     logging.info("Get value id's from CoReport")
@@ -62,16 +65,33 @@ def write_in_coreport(df, hospital_list, date):
         logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)
         properties = get_properties_list(hospital=hospital)
+        index_hospital = df_coreport.index[df_coreport["Hospital"] == hospital]
+        logging.info(f"Write entries into CoReport for {hospital}")
+        incomplete = 0
         for prop in properties:
-            #value_id = credentials.dict_coreport[hospital][prop]
-            value = int(df_hospital[prop][0])
-            value_id = df_hospital[prop + " value_id"][0]
-            #print(value_id, value)
+            # value_id = credentials.dict_coreport[hospital][prop]
+            value = int(df_hospital[prop][index_hospital])
+            value_id = df_hospital[prop + " value_id"][index_hospital]
             # quick fix to ignore negative values
             if value >= 0:
                 main(value_id=value_id, value=value)
+                logging.info(f"Added {value} for {prop} of {hospital} ")
             else:
                 logging.warning(f"Negative value for {prop} of {hospital}! send email...")
+                condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+                incomplete += 1
+                if (df_log.loc[condition, "email negative value"] == "").all():
+                    send_email2.send_email(hospital=hospital, email_type="Negative value", day=day,
+                                           extra_info=[prop, hospital])
+                    df_log.loc[condition, "email negative value"] = f"Sent at {current_time}"
+        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+        if incomplete == 0:
+            df_log.loc[condition, "CoReport filled"] = "Yes"
+            logging.info(f"Entries added into CoReport for {hospital}")
+        else:
+            df_log.loc[condition, "CoReport filled"] = "Not all filled"
+            logging.warning(f"Entries only partly added into CoReport for {hospital}")
+    return df_log
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

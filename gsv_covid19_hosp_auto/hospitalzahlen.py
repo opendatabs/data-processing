@@ -97,7 +97,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     if not df.empty:
         filled_hospitals = [x for x in list_hospitals if x not in missing]
         logging.info(f"Add entries of {filled_hospitals} for {day} into CoReport")
-        update_coreport.write_in_coreport(df, filled_hospitals, date=date)
+        df_log = update_coreport.write_in_coreport(df, filled_hospitals, date=date,day=day, df_log=df_log)
         logging.info(f"Entries added into CoReport for {filled_hospitals}")
         logging.info(f"There are no entries of {missing} for {day} in IES")
         for hospital in filled_hospitals:
