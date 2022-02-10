@@ -39,6 +39,7 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
             if current_time > time_for_email_final_status:
                 if (df_log["email status at 10"] == "").all():
                     df_log["email status at 10"] = "Sent"
+                    df_log.to_csv("log_file.csv", index=False)
                     send_email(hospital=None, email_type="Not all filled at 10", day=day)
                     logging.info("if not yet done: send status email: not all filled")
             elif current_time > time_for_email_to_call:
@@ -60,6 +61,7 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
             if (df_log["CoReport filled"] == "Yes").all():
                 if df_log["all filled"].sum() == 0:
                     df_log["all filled"] = 1
+                    df_log.to_csv("log_file.csv", index=False)
                     send_email(hospital=None, email_type="All filled", day=day)
                     logging.info(f"Send email: everything ok at {current_time}")
                     df_log["email: all ok"] = f"Sent at {current_time}"
