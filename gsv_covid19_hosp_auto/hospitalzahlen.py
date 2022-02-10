@@ -33,7 +33,7 @@ from gsv_covid19_hosp_auto import calculation
 from datetime import timezone, datetime, timedelta
 import logging
 from gsv_covid19_hosp_auto import credentials
-from gsv_covid19_hosp_auto import update_coreport
+from gsv_covid19_hosp_auto import update_coreport, send_email2
 from zoneinfo import ZoneInfo
 
 
@@ -45,10 +45,15 @@ def all_together(date, list_hospitals):
         try_to_enter_in_coreport(date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
         try_to_enter_in_coreport(date=date - timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
         try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
+
+        # send emails if values missing for Saturday or Sunday
+        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday")
+        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday")
     elif day_of_week == "Other workday":
         try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
     else:
         logging.info("It is weekend")
+    df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today")
     df_log.to_pickle("log_file.pkl")
     df_log.to_csv("log_file.csv", index=False)
 
