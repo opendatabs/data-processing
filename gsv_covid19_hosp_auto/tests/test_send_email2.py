@@ -3,10 +3,7 @@ from datetime import date, time
 import pandas as pd
 # import io
 # import common
-from gsv_covid19_hosp_auto import credentials
-from gsv_covid19_hosp_auto.tests.send_email2 import check_if_email, send_email
-
-
+from gsv_covid19_hosp_auto.send_email2 import check_if_email
 
 
 class TestCheckIfEmail(object):
