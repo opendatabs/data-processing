@@ -40,14 +40,16 @@ def run_test(list_hospitals, date):
     print(df_log)
     df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today")
     df_log.to_pickle("log_file.pkl")
+    print(df_log)
     df_log.to_csv("log_file.csv", index=False)
 
 def check_for_log_file(date, day_of_week, list_hospitals):
     try:
-        with open("log_file.pkl") as log_file:
-            # read empty string as empty string and not as NaN: keep_default_na=False
+        with open("log_file.pkl", 'wt') as log_file:
             df_log = pd.read_pickle(log_file)
-            if str(date) not in list(df_log["Date"]):
+            print("pickle file")
+            print(df_log)
+            if date not in list(df_log["Date"]):
                 make_log_file(date, day_of_week, list_hospitals)
     except OSError:
         make_log_file(date, day_of_week, list_hospitals)
@@ -84,8 +86,11 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
         for hospital in filled_hospitals:
             row_hospital = df[df["Hospital"] == hospital]
             timestamp = row_hospital["CapacTime"].values[0]
-            condition = (df_log["Date"] == str(date)) & (df_log["Hospital"] == hospital)
+            condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+            print("condition")
+            print(condition)
             df_log.loc[condition, "IES entry"] = timestamp
+            print(df_log)
         logging.info(f"There are no entries of {missing} for {day} in IES")
     return df_log
 
@@ -123,12 +128,12 @@ def write_in_coreport_test(df, hospital_list, date, day, df_log, current_time= d
                 logging.info(f"Added {value} for {prop} of {hospital} ")
             else:
                 logging.warning(f"Negative value for {prop} of {hospital}! send email...")
-                condition = (df_log["Date"] == str(date)) & (df_log["Hospital"] == hospital)
+                condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                 incomplete += 1
                 if (df_log.loc[condition, "email negative value"] == "").all():
                     send_email2.send_email(hospital=hospital, email_type="Negative value", day=day, extra_info=[prop, hospital])
                     df_log.loc[condition, "email negative value"] = f"Sent at {current_time}"
-        condition = (df_log["Date"] == str(date)) & (df_log["Hospital"] == hospital)
+        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
         if incomplete == 0:
             df_log.loc[condition, "CoReport filled"] = "Yes"
             logging.info(f"Entries added into CoReport for {hospital}")
@@ -211,7 +216,7 @@ if __name__ == "__main__":
     time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50, tzinfo=ZoneInfo('Europe/Zurich'))
     time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
     pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() - timedelta(1)
+    datum = datetime.today().date() #- timedelta(1)
     run_test(['Clara','UKBB', 'USB'], datum)
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.01.2022.pkl')

@@ -25,14 +25,14 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
     time_for_email = time(9,30)
     time_for_email_to_call = time(9,50)
     time_for_email_final_status = time(10,0)
-    df_missing = df_log[(df_log["IES entry"] == "") & (df_log["Date"] == str(date))]
+    df_missing = df_log[(df_log["IES entry"] == "") & (df_log["Date"] == date)]
     if day in ["Saturday", "Sunday"]:
         if not df_missing.empty:
             for index, row in df_missing.iterrows():
                 if row["email reminder"] == "":
                         hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Reminder")
-                        condition = (df_log["Date"] == str(date)) & (df_log["Hospital"] == hospital)
+                        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                         df_log.loc[condition, "email reminder"] = f"Sent at {current_time}"
     elif day == "today":
         if not df_missing.empty:
@@ -47,14 +47,14 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                     if row["email for calling"] == "":
                         hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Call")
-                        condition = (df_log["Date"] == str(date)) & (df_log["Hospital"] == hospital)
+                        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                         df_log.loc[condition, "email for calling"] = f"Sent at {current_time}"
             elif current_time > time_for_email:
                 for index, row in df_missing.iterrows():
                     if row["email reminder"] == "":
                         hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Reminder")
-                        condition = (df_log["Date"] == str(date)) & (df_log["Hospital"] == hospital)
+                        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                         df_log.loc[condition, "email reminder"] = f"Sent at {current_time}"
         elif df_missing.empty:
             # check if really all has been filled completely
