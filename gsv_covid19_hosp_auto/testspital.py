@@ -81,7 +81,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     if not df.empty:
         filled_hospitals = [x for x in list_hospitals if x not in missing]
         logging.info(f"Add entries of {filled_hospitals} for {day} into CoReport")
-        write_in_coreport_test(df, filled_hospitals,date=date, day=day, df_log=df_log)
+        df_log = write_in_coreport_test(df, filled_hospitals,date=date, day=day, df_log=df_log)
         for hospital in filled_hospitals:
             row_hospital = df[df["Hospital"] == hospital]
             timestamp = row_hospital["CapacTime"].values[0]
