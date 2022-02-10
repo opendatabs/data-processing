@@ -38,6 +38,8 @@ from zoneinfo import ZoneInfo
 
 
 def all_together(date, list_hospitals):
+    check_for_log_file(date, day_of_week, list_hospitals)
+    df_log = pd.read_pickle("log_file.pkl")
     day_of_week = get_data.check_day(date)
     if day_of_week == "Monday":
         try_to_enter_in_coreport(date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
@@ -47,6 +49,41 @@ def all_together(date, list_hospitals):
         try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
     else:
         logging.info("It is weekend")
+    df_log.to_pickle("log_file.pkl")
+    df_log.to_csv("log_file.csv", index=False)
+
+
+def check_for_log_file(date, day_of_week, list_hospitals):
+    try:
+        with open("log_file.csv") as log_file:
+            df_log = pd.read_csv(log_file)
+            print( "log file")
+            print(df_log)
+            if str(date) not in list(df_log["Date"]):
+                make_log_file(date, day_of_week, list_hospitals)
+    except OSError:
+        make_log_file(date, day_of_week, list_hospitals)
+
+
+def make_log_file(date, day_of_week, list_hospitals):
+    df = pd.DataFrame()
+    numb_hosp = len(list_hospitals)
+    if day_of_week == "Monday":
+        df["Date"] = [date - timedelta(2)] * numb_hosp + [date - timedelta(1)] * numb_hosp + [date] * numb_hosp
+        df["Hospital"] = list_hospitals * 3
+    else:
+        df["Date"] = [date] * numb_hosp
+        df["Hospital"] = list_hospitals
+    df["IES entry"] = ""
+    df["CoReport filled"] = ""
+    df["email negative value"] = ""
+    df["email reminder"] = ""
+    df["email for calling"] = ""
+    df["email status at 10"] = ""
+    df["email: all ok"] = ""
+    df["all filled"] = 0
+    #df.set_index("Date", inplace=True)
+    df.to_pickle("log_file.pkl")
 
 
 def try_to_enter_in_coreport(date, day, list_hospitals, weekend):
