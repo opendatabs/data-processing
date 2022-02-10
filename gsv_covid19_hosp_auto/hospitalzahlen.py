@@ -38,6 +38,7 @@ from zoneinfo import ZoneInfo
 
 
 def all_together(date, list_hospitals):
+    day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
     df_log = pd.read_pickle("log_file.pkl")
     day_of_week = get_data.check_day(date)
