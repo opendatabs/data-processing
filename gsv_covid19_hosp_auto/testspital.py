@@ -1,5 +1,5 @@
 from datetime import timezone, datetime, timedelta
-from gsv_covid19_hosp import get_data
+from gsv_covid19_hosp_auto import get_data
 import mechanicalsoup
 # from bs4 import BeautifulSoup
 from gsv_covid19_hosp_auto import credentials
@@ -71,7 +71,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df["email: all ok"] = ""
     df["all filled"] = 0
     #df.set_index("Date", inplace=True)
-    df.to_pickle("log_file.pkl", index=False)
+    df.to_pickle("log_file.pkl")
 
 
 def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
