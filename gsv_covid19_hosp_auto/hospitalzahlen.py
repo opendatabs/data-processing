@@ -42,15 +42,17 @@ def all_together(date, list_hospitals):
     df_log = pd.read_pickle("log_file.pkl")
     day_of_week = get_data.check_day(date)
     if day_of_week == "Monday":
-        try_to_enter_in_coreport(date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
-        try_to_enter_in_coreport(date=date - timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
-        try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
-
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday",
+                                          list_hospitals=list_hospitals, weekend=True)
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(1), day="Sunday",
+                                          list_hospitals=list_hospitals, weekend=True)
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals,
+                                          weekend=False)
         # send emails if values missing for Saturday or Sunday
         df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday")
         df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday")
     elif day_of_week == "Other workday":
-        try_to_enter_in_coreport(date=date, day="today", list_hospitals=list_hospitals, weekend=False)
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals, weekend=False)
     else:
         logging.info("It is weekend")
     df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today")
@@ -91,7 +93,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df.to_pickle("log_file.pkl")
 
 
-def try_to_enter_in_coreport(date, day, list_hospitals, weekend):
+def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     logging.info(f"Read out data for {day} in IES system")
     df, missing = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=weekend)
     if not df.empty:
@@ -100,7 +102,13 @@ def try_to_enter_in_coreport(date, day, list_hospitals, weekend):
         update_coreport.write_in_coreport(df, filled_hospitals, date=date)
         logging.info(f"Entries added into CoReport for {filled_hospitals}")
         logging.info(f"There are no entries of {missing} for {day} in IES")
-
+        for hospital in filled_hospitals:
+            row_hospital = df[df["Hospital"] == hospital]
+            timestamp = row_hospital["CapacTime"].values[0]
+            condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+            df_log.loc[condition, "IES entry"] = timestamp
+        logging.info(f"There are no entries of {missing} for {day} in IES")
+    return df_log
 
 def get_df_for_date(date, list_hospitals, weekend=False):
     df = pd.DataFrame()
