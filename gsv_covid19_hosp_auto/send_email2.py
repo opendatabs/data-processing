@@ -132,23 +132,18 @@ def send_email(hospital, email_type, day="today", extra_info = []):
                f"\n" \
                f"{phone_hospital}"
 
-    print(text)
-    print(subject)
-
-    """
     msg = make_email.message(subject=subject, text=text, attachment=attachment)
-    smtp = smtplib.SMTP('smtp-mail.outlook.com', port='587')
-    smtp.ehlo()  # send the extended hello to our server
-    smtp.starttls()  # tell server we want to communicate with TLS encryption
-    smtp.login(credentials.email_test, credentials.password_test)
-    # host = "mail.bs.ch"
-    # smtp = smtplib.SMTP(host)
 
-    smtp.sendmail(from_addr='hester.pieters@bs.ch',
-              to_addrs=['hester.pieters@bs.ch'],
-              msg=msg.as_string())
-        smtp.quit()  # finally, don't forget to close the connection
-    """
+    # initialize connection to email server
+    host = credentials.email_server
+    smtp = smtplib.SMTP(host)
+
+    # send email
+    smtp.sendmail(from_addr=credentials.email,
+                  to_addrs=credentials.email_receivers,
+                  msg=msg.as_string())
+    smtp.quit()  # finally, don't forget to close the connection
+
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
