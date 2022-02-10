@@ -8,7 +8,7 @@ RUN python3 -m pip install --user --no-cache-dir pandasql==0.7.3
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 RUN python3 -m pip install --user --no-cache-dir beautifulsoup4===4.9.3
 RUN python3 -m pip install --user --no-cache-dir MechanicalSoup==1.1.0
-CMD ["/bin/bash", "/code/data-processing/gsv_covid19_hosp/etl.sh"]
+CMD ["/bin/bash", "/code/data-processing/gsv_covid19_hosp_auto/etl.sh"]
 
 
 # Docker commands to create image and run container:
