@@ -45,11 +45,11 @@ def run_test(list_hospitals, date):
 
 def check_for_log_file(date, day_of_week, list_hospitals):
     try:
-        with open("log_file.pkl", 'wt') as log_file:
-            df_log = pd.read_pickle(log_file)
-            print("pickle file")
+        with open("log_file.csv") as log_file:
+            df_log = pd.read_csv(log_file)
+            print( "log file")
             print(df_log)
-            if date not in list(df_log["Date"]):
+            if str(date) not in list(df_log["Date"]):
                 make_log_file(date, day_of_week, list_hospitals)
     except OSError:
         make_log_file(date, day_of_week, list_hospitals)
