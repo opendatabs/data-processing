@@ -13,18 +13,12 @@ from zoneinfo import ZoneInfo
 
 def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
     pd.set_option('display.max_columns', None)
-    # now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    #date = now_in_switzerland.date()
-    # time = now_in_switzerland.time().replace(microsecond=0)
-    # time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=30,
-    #                          tzinfo=ZoneInfo('Europe/Zurich'))
-    # time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50,
-    #                                  tzinfo=ZoneInfo('Europe/Zurich'))
-    # time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0,
-    #                                       tzinfo=ZoneInfo('Europe/Zurich'))
-    time_for_email = time(9,30)
-    time_for_email_to_call = time(9,50)
-    time_for_email_final_status = time(10,0)
+    time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=30,
+                             tzinfo=ZoneInfo('Europe/Zurich'))
+    time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50,
+                                     tzinfo=ZoneInfo('Europe/Zurich'))
+    time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0,
+                                          tzinfo=ZoneInfo('Europe/Zurich'))
     df_missing = df_log[(df_log["IES entry"] == "") & (df_log["Date"] == date)]
     if day in ["Saturday", "Sunday"]:
         if not df_missing.empty:
