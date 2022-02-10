@@ -24,7 +24,7 @@ def run_test(list_hospitals, date):
 
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
-    df_log = pd.read_csv("log_file.csv", keep_default_na=False)
+    df_log = pd.read_pickle("log_file.pkl")
     if day_of_week == "Monday":
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
@@ -39,13 +39,14 @@ def run_test(list_hospitals, date):
         logging.info("It is weekend")
     print(df_log)
     df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today")
+    df_log.to_pickle("log_file.pkl")
     df_log.to_csv("log_file.csv", index=False)
 
 def check_for_log_file(date, day_of_week, list_hospitals):
     try:
-        with open("log_file.csv") as log_file:
+        with open("log_file.pkl") as log_file:
             # read empty string as empty string and not as NaN: keep_default_na=False
-            df_log = pd.read_csv(log_file, keep_default_na=False)
+            df_log = pd.read_pickle(log_file)
             if str(date) not in list(df_log["Date"]):
                 make_log_file(date, day_of_week, list_hospitals)
     except OSError:
@@ -70,7 +71,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df["email: all ok"] = ""
     df["all filled"] = 0
     #df.set_index("Date", inplace=True)
-    df.to_csv("log_file.csv", index=False)
+    df.to_pickle("log_file.pkl", index=False)
 
 
 def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
