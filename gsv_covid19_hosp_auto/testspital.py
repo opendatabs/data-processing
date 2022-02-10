@@ -25,15 +25,23 @@ def run_test(list_hospitals, date):
     check_for_log_file(date, day_of_week, list_hospitals)
     df_log = pd.read_pickle("log_file.pkl")
     if day_of_week == "Monday":
-        df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=list_hospitals, weekend=True)
-        df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(1), day="Sunday", list_hospitals=list_hospitals, weekend=True)
-        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals, weekend=False)
+        condition = (df_log["Date"] == date - timedelta(2)) & (df_log["CoReport filled"] != "Yes")
+        hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=hospitals_left_to_fill, weekend=True)
+        condition = (df_log["Date"] == date - timedelta(1)) & (df_log["CoReport filled"] != "Yes")
+        hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(1), day="Sunday", list_hospitals=hospitals_left_to_fill, weekend=True)
+        condition = (df_log["Date"] == date) & (df_log["CoReport filled"] != "Yes")
+        hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left_to_fill, weekend=False)
 
         # send emails if values missing for Saturday or Sunday
         df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday")
         df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday")
     elif day_of_week == "Other workday":
-        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=list_hospitals, weekend=False)
+        condition = (df_log["Date"] == date) & (df_log["CoReport filled"] != "Yes")
+        hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left_to_fill, weekend=False)
     else:
         logging.info("It is weekend")
     print(df_log)
@@ -215,7 +223,7 @@ if __name__ == "__main__":
     time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50, tzinfo=ZoneInfo('Europe/Zurich'))
     time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
     pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() #- timedelta(1)
+    datum = datetime.today().date() - timedelta(1)
     run_test(['Clara','UKBB', 'USB'], datum)
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.01.2022.pkl')
