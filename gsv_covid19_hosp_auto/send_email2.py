@@ -61,7 +61,7 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                     df_log["email: all ok"] = f"Sent at {current_time}"
     return df_log
 
-def send_email(hospital, email_type, day="today", extra_info = []):
+def send_email(hospital, email_type, day="today", extra_info = [], attachment=None):
     phone_dict = credentials.IES_phonenumbers
     email_dict = credentials.IES_emailadresses
     if email_type == "Reminder":
@@ -76,7 +76,6 @@ def send_email(hospital, email_type, day="today", extra_info = []):
                 f"\n\n" \
                 f"{text_reminder}"
             subject = f"No IES entries {hospital} today"
-            attachment = None
         else:
             text = f"There are no entries in IES for {hospital} on {day}, " \
                    f"\n\n" \
@@ -84,7 +83,6 @@ def send_email(hospital, email_type, day="today", extra_info = []):
                    f"\n\n" \
                    f"{email_receivers_hospital}"
             subject = f"No IES entries {hospital} on {day}"
-            attachment = None
     elif email_type == "Call":
         phone_hospital = phone_dict[hospital]
         text =  f"There are still no entries in IES for {hospital} today, " \
@@ -93,7 +91,6 @@ def send_email(hospital, email_type, day="today", extra_info = []):
                    f"\n\n" \
                    f"{phone_hospital}"
         subject = f"Still no IES entries {hospital} today"
-        attachment = None
     elif email_type == "Not all filled at 10":
         logging.info("Send email with log file, message whether all is filled or not")
         subject="Warning: CoReport has not been filled completely before 10"
