@@ -1,13 +1,9 @@
 import logging
-import os
-
 import pandas as pd
-
-from gsv_covid19_hosp_auto import testspital
 from gsv_covid19_hosp_auto import credentials
 from gsv_covid19_hosp_auto import make_email
 import smtplib
-from datetime import timezone, datetime, timedelta, time
+from datetime import timezone, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 
@@ -60,6 +56,7 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                     logging.info(f"Send email: everything ok at {current_time}")
                     df_log["email: all ok"] = f"Sent at {current_time}"
     return df_log
+
 
 def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, attachment=None, html_content=None):
     phone_dict = credentials.IES_phonenumbers
@@ -137,15 +134,3 @@ def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, 
                   msg=msg.as_string())
     smtp.quit()  # finally, don't forget to close the connection
 
-
-if __name__ == "__main__":
-    pd.set_option('display.max_columns', None)
-    date = datetime.today().date() - timedelta(3)
-    day_of_week = "Other workday"
-    list_hospitals = ['Clara', 'USB', 'UKBB']
-    df_log = pd.read_csv("log_file.csv", keep_default_na=False)
-    print(df_log)
-    df_missing = df_log[(df_log["IES entry"] == None) & (df_log["Date"] == date)]
-    print(df_missing)
-    # send_email(hospital='Clara', email_type="Call")
-    # send_email(None, email_type="Negative value", extra_info=[ '1', 'Clara'])
