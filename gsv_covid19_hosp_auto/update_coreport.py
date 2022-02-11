@@ -65,13 +65,13 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
         logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)
         properties = get_properties_list(hospital=hospital)
-        index_hospital = df_coreport.index[df_coreport["Hospital"] == hospital]
+        #index_hospital = df_coreport.index[df_coreport["Hospital"] == hospital]
         logging.info(f"Write entries into CoReport for {hospital}")
         incomplete = 0
         for prop in properties:
             # value_id = credentials.dict_coreport[hospital][prop]
-            value = int(df_hospital[prop][index_hospital])
-            value_id = df_hospital[prop + " value_id"][index_hospital]
+            value = int(df_hospital[prop][0])
+            value_id = df_hospital[prop + " value_id"][0]
             # quick fix to ignore negative values
             if value >= 0:
                 main(value_id=value_id, value=value)
