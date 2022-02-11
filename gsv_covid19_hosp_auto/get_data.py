@@ -1,7 +1,6 @@
 import pandas as pd
 import requests
 from gsv_covid19_hosp_auto import credentials
-# import json
 import datetime
 import logging
 
@@ -66,9 +65,3 @@ def get_dataframe(hospital, date):
             df["Hospital"] = hospital
     return df
 
-
-if __name__ == "__main__":
-    datum = datetime.datetime.today().date()
-    get_data('UKBB', date=datum)
-    datum = datetime.datetime.today().date() + datetime.timedelta(1)
-    get_data('Clara', date=datum)

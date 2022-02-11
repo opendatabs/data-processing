@@ -10,6 +10,7 @@ from gsv_covid19_hosp_auto import hospitalzahlen
 from gsv_covid19_hosp_auto import send_email2
 from zoneinfo import ZoneInfo
 
+
 def main(value_id, value):
     # logging.basicConfig(level=logging.DEBUG)
     # logging.info(f'Executing {__file__}...')
@@ -52,7 +53,7 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
     logging.info("Get value id's from CoReport")
-    df_coreport =coreport_scraper.add_value_id(df_coreport, date=date)
+    df_coreport = coreport_scraper.add_value_id(df_coreport, date=date)
     """
     # with value id's already saved the day before:
     date = date.strftime('%d.%m.%Y')
@@ -93,22 +94,6 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
             logging.warning(f"Entries only partly added into CoReport for {hospital}")
     return df_log
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
-
-
-    df_value_id = pd.read_pickle('value_id_df_14.12.2021.pkl')
-    today = datetime.datetime.today().date()
-    list_hospitals = ['USB', 'Clara', 'UKBB']
-    df_ies, missing = hospitalzahlen.get_df_for_date(date=today, list_hospitals=list_hospitals)
-    df_coreport = calculation.calculate_numbers(df_ies)
-    df_coreport.set_index("Hospital", inplace=True)
-    print(df_coreport)
-    print(df_value_id)
-    df_joined = df_coreport.join(df_value_id)
-    pd.set_option('display.max_columns', None)
-    print(df_joined)
 
 
 

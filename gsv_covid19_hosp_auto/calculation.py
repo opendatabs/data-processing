@@ -19,6 +19,7 @@ def Betten_frei_IPS_ohne_Beatmung(df):
     else:
         return df['C']
 
+
 def Betten_frei_IPS_mit_Beatmung(df):
     Beatmete_IS_Pat = df['VentIcuPats']
     Beatmete_IS_Betten = df['VentIcuBeds']

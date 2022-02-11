@@ -2,7 +2,6 @@ import pandas as pd
 import update_coreport
 
 
-
 def get_df_manually(hospital, date, TotalAllBeds, TotalAllBedsC19, OperIcuBeds,
                  OperIcuBedsC19, VentIcuBeds, OperImcBeds, OperImcBedsC19, TotalAllPats, TotalAllPatsC19,
                  TotalIcuPats, TotalIcuPatsC19, VentIcuPats, TotalImcPats, TotalImcPatsC19, EcmoPats):
