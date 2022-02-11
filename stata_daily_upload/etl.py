@@ -29,13 +29,22 @@ def main():
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_betriebe_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100146'},
                {'file': 'StatA/Bevoelkerung/wanderungen.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100138'}
                ]
+    file_not_found_errors = []
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
-        if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
-            if ct.has_changed(file_path, do_update_hash_file=False):
-                common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-                odsp.publish_ods_dataset_by_id(upload['ods_id'])
-                ct.update_hash_file(file_path)
+        try:
+            if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
+                if ct.has_changed(file_path, do_update_hash_file=False):
+                    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+                    odsp.publish_ods_dataset_by_id(upload['ods_id'])
+                    ct.update_hash_file(file_path)
+        except FileNotFoundError as e:
+            file_not_found_errors.append(e)
+    error_count = len(file_not_found_errors)
+    if error_count > 0:
+        for e in file_not_found_errors:
+            logging.exception(e)
+        raise FileNotFoundError(f'{error_count} FileNotFoundErrors have been raised!')
     print('Job successful!')
 
 
