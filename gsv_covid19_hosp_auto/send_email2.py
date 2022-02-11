@@ -34,7 +34,7 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                 if (df_log["email status at 10"] == "").all():
                     df_log["email status at 10"] = "Sent"
                     df_log.to_csv("log_file.csv", index=False)
-                    send_email(hospital=None, email_type="Not all filled at 10", day=day)
+                    send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
                     logging.info("if not yet done: send status email: not all filled")
             elif current_time > time_for_email_to_call:
                 for index, row in df_missing.iterrows():
@@ -56,12 +56,12 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                 if df_log["all filled"].sum() == 0:
                     df_log["all filled"] = 1
                     df_log.to_csv("log_file.csv", index=False)
-                    send_email(hospital=None, email_type="All filled", day=day)
+                    send_email(hospital=None, email_type="All filled", day=day, df_log=df_log)
                     logging.info(f"Send email: everything ok at {current_time}")
                     df_log["email: all ok"] = f"Sent at {current_time}"
     return df_log
 
-def send_email(hospital, email_type, day="today", extra_info = [], attachment=None):
+def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, attachment=None, html_content=None):
     phone_dict = credentials.IES_phonenumbers
     email_dict = credentials.IES_emailadresses
     if email_type == "Reminder":
@@ -96,12 +96,14 @@ def send_email(hospital, email_type, day="today", extra_info = [], attachment=No
         subject="Warning: CoReport has not been filled completely before 10"
         text = "Please find in the attachment today's log file."
         attachment = "log_file.csv"
+        html_content = df_log.to_html()
     elif email_type == "All filled":
         subject= "CoReport all filled"
         text = "All values of today have been entered into CoReport." \
                "\n" \
                "Please find in the attachment today's log file."
         attachment = "log_file.csv"
+        html_content = df_log.to_html()
         logging.info("Email if all is filled after 10..")
     elif email_type == "Negative value":
         print("here")
@@ -123,7 +125,7 @@ def send_email(hospital, email_type, day="today", extra_info = [], attachment=No
                f"\n" \
                f"{phone_hospital}"
 
-    msg = make_email.message(subject=subject, text=text, attachment=attachment)
+    msg = make_email.message(subject=subject, text=text, attachment=attachment, html_content=html_content)
 
     # initialize connection to email server
     host = credentials.email_server
