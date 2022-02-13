@@ -37,6 +37,7 @@ def ods_set_general_access_policy(dataset_id: str, access_policy: str, do_publis
     existing_policy = r.text
     data = f'"{access_policy}"'
     do_change_policy = existing_policy != data
+    logging.info(f'Current access policy: {existing_policy}. Do we have to change that? {do_change_policy}. ')
     if do_change_policy:
         logging.info(f'Setting General Access Policy to {data}...')
         r = common.requests_put(url=url, data=data, auth=(credentials.user_name, credentials.password), proxies={'https': credentials.proxy})
