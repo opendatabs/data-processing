@@ -76,8 +76,9 @@ def make_datasets_public(active_abst, active_files, what_changed):
     logging.info(f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: setting live ods datasets to public...')
     if len(vorlage_in_filename) == 0:
         for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Details_Live[0]]:
-            r = odsp.ods_set_general_access_policy(ods_id, 'domain')
-            what_changed['datasets_changed_to_public'].append(ods_id)
+            policy_changed, r = odsp.ods_set_general_access_policy(ods_id, 'domain')
+            if policy_changed:
+                what_changed['datasets_changed_to_public'].append(ods_id)
     return what_changed
 
 
