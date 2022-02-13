@@ -1,9 +1,6 @@
 import datetime
 import pandas as pd
 from gsv_covid19_hosp_auto import credentials
-import common
-import requests
-import os
 from bs4 import BeautifulSoup
 import mechanicalsoup
 import logging
@@ -65,7 +62,6 @@ def make_df_value_id(date, list_hospitals):
     df.to_pickle(file_name)
 
 
-
 def add_value_id(df, date):
     username = credentials.username_coreport
     password = credentials.password_coreport
@@ -113,7 +109,6 @@ def add_value_id(df, date):
                 logging.warning(f"No tag for {data_name} and {data_time} present!")
     browser.close()
     return df
-
 
 
 if __name__ == "__main__":
