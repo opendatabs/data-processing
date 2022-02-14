@@ -30,14 +30,27 @@ import pandas as pd
 from gsv_covid19_hosp_auto import get_data
 from datetime import timezone, datetime, timedelta
 import logging
-from gsv_covid19_hosp_auto import update_coreport, send_email2
+from gsv_covid19_hosp_auto import update_coreport, send_email2, credentials
 from zoneinfo import ZoneInfo
+
+# hospitals to be filled
+list_hospitals = ['USB', 'Clara', 'UKBB']
+
+# current time and date
+now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+date = now_in_switzerland.date()
+
+# time conditions
+time_for_email = now_in_switzerland.replace(hour=9, minute=30, second=0, microsecond=0)
+time_for_email_to_call = now_in_switzerland.replace( hour=9, minute=50,second=0, microsecond=0)
+time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0)
+starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
 
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
-    df_log = pd.read_pickle("log_file.pkl")
+    df_log = pd.read_pickle(credentials.path_log_pkl)
     day_of_week = get_data.check_day(date)
     if day_of_week == "Monday":
         hospitals_left= hospitals_left_to_fill(date=date-timedelta(2), df_log=df_log)
@@ -50,27 +63,39 @@ def all_together(date, list_hospitals):
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left,
                                           weekend=False)
         # send emails if values missing for Saturday or Sunday
-        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday")
-        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday")
+        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday",
+                                            now_in_switzerland=now_in_switzerland,
+                                            time_for_email=time_for_email,
+                                            time_for_email_to_call=time_for_email_to_call,
+                                            time_for_email_final_status=time_for_email_final_status)
+        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday",
+                                            now_in_switzerland=now_in_switzerland,
+                                            time_for_email=time_for_email,
+                                            time_for_email_to_call=time_for_email_to_call,
+                                            time_for_email_final_status=time_for_email_final_status)
     elif day_of_week == "Other workday":
         hospitals_left = hospitals_left_to_fill(date=date, df_log=df_log)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left, weekend=False)
     else:
         logging.info("It is weekend")
-    df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today")
-    df_log.to_pickle("log_file.pkl")
-    df_log.to_csv("log_file.csv", index=False)
+    df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today",
+                                        now_in_switzerland=now_in_switzerland,
+                                        time_for_email=time_for_email,
+                                        time_for_email_to_call=time_for_email_to_call,
+                                        time_for_email_final_status=time_for_email_final_status)
+    df_log.to_pickle(credentials.path_log_pkl)
+    df_log.to_csv(credentials.path_log_csv, index=False)
 
 
 def hospitals_left_to_fill(date, df_log):
-    condition = (df_log["Date"] == date) & (df_log["CoReport filled"] != "Yes")
+    condition = (df_log["Date"] == date) & (df_log['CoReport_filled'] != "Yes")
     hospitals_left= df_log.loc[condition, "Hospital"]
     return hospitals_left
 
 
 def check_for_log_file(date, day_of_week, list_hospitals):
     try:
-        with open("log_file.csv") as log_file:
+        with open(credentials.path_log_csv) as log_file:
             df_log = pd.read_csv(log_file)
             if str(date) not in list(df_log["Date"]):
                 make_log_file(date, day_of_week, list_hospitals)
@@ -87,16 +112,16 @@ def make_log_file(date, day_of_week, list_hospitals):
     else:
         df["Date"] = [date] * numb_hosp
         df["Hospital"] = list_hospitals
-    df["IES entry"] = ""
-    df["CoReport filled"] = ""
-    df["email negative value"] = ""
-    df["email reminder"] = ""
-    df["email for calling"] = ""
-    df["email status at 10"] = ""
-    df["email: all ok"] = ""
-    df["all filled"] = 0
+    df['time_IES_entry'] = ""
+    df['CoReport_filled'] = ""
+    df['email_negative_value'] = ""
+    df['email_reminder'] = ""
+    df['email_for_calling'] = ""
+    df['email_status_at_10'] = ""
+    df['email_all_filled'] = ""
+    df['all_filled'] = 0
     #df.set_index("Date", inplace=True)
-    df.to_pickle("log_file.pkl")
+    df.to_pickle(credentials.path_log_pkl)
 
 
 def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
@@ -112,7 +137,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
             row_hospital = df[df["Hospital"] == hospital]
             timestamp = row_hospital["CapacTime"].values[0]
             condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-            df_log.loc[condition, "IES entry"] = timestamp
+            df_log.loc[condition, 'time_IES_entry'] = timestamp
         logging.info(f"There are no entries of {missing} for {day} in IES")
     return df_log
 
@@ -152,9 +177,6 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    pd.set_option('display.max_columns', None)
-    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    date = now_in_switzerland.date()
-    list_hospitals = ['USB', 'Clara', 'UKBB']
-    all_together(date=date, list_hospitals=list_hospitals)
+    if now_in_switzerland >= starting_time:
+        all_together(date=date, list_hospitals=list_hospitals)
 
