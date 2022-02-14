@@ -23,7 +23,6 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
             if now_in_switzerland > time_for_email_final_status:
                 if (df_log["email status at 10"] == "").all():
                     df_log["email status at 10"] = "Sent"
-                    df_log.to_csv("log_file.csv", index=False)
                     send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
                     logging.info("if not yet done: send status email: not all filled")
             elif now_in_switzerland > time_for_email_to_call:
@@ -45,7 +44,6 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
             if (df_log["CoReport filled"] == "Yes").all():
                 if df_log["all filled"].sum() == 0:
                     df_log["all filled"] = 1
-                    df_log.to_csv("log_file.csv", index=False)
                     send_email(hospital=None, email_type="All filled", day=day, df_log=df_log)
                     logging.info(f"Send email: everything ok at {now_in_switzerland}")
                     df_log["email: all ok"] = f"Sent at {now_in_switzerland}"
