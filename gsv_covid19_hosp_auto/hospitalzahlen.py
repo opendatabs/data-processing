@@ -41,6 +41,7 @@ time_for_email_to_call = now_in_switzerland.replace( hour=9, minute=50,second=0,
                                      tzinfo=ZoneInfo('Europe/Zurich'))
 time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0,
                                           tzinfo=ZoneInfo('Europe/Zurich'))
+starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
@@ -173,7 +174,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     pd.set_option('display.max_columns', None)
-    date = now_in_switzerland.date()
-    list_hospitals = ['USB', 'Clara', 'UKBB']
-    all_together(date=date, list_hospitals=list_hospitals)
+    if now_in_switzerland >= starting_time:
+        date = now_in_switzerland.date()
+        list_hospitals = ['USB', 'Clara', 'UKBB']
+        all_together(date=date, list_hospitals=list_hospitals)
 
