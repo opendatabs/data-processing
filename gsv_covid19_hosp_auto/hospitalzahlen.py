@@ -173,7 +173,6 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    pd.set_option('display.max_columns', None)
     if now_in_switzerland >= starting_time:
         date = now_in_switzerland.date()
         list_hospitals = ['USB', 'Clara', 'UKBB']
