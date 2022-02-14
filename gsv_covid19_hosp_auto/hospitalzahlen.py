@@ -46,6 +46,7 @@ time_for_email_to_call = now_in_switzerland.replace( hour=9, minute=50,second=0,
 time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0)
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
+
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
