@@ -25,13 +25,13 @@ def run_test(list_hospitals, date):
     check_for_log_file(date, day_of_week, list_hospitals)
     df_log = pd.read_pickle("log_file.pkl")
     if day_of_week == "Monday":
-        condition = (df_log["Date"] == date - timedelta(2)) & (df_log["CoReport filled"] != "Yes")
+        condition = (df_log["Date"] == date - timedelta(2)) & (df_log['CoReport_filled'] != "Yes")
         hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday", list_hospitals=hospitals_left_to_fill, weekend=True)
-        condition = (df_log["Date"] == date - timedelta(1)) & (df_log["CoReport filled"] != "Yes")
+        condition = (df_log["Date"] == date - timedelta(1)) & (df_log['CoReport_filled'] != "Yes")
         hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(1), day="Sunday", list_hospitals=hospitals_left_to_fill, weekend=True)
-        condition = (df_log["Date"] == date) & (df_log["CoReport filled"] != "Yes")
+        condition = (df_log["Date"] == date) & (df_log['CoReport_filled'] != "Yes")
         hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left_to_fill, weekend=False)
 
@@ -39,7 +39,7 @@ def run_test(list_hospitals, date):
         df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday")
         df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday")
     elif day_of_week == "Other workday":
-        condition = (df_log["Date"] == date) & (df_log["CoReport filled"] != "Yes")
+        condition = (df_log["Date"] == date) & (df_log['CoReport_filled'] != "Yes")
         hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left_to_fill, weekend=False)
     else:
@@ -71,14 +71,14 @@ def make_log_file(date, day_of_week, list_hospitals):
     else:
         df["Date"] = [date] * numb_hosp
         df["Hospital"] = list_hospitals
-    df["IES entry"] = ""
-    df["CoReport filled"] = ""
-    df["email negative value"] = ""
-    df["email reminder"] = ""
-    df["email for calling"] = ""
-    df["email status at 10"] = ""
-    df["email: all ok"] = ""
-    df["all filled"] = 0
+    df['time_IES_entry'] = ""
+    df['CoReport_filled'] = ""
+    df['email_negative_value'] = ""
+    df['email_reminder'] = ""
+    df['email_for_calling'] = ""
+    df['email_status_at_10'] = ""
+    df['email_all_filled'] = ""
+    df['all_filled'] = 0
     #df.set_index("Date", inplace=True)
     df.to_pickle("log_file.pkl")
 
@@ -96,7 +96,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
             condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
             print("condition")
             print(condition)
-            df_log.loc[condition, "IES entry"] = timestamp
+            df_log.loc[condition, 'time_IES_entry'] = timestamp
             print(df_log)
         logging.info(f"There are no entries of {missing} for {day} in IES")
     return df_log
@@ -137,15 +137,15 @@ def write_in_coreport_test(df, hospital_list, date, day, df_log, current_time= d
                 logging.warning(f"Negative value for {prop} of {hospital}! send email...")
                 condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                 incomplete += 1
-                if (df_log.loc[condition, "email negative value"] == "").all():
+                if (df_log.loc[condition, 'email_negative_value'] == "").all():
                     send_email2.send_email(hospital=hospital, email_type="Negative value", day=day, extra_info=[prop, hospital])
-                    df_log.loc[condition, "email negative value"] = f"Sent at {current_time}"
+                    df_log.loc[condition, 'email_negative_value'] = f"Sent at {current_time}"
         condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
         if incomplete == 0:
-            df_log.loc[condition, "CoReport filled"] = "Yes"
+            df_log.loc[condition, 'CoReport_filled'] = "Yes"
             logging.info(f"Entries added into CoReport for {hospital}")
         else:
-            df_log.loc[condition, "CoReport filled"] = "Not all filled"
+            df_log.loc[condition, 'CoReport_filled'] = "Not all filled"
             logging.warning(f"Entries only partly added into CoReport for {hospital}")
     return df_log
 

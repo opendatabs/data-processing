@@ -88,7 +88,7 @@ def all_together(date, list_hospitals):
 
 
 def hospitals_left_to_fill(date, df_log):
-    condition = (df_log["Date"] == date) & (df_log["CoReport filled"] != "Yes")
+    condition = (df_log["Date"] == date) & (df_log['CoReport_filled'] != "Yes")
     hospitals_left= df_log.loc[condition, "Hospital"]
     return hospitals_left
 
@@ -112,14 +112,14 @@ def make_log_file(date, day_of_week, list_hospitals):
     else:
         df["Date"] = [date] * numb_hosp
         df["Hospital"] = list_hospitals
-    df["IES entry"] = ""
-    df["CoReport filled"] = ""
-    df["email negative value"] = ""
-    df["email reminder"] = ""
-    df["email for calling"] = ""
-    df["email status at 10"] = ""
-    df["email: all ok"] = ""
-    df["all filled"] = 0
+    df['time_IES_entry'] = ""
+    df['CoReport_filled'] = ""
+    df['email_negative_value'] = ""
+    df['email_reminder'] = ""
+    df['email_for_calling'] = ""
+    df['email_status_at_10'] = ""
+    df['email_all_filled'] = ""
+    df['all_filled'] = 0
     #df.set_index("Date", inplace=True)
     df.to_pickle(credentials.path_log_pkl)
 
@@ -129,7 +129,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     hosp_to_be_filled = []
     for hospital in list_hospitals:
         condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-        if df_log.loc[condition, "CoReport filled"] != "Yes":
+        if df_log.loc[condition, 'CoReport_filled'] != "Yes":
             logging.info(f'{hospital} is not yet (completely filled) for {date}')
             hosp_to_be_filled.append(hospital)
     df, missing = get_df_for_date(date=date, list_hospitals=hosp_to_be_filled, weekend=weekend)
@@ -143,7 +143,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
             row_hospital = df[df["Hospital"] == hospital]
             timestamp = row_hospital["CapacTime"].values[0]
             condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-            df_log.loc[condition, "IES entry"] = timestamp
+            df_log.loc[condition, 'time_IES_entry'] = timestamp
         logging.info(f"There are no entries of {missing} for {day} in IES")
     return df_log
 
