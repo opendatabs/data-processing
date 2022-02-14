@@ -126,9 +126,15 @@ def make_log_file(date, day_of_week, list_hospitals):
 
 def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     logging.info(f"Read out data for {day} in IES system")
-    df, missing = get_df_for_date(date=date, list_hospitals=list_hospitals, weekend=weekend)
+    hosp_to_be_filled = []
+    for hospital in list_hospitals:
+        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
+        if df_log.loc[condition, "CoReport filled"] != "Yes":
+            logging.info(f'{hospital} is not yet (completely filled) for {date}')
+            hosp_to_be_filled.append(hospital)
+    df, missing = get_df_for_date(date=date, list_hospitals=hosp_to_be_filled, weekend=weekend)
     if not df.empty:
-        filled_hospitals = [x for x in list_hospitals if x not in missing]
+        filled_hospitals = [x for x in hosp_to_be_filled if x not in missing]
         logging.info(f"Add entries of {filled_hospitals} for {day} into CoReport")
         df_log = update_coreport.write_in_coreport(df, filled_hospitals, date=date,day=day, df_log=df_log)
         logging.info(f"Entries added into CoReport for {filled_hospitals}")
