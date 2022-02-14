@@ -34,6 +34,14 @@ from gsv_covid19_hosp_auto import update_coreport, send_email2
 from zoneinfo import ZoneInfo
 
 
+now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+time_for_email = now_in_switzerland.replace(hour=9, minute=30, second=0, microsecond=0,
+                                            tzinfo=ZoneInfo('Europe/Zurich'))
+time_for_email_to_call = now_in_switzerland.replace( hour=9, minute=50,second=0, microsecond=0,
+                                     tzinfo=ZoneInfo('Europe/Zurich'))
+time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0,
+                                          tzinfo=ZoneInfo('Europe/Zurich'))
+
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
@@ -50,14 +58,26 @@ def all_together(date, list_hospitals):
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left,
                                           weekend=False)
         # send emails if values missing for Saturday or Sunday
-        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday")
-        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday")
+        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(2), day="Saturday",
+                                            now_in_switzerland=now_in_switzerland,
+                                            time_for_email=time_for_email,
+                                            time_for_email_to_call=time_for_email_to_call,
+                                            time_for_email_final_status=time_for_email_final_status)
+        df_log = send_email2.check_if_email(df_log=df_log, date=date - timedelta(1), day="Sunday",
+                                            now_in_switzerland=now_in_switzerland,
+                                            time_for_email=time_for_email,
+                                            time_for_email_to_call=time_for_email_to_call,
+                                            time_for_email_final_status=time_for_email_final_status)
     elif day_of_week == "Other workday":
         hospitals_left = hospitals_left_to_fill(date=date, df_log=df_log)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left, weekend=False)
     else:
         logging.info("It is weekend")
-    df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today")
+    df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today",
+                                        now_in_switzerland=now_in_switzerland,
+                                        time_for_email=time_for_email,
+                                        time_for_email_to_call=time_for_email_to_call,
+                                        time_for_email_final_status=time_for_email_final_status)
     df_log.to_pickle("log_file.pkl")
     df_log.to_csv("log_file.csv", index=False)
 
@@ -153,7 +173,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     pd.set_option('display.max_columns', None)
-    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     date = now_in_switzerland.date()
     list_hospitals = ['USB', 'Clara', 'UKBB']
     all_together(date=date, list_hospitals=list_hospitals)

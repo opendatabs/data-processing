@@ -7,14 +7,8 @@ from datetime import timezone, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 
-def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
+def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_for_email_to_call, time_for_email_final_status):
     pd.set_option('display.max_columns', None)
-    time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=30,
-                             tzinfo=ZoneInfo('Europe/Zurich'))
-    time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50,
-                                     tzinfo=ZoneInfo('Europe/Zurich'))
-    time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0,
-                                          tzinfo=ZoneInfo('Europe/Zurich'))
     df_missing = df_log[(df_log["IES entry"] == "") & (df_log["Date"] == date)]
     if day in ["Saturday", "Sunday"]:
         if not df_missing.empty:
@@ -23,29 +17,29 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                         hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Reminder")
                         condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-                        df_log.loc[condition, "email reminder"] = f"Sent at {current_time}"
+                        df_log.loc[condition, "email reminder"] = f"Sent at {now_in_switzerland}"
     elif day == "today":
         if not df_missing.empty:
-            if current_time > time_for_email_final_status:
+            if now_in_switzerland > time_for_email_final_status:
                 if (df_log["email status at 10"] == "").all():
                     df_log["email status at 10"] = "Sent"
                     df_log.to_csv("log_file.csv", index=False)
                     send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
                     logging.info("if not yet done: send status email: not all filled")
-            elif current_time > time_for_email_to_call:
+            elif now_in_switzerland > time_for_email_to_call:
                 for index, row in df_missing.iterrows():
                     if row["email for calling"] == "":
                         hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Call")
                         condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-                        df_log.loc[condition, "email for calling"] = f"Sent at {current_time}"
-            elif current_time > time_for_email:
+                        df_log.loc[condition, "email for calling"] = f"Sent at {now_in_switzerland}"
+            elif now_in_switzerland > time_for_email:
                 for index, row in df_missing.iterrows():
                     if row["email reminder"] == "":
                         hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Reminder")
                         condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
-                        df_log.loc[condition, "email reminder"] = f"Sent at {current_time}"
+                        df_log.loc[condition, "email reminder"] = f"Sent at {now_in_switzerland}"
         elif df_missing.empty:
             # check if really all has been filled completely
             if (df_log["CoReport filled"] == "Yes").all():
@@ -53,8 +47,8 @@ def check_if_email(df_log, date, day, current_time=datetime.now(timezone.utc).as
                     df_log["all filled"] = 1
                     df_log.to_csv("log_file.csv", index=False)
                     send_email(hospital=None, email_type="All filled", day=day, df_log=df_log)
-                    logging.info(f"Send email: everything ok at {current_time}")
-                    df_log["email: all ok"] = f"Sent at {current_time}"
+                    logging.info(f"Send email: everything ok at {now_in_switzerland}")
+                    df_log["email: all ok"] = f"Sent at {now_in_switzerland}"
     return df_log
 
 
