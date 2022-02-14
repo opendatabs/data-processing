@@ -33,14 +33,14 @@ import logging
 from gsv_covid19_hosp_auto import update_coreport, send_email2
 from zoneinfo import ZoneInfo
 
-#hospitals to be filled
+# hospitals to be filled
 list_hospitals = ['USB', 'Clara', 'UKBB']
 
 # current time and date
 now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
 date = now_in_switzerland.date()
 
-#time conditions
+# time conditions
 time_for_email = now_in_switzerland.replace(hour=9, minute=30, second=0, microsecond=0,
                                             tzinfo=ZoneInfo('Europe/Zurich'))
 time_for_email_to_call = now_in_switzerland.replace( hour=9, minute=50,second=0, microsecond=0,
