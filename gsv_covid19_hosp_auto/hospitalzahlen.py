@@ -30,7 +30,7 @@ import pandas as pd
 from gsv_covid19_hosp_auto import get_data
 from datetime import timezone, datetime, timedelta
 import logging
-from gsv_covid19_hosp_auto import update_coreport, send_email2
+from gsv_covid19_hosp_auto import update_coreport, send_email2, credentials
 from zoneinfo import ZoneInfo
 
 # hospitals to be filled
@@ -52,7 +52,7 @@ starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microseco
 def all_together(date, list_hospitals):
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
-    df_log = pd.read_pickle("log_file.pkl")
+    df_log = pd.read_pickle(credentials.path_log_pkl)
     day_of_week = get_data.check_day(date)
     if day_of_week == "Monday":
         hospitals_left= hospitals_left_to_fill(date=date-timedelta(2), df_log=df_log)
@@ -85,8 +85,8 @@ def all_together(date, list_hospitals):
                                         time_for_email=time_for_email,
                                         time_for_email_to_call=time_for_email_to_call,
                                         time_for_email_final_status=time_for_email_final_status)
-    df_log.to_pickle("log_file.pkl")
-    df_log.to_csv("log_file.csv", index=False)
+    df_log.to_pickle(credentials.path_log_pkl)
+    df_log.to_csv(credentials.path_log_csv, index=False)
 
 
 def hospitals_left_to_fill(date, df_log):
@@ -97,7 +97,7 @@ def hospitals_left_to_fill(date, df_log):
 
 def check_for_log_file(date, day_of_week, list_hospitals):
     try:
-        with open("log_file.csv") as log_file:
+        with open(credentials.path_log_csv) as log_file:
             df_log = pd.read_csv(log_file)
             if str(date) not in list(df_log["Date"]):
                 make_log_file(date, day_of_week, list_hospitals)
@@ -123,7 +123,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df["email: all ok"] = ""
     df["all filled"] = 0
     #df.set_index("Date", inplace=True)
-    df.to_pickle("log_file.pkl")
+    df.to_pickle(credentials.path_log_pkl)
 
 
 def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
