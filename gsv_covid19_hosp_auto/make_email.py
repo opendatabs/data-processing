@@ -7,7 +7,8 @@ from email.mime.multipart import MIMEMultipart
 # copied from: https://towardsdatascience.com/automate-email-with-python-1e755d9c6276
 def message(subject="Python Notification", text="", img=None, html_content=None,attachment=None):
     # build message contents
-    msg = MIMEMultipart()
+    # 'mixed' so that both text and html are displayed in email
+    msg = MIMEMultipart('mixed')
     msg['Subject'] = subject  # add in the subject
     #msg.attach(MIMEText(text))  # add text contents
     msg.attach(MIMEText(text, 'plain', 'utf-8'))  # add plain text contents
