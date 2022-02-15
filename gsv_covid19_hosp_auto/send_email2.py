@@ -10,7 +10,6 @@ from zoneinfo import ZoneInfo
 def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_for_email_to_call, time_for_email_final_status):
     pd.set_option('display.max_columns', None)
     df_missing = df_log[(df_log['time_IES_entry'] == "") & (df_log["Date"] == date)]
-
     if not df_missing.empty:
         if day == "today" and now_in_switzerland > time_for_email_final_status:
                 if (df_log['email_status_at_10'] == "").all():
