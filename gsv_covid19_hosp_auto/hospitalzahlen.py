@@ -177,6 +177,9 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    if now_in_switzerland >= starting_time:
+    do_process = now_in_switzerland >= starting_time
+    logging.info(f'Checking if we have to do anything right now: {do_process}')
+    if do_process:
+        logging.info(f"OK, let's start processing the data!")
         all_together(date=date, list_hospitals=list_hospitals)
 
