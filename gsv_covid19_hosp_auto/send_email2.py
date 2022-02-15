@@ -27,8 +27,10 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
             if now_in_switzerland > time_for_email_final_status:
                 if (df_log['email_status_at_10'] == "").all():
                     df_log['email_status_at_10'] = "Sent"
+                    logging.info("Sending email: not all filled after 10...")
                     send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
-                    logging.info("if not yet done: send status email: not all filled")
+                else:
+                    logging.info('email not all filled after 10 has already been sent')
             elif now_in_switzerland > time_for_email_to_call:
                 for index, row in df_missing.iterrows():
                     if row['email_for_calling'] == "":
