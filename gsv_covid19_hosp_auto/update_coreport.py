@@ -78,13 +78,17 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
                 main(value_id=value_id, value=value)
                 logging.info(f"Added {value} for {prop} of {hospital} ")
             else:
-                logging.warning(f"Negative value for {prop} of {hospital}! send email...")
+                logging.warning(f"Negative value for {prop} of {hospital}!")
                 condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                 incomplete += 1
                 if (df_log.loc[condition, 'email_negative_value'] == "").all():
+                    logging.info(f"send email about negative value for {prop} of {hospital}")
                     send_email2.send_email(hospital=hospital, email_type="Negative value", day=day,
                                            extra_info=[prop, hospital])
                     df_log.loc[condition, 'email_negative_value'] = f"Sent at {current_time}"
+                else:
+                    email_send_at = df_log.loc[condition, 'email_negative_value']
+                    logging.info(f"email about negative value for {prop} of {hospital} has been sent: {email_send_at}")
         condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
         if incomplete == 0:
             df_log.loc[condition, 'CoReport_filled'] = "Yes"
