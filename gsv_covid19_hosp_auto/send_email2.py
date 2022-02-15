@@ -13,11 +13,15 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
     if day in ["Saturday", "Sunday"]:
         if not df_missing.empty:
             for index, row in df_missing.iterrows():
+                hospital = row["Hospital"]
+                condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                 if row['email_reminder'] == "":
-                        hospital = row["Hospital"]
                         send_email(hospital=hospital, day=day, email_type="Reminder")
-                        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                         df_log.loc[condition, 'email_reminder'] = f"Sent at {now_in_switzerland}"
+                        logging.info(f'email reminder for entry {hospital} on {day} sent at {now_in_switzerland}')
+                else:
+                    email_send_at = df_log.loc[condition, 'email_reminder']
+                    logging.info(f'email reminder for entry {hospital} on {day} has already been sent: {email_send_at} ')
     elif day == "today":
         if not df_missing.empty:
             if now_in_switzerland > time_for_email_final_status:
