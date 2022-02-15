@@ -16,7 +16,7 @@ import smtplib
 def main():
     logging.info(f'Reading control.csv...')
     df = pd.read_csv(os.path.join(credentials.path, 'control.csv'), sep=';', parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])
-    active_abst = df.query('Active == True')
+    active_abst = df.query('Active == True').copy(deep=True)
     active_active_size = active_abst.Active.size
     what_changed = {'updated_ods_datasets': [], 'datasets_changed_to_public': [], 'send_update_email': False}
     if active_active_size == 1:
