@@ -33,11 +33,15 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
                     logging.info('email not all filled after 10 has already been sent')
             elif now_in_switzerland > time_for_email_to_call:
                 for index, row in df_missing.iterrows():
+                    hospital = row["Hospital"]
+                    condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                     if row['email_for_calling'] == "":
-                        hospital = row["Hospital"]
+                        logging.info(f'Send email to call for missing entries of {hospital}...')
                         send_email(hospital=hospital, day=day, email_type="Call")
-                        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                         df_log.loc[condition, 'email_for_calling'] = f"Sent at {now_in_switzerland}"
+                    else:
+                        email_send_at = df_log.loc[condition, 'email_for_calling']
+                        logging.info(f'email to call for missing entries of {hospital} has been sent: {email_send_at}')
             elif now_in_switzerland > time_for_email:
                 for index, row in df_missing.iterrows():
                     if row['email_reminder'] == "":
