@@ -44,11 +44,15 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
                         logging.info(f'email to call for missing entries of {hospital} has been sent: {email_send_at}')
             elif now_in_switzerland > time_for_email:
                 for index, row in df_missing.iterrows():
+                    hospital = row["Hospital"]
+                    condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                     if row['email_reminder'] == "":
-                        hospital = row["Hospital"]
+                        logging.info(f'sending email reminder for missing entries of {hospital}...')
                         send_email(hospital=hospital, day=day, email_type="Reminder")
-                        condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                         df_log.loc[condition, 'email_reminder'] = f"Sent at {now_in_switzerland}"
+                    else:
+                        email_send_at = df_log.loc[condition, 'email_reminder']
+                        logging.info(f'email reminder for {hospital} has already been sent: {email_send_at}')
         elif df_missing.empty:
             # check if really all has been filled completely
             if (df_log['CoReport_filled'] == "Yes").all():
