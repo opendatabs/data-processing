@@ -3,8 +3,6 @@ import pandas as pd
 from gsv_covid19_hosp_auto import credentials
 from gsv_covid19_hosp_auto import make_email
 import smtplib
-from datetime import timezone, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 
 def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_for_email_to_call, time_for_email_final_status):
