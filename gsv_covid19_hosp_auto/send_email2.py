@@ -16,9 +16,9 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
                 hospital = row["Hospital"]
                 condition = (df_log["Date"] == date) & (df_log["Hospital"] == hospital)
                 if row['email_reminder'] == "":
+                        logging.info(f'Sending email reminder for entry {hospital} on {day}...')
                         send_email(hospital=hospital, day=day, email_type="Reminder")
                         df_log.loc[condition, 'email_reminder'] = f"Sent at {now_in_switzerland}"
-                        logging.info(f'email reminder for entry {hospital} on {day} sent at {now_in_switzerland}')
                 else:
                     email_send_at = df_log.loc[condition, 'email_reminder']
                     logging.info(f'email reminder for entry {hospital} on {day} has already been sent: {email_send_at} ')
