@@ -129,7 +129,7 @@ def push_noise_levels(auth):
     # end = now.isoformat()
     # datetime needed in military "Zulu" notation using %Z
     start = (now - datetime.timedelta(hours=3)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-    r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/avg', params={'timespan': '5m', 'filter': f'deviceId:{credentials.device_id}', 'start_time': start}, auth=auth)
+    r = common.requests_get(url=credentials.url + f'api/sound-levels/aggs/mean', params={'timespan': '5m', 'filter': f'deviceId:{credentials.device_id}', 'start_time': start}, auth=auth)
     r.raise_for_status()
     json = r.json()
     df = pd.json_normalize(json['results'], record_path='levels', meta=['general_level', 'timestamp'])
