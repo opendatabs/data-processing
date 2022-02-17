@@ -88,8 +88,12 @@ def all_together(date, list_hospitals):
 
 
 def hospitals_left_to_fill(date, df_log):
+    condition2 = (df_log["Date"] == date) & (df_log['CoReport_filled'] == "Yes")
+    already_filled = df_log.loc[condition2, "Hospital"]
+    logging.info(f'CoReport has been filled for {already_filled} on {date}')
     condition = (df_log["Date"] == date) & (df_log['CoReport_filled'] != "Yes")
-    hospitals_left= df_log.loc[condition, "Hospital"]
+    hospitals_left = df_log.loc[condition, "Hospital"]
+    logging.info(f'Still need to fill CoReport for {hospitals_left} on {date}')
     return hospitals_left
 
 
