@@ -24,6 +24,7 @@ def main():
         'bl_Gundeldingerstrasse131_PM2.5_PM25_Sensirion_min30_ug/m3': 'G131_PM25'
     }
     etl(credentials.data_url_live, live_column_name_replacements, export_file=os.path.join(credentials.data_path, f'luft_{date.today()}.csv'), push_url=credentials.ods_live_realtime_push_url, push_key=credentials.ods_live_realtime_push_key)
+
     logging.info(f"Handling yesterday's data...")
     yest_column_name_replacements = {
         'Anfangszeit_Unnamed: 0_level_1_Unnamed: 0_level_2_Unnamed: 0_level_3_Unnamed: 0_level_4': 'Anfangszeit',
@@ -38,6 +39,21 @@ def main():
         'bl_Gundeldingerstrasse131_O3_O3_Sensirion_max_h1_d1_µg/m3': 'G131_O3'
     }
     etl(credentials.data_url_yest, yest_column_name_replacements, export_file=os.path.join(credentials.data_path, f'luft_yesterday_{date.today()}.csv'), push_url=credentials.ods_yest_realtime_push_url, push_key=credentials.ods_yest_realtime_push_key)
+
+    logging.info(f"Handling comparative data...")
+    comp_column_name_replacements = {
+        'Anfangszeit_Unnamed: 0_level_1_Unnamed: 0_level_2_Unnamed: 0_level_3_Unnamed: 0_level_4': 'Anfangszeit',
+       'bl_a2hard_NO2_NO2_Sensirion_min30_µg/m3': 'a2hard_no2',
+       'bl_a2hard_O3_O3_Sensirion_min30_µg/m3': 'a2hard_o3',
+       'bl_a2hard__nd_PM25_Sensirion_min30_ug/m3': 'a2hard_pm25',
+       'bl_Feldbergstrasse2_NO2_NO2_Sensirion2_min30_µg/m3': 'feldbergstr2_no2',
+       'bl_Feldbergstrasse2_O3_O3_Sensirion2_min30_µg/m3': 'feldbergstr2_o3',
+       'bl_Feldbergstrasse2__nd_PM25_Sensirion2_min30_ug/m3': 'feldbergstr2_pm25',
+       'bl_StJohann2_NO2_NO2_Sensirion2_min30_µg/m3': 'stjohann2_no2',
+       'bl_StJohann2_O3_O3_Sensirion2_min30_µg/m3': 'stjohann2_o3',
+       'bl_StJohann2__nd_PM25_Sensirion2_min30_ug/m3': 'stjohann2_pm25'
+    }
+    etl(credentials.data_url_comp, comp_column_name_replacements, export_file=os.path.join(credentials.data_path, f'luft_comp_{date.today()}.csv'), push_url=credentials.ods_comp_realtime_push_url, push_key=credentials.ods_comp_realtime_push_key)
 
 
 def etl(download_url, column_name_replacements, export_file, push_url, push_key):
@@ -62,21 +78,6 @@ def etl(download_url, column_name_replacements, export_file, push_url, push_key)
             ct.update_hash_file(export_file)
 
         print(f'Pushing {row_count} rows to ODS realtime API...')
-        # Realtime API bootstrap data:
-        # {
-        #     "Anfangszeit": "09.01.2022 16:00:00",
-        #     "G107_NO2": "0.5",
-        #     "G107_03": "0.5",
-        #     "G107_PM25": "0.5",
-        #     "G125_NO2": "0.5",
-        #     "G125_O3": "0.5",
-        #     "G125_PM25": "0.5",
-        #     "G131_NO2": "0.5",
-        #     "G131_O3": "0.5",
-        #     "G131_PM25": "0.5",
-        #     "timestamp": "2022-01-09T16:00:00+0100",
-        #     "timestamp_text": "2022-01-09T16:00:00+0100"
-        # }
         df.timestamp = df.timestamp.dt.strftime('%Y-%m-%dT%H:%M:%S%z')
         df['timestamp_text'] = df.timestamp
         payload = df.to_json(orient="records")
@@ -92,3 +93,19 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+
+# Realtime API bootstrap data:
+# {
+#     "Anfangszeit": "09.01.2022 16:00:00",
+#     "G107_NO2": "0.5",
+#     "G107_03": "0.5",
+#     "G107_PM25": "0.5",
+#     "G125_NO2": "0.5",
+#     "G125_O3": "0.5",
+#     "G125_PM25": "0.5",
+#     "G131_NO2": "0.5",
+#     "G131_O3": "0.5",
+#     "G131_PM25": "0.5",
+#     "timestamp": "2022-01-09T16:00:00+0100",
+#     "timestamp_text": "2022-01-09T16:00:00+0100"
+# }
