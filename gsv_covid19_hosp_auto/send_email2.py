@@ -101,7 +101,7 @@ def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, 
                "Please find in the attachment today's log file."
         attachment = credentials.path_log_csv
         html_content = df_log.to_html()
-        logging.info("Email if all is filled after 10..")
+        logging.info("Sending email: all is filled")
     elif email_type == "Negative value":
         print("here")
         prop = extra_info[0]
