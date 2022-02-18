@@ -30,7 +30,7 @@ def add_value_id(df, date):
         for data_name in data_names:
             filter = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
             url = url_api + filter
-            req = requests.get(url, auth=(username, password))
+            req = common.requests_get(url, auth=(username, password))
             result = req.json()[0]
             # make sure first result indeed has the right date
             assert result['timeslot']['deadline'] == timeslot
