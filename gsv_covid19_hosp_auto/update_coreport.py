@@ -49,6 +49,35 @@ def get_properties_list(hospital):
     return properties_list
 
 
+def add_value_id(df, date):
+    url_api = credentials.url_coreport_api
+    username = credentials.username_coreport
+    password = credentials.password_coreport
+    timeslot = date.strftime('%d-%m-%Y')
+    columns = list(df.columns[4:])
+    dict_org = credentials.dict_organization
+    for data_name in columns:
+        df[data_name + " value_id"] = ""
+    hospitals = list(df["Hospital"])
+    df.set_index("Hospital", inplace=True)
+    for hospital in hospitals:
+        organization = dict_org[hospital]
+        if hospital == 'USB':
+            data_names = columns
+        else:
+            data_names = [ x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+        for data_name in data_names:
+            filter = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
+            url = url_api + filter
+            req = requests.get(url, auth=(username, password))
+            result = req.json()[0]
+            # make sure first result indeed has the right date
+            assert result['timeslot']['deadline'] == timeslot
+            value_id = result['id']
+            df.loc[hospital, data_name + " value_id"] = value_id
+    return df
+
+
 def write_in_coreport(df, hospital_list, date, day, df_log, current_time= datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
