@@ -1,4 +1,6 @@
+import datetime
 import ftplib
+import logging
 import os
 import pandas as pd
 from aue_grundwasser import credentials
@@ -24,7 +26,9 @@ def download():
 
 
 def process_file(file):
-    df = pd.read_csv(file, sep=';', encoding='cp1252')
+    logging.info(f'Starting reading csv into dataframe ({datetime.datetime.now()})...')
+    df = pd.read_csv(file, sep=';', encoding='cp1252', low_memory=False)
+    logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
     df['timestamp'] = df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S')
     pass
@@ -32,6 +36,7 @@ def process_file(file):
 
 def process_and_push(local_files):
     for file in local_files:
+        logging.info(f'processing {file}...')
         process_file(file)
     pass
 
@@ -48,7 +53,8 @@ def main():
 
 
 if __name__ == "__main__":
-    print(f'Executing {__file__}...')
-    main()
-    #process_file(credentials.test_file_name)
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    # main()
+    process_file(credentials.test_huge_file_name)
 
