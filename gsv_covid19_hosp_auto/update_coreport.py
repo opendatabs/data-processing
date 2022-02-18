@@ -82,7 +82,7 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
     logging.info("Get value id's from CoReport")
-    df_coreport = coreport_scraper.add_value_id(df_coreport, date=date)
+    df_coreport = add_value_id(df_coreport, date=date)
     for hospital in hospital_list:
         logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)
