@@ -21,6 +21,6 @@ for year in range(2010,2021):
     # Month as a zero-padded decimal number
     # probably remove column Bemerkungen
     # remove column Datum? Else need to put all in same format (day?)
-    # replace 0 by empty string
+    # replace 0 by empty string in some columns
     df = pd.concat([df, df_year])
 
