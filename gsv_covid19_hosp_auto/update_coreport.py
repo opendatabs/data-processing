@@ -54,14 +54,6 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
     df_coreport = calculation.calculate_numbers(df)
     logging.info("Get value id's from CoReport")
     df_coreport = coreport_scraper.add_value_id(df_coreport, date=date)
-    """
-    # with value id's already saved the day before:
-    date = date.strftime('%d.%m.%Y')
-    file_name = "value_id_df_" + str(date) + ".pkl"
-    df_value_id = pd.read_pickle(file_name)
-    df_coreport.set_index("Hospital", inplace=True)
-    df_coreport = df_coreport.join(df_value_id)
-    """
     for hospital in hospital_list:
         logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)
