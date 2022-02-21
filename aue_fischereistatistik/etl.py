@@ -45,4 +45,6 @@ df['Monat'].replace('juö', 'Juli', inplace=True)
 df['Monat'] = df['Monat'].apply(lambda x: datetime.strptime(x, '%B').strftime('%m') if type(x) == str and x != '' else pd.NaT)
 #df['Monat'] = pd.to_datetime(df['Monat']).dt.strftime('%m')
 # when having to take the month from the date column: datetime.strptime('03.05', '%d.%m').strftime('%m')
+# will have to do for years where month is missing...
+#df['Monat'] = df['Datum'].apply(lambda x: datetime.strptime(x, '%d.%m').strftime('%m') if type(x) == str and x != '' else pd.NaT)
 #print(df['Monat'].unique())
