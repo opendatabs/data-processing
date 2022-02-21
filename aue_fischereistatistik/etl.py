@@ -3,9 +3,10 @@ from aue_fischereistatistik import credentials
 import common
 import logging
 from common import change_tracking as ct
+import locale
 
 pd.set_option('display.max_columns', None)
-
+locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 
 columns = ['Fischereikarte', 'Fangbüchlein_retourniert', 'Datum', 'Monat', 'Jahr','Gewässercode', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
