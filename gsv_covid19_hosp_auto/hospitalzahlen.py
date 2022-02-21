@@ -183,5 +183,5 @@ if __name__ == "__main__":
     logging.info(f'Checking if we have to do anything right now: {do_process}')
     if do_process:
         logging.info(f"OK, let's start processing the data!")
-        all_together(date=date, list_hospitals=list_hospitals)
+        all_together(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
 
