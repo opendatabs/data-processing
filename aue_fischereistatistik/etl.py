@@ -42,5 +42,7 @@ df['Monat'].replace('3', 'März', inplace=True)
 df['Monat'].replace('juö', 'Juli', inplace=True)
 
 # change month names to zero-padded decimal numbers
-df['Monat'] = df['Monat'].apply(lambda x: datetime.strptime(x, '%B') if type(x) == str and x != '' else pd.NaT)
-df['Monat'] = pd.to_datetime(df['Monat']).dt.strftime('%m')
+df['Monat'] = df['Monat'].apply(lambda x: datetime.strptime(x, '%B').strftime('%m') if type(x) == str and x != '' else pd.NaT)
+#df['Monat'] = pd.to_datetime(df['Monat']).dt.strftime('%m')
+
+#print(df['Monat'].unique())
