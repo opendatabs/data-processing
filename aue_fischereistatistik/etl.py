@@ -30,6 +30,22 @@ for year in range(2010,2021):
         # remove point/komma at end of entries in Datum column if it's there
         df_year['Datum_new'] = df_year['Datum'].apply(lambda x: x[:-1] if (x != '' and (x[-1] == '.' or x[-1] ==',')) else x)
         df_year['Monat'] = pd.to_datetime(df_year['Datum_new'], format='%d.%m', errors='coerce').dt.strftime('%m')
+    else:
+        # Complete month column all in same format
+        # need to correct in month column: 'juli' 'juö' 'ap' '3' 'mai' '0' ''
+        df_year['Monat'].replace('0', '', inplace=True)
+        df_year['Monat'].replace('juli', 'Juli', inplace=True)
+        df_year['Monat'].replace('ap', 'April', inplace=True)
+        df_year['Monat'].replace('mai', 'Mai', inplace=True)
+        df_year['Monat'].replace('3', 'März', inplace=True)
+        df_year['Monat'].replace('juö', 'Juli', inplace=True)
+
+        # change month names to zero-padded decimal numbers
+        # FutureWarning: Inferring timedelta64[ns] from data containing strings is deprecated and will be removed
+        # in a future version. To retain the old behavior explicitly pass Series(data, dtype={value.dtype})
+        df_year['Monat'] = df_year['Monat'].apply(
+            lambda x: datetime.strptime(x, '%B') if type(x) == str and x != '' else pd.NaT)
+        df_year['Monat'] = df_year['Monat'].dt.strftime('%m')
     df = pd.concat([df, df_year])
 
 
@@ -40,15 +56,3 @@ for year in range(2010,2021):
 
 
 
-# Complete month column all in same format
-# need to correct in month column: 'juli' 'juö' 'ap' '3' 'mai' '0' ''
-df['Monat'].replace('0','', inplace=True)
-df['Monat'].replace('juli', 'Juli', inplace=True)
-df['Monat'].replace('ap', 'April', inplace=True)
-df['Monat'].replace('mai', 'Mai', inplace=True)
-df['Monat'].replace('3', 'März', inplace=True)
-df['Monat'].replace('juö', 'Juli', inplace=True)
-
-# change month names to zero-padded decimal numbers
-df['Monat'] = df['Monat'].apply(lambda x: datetime.strptime(x, '%B').strftime('%m') if type(x) == str and x != '' else pd.NaT)
-#df['Monat'] = pd.to_datetime(df['Monat']).dt.strftime('%m')
