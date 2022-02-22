@@ -61,7 +61,7 @@ for year in range(2010,2021):
 
 
 
-# robably remove column Bemerkungen (or remove all personal info)
+# probably remove column Bemerkungen (or remove all personal info)
 
 
 
