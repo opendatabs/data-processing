@@ -49,19 +49,40 @@ def get_properties_list(hospital):
     return properties_list
 
 
+def add_value_id(df, date):
+    url_api = credentials.url_coreport_api
+    username = credentials.username_coreport
+    password = credentials.password_coreport
+    timeslot = date.strftime('%d-%m-%Y')
+    columns = list(df.columns[4:])
+    dict_org = credentials.dict_organization
+    for data_name in columns:
+        df[data_name + " value_id"] = ""
+    hospitals = list(df["Hospital"])
+    df.set_index("Hospital", inplace=True)
+    for hospital in hospitals:
+        organization = dict_org[hospital]
+        if hospital == 'USB':
+            data_names = columns
+        else:
+            data_names = [ x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+        for data_name in data_names:
+            filter = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
+            url = url_api + filter
+            req = common.requests_get(url, auth=(username, password))
+            result = req.json()[0]
+            # make sure first result indeed has the right date
+            assert result['timeslot']['deadline'] == timeslot
+            value_id = result['id']
+            df.loc[hospital, data_name + " value_id"] = value_id
+    return df
+
+
 def write_in_coreport(df, hospital_list, date, day, df_log, current_time= datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
     logging.info("Get value id's from CoReport")
-    df_coreport = coreport_scraper.add_value_id(df_coreport, date=date)
-    """
-    # with value id's already saved the day before:
-    date = date.strftime('%d.%m.%Y')
-    file_name = "value_id_df_" + str(date) + ".pkl"
-    df_value_id = pd.read_pickle(file_name)
-    df_coreport.set_index("Hospital", inplace=True)
-    df_coreport = df_coreport.join(df_value_id)
-    """
+    df_coreport = add_value_id(df_coreport, date=date)
     for hospital in hospital_list:
         logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)

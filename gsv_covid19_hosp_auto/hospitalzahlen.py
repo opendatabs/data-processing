@@ -47,11 +47,9 @@ time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, seco
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
 
-def all_together(date, list_hospitals):
-    day_of_week = get_data.check_day(date)
+def all_together(date, day_of_week, list_hospitals):
     check_for_log_file(date, day_of_week, list_hospitals)
     df_log = pd.read_pickle(credentials.path_log_pkl)
-    day_of_week = get_data.check_day(date)
     if day_of_week == "Monday":
         hospitals_left= hospitals_left_to_fill(date=date-timedelta(2), df_log=df_log)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday",
@@ -76,8 +74,6 @@ def all_together(date, list_hospitals):
     elif day_of_week == "Other workday":
         hospitals_left = hospitals_left_to_fill(date=date, df_log=df_log)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left, weekend=False)
-    else:
-        logging.info("It is weekend")
     df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today",
                                         now_in_switzerland=now_in_switzerland,
                                         time_for_email=time_for_email,
@@ -181,9 +177,10 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    do_process = now_in_switzerland >= starting_time
+    day_of_week = get_data.check_day(date)
+    do_process = now_in_switzerland >= starting_time and day_of_week != "Weekend"
     logging.info(f'Checking if we have to do anything right now: {do_process}')
     if do_process:
         logging.info(f"OK, let's start processing the data!")
-        all_together(date=date, list_hospitals=list_hospitals)
+        all_together(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
 
