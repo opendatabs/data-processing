@@ -24,9 +24,10 @@ for year in range(2010,2021):
     df_year = pd.read_csv(path, encoding='utf-8', keep_default_na=False)
     df_year['Jahr'] = year
     # replace '0' with empty string
-    df_year[['Datum', 'Monat','Gewässercode', 'Fischart',  'Gewicht',
+    # Question: In Gewässercode: 0=unbekannt?
+    df_year[['Datum', 'Monat', 'Fischart',  'Gewicht',
              'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']]\
-        =  df_year[['Datum', 'Monat', 'Gewässercode', 'Fischart',  'Gewicht',
+        =  df_year[['Datum', 'Monat', 'Fischart',  'Gewicht',
                     'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']].replace('0','')
 
     # make month column complete/in same format and add day column
@@ -60,7 +61,7 @@ for year in range(2010,2021):
 
 
 
-# probably remove column Bemerkungen (or remove all personal info)
+# robably remove column Bemerkungen (or remove all personal info)
 
 
 
