@@ -41,8 +41,6 @@ for year in range(2010,2021):
         df_year['Monat'].replace('juö', 'Juli', inplace=True)
 
         # change month names to zero-padded decimal numbers
-        # FutureWarning: Inferring timedelta64[ns] from data containing strings is deprecated and will be removed
-        # in a future version. To retain the old behavior explicitly pass Series(data, dtype={value.dtype})
         df_year['Monat'] = df_year['Monat'].apply(
             lambda x: datetime.strptime(x, '%B') if type(x) == str and x != '' else pd.NaT)
         df_year['Monat'] = df_year['Monat'].dt.strftime('%m')
