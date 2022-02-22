@@ -23,7 +23,10 @@ for year in range(2010,2021):
     path = f'{credentials.path_csv}/fangstatistik_{year}.csv'
     df_year = pd.read_csv(path, encoding='utf-8', keep_default_na=False)
     df_year['Jahr'] = year
-    df_year['Datum'].replace('0','', inplace=True)
+    df_year[['Datum', 'Monat','Gewässercode', 'Fischart',  'Gewicht',
+             'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']]\
+        =  df_year[['Datum', 'Monat', 'Gewässercode', 'Fischart',  'Gewicht',
+                    'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']].replace('0','')
     if (df_year['Monat'] == '').all():
         # remove empty space from datum column
         df_year['Datum'] = df_year['Datum'].str.strip()
@@ -33,7 +36,6 @@ for year in range(2010,2021):
     else:
         # Complete month column all in same format
         # need to correct in month column: 'juli' 'juö' 'ap' '3' 'mai' '0' ''
-        df_year['Monat'].replace('0', '', inplace=True)
         df_year['Monat'].replace('juli', 'Juli', inplace=True)
         df_year['Monat'].replace('ap', 'April', inplace=True)
         df_year['Monat'].replace('mai', 'Mai', inplace=True)
