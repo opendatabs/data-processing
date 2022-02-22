@@ -23,10 +23,13 @@ for year in range(2010,2021):
     path = f'{credentials.path_csv}/fangstatistik_{year}.csv'
     df_year = pd.read_csv(path, encoding='utf-8', keep_default_na=False)
     df_year['Jahr'] = year
+    # replace '0' with empty string
     df_year[['Datum', 'Monat','Gewässercode', 'Fischart',  'Gewicht',
              'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']]\
         =  df_year[['Datum', 'Monat', 'Gewässercode', 'Fischart',  'Gewicht',
                     'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']].replace('0','')
+
+    # make month column complete/in same format
     if (df_year['Monat'] == '').all():
         # remove empty space from datum column
         df_year['Datum'] = df_year['Datum'].str.strip()
@@ -46,13 +49,17 @@ for year in range(2010,2021):
         df_year['Monat'] = df_year['Monat'].apply(
             lambda x: datetime.strptime(x, '%B') if type(x) == str and x != '' else pd.NaT)
         df_year['Monat'] = df_year['Monat'].dt.strftime('%m')
+
+    # Make day column
+
+
     df = pd.concat([df, df_year])
 
 
 
 # probably remove column Bemerkungen (or remove all personal info)
-# remove column Datum? Else need to put all in same format (day?)
-# replace 0 by empty string in some columns
+
+
 
 
 
