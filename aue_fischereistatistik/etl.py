@@ -56,6 +56,7 @@ for year in range(2010,2021):
         else:
             df_year['Tag'] = df_year['Datum']
     df = pd.concat([df, df_year])
+    df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv')
 
 
 
