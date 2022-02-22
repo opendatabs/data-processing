@@ -29,13 +29,15 @@ for year in range(2010,2021):
         =  df_year[['Datum', 'Monat', 'Gewässercode', 'Fischart',  'Gewicht',
                     'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']].replace('0','')
 
-    # make month column complete/in same format
+    # make month column complete/in same format and add day column
     if (df_year['Monat'] == '').all():
         # remove empty space from datum column
         df_year['Datum'] = df_year['Datum'].str.strip()
         # remove point/komma at end of entries in Datum column if it's there
-        df_year['Datum_new'] = df_year['Datum'].apply(lambda x: x[:-1] if (x != '' and (x[-1] == '.' or x[-1] ==',')) else x)
-        df_year['Monat'] = pd.to_datetime(df_year['Datum_new'], format='%d.%m', errors='coerce').dt.strftime('%m')
+        df_year['Datum'] = df_year['Datum'].apply(lambda x: x[:-1] if (x != '' and (x[-1] == '.' or x[-1] ==',')) else x)
+        df_year['Monat'] = pd.to_datetime(df_year['Datum'], format='%d.%m', errors='coerce').dt.strftime('%m')
+        # add day column
+        df_year['Tag'] = pd.to_datetime(df_year['Datum'], format='%d.%m', errors='coerce').dt.strftime('%d')
     else:
         # Complete month column all in same format
         # need to correct in month column: 'juli' 'juö' 'ap' '3' 'mai' '0' ''
@@ -44,15 +46,15 @@ for year in range(2010,2021):
         df_year['Monat'].replace('mai', 'Mai', inplace=True)
         df_year['Monat'].replace('3', 'März', inplace=True)
         df_year['Monat'].replace('juö', 'Juli', inplace=True)
-
         # change month names to zero-padded decimal numbers
         df_year['Monat'] = df_year['Monat'].apply(
             lambda x: datetime.strptime(x, '%B') if type(x) == str and x != '' else pd.NaT)
         df_year['Monat'] = df_year['Monat'].dt.strftime('%m')
-
-    # Make day column
-
-
+        # add day column
+        if year == '2012':
+            df_year['Tag'] = pd.to_datetime(df_year['Datum'], format='%d.%m.', errors='coerce').dt.strftime('%d')
+        else:
+            df_year['Tag'] = df_year['Datum']
     df = pd.concat([df, df_year])
 
 
