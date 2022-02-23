@@ -9,7 +9,7 @@ from aue_grundwasser import credentials
 def list_files():
     files = []
     for remote_path in credentials.ftp_remote_paths:
-        files = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_path, credentials.data_orig_path, '*.csv', list_only=True)
+        files.append(common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_path, credentials.data_orig_path, '*.csv', list_only=True))
     return files
 
 
