@@ -121,26 +121,26 @@ def upload_ftp(filename, server, user, password, remote_path):
 # Download files from FTP server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
-def download_ftp(files: list, server: str, user: str, password: str, remote_path: str, local_path: str, pattern: str):
+def download_ftp(files: list, server: str, user: str, password: str, remote_path: str, local_path: str, pattern: str, list_only=False) -> list:
     print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" or pattern "{pattern}" to local path "{local_path}"...')
     ftp = ftplib.FTP(server, user, password)
     ftp.cwd(remote_path)
-    files_to_download = []
+    remote_files = []
     if len(files) > 0:
-        files_to_download = files
+        remote_files = files
     elif len(pattern) > 0:
         logging.info(f'Filtering list of files using pattern...')
-        files_to_download = fnmatch.filter(ftp.nlst(), pattern)
-
-    local_files = []
-    for file in files_to_download:
-        local_file = os.path.join(local_path, file)
-        local_files.append(local_file)
-        print(f'Retrieving file {local_file}...')
-        with open(local_file, 'wb') as f:
-            ftp.retrbinary(f"RETR {file}", f.write)
+        remote_files = fnmatch.filter(ftp.nlst(), pattern)
+    files = []
+    for remote_file in remote_files:
+        local_file = os.path.join(local_path, remote_file)
+        files.append({'remote_file': remote_file, 'remote_path': remote_path, 'local_file': local_file})
+        if not list_only:
+            print(f'FTP downloading file {local_file}...')
+            with open(local_file, 'wb') as f:
+                ftp.retrbinary(f"RETR {remote_file}", f.write)
     ftp.quit()
-    return
+    return files
 
 
 @retry(ftp_errors_to_handle, tries=6, delay=2, backoff=1)
@@ -251,7 +251,7 @@ def email_message(subject="Python Notification", text="", img=None, attachment=N
     # build message contents
     msg = MIMEMultipart()
     msg['Subject'] = subject  # add in the subject
-    #msg.attach(MIMEText(text))  # add text contents
+    # msg.attach(MIMEText(text))  # add text contents
     msg.attach(MIMEText(text, 'plain', 'utf-8'))  # add plain text contents
 
     # check if we have anything given in the img parameter
