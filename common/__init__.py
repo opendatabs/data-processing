@@ -283,3 +283,24 @@ def email_message(subject="Python Notification", text="", img=None, attachment=N
             file['Content-Disposition'] = f'attachment; filename="{os.path.basename(one_attachment)}"'
             msg.attach(file)  # finally, add the attachment to our message object
     return msg
+
+
+@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
+def rename_ftp(from_name, to_name, server, user, password):
+    file = os.path.basename(from_name)
+    folder = os.path.dirname(from_name)
+    ftp = ftplib.FTP(server, user, password)
+    print(f'Changing to remote dir {folder}...')
+    ftp.cwd(folder)
+    print('Searching for file to rename or move...')
+    moved = False
+    for remote_file, facts in ftp.mlsd():
+        if file == remote_file:
+            logging.info(f'Moving file to {to_name}...')
+            ftp.rename(file, to_name)
+            moved = True
+            break
+    ftp.quit()
+    if not moved:
+        logging.error(f'File to rename on FTP not found: {file}...')
+        raise FileNotFoundError(file)
