@@ -290,9 +290,9 @@ def rename_ftp(from_name, to_name, server, user, password):
     file = os.path.basename(from_name)
     folder = os.path.dirname(from_name)
     ftp = ftplib.FTP(server, user, password)
-    print(f'Changing to remote dir {folder}...')
+    logging.info(f'Changing to remote dir {folder}...')
     ftp.cwd(folder)
-    print('Searching for file to rename or move...')
+    logging.info('Searching for file to rename or move...')
     moved = False
     for remote_file, facts in ftp.mlsd():
         if file == remote_file:
