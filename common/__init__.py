@@ -102,7 +102,7 @@ def requests_put(*args, **kwargs):
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def upload_ftp(filename, server, user, password, remote_path):
-    print("Uploading " + filename + " to FTP server directory " + remote_path + '...')
+    logging.info("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
     curr_dir = os.getcwd()
     rel_path, filename_no_path = os.path.split(filename)
@@ -122,7 +122,7 @@ def upload_ftp(filename, server, user, password, remote_path):
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def download_ftp(files: list, server: str, user: str, password: str, remote_path: str, local_path: str, pattern: str, list_only=False) -> list:
-    print(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" or pattern "{pattern}" to local path "{local_path}"...')
+    logging.info(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" or pattern "{pattern}" to local path "{local_path}"...')
     ftp = ftplib.FTP(server, user, password)
     ftp.cwd(remote_path)
     remote_files = []
@@ -136,7 +136,7 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
         local_file = os.path.join(local_path, remote_file)
         files.append({'remote_file': remote_file, 'remote_path': remote_path, 'local_file': local_file})
         if not list_only:
-            print(f'FTP downloading file {local_file}...')
+            logging.info(f'FTP downloading file {local_file}...')
             with open(local_file, 'wb') as f:
                 ftp.retrbinary(f"RETR {remote_file}", f.write)
     ftp.quit()
@@ -145,13 +145,13 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
 
 @retry(ftp_errors_to_handle, tries=6, delay=2, backoff=1)
 def ensure_ftp_dir(server, user, password, folder):
-    print(f'Connecting to FTP server {server} to make sure folder {folder} exists...')
+    logging.info(f'Connecting to FTP server {server} to make sure folder {folder} exists...')
     ftp = ftplib.FTP(server, user, password)
     try:
         ftp.mkd(folder)
     except ftplib.all_errors as e:
         if str(e).split(None, 1)[1] == "Can't create directory: File exists":
-            print(f'Folder (or file with same name) exists already, doing nothing. ')
+            logging.info(f'Folder (or file with same name) exists already, doing nothing. ')
         else:
             raise e
     finally:
@@ -167,18 +167,18 @@ def ensure_ftp_dir(server, user, password, folder):
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(http_errors_to_handle, tries=6, delay=10, backoff=1)
 def publish_ods_dataset(dataset_uid, creds):
-    print("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
+    logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
     response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
     if not response.ok:
-        print(f'Received http error {response.status_code}:')
-        print(f'Error message: {response.text}')
+        logging.info(f'Received http error {response.status_code}:')
+        logging.info(f'Error message: {response.text}')
         r_json = response.json()
         # current_status = r_json['raw_params']['current_status']
         error_key = r_json['error_key']
         status_code = r_json['status_code']
         # if status_code == 400 and (current_status == 'queued' or current_status == 'processing_all_dataset_data'):
         if status_code == 400 and error_key == 'InvalidDatasetStatusPreconditionException':
-            print(f'ODS returned status 400 and error_key "{error_key}", thus we presume all is ok.')
+            logging.info(f'ODS returned status 400 and error_key "{error_key}", thus we presume all is ok.')
         else:
             response.raise_for_status()
 
@@ -196,7 +196,7 @@ def publish_ods_dataset(dataset_uid, creds):
 
 
 def get_ods_uid_by_id(ods_id, creds):
-    print(f'Retrieving ods uid for ods id {ods_id}...')
+    logging.info(f'Retrieving ods uid for ods id {ods_id}...')
     response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', auth=(creds.user_name, creds.password), proxies={'https': creds.proxy})
     return response.json()['datasets'][0]['dataset_uid']
 
@@ -229,11 +229,11 @@ def ods_realtime_push_df(df, url, push_key=''):
         push_key = t[2]
     row_count = len(df)
     if row_count == 0:
-        print(f'No rows to push to ODS... ')
+        logging.info(f'No rows to push to ODS... ')
     else:
-        print(f'Pushing {row_count} rows to ODS realtime API...')
+        logging.info(f'Pushing {row_count} rows to ODS realtime API...')
         payload = df.to_json(orient="records")
-        # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
+        # logging.info(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
         r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()
