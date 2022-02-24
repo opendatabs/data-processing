@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import common
 from aue_grundwasser import credentials
+import ods_publish.etl_id as odsp
 
 
 def list_files():
@@ -55,10 +56,8 @@ def main():
         process(file['local_file'])
         remote_file_with_path = os.path.join(file['remote_path'], file['remote_file'])
         archive(remote_file_with_path)
-    # if len(remote_file) > 0:
-    #   ods_publish
-    #   ods_publish
-    pass
+    if len(files_to_process) > 0:
+        odsp.publish_ods_dataset_by_id('100164')
 
 
 if __name__ == "__main__":
