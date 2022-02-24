@@ -165,7 +165,7 @@ def ensure_ftp_dir(server, user, password, folder):
 # curl -i "https://data.bs.ch/api/management/v2/datasets/?where=datasetid=100001" -u username@bs.ch:password123
 
 # Retry with some delay in between if any explicitly defined error is raised
-@retry(http_errors_to_handle, tries=6, delay=10, backoff=1)
+@retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
 def publish_ods_dataset(dataset_uid, creds):
     logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
     response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
@@ -176,11 +176,9 @@ def publish_ods_dataset(dataset_uid, creds):
         # current_status = r_json['raw_params']['current_status']
         error_key = r_json['error_key']
         status_code = r_json['status_code']
-        # if status_code == 400 and (current_status == 'queued' or current_status == 'processing_all_dataset_data'):
         if status_code == 400 and error_key == 'InvalidDatasetStatusPreconditionException':
-            logging.info(f'ODS returned status 400 and error_key "{error_key}", thus we presume all is ok.')
-        else:
-            response.raise_for_status()
+            logging.info(f'ODS returned status 400 and error_key "{error_key}", we raise the error now.')
+        response.raise_for_status()
 
         # Received http error 400:
         # Error message: {
