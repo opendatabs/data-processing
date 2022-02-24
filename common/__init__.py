@@ -129,7 +129,7 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
     if len(files) > 0:
         remote_files = files
     elif len(pattern) > 0:
-        logging.info(f'Filtering list of files using pattern...')
+        logging.info(f'Filtering list of files using pattern "{pattern}"...')
         remote_files = fnmatch.filter(ftp.nlst(), pattern)
     files = []
     for remote_file in remote_files:
