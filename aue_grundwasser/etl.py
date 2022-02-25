@@ -58,6 +58,7 @@ def main():
         archive(remote_file_with_path)
     if len(files_to_process) > 0:
         odsp.publish_ods_dataset_by_id('100164')
+        odsp.publish_ods_dataset_by_id('100179')
 
 
 if __name__ == "__main__":
