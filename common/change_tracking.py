@@ -38,7 +38,7 @@ def update_mod_timestamp_file(file_name, check_file_name='') -> str:
         epoch = os.path.getmtime(file_name)
         iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(epoch))
         time_string = f'{epoch},{iso},{file_name}'
-        logging.info(f'Writing the following time string into the check file: {time_string}')
+        logging.info(f'Writing the following time string into the check file (Epoch, ISO rounded to seconds, file path): {time_string}')
         f.write(time_string)
     return time_string
 
@@ -92,7 +92,7 @@ def has_changed(filename: str, hash_file_dir='', do_update_hash_file=True, metho
         current_timestamp_str = str(current_timestamp)
         current_iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(current_timestamp))
         check_numbers_differ = current_timestamp_str != check_timestamp
-        logging.info(f'Comparing timestamps (Epoch, and ISO rounded to seconds): current / last: {current_timestamp_str} / {check_timestamp}, {current_iso} / {check_iso}. Different? {check_numbers_differ}')
+        logging.info(f'Comparing timestamps (Epoch, ISO rounded to seconds, file path): current / last: {current_timestamp_str} / {check_timestamp}, {current_iso} / {check_iso}. Different? {check_numbers_differ}')
     if check_numbers_differ:
         logging.info(f'Check numbers do not match, file has changed.')
         if do_update_hash_file:
