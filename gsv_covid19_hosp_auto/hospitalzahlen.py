@@ -1,31 +1,3 @@
-""""
-get_data.check_day(): check which day it is, differentiate between monday and other weekdays
-
-for all days that need to be filled: at 9:15 get_df_for_date(date, list_hospitals, weekend), where weekend is boolean
-get_df_for_date returns dataframe with the latest entry of the day for each hospital (if available)
-
-To be changed..:if no data there, send email, check again after 15 minutes and get data, if still no data, give warning
-
-Calculate needed numbers:
-calculation.calculate_numbers(ies_numbers): takes dataframe of the day
-and returns the dataframe df_coreport which contains the numbers to be entered into CoReport:
-[Betten_frei_Normal, Betten_frei_Normal_COVID, Betten_frei_IMCU, Betten_frei_IPS_ohne_Beatmung,
-      Betten_frei_IPS_mit_Beatmung, Betten_frei_ECMO, Betten_belegt_Normal, Betten_belegt_IMCU, Betten_belegt_IPS_ohne_Beatmung,
-      Betten_belegt_IPS_mit_Beatmung, Betten_belegt_ECMO]
-
-Get value id's from CoReport
-coreport_scraper.make_df_value_id(date, list_hospitals) adds the value id's to df_coreport
-(alteratively, if no longer on the website,
-the pickle file with the value id's stored by coreport_scraper.add_value_id(df, date) can be joined with
-df_coreport)
-
-
-Write into CoReport:
-update_coreport.write_in_coreport(df, hospital_list, date) executes calculation.calculate_numbers
-and coreport_scraper.add_value_id, and then enters the numbers into CoReport
-"""
-
-
 import pandas as pd
 from gsv_covid19_hosp_auto import get_data
 from datetime import timezone, datetime, timedelta
