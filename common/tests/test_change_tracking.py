@@ -22,7 +22,8 @@ def text_file(tmp_path):
 
 def test_no_file(tmp_path):
     file_path = os.path.join(tmp_path, f'test-{random()}.txt')
-    assert ct.has_changed(file_path, CHANGE_TRACKING_DIR)
+    with pytest.raises(FileNotFoundError):
+        result = ct.has_changed(file_path, CHANGE_TRACKING_DIR)
 
 
 def test_new_file(text_file):
