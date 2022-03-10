@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import pandas as pd
+from pyproj import Transformer
 import common
 from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
@@ -21,6 +22,27 @@ def process(file):
     logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
     df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S')
+
+    df['x'] = df.XCoord.round(0).astype(int)
+    df['y'] = df.YCoord.round(0).astype(int)
+    # see https://stackoverflow.com/a/65711998
+    t = Transformer.from_crs('EPSG:2056', 'EPSG:4326', always_xy=True)
+    x, y = t.transform(df.x.values, df.y.values)
+    df['lon'] = x
+    df['lat'] = y
+    df['geo_point_2d'] = df.lat.astype(str).str.cat(df.lon.astype(str), sep=',')
+
+
+    # df_points = gpd.GeoDataFrame(df, crs='EPSG:2056', geometry=gpd.points_from_xy(df.x, df.y))
+    # # see https://epsg.io/2056
+    # lv95_proj_str = '+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=2600000 +y_0=1200000 +ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m +no_defs '
+    # df_points = gpd.GeoDataFrame(df, crs=lv95_proj_str, geometry=gpd.points_from_xy(df.x, df.y))
+    #
+    # d = {'col1': ['name1', 'name2'], 'wkt': ['POINT (1 2)', 'POINT (2 1)']}
+    # df = pd.DataFrame(d)
+    # gs = gpd.GeoSeries.from_wkt(df['wkt'])
+    # gdf = gpd.GeoDataFrame(df, geometry=gs, crs=2056)
+
     exported_files = []
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing SensorNr {sensornr_filter}...')
@@ -64,4 +86,6 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
+    # testing transformation during development using a single file:
+    # files = process('/Users/jonasbieri/PycharmProjects/data-processing/aue_grundwasser/data_orig/BS_Grundwasser_odExp_20220115_000000.csv')
     main()
