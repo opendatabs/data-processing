@@ -5,3 +5,5 @@
   brew install --cask miniforge
 ~~~
 - Add miniforge to PyCharm and install GeoPandas: https://docs.anaconda.com/anaconda/user-guide/tasks/pycharm/
+- Or even better run project in Docker container under PyCharm: https://www.jetbrains.com/help/pycharm/using-docker-as-a-remote-interpreter.html#example
+- PyCharm uses /opt/project as default path mapping to project root, tehrefore file path of files to be used accordingly.
