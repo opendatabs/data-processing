@@ -93,6 +93,7 @@ def send_email(hospital, email_type, day="today", extra_info=[], df_log=None, at
         logging.info("Send email with log file, message whether all is filled or not")
         subject = "Warning: CoReport has not been filled completely before 10"
         text = "Please find in the attachment today's log file."
+        df_log.to_csv(credentials.path_log_csv, index=False)
         attachment = credentials.path_log_csv
         html_content = df_log.to_html()
     elif email_type == "All filled":
@@ -100,6 +101,7 @@ def send_email(hospital, email_type, day="today", extra_info=[], df_log=None, at
         text = "All values of today have been entered into CoReport." \
                "\n" \
                "Please find in the attachment today's log file."
+        df_log.to_csv(credentials.path_log_csv, index=False)
         attachment = credentials.path_log_csv
         html_content = df_log.to_html()
         logging.info("Sending email: all is filled")
