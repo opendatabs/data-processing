@@ -22,19 +22,16 @@ def process(file):
     logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
     df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S')
-
-    df['x'] = df.XCoord.round(0).astype(int)
-    df['y'] = df.YCoord.round(0).astype(int)
+    logging.info(f'Rounding LV95 coordinates as required, then transforming to WGS84...')
+    df.XCoord = df.XCoord.round(0).astype(int)
+    df.YCoord = df.YCoord.round(0).astype(int)
     # see https://stackoverflow.com/a/65711998
     t = Transformer.from_crs('EPSG:2056', 'EPSG:4326', always_xy=True)
-    x, y = t.transform(df.x.values, df.y.values)
-    df['lon'] = x
-    df['lat'] = y
+    df['lon'], df['lat'] = t.transform(df.XCoord.values, df.YCoord.values)
     df['geo_point_2d'] = df.lat.astype(str).str.cat(df.lon.astype(str), sep=',')
-    print(f'Created geo_point_2d column: ')
-    print(df['geo_point_2d'])
-    return
-
+    # print(f'Created geo_point_2d column: ')
+    # print(df['geo_point_2d'])
+    # return
 
     exported_files = []
     for sensornr_filter in [10, 20]:
@@ -80,5 +77,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     # testing transformation during development using a single file:
-    files = process('/code/data-processing/aue_grundwasser/data_orig/BS_Grundwasser_odExp_20220115_000000.csv')
+    # files = process('/code/data-processing/aue_grundwasser/data_orig/BS_Grundwasser_odExp_20220115_000000.csv')
+    files = process('/opt/project/aue_grundwasser/data_orig/BS_Grundwasser_odExp_20220115_000000.csv')
     # main()
