@@ -77,6 +77,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     # testing transformation during development using a single file:
-    # files = process('/code/data-processing/aue_grundwasser/data_orig/BS_Grundwasser_odExp_20220115_000000.csv')
-    files = process('/opt/project/aue_grundwasser/data_orig/BS_Grundwasser_odExp_20220115_000000.csv')
+    files = process(credentials.test_file)
     # main()
