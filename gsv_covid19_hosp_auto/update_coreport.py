@@ -14,7 +14,7 @@ def main(value_id, value):
     payload = {
         "value": value,
         "comment": "Entered by bot"
-}
+    }
 
     username = credentials.username_coreport
     password = credentials.password_coreport
@@ -29,20 +29,19 @@ def main(value_id, value):
 
 def get_properties_list(hospital):
     if hospital == 'USB':
-        properties_list =  ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                      'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                      'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                      'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                      'Bettenanzahl belegt "IPS mit Beatmung"', 'Bettenanzahl frei " IPS ECMO"',
-                            'Bettenanzahl belegt "IPS ECMO"']
-
+        properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
+                           'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
+                           'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
+                           'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
+                           'Bettenanzahl belegt "IPS mit Beatmung"', 'Bettenanzahl frei " IPS ECMO"',
+                           'Bettenanzahl belegt "IPS ECMO"']
 
     else:
         properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                          'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                          'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                          'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                          'Bettenanzahl belegt "IPS mit Beatmung"']
+                           'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
+                           'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
+                           'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
+                           'Bettenanzahl belegt "IPS mit Beatmung"']
     return properties_list
 
 
@@ -62,7 +61,8 @@ def add_value_id(df, date):
         if hospital == 'USB':
             data_names = columns
         else:
-            data_names = [ x for x in columns if x not in ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+            data_names = [x for x in columns if x not in
+                          ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
         for data_name in data_names:
             filter = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
             url = url_api + filter
@@ -75,7 +75,9 @@ def add_value_id(df, date):
     return df
 
 
-def write_in_coreport(df, hospital_list, date, day, df_log, current_time= datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
+def write_in_coreport(df, hospital_list, date, day, df_log,
+                      current_time=datetime.now(timezone.utc)
+                      .astimezone(ZoneInfo('Europe/Zurich')).time().replace(microsecond=0)):
     logging.info("Calculate numbers for CoReport")
     df_coreport = calculation.calculate_numbers(df)
     logging.info("Get value id's from CoReport")
@@ -84,7 +86,7 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
         logging.info(f"Write entries into CoReport for {hospital}")
         df_hospital = df_coreport.filter(items=[hospital], axis=0)
         properties = get_properties_list(hospital=hospital)
-        #index_hospital = df_coreport.index[df_coreport["Hospital"] == hospital]
+        # index_hospital = df_coreport.index[df_coreport["Hospital"] == hospital]
         logging.info(f"Write entries into CoReport for {hospital}")
         incomplete = 0
         for prop in properties:
@@ -115,8 +117,3 @@ def write_in_coreport(df, hospital_list, date, day, df_log, current_time= dateti
             df_log.loc[condition, 'CoReport_filled'] = "Not all filled"
             logging.warning(f"Entries only partly added into CoReport for {hospital}")
     return df_log
-
-
-
-
-

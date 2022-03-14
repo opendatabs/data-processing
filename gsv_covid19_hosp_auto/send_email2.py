@@ -5,17 +5,18 @@ from gsv_covid19_hosp_auto import make_email
 import smtplib
 
 
-def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_for_email_to_call, time_for_email_final_status):
+def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_for_email_to_call,
+                   time_for_email_final_status):
     pd.set_option('display.max_columns', None)
     df_missing = df_log[(df_log['time_IES_entry'] == "") & (df_log["Date"] == date)]
     if not df_missing.empty:
         if day == "today" and now_in_switzerland > time_for_email_final_status:
-                if (df_log['email_status_at_10'] == "").all():
-                    df_log['email_status_at_10'] = "Sent"
-                    logging.info("Sending email: not all filled after 10...")
-                    send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
-                else:
-                    logging.info('email not all filled after 10 has already been sent')
+            if (df_log['email_status_at_10'] == "").all():
+                df_log['email_status_at_10'] = "Sent"
+                logging.info("Sending email: not all filled after 10...")
+                send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
+            else:
+                logging.info('email not all filled after 10 has already been sent')
         else:
             for index, row in df_missing.iterrows():
                 hospital = row["Hospital"]
@@ -58,7 +59,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
     return df_log
 
 
-def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, attachment=None, html_content=None):
+def send_email(hospital, email_type, day="today", extra_info=[], df_log=None, attachment=None, html_content=None):
     phone_dict = credentials.IES_phonenumbers
     email_dict = credentials.IES_emailadresses
     if email_type == "Reminder":
@@ -82,23 +83,25 @@ def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, 
             subject = f"No IES entries {hospital} on {day}"
     elif email_type == "Call":
         phone_hospital = phone_dict[hospital]
-        text =  f"There are still no entries in IES for {hospital} today, " \
-                   f"\n\n" \
-                   f"Please call:" \
-                   f"\n\n" \
-                   f"{phone_hospital}"
+        text = f"There are still no entries in IES for {hospital} today, " \
+            f"\n\n" \
+            f"Please call:" \
+            f"\n\n" \
+            f"{phone_hospital}"
         subject = f"Still no IES entries {hospital} today"
     elif email_type == "Not all filled at 10":
         logging.info("Send email with log file, message whether all is filled or not")
-        subject="Warning: CoReport has not been filled completely before 10"
+        subject = "Warning: CoReport has not been filled completely before 10"
         text = "Please find in the attachment today's log file."
+        df_log.to_csv(credentials.path_log_csv, index=False)
         attachment = credentials.path_log_csv
         html_content = df_log.to_html()
     elif email_type == "All filled":
-        subject= "CoReport all filled"
+        subject = "CoReport all filled"
         text = "All values of today have been entered into CoReport." \
                "\n" \
                "Please find in the attachment today's log file."
+        df_log.to_csv(credentials.path_log_csv, index=False)
         attachment = credentials.path_log_csv
         html_content = df_log.to_html()
         logging.info("Sending email: all is filled")
@@ -133,4 +136,3 @@ def send_email(hospital, email_type, day="today", extra_info = [], df_log=None, 
                   to_addrs=credentials.email_receivers,
                   msg=msg.as_string())
     smtp.quit()  # finally, don't forget to close the connection
-
