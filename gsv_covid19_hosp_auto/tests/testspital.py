@@ -11,8 +11,18 @@ from gsv_covid19_hosp_auto import calculation
 from gsv_covid19_hosp_auto import update_coreport
 from zoneinfo import ZoneInfo
 
+now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+date = now_in_switzerland.date()
+time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=30,
+                          tzinfo=ZoneInfo('Europe/Zurich'))
+time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50,
+                                  tzinfo=ZoneInfo('Europe/Zurich'))
+time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0,
+                                       tzinfo=ZoneInfo('Europe/Zurich'))
+pd.set_option('display.max_columns', None)
 
-def run_test(list_hospitals, date):
+
+def run_test(list_hospitals):
     #list_hospitals = [hospital]
     # if after 10 and not done yet, save pickle file with value_id's for the next day:
     # Note: in actual case need to use make_df_value_id(date, list_hospitals) that gets value_ids for all hospitals in list_hospitals
@@ -20,7 +30,6 @@ def run_test(list_hospitals, date):
     #   datum = date + timedelta(1)
     #   # To do: only execute if pickle file not there yet
     #    make_df_value_id(date=datum)
-
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
     df_log = pd.read_pickle("../log_file.pkl")
@@ -217,14 +226,9 @@ def make_df_value_id(date):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    date = now_in_switzerland.date()
-    time_for_email = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=30, tzinfo=ZoneInfo('Europe/Zurich'))
-    time_for_email_to_call = datetime(year=date.year, month=date.month, day=date.day, hour=9, minute=50, tzinfo=ZoneInfo('Europe/Zurich'))
-    time_for_email_final_status = datetime(year=date.year, month=date.month, day=date.day, hour=10, minute=0, tzinfo=ZoneInfo('Europe/Zurich'))
-    pd.set_option('display.max_columns', None)
-    datum = datetime.today().date() - timedelta(1)
-    run_test(['Clara','UKBB', 'USB'], datum)
+    # datum = datetime.today().date() - timedelta(1)
+    # run_test(['Clara','UKBB', 'USB'], datum)
+    run_test(list_hospitals=['Clara','UKBB', 'USB'])
     # make_df_value_id(date=datum)
     # df = pd.read_pickle('value_id_df_test_15.01.2022.pkl')
     # pd.set_option('display.max_columns', None)
