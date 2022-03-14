@@ -106,7 +106,6 @@ def send_email(hospital, email_type, day="today", extra_info=[], df_log=None, at
         html_content = df_log.to_html()
         logging.info("Sending email: all is filled")
     elif email_type == "Negative value":
-        print("here")
         prop = extra_info[0]
         hospital = extra_info[1]
         email_receivers_hospital = email_dict[hospital]
