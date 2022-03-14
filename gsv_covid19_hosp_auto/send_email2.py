@@ -123,6 +123,10 @@ def send_email(hospital, email_type, day="today", extra_info=None, df_log=None, 
                f"Phone:" \
                f"\n" \
                f"{phone_hospital}"
+    else:
+        logging.info("email type is not listed...")
+        subject = None
+        text = None
 
     msg = make_email.message(subject=subject, text=text, attachment=attachment, html_content=html_content)
 
