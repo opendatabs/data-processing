@@ -59,7 +59,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
     return df_log
 
 
-def send_email(hospital, email_type, day="today", extra_info=[], df_log=None, attachment=None, html_content=None):
+def send_email(hospital, email_type, day="today", extra_info=None, df_log=None, attachment=None, html_content=None):
     phone_dict = credentials.IES_phonenumbers
     email_dict = credentials.IES_emailadresses
     if email_type == "Reminder":
