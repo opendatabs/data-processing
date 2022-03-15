@@ -2,7 +2,7 @@ from datetime import date, time
 import pandas as pd
 # import io
 # import common
-from gsv_covid19_hosp_auto.tests.testspital import write_in_coreport_test
+from gsv_covid19_hosp_bs.tests.testspital import write_in_coreport_test
 
 
 

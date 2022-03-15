@@ -2,9 +2,9 @@
 from datetime import timezone, datetime
 import logging
 import common
-from gsv_covid19_hosp_auto import credentials
-from gsv_covid19_hosp_auto import calculation
-from gsv_covid19_hosp_auto import send_email2
+from gsv_covid19_hosp_bl import credentials
+from gsv_covid19_hosp_bl import calculation
+from gsv_covid19_hosp_bl import send_email2
 from zoneinfo import ZoneInfo
 
 
@@ -28,23 +28,23 @@ def main(value_id, value):
 
 
 def get_properties_list(hospital):
-    if hospital == 'USB':
-        properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                           'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                           'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                           'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                           'Bettenanzahl belegt "IPS mit Beatmung"', 'Bettenanzahl frei " IPS ECMO"',
-                           'Bettenanzahl belegt "IPS ECMO"']
+    if hospital == 'Arlesheim':
+        properties_list = ['Bettenanzahl frei "Normal"', 'Bettenanzahl frei "IMCU"',
+                           'Bettenanzahl belegt "Normal"','Bettenanzahl belegt "IMCU"',
+                           'Anzahl Patienten Normal COVID', 'Anzahl Patienten IMCU COVID mit Beatmung',
+                           'Anzahl Patienten IMCU COVID ohne Beatmung']
 
     else:
-        properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
-                           'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
-                           'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
-                           'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
-                           'Bettenanzahl belegt "IPS mit Beatmung"']
+        properties_list = ['Bettenanzahl frei "Normal"', 'Bettenanzahl frei "IPS ohne Beatmung"',
+                           'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normal" inkl. COVID Verdachtsfälle',
+                           'Bettenanzahl belegt "Normal" COVID', 'Bettenanzahl belegt "IPS ohne Beatmung"',
+                           'Bettenanzahl belegt "IPS mit Beatmung"', 'Anzahl Patienten "IPS nicht Beatmet" inkl. COVID Verdachtsfälle',
+                           'Anzahl Patienten "IPS Beatmet" inkl. COVID Verdachtsfälle', 'Anzahl Patienten "IPS nicht Beatmet" COVID',
+                           'Anzahl Patienten "IPS Beatmet" COVID']
     return properties_list
 
 
+# to do: check data names for BL hospitals
 def add_value_id(df, date):
     url_api = credentials.url_coreport_api
     username = credentials.username_coreport
@@ -64,8 +64,8 @@ def add_value_id(df, date):
             data_names = [x for x in columns if x not in
                           ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
         for data_name in data_names:
-            filter = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
-            url = url_api + filter
+            filter_result = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
+            url = url_api + filter_result
             req = common.requests_get(url, auth=(username, password))
             result = req.json()[0]
             # make sure first result indeed has the right date

@@ -1,6 +1,6 @@
 import pandas as pd
 import requests
-from gsv_covid19_hosp_auto import credentials
+from gsv_covid19_hosp_bl import credentials
 import datetime
 import logging
 
@@ -52,6 +52,7 @@ def get_data(hospital, date):
     return results
 
 
+# To do: Check if we get the same data from the BL hospitals
 def get_dataframe(hospital, date):
     results = get_data(hospital, date)
     logging.info(f"Put IES entries into dataframe and filter out properties we need")
@@ -63,3 +64,10 @@ def get_dataframe(hospital, date):
                  'TotalImcPatsC19', 'EcmoPats']]
         df["Hospital"] = hospital
     return df
+
+if __name__ == "__main__":
+    from zoneinfo import ZoneInfo
+    from datetime import timezone, datetime, timedelta
+    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
+    date = now_in_switzerland.date()
+    print(get_filter('Clara', date))
