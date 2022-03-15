@@ -52,6 +52,7 @@ def get_data(hospital, date):
     return results
 
 
+# To do: Check if we get the same data from the BL hospitals
 def get_dataframe(hospital, date):
     results = get_data(hospital, date)
     logging.info(f"Put IES entries into dataframe and filter out properties we need")
