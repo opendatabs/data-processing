@@ -9,11 +9,11 @@ import ods_publish.etl_id as odsp
 
 
 def list_files():
-    files = []
+    file_list = []
     for remote_path in credentials.ftp_remote_paths:
         listing = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_path, credentials.data_orig_path, '*.csv', list_only=True)
-        files.extend(listing)
-    return files
+        file_list.extend(listing)
+    return file_list
 
 
 def process(file):
