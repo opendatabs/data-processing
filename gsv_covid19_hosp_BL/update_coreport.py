@@ -27,6 +27,7 @@ def main(value_id, value):
     r.raise_for_status()
 
 
+# To do: list properties for the BL hospitals
 def get_properties_list(hospital):
     if hospital == 'USB':
         properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
@@ -45,6 +46,7 @@ def get_properties_list(hospital):
     return properties_list
 
 
+# to do: check data names for BL hospitals
 def add_value_id(df, date):
     url_api = credentials.url_coreport_api
     username = credentials.username_coreport
