@@ -1,14 +1,14 @@
 from datetime import timezone, datetime, timedelta
-from gsv_covid19_hosp_auto import get_data, send_email2
+from gsv_covid19_hosp_BS import get_data, send_email2
 import mechanicalsoup
 # from bs4 import BeautifulSoup
-from gsv_covid19_hosp_auto import credentials
+from gsv_covid19_hosp_BS import credentials
 import logging
 import common
 import pandas as pd
-from gsv_covid19_hosp_auto import hospitalzahlen
-from gsv_covid19_hosp_auto import calculation
-from gsv_covid19_hosp_auto import update_coreport
+from gsv_covid19_hosp_BS import hospitalzahlen
+from gsv_covid19_hosp_BS import calculation
+from gsv_covid19_hosp_BS import update_coreport
 from zoneinfo import ZoneInfo
 
 now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
