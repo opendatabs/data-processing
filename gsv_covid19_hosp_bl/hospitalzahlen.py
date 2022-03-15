@@ -2,7 +2,7 @@ import pandas as pd
 from gsv_covid19_hosp_bs import get_data
 from datetime import timezone, datetime, timedelta
 import logging
-from gsv_covid19_hosp_BL import update_coreport, send_email2, credentials
+from gsv_covid19_hosp_bl import update_coreport, send_email2, credentials
 from zoneinfo import ZoneInfo
 
 # hospitals to be filled
