@@ -14,7 +14,7 @@ date = now_in_switzerland.date()
 
 # time conditions
 time_for_email = now_in_switzerland.replace(hour=9, minute=30, second=0, microsecond=0)
-time_for_email_to_call = now_in_switzerland.replace( hour=9, minute=50,second=0, microsecond=0)
+time_for_email_to_call = now_in_switzerland.replace(hour=9, minute=50, second=0, microsecond=0)
 time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0)
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
@@ -23,7 +23,7 @@ def all_together(date, day_of_week, list_hospitals):
     check_for_log_file(date, day_of_week, list_hospitals)
     df_log = pd.read_pickle(credentials.path_log_pkl)
     if day_of_week == "Monday":
-        hospitals_left= hospitals_left_to_fill(date=date-timedelta(2), df_log=df_log)
+        hospitals_left = hospitals_left_to_fill(date=date-timedelta(2), df_log=df_log)
         df_log = try_to_enter_in_coreport(df_log=df_log, date=date - timedelta(2), day="Saturday",
                                           list_hospitals=hospitals_left, weekend=True)
         hospitals_left = hospitals_left_to_fill(date=date-timedelta(1), df_log=df_log)
@@ -45,7 +45,8 @@ def all_together(date, day_of_week, list_hospitals):
                                             time_for_email_final_status=time_for_email_final_status)
     elif day_of_week == "Other workday":
         hospitals_left = hospitals_left_to_fill(date=date, df_log=df_log)
-        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today", list_hospitals=hospitals_left, weekend=False)
+        df_log = try_to_enter_in_coreport(df_log=df_log, date=date, day="today",
+                                          list_hospitals=hospitals_left, weekend=False)
     df_log = send_email2.check_if_email(df_log=df_log, date=date, day="today",
                                         now_in_switzerland=now_in_switzerland,
                                         time_for_email=time_for_email,
@@ -92,7 +93,6 @@ def make_log_file(date, day_of_week, list_hospitals):
     df['email_status_at_10'] = ""
     df['email_all_filled'] = ""
     df['all_filled'] = 0
-    #df.set_index("Date", inplace=True)
     df.to_pickle(credentials.path_log_pkl)
 
 
@@ -102,7 +102,7 @@ def try_to_enter_in_coreport(df_log, date, day, list_hospitals, weekend):
     if not df.empty:
         filled_hospitals = [x for x in list_hospitals if x not in missing]
         logging.info(f"Add entries of {filled_hospitals} for {day} into CoReport")
-        df_log = update_coreport.write_in_coreport(df, filled_hospitals, date=date,day=day, df_log=df_log)
+        df_log = update_coreport.write_in_coreport(df, filled_hospitals, date=date, day=day, df_log=df_log)
         logging.info(f"Entries added into CoReport for {filled_hospitals}")
         logging.info(f"There are no entries of {missing} for {day} in IES")
         for hospital in filled_hospitals:
@@ -155,4 +155,3 @@ if __name__ == "__main__":
     if do_process:
         logging.info(f"OK, let's start processing the data!")
         all_together(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
-

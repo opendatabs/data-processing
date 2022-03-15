@@ -23,7 +23,7 @@ def run_test(list_hospitals, date):
 
     day_of_week = get_data.check_day(date)
     check_for_log_file(date, day_of_week, list_hospitals)
-    df_log = pd.read_pickle("log_file.pkl")
+    df_log = pd.read_pickle("../log_file.pkl")
     if day_of_week == "Monday":
         condition = (df_log["Date"] == date - timedelta(2)) & (df_log['CoReport_filled'] != "Yes")
         hospitals_left_to_fill = df_log.loc[condition, "Hospital"]
@@ -52,7 +52,7 @@ def run_test(list_hospitals, date):
 
 def check_for_log_file(date, day_of_week, list_hospitals):
     try:
-        with open("log_file.csv") as log_file:
+        with open("../log_file.csv") as log_file:
             df_log = pd.read_csv(log_file)
             print( "log file")
             print(df_log)

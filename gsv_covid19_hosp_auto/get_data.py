@@ -48,7 +48,6 @@ def get_data(hospital, date):
         url2 = credentials.url_hosp_adults + get_filter(hospital, date)
     response = requests.request("GET", url2, headers=headers, data=payload)
     response.raise_for_status()
-    #print(response.text)
     results = response.json()["d"]["results"]
     return results
 
@@ -57,11 +56,10 @@ def get_dataframe(hospital, date):
     results = get_data(hospital, date)
     logging.info(f"Put IES entries into dataframe and filter out properties we need")
     df = pd.DataFrame(results)
-    if df.empty == False:
-            df = df[
-                ["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds', 'OperIcuBedsC19',
-                'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats', 'TotalAllPatsC19', 'TotalIcuPats',
-                'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats', 'TotalImcPatsC19', 'EcmoPats']]
-            df["Hospital"] = hospital
+    if not df.empty:
+        df = df[["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
+                 'OperIcuBedsC19', 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats',
+                 'TotalAllPatsC19', 'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats',
+                 'TotalImcPatsC19', 'EcmoPats']]
+        df["Hospital"] = hospital
     return df
-
