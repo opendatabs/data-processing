@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
-from gsv_covid19_hosp_BL import credentials
-from gsv_covid19_hosp_BL import make_email
+from gsv_covid19_hosp_bl import credentials
+from gsv_covid19_hosp_bl import make_email
 import smtplib
 
 

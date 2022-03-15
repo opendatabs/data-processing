@@ -2,9 +2,9 @@
 from datetime import timezone, datetime
 import logging
 import common
-from gsv_covid19_hosp_BL import credentials
-from gsv_covid19_hosp_BL import calculation
-from gsv_covid19_hosp_BL import send_email2
+from gsv_covid19_hosp_bl import credentials
+from gsv_covid19_hosp_bl import calculation
+from gsv_covid19_hosp_bl import send_email2
 from zoneinfo import ZoneInfo
 
 
