@@ -63,10 +63,3 @@ def get_dataframe(hospital, date):
                  'TotalImcPatsC19', 'EcmoPats']]
         df["Hospital"] = hospital
     return df
-
-if __name__ == "__main__":
-    from zoneinfo import ZoneInfo
-    from datetime import timezone, datetime, timedelta
-    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    date = now_in_switzerland.date()
-    print(get_filter('Clara', date))
