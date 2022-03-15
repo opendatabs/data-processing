@@ -27,25 +27,6 @@ def main(value_id, value):
     r.raise_for_status()
 
 
-# To do: list properties for the BL hospitals
-
-"""
-Bruderholz/Liestal:
-Bettenanzahl frei "Normal"
-Bettenanzahl frei "IPS ohne Beatmung"
-Bettenanzahl frei "IPS mit Beatmung"
-Bettenanzahl belegt "Normal" inkl. COVID Verdachtsfälle
-Bettenanzahl belegt "Normal" COVID
-Bettenanzahl belegt "IPS ohne Beatmung"
-Bettenanzahl belegt "IPS mit Beatmung"
-Anzahl Patienten "IPS nicht Beatmet" inkl. COVID Verdachtsfälle
-Anzahl Patienten "IPS Beatmet" inkl. COVID Verdachtsfälle
-Anzahl Patienten "IPS nicht Beatmet" COVID
-Anzahl Patienten "IPS Beatmet" COVID
-
-
-"""
-
 def get_properties_list(hospital):
     if hospital == 'Arlesheim':
         properties_list = ['Bettenanzahl frei "Normal"', 'Bettenanzahl frei "IMCU"',
