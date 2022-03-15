@@ -29,7 +29,8 @@ def main():
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_betriebe_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100146'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_single_sek2_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100153'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_schulen_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100183'},
-               {'file': 'StatA/Bevoelkerung/wanderungen.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100138'}
+               {'file': 'StatA/Bevoelkerung/wanderungen.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100138'},
+               {'file': 'StatA/FST-OGD/interfaces.xlsx', 'dest_dir': 'FST-OGD', 'ods_id': '100184'}
                ]
     file_not_found_errors = []
     for upload in uploads:
