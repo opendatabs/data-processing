@@ -1,7 +1,7 @@
 import pandas as pd
 
-from gsv_covid19_hosp_BS import credentials
-from gsv_covid19_hosp_BS import hospitalzahlen, calculation
+from gsv_covid19_hosp_bs import credentials
+from gsv_covid19_hosp_bs import hospitalzahlen, calculation
 import common
 import requests
 import logging

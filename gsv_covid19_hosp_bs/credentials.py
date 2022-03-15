@@ -1,4 +1,4 @@
-base_path = '/code/data-processing/gsv_covid19_hosp_BS'
+base_path = '/code/data-processing/gsv_covid19_hosp_bs'
 path_log_csv = f'{base_path}/log/log_file.csv'
 path_log_pkl = f'{base_path}/log/log_file.pkl'
 

@@ -3,7 +3,7 @@ from datetime import date, time
 import pandas as pd
 # import io
 # import common
-from gsv_covid19_hosp_BS.send_email2 import check_if_email
+from gsv_covid19_hosp_bs.send_email2 import check_if_email
 
 time_for_email = time(9,30)
 time_for_email_to_call = time(9,50)
