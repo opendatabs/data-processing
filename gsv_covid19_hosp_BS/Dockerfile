@@ -11,13 +11,13 @@ CMD ["/bin/bash", "/code/data-processing/gsv_covid19_hosp_auto/etl.sh"]
 
 
 # Docker commands to create image and run container:
-# cd gsv_covid19_hosp_auto
-# docker build -t gsv_covid19_hosp_auto .
+# cd gsv_covid19_hosp_BS
+# docker build -t gsv_covid19_hosp_BS .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name gsv_covid19_hosp_auto gsv_covid19_hosp_auto
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name gsv_covid19_hosp_BS gsv_covid19_hosp_BS
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd gsv_covid19_hosp_auto
-# docker build -t gsv_covid19_hosp_auto --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
+# cd gsv_covid19_hosp_BS
+# docker build -t gsv_covid19_hosp_BS --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing  --name gsv_covid19_hosp_auto gsv_covid19_hosp_auto
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing  --name gsv_covid19_hosp_BS gsv_covid19_hosp_BS
