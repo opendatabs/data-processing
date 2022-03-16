@@ -12,8 +12,8 @@ import ods_publish.etl_id as odsp
 
 
 # Add missing line breaks for lines with more than 5 columns
-def fix_data(filename, id, encoding):
-    filename_fixed = os.path.join(credentials.path, 'fixed', id + os.path.basename(filename))
+def fix_data(filename, measure_id, encoding):
+    filename_fixed = os.path.join(credentials.path, 'fixed', measure_id + os.path.basename(filename))
     # logging.info(f'Fixing data if necessary and writing to {filename_fixed}...')
     with open(filename, 'r', encoding=encoding) as input_file, \
             open(filename_fixed, 'w', encoding=encoding) as output_file:
@@ -102,7 +102,7 @@ def main():
                 result = chardet.detect(raw_data)
                 enc = result['encoding']
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
-            raw_df = pd.read_table(fix_data(filename=file, id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
+            raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
             if raw_df.empty:
                 logging.info(f'Dataframe is empty, ignoring...')
             else:
@@ -116,8 +116,7 @@ def main():
                 raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append(filename_current_measure)
                 new_df.append(raw_df)
-    
-    
+
     for data_file in files_to_upload:
         if ct.has_changed(filename=data_file, do_update_hash_file=False, method='hash'):
             common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
