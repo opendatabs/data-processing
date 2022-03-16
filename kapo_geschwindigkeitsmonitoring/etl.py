@@ -8,6 +8,7 @@ from kapo_geschwindigkeitsmonitoring import credentials
 import psycopg2 as pg
 import cchardet as chardet
 from common import change_tracking as ct
+import ods_publish.etl_id as odsp
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -48,7 +49,10 @@ df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
 metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
 print(f'Exporting processed metadata to {metadata_filename}...')
 df_metadata.to_csv(metadata_filename, index=False)
-common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+if ct.has_changed(filename=metadata_filename, do_update_hash_file=False, method='hash'):
+    common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+    odsp.publish_ods_dataset_by_id('100112')
+    ct.update_hash_file(metadata_filename)
 
 print(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
 # Manual stacking of the columns for Richtung 1 and 2
@@ -65,7 +69,10 @@ df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50'
 richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
 print(f'Exporting richtung data to {richtung_filename}...')
 df_richtung.to_csv(richtung_filename, index=False)
-common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+if ct.has_changed(filename=richtung_filename, do_update_hash_file=False, method='hash'):
+    common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+    odsp.publish_ods_dataset_by_id('100115')
+    ct.update_hash_file(richtung_filename)
 
 dfs = []
 new_df = []
@@ -119,8 +126,9 @@ for index, row in df.iterrows():
 
 
 for data_file in files_to_upload:
-    #todo: if upload fails, file will never be uploaded because it is locally present. Thus we have to check if it is already on the FTP Server instead of locally present.
-    common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
+    if ct.has_changed(filename=data_file, do_update_hash_file=False, method='hash'):
+        common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
+        ct.update_hash_file(data_file)
 
 if len(dfs) == 0:
     print(f'No raw data present at all, raising IOError...')
@@ -142,6 +150,7 @@ else:
     all_df.to_csv(all_data_filename, index=False)
     if ct.has_changed(filename=all_data_filename, do_update_hash_file=False, method='hash'):
         common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+        odsp.publish_ods_dataset_by_id('100097')
         ct.update_hash_file(all_data_filename)
 
     # Create a separate data file per year
