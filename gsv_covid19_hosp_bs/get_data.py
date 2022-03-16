@@ -1,8 +1,18 @@
+import base64
 import pandas as pd
 import requests
 from gsv_covid19_hosp_bs import credentials
 import datetime
 import logging
+
+
+def create_auth_string(username, password):
+    # Basic base64(username:password)
+    message = f'{username}:{password}'
+    message_bytes = message.encode('ascii')
+    base64_bytes = base64.b64encode(message_bytes)
+    base64_message = base64_bytes.decode('ascii')
+    print(f'Basic {base64_message}')
 
 
 def check_day(date=datetime.datetime.today()):
