@@ -142,4 +142,15 @@ else:
     all_df.to_csv(all_data_filename, index=False)
     common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
 
+    # Create a separate data file per year
+    all_df['jahr'] = all_df.timestamp.dt.year
+    all_years = all_df.jahr.unique()
+    year_file_names = []
+    for year in all_years:
+        year_data = all_df[all_df.Year.eq(year)]
+        current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
+        print(f'Saving {current_filename}...')
+        year_data.to_csv(current_filename, index=False)
+        year_file_names.append(current_filename)
+
 print('Job successful!')
