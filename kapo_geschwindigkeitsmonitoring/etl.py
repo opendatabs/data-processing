@@ -7,6 +7,7 @@ import common
 from kapo_geschwindigkeitsmonitoring import credentials
 import psycopg2 as pg
 import cchardet as chardet
+from common import change_tracking as ct
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -107,7 +108,6 @@ for index, row in df.iterrows():
             raw_df['Datum_Zeit'] = raw_df['Datum'] + ' ' + raw_df['Zeit']
             # todo: fix ambiguous times - setting ambiguous to 'infer' raises an exception for some times
             raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
-            raw_df = raw_df.drop(columns=['Fahrzeuglänge'])
             dfs.append(raw_df)
             if file_exists:
                 print(f'File already exists, will not export and upload it again...')
@@ -140,7 +140,9 @@ else:
     all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
     print(f'Exporting into one huge csv to {all_data_filename}...')
     all_df.to_csv(all_data_filename, index=False)
-    common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+    if ct.has_changed(filename=all_data_filename, do_update_hash_file=False, method='hash'):
+        common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+        ct.update_hash_file(all_data_filename)
 
     # Create a separate data file per year
     all_df['jahr'] = all_df.Timestamp.dt.year
