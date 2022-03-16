@@ -150,7 +150,7 @@ def main():
         all_years = all_df.jahr.unique()
         year_file_names = []
         for year in all_years:
-            year_data = all_df[all_df.Year.eq(year)]
+            year_data = all_df[all_df.jahr.eq(year)]
             current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
             logging.info(f'Saving {current_filename}...')
             year_data.to_csv(current_filename, index=False)
