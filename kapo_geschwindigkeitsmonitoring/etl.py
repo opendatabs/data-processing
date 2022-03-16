@@ -41,11 +41,11 @@ def main():
     raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
     logging.info(f'Saving raw metadata (as received from db) to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
-    
+
     df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
-           'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
-           'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
-          ]]
+                      'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
+                      'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
+                      ]]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata to {metadata_filename}...')
@@ -79,7 +79,7 @@ def main():
     new_df = []
     files_to_upload = []
     # error_df = pd.DataFrame(columns=['line_text_orig', 'line_text_fixed', 'file', 'line_number'])
-    empty_df = pd.DataFrame(columns=['ID'])
+    # empty_df = pd.DataFrame(columns=['ID'])
     logging.info(f'Removing metadata without data...')
     df = df.dropna(subset=['Verzeichnis'])
     for index, row in df.iterrows():
@@ -155,7 +155,13 @@ def main():
             logging.info(f'Saving {current_filename}...')
             year_data.to_csv(current_filename, index=False)
             year_file_names.append(current_filename)
-    
+            if ct.has_changed(filename=current_filename, do_update_hash_file=False, method='hash'):
+                common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+                # todo: Publish ODS data when ready
+                # odsp.publish_ods_dataset_by_id('100XXX')
+                # todo: Create new ods dataset when necessary
+                ct.update_hash_file(current_filename)
+
     logging.info('Job successful!')
 
 
