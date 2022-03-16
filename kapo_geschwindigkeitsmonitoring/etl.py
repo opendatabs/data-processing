@@ -161,7 +161,6 @@ def main():
                 # odsp.publish_ods_dataset_by_id('100XXX')
                 # todo: Create new ods dataset when necessary
                 ct.update_hash_file(current_filename)
-
     logging.info('Job successful!')
 
 
