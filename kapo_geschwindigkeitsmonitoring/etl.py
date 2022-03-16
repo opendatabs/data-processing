@@ -143,7 +143,7 @@ else:
     common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
 
     # Create a separate data file per year
-    all_df['jahr'] = all_df.timestamp.dt.year
+    all_df['jahr'] = all_df.Timestamp.dt.year
     all_years = all_df.jahr.unique()
     year_file_names = []
     for year in all_years:
