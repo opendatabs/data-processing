@@ -105,7 +105,7 @@ def make_dataframe_bl():
 def make_dataframe_abwasserdaten():
     logging.info("import and transform abwasserdaten")
     path = credentials.path_proben
-    df_abwasser = pd.read_excel(path, sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
+    df_abwasser = pd.read_excel(path, sheet_name="Proben", usecols="A, B, N, O, AD, AE, AK, AL", skiprows=range(6))
     # rename date column and change format
     df_abwasser.rename(columns={'Abwasser von Tag': 'Datum'}, inplace=True)
     return df_abwasser
