@@ -34,9 +34,14 @@ def main():
                           credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
         ct.update_hash_file(credentials.path_export_file)
         logging.info("push data to ODS realtime API")
+        logging.info("push for dataset 100167")
         push_url = credentials.ods_live_realtime_push_url
         push_key = credentials.ods_live_realtime_push_key
         common.ods_realtime_push_df(df_all, url=push_url, push_key=push_key)
+        logging.info("push for dataset 100187")
+        push_url2 = credentials.ods_live_realtime_push_url2
+        push_key2 = credentials.ods_live_realtime_push_key2
+        common.ods_realtime_push_df(df_all, url=push_url2, push_key=push_key2)
     logging.info('Job successful!')
 
 
@@ -105,7 +110,7 @@ def make_dataframe_bl():
 def make_dataframe_abwasserdaten():
     logging.info("import and transform abwasserdaten")
     path = credentials.path_proben
-    df_abwasser = pd.read_excel(path, sheet_name="Proben", usecols="A, B, N, O, AC, AD, AJ, AK", skiprows=range(6))
+    df_abwasser = pd.read_excel(path, sheet_name="Proben", usecols="A, B, N, O, AD, AE, AK, AL", skiprows=range(6))
     # rename date column and change format
     df_abwasser.rename(columns={'Abwasser von Tag': 'Datum'}, inplace=True)
     return df_abwasser
