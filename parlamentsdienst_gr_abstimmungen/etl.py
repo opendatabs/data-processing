@@ -49,9 +49,11 @@ def main():
 
 def check_calendar():
     # see https://www.nicholasnadeau.com/post/2020/6/download-ical-calendar-data-using-python/
+    logging.info(f'Opening Google Calendar from web...')
     cal = Calendar(urlopen('https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics').read().decode("iso-8859-1"))
     events = [e.__dict__ for e in cal.events]
-    df_events = pd.DataFrame(events)
+    df_events = pd.DataFrame(events)[['_begin', '_end_time']].rename(columns={'_begin': 'start', '_end_time': 'end'})
+    df_events[['start', 'end']] = df_events[['start', 'end']].astype(str).apply(pd.to_datetime, errors='raise')
     pass
 
 
