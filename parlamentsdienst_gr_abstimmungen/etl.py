@@ -7,6 +7,8 @@ import xml
 import common
 from xml.sax.handler import ContentHandler
 from parlamentsdienst_gr_abstimmungen import credentials
+from ics import Calendar
+from urllib.request import urlopen
 import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 
@@ -41,6 +43,19 @@ class ExcelHandler(ContentHandler):
 
 
 def main():
+    check_calendar()
+    handle_polls()
+
+
+def check_calendar():
+    # see https://www.nicholasnadeau.com/post/2020/6/download-ical-calendar-data-using-python/
+    cal = Calendar(urlopen('https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics').read().decode("iso-8859-1"))
+    events = [e.__dict__ for e in cal.events]
+    df_events = pd.DataFrame(events)
+    pass
+
+
+def handle_polls():
     listing = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '', credentials.local_data_path, '*.xml')
     for file in listing:
         local_file = file['local_file']
@@ -56,7 +71,7 @@ def main():
             polls['Zeitstempel_text'] = polls.Zeit
             polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich')
             polls[['Datum', 'Zeit']] = polls.Datum.str.split('T', expand=True)
-            polls = polls.rename(columns={'Nr': 'Abst_Nr'})
+            polls = polls.rename(columns={'Nr': 'Abst_Nr', 'J': 'Anz_J', 'N': 'Anz_N', 'E': 'Anz_E', 'A': 'Anz_A', 'P': 'Anz_P'})
 
             details['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
             details.columns.values[0] = 'Sitz_Nr'
@@ -64,7 +79,7 @@ def main():
             details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
             details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]]
             details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
-            details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand'], var_name='Abst_Nr', value_name='Entscheid')
+            details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
 
             all_df = polls.merge(details_long, how='left', left_on=['Datum', 'Abst_Nr'], right_on=['Datum', 'Abst_Nr'])
 
