@@ -1,19 +1,17 @@
 import logging
 import os
-from datetime import datetime, timezone, timedelta
-from zoneinfo import ZoneInfo
-import numpy as np
-import pandas as pd
 import xml
-import requests
-import common
+from datetime import datetime, timezone, timedelta
 from xml.sax.handler import ContentHandler
-from parlamentsdienst_gr_abstimmungen import credentials
-from ics import Calendar
-from urllib.request import urlopen
-import common.change_tracking as ct
+from zoneinfo import ZoneInfo
 # import ods_publish.etl_id as odsp
 import icalendar
+import pandas as pd
+import requests
+
+import common
+import common.change_tracking as ct
+from parlamentsdienst_gr_abstimmungen import credentials
 
 
 # see https://stackoverflow.com/a/33504236
@@ -46,8 +44,7 @@ class ExcelHandler(ContentHandler):
 
 
 def main():
-    session_active = is_session_now()
-    if session_active:
+    if is_session_now():
         handle_polls()
 
 
@@ -72,31 +69,17 @@ def is_session_now():
     # todo: remove this test datetime
     now_in_switzerland = datetime(2022, 3, 23, 10, 15, 12, 11).astimezone(ZoneInfo('Europe/Zurich'))
     with open(ical_file_path, 'rb') as f:
-        # calendar = icalendar.Calendar.from_ical(r.content)
         calendar = icalendar.Calendar.from_ical(f.read())
-    all_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT')]
+    # all_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT')]
     current_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT') if event['DTSTART'].dt <= now_in_switzerland <= event['DTEND'].dt]
     session_active = True if len(current_entries) > 0 else False
     logging.info(f'Session active now? {session_active}')
     return session_active
 
 
-def check_calendar2():
-    # see https://www.nicholasnadeau.com/post/2020/6/download-ical-calendar-data-using-python/
-    logging.info(f'Opening Google Calendar from web...')
-    cal = Calendar(urlopen('https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics').read().decode("iso-8859-1"))
-    events = [e.__dict__ for e in cal.events]
-    df_events = pd.DataFrame(events)[['_begin', '_end_time']].rename(columns={'_begin': 'start', '_end_time': 'end'})
-    df_events[['start', 'end']] = df_events[['start', 'end']].astype(str).apply(pd.to_datetime, errors='raise')
-    # see https://stackoverflow.com/a/29370182
-    now = np.datetime64('now').tz_localize('Europe/Zurich')
-    now = np.datetime64(datetime.now().tz_localize('Europe/Zurich'))
-    mask = (df_events['end'] > now) & (df_events['start'] <= now)
-    pass
-
-
 def handle_polls():
     listing = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '', credentials.local_data_path, '*.xml')
+    # todo: check if any file has changed on FT Server, e.g. by saving listing into text file and checking for changes in content (hash)
     for file in listing:
         local_file = file['local_file']
         if ct.has_changed(local_file, do_update_hash_file=False):
