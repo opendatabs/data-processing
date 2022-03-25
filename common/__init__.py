@@ -141,7 +141,8 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
         logging.info(f'No download required, just file listing...')
     for remote_file in remote_files:
         local_file = os.path.join(local_path, remote_file[0] if extended_list else remote_file)
-        obj = {'remote_file': remote_file[0], 'remote_path': remote_path, 'local_file': local_file}
+        remote_file = remote_file[0] if extended_list else remote_file
+        obj = {'remote_file': remote_file, 'remote_path': remote_path, 'local_file': local_file}
         if extended_list:
             modified = dateutil.parser.parse(remote_file[1]['modify']).astimezone(ZoneInfo('Europe/Zurich')).isoformat()
             obj['modified_remote'] = modified
@@ -149,7 +150,7 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
         if not list_only:
             logging.info(f'FTP downloading file {local_file}...')
             with open(local_file, 'wb') as f:
-                ftp.retrbinary(f"RETR {remote_file[0]}", f.write)
+                ftp.retrbinary(f"RETR {remote_file}", f.write)
     ftp.quit()
     return files
 
