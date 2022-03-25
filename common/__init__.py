@@ -127,6 +127,7 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
     ftp = ftplib.FTP(server, user, password)
     ftp.cwd(remote_path)
     remote_files = []
+    extended_list = False
     if len(files) > 0:
         remote_files = files
     elif len(pattern) > 0:
@@ -134,13 +135,17 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
         # remote_files = fnmatch.filter(ftp.nlst(), pattern)
         ftp_dir_details = ftp.mlsd()
         remote_files = [i for i in (list(ftp_dir_details)) if fnmatch.fnmatch(i[0], pattern)]
+        extended_list = True
     files = []
     if list_only:
         logging.info(f'No download required, just file listing...')
     for remote_file in remote_files:
-        local_file = os.path.join(local_path, remote_file[0])
-        modified = dateutil.parser.parse(remote_file[1]['modify']).astimezone(ZoneInfo('Europe/Zurich')).isoformat()
-        files.append({'remote_file': remote_file[0], 'remote_path': remote_path, 'local_file': local_file, 'modified_remote': modified })
+        local_file = os.path.join(local_path, remote_file[0] if extended_list else remote_file)
+        obj = {'remote_file': remote_file[0], 'remote_path': remote_path, 'local_file': local_file}
+        if extended_list:
+            modified = dateutil.parser.parse(remote_file[1]['modify']).astimezone(ZoneInfo('Europe/Zurich')).isoformat()
+            obj['modified_remote'] = modified
+        files.append(obj)
         if not list_only:
             logging.info(f'FTP downloading file {local_file}...')
             with open(local_file, 'wb') as f:
