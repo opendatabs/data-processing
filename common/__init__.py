@@ -8,6 +8,7 @@ from functools import wraps
 import pandas as pd
 import fnmatch
 import logging
+import dateutil
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
@@ -130,15 +131,20 @@ def download_ftp(files: list, server: str, user: str, password: str, remote_path
         remote_files = files
     elif len(pattern) > 0:
         logging.info(f'Filtering list of files using pattern "{pattern}"...')
-        remote_files = fnmatch.filter(ftp.nlst(), pattern)
+        # remote_files = fnmatch.filter(ftp.nlst(), pattern)
+        ftp_dir_details = ftp.mlsd()
+        remote_files = [i for i in (list(ftp_dir_details)) if fnmatch.fnmatch(i[0], pattern)]
     files = []
+    if list_only:
+        logging.info(f'No download required, just file listing...')
     for remote_file in remote_files:
-        local_file = os.path.join(local_path, remote_file)
-        files.append({'remote_file': remote_file, 'remote_path': remote_path, 'local_file': local_file})
+        local_file = os.path.join(local_path, remote_file[0])
+        modified = dateutil.parser.parse(remote_file[1]['modify']).astimezone(ZoneInfo('Europe/Zurich')).isoformat()
+        files.append({'remote_file': remote_file[0], 'remote_path': remote_path, 'local_file': local_file, 'modified_remote': modified })
         if not list_only:
             logging.info(f'FTP downloading file {local_file}...')
             with open(local_file, 'wb') as f:
-                ftp.retrbinary(f"RETR {remote_file}", f.write)
+                ftp.retrbinary(f"RETR {remote_file[0]}", f.write)
     ftp.quit()
     return files
 
