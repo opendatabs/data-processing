@@ -15,6 +15,7 @@ __pycache__/
 **/*.sfv
 **/*.DS_Store
 **/*.pkl
+**/*.ics
 /gsv_covid19_hosp/outputClara.html
 /gsv_covid19_hosp/outputUKBB.html
 /gsv_covid19_hosp/outputUSB.html
