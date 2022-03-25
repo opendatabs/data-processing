@@ -59,7 +59,6 @@ for year in range(2010,2021):
     df = pd.concat([df, df_year])
 
 # to do: filter empty rows: 2010,,,unbekannt,,,,,,,,
-# do I care about instances when nothing was catched?
 
 
 # filter columns for export
