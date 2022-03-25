@@ -19,3 +19,4 @@ __pycache__/
 /gsv_covid19_hosp/outputClara.html
 /gsv_covid19_hosp/outputUKBB.html
 /gsv_covid19_hosp/outputUSB.html
+/parlamentsdienst_gr_abstimmungen/**/*.json
