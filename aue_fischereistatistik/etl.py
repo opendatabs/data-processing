@@ -64,10 +64,3 @@ df = df[['Jahr', 'Monat', 'Tag', 'Gewässercode', 'Fischart', 'Gewicht',
 df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv')
 
 
-
-# probably remove column Bemerkungen (or remove all personal info)
-
-
-
-
-
