@@ -119,6 +119,7 @@ def upload_ftp(filename, server, user, password, remote_path):
     return
 
 
+# todo: Refactor this into two methods, one for listing only, one for file downloading - this is a mess
 # Download files from FTP server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
