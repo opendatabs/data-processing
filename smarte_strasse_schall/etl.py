@@ -76,7 +76,7 @@ def push_vehicle_speed_level(auth):
     logging.info(f"Removing last interval in which we don't have {n} vehicles yet..")
     df_merged = df_merged.dropna(subset=['localDateTime_interval_end'])
     logging.info(f'Calculating interval length...')
-    df_merged['interval_length_seconds'] = (pd.to_datetime(df_merged.localDateTime_interval_end) - pd.to_datetime(df_merged.localDateTime_interval_start)).dt.total_seconds()
+    df_merged['interval_length_seconds'] = (pd.to_datetime(df_merged.localDateTime_interval_end, utc=True) - pd.to_datetime(df_merged.localDateTime_interval_start, utc=True)).dt.total_seconds()
     df_merged['interval_length_string'] = pd.to_datetime(df_merged['interval_length_seconds'], unit='s').dt.strftime("%H:%M:%S.%f")
     df_test = df_merged[['localDateTime', 'localDateTime_start', 'localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds', 'interval_length_string']].copy(deep=True)
     df_vehicles = df_merged[['localDateTime_interval_start', 'localDateTime_interval_end', 'level', 'speed', 'interval_length_seconds', 'interval_length_string']].copy(deep=True)
