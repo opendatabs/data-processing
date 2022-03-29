@@ -44,7 +44,7 @@ class ExcelHandler(ContentHandler):
 
 def main():
     ical_file_path = get_session_calendar(cutoff=timedelta(hours=0))
-    if is_session_now(ical_file_path):
+    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         handle_polls()
 
 
@@ -64,7 +64,7 @@ def get_session_calendar(cutoff):
         r = common.requests_get(url=url, allow_redirects=True)
         with open(ical_file_path, 'wb') as f:
             f.write(r.content)
-        logging.info(f'Parsing events into df to publish dataset...')
+        logging.info(f'Parsing events into df to publish to dataset...')
         calendar = icalendar.Calendar.from_ical(r.content)
         df_cal = pd.DataFrame(dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT'))
         cal_export_file = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_sitzungskalender.csv')
@@ -76,17 +76,14 @@ def get_session_calendar(cutoff):
     return ical_file_path
 
 
-def is_session_now(ical_file_path):
+def is_session_now(ical_file_path, hours_before_start, hours_after_end):
     # see https://stackoverflow.com/a/26329138
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # todo: remove this test datetime
     now_in_switzerland = datetime(2022, 3, 23, 10, 15, 12, 11).astimezone(ZoneInfo('Europe/Zurich'))
     with open(ical_file_path, 'rb') as f:
         calendar = icalendar.Calendar.from_ical(f.read())
-    # all_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT')]
     # handle case where session takes longer than defined in calendar event
-    hours_before_start = 4
-    hours_after_end = 10
     current_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT') if event['DTSTART'].dt - pd.Timedelta(hours=hours_before_start) <= now_in_switzerland <= event['DTEND'].dt + pd.Timedelta(hours=hours_after_end)]
     session_active = True if len(current_entries) > 0 else False
     logging.info(f'Session active now? {session_active}')
