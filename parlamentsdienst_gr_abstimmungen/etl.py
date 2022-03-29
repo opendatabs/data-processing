@@ -5,7 +5,7 @@ import xml
 from datetime import datetime, timezone, timedelta
 from xml.sax.handler import ContentHandler
 from zoneinfo import ZoneInfo
-# import ods_publish.etl_id as odsp
+import ods_publish.etl_id as odsp
 import icalendar
 import pandas as pd
 import common
@@ -43,7 +43,8 @@ class ExcelHandler(ContentHandler):
 
 
 def main():
-    if is_session_now():
+    ical_file_path = get_session_calendar(cutoff=timedelta(hours=0))
+    if is_session_now(ical_file_path):
         handle_polls()
 
 
@@ -54,7 +55,7 @@ def is_file_older_than(file, delta):
     return True if mtime < cutoff else False
 
 
-def is_session_now(cutoff=timedelta(hours=12)):
+def get_session_calendar(cutoff):
     logging.info(f'Checking if we should reload the ical file from the web...')
     ical_file_path = credentials.ics_file
     if not os.path.exists(ical_file_path) or is_file_older_than(ical_file_path, cutoff):
@@ -63,6 +64,19 @@ def is_session_now(cutoff=timedelta(hours=12)):
         r = common.requests_get(url=url, allow_redirects=True)
         with open(ical_file_path, 'wb') as f:
             f.write(r.content)
+        logging.info(f'Parsing events into df to publish dataset...')
+        calendar = icalendar.Calendar.from_ical(r.content)
+        df_cal = pd.DataFrame(dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT'))
+        cal_export_file = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_sitzungskalender.csv')
+        df_cal.to_csv(cal_export_file, index=False)
+        if ct.has_changed(cal_export_file, do_update_hash_file=False):
+            common.upload_ftp(cal_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_sitzungskalender')
+            odsp.publish_ods_dataset_by_id('100188')
+            ct.update_hash_file(cal_export_file)
+    return ical_file_path
+
+
+def is_session_now(ical_file_path):
     # see https://stackoverflow.com/a/26329138
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
     # todo: remove this test datetime
@@ -80,11 +94,11 @@ def is_session_now(cutoff=timedelta(hours=12)):
 
 
 def handle_polls():
-    ftp_ls = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '', credentials.local_data_path, '*.xml', list_only=True)
+    ftp_ls = common.download_ftp([], credentials.gr_ftp_server, credentials.gr_ftp_user, credentials.gr_ftp_pass, '', credentials.local_data_path, '*.xml', list_only=True)
     logging.info(f'Saving ftp ls file to {credentials.ftp_ls_file}...')
     json.dump(ftp_ls, open(credentials.ftp_ls_file, 'w'), indent=1)
     if ct.has_changed(credentials.ftp_ls_file, do_update_hash_file=False):
-        xml_files = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '', credentials.local_data_path, '*.xml')
+        xml_files = common.download_ftp([], credentials.gr_ftp_server, credentials.gr_ftp_user, credentials.gr_ftp_pass, '', credentials.local_data_path, '*.xml')
         for file in xml_files:
             local_file = file['local_file']
             if ct.has_changed(local_file, do_update_hash_file=False):
