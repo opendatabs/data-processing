@@ -43,7 +43,7 @@ class ExcelHandler(ContentHandler):
 
 
 def main():
-    ical_file_path = get_session_calendar(cutoff=timedelta(hours=0))
+    ical_file_path = get_session_calendar(cutoff=timedelta(hours=12))
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         handle_polls()
 
@@ -79,8 +79,7 @@ def get_session_calendar(cutoff):
 def is_session_now(ical_file_path, hours_before_start, hours_after_end):
     # see https://stackoverflow.com/a/26329138
     now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    # todo: remove this test datetime
-    now_in_switzerland = datetime(2022, 3, 23, 10, 15, 12, 11).astimezone(ZoneInfo('Europe/Zurich'))
+    # now_in_switzerland = datetime(2022, 3, 23, 10, 15, 12, 11).astimezone(ZoneInfo('Europe/Zurich'))
     with open(ical_file_path, 'rb') as f:
         calendar = icalendar.Calendar.from_ical(f.read())
     # handle case where session takes longer than defined in calendar event
@@ -107,8 +106,8 @@ def handle_polls():
                 sums_per_decision = pd.DataFrame(excel_handler.tables[0][101:107], columns=excel_handler.tables[0][0])
                 data_timestamp = datetime.strptime(excel_handler.tables[0][108][1], '%Y-%m-%dT%H:%M:%S').astimezone(ZoneInfo('Europe/Zurich'))
 
-                polls['Zeitstempel_text'] = polls.Zeit
                 polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich')
+                polls['Zeitstempel_text'] = polls.Zeitstempel.dt.strftime(date_format='%Y-%m-%dT%H:%M:%S.%f%z')
                 polls[['Datum', 'Zeit']] = polls.Datum.str.split('T', expand=True)
                 polls = polls.rename(columns={'Nr': 'Abst_Nr', 'J': 'Anz_J', 'N': 'Anz_N', 'E': 'Anz_E', 'A': 'Anz_A', 'P': 'Anz_P'})
 
@@ -116,18 +115,20 @@ def handle_polls():
                 details.columns.values[0] = 'Sitz_Nr'
                 details.columns.values[1] = 'Mitglied_Name_Fraktion'
                 details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
-                details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]]
+                details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
                 details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
-                details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
+                details['Datenstand_text'] = data_timestamp.isoformat()
+                # todo: Get Geschaefts-ID and Document-ID, then create links
+                # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
+                # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
+                # How to get geschaefts id from document id?
+                details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
 
                 all_df = polls.merge(details_long, how='left', left_on=['Datum', 'Abst_Nr'], right_on=['Datum', 'Abst_Nr'])
-                print(all_df)
-                pass
-
-                # todo: Push data to ODS dataset
-
-                # ct.update_hash_file(local_file)
-        # ct.update_hash_file(credentials.ftp_ls_file)
+                # {"Abst_Nr":"1","Datum":"2022-03-16","Zeit":"09:05:45.000","Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
+                common.ods_realtime_push_df(all_df, credentials.push_url)
+                ct.update_hash_file(local_file)
+        ct.update_hash_file(credentials.ftp_ls_file)
 
 
 if __name__ == "__main__":
