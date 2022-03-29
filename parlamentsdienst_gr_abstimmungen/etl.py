@@ -55,7 +55,6 @@ def is_file_older_than(file, delta):
 
 
 def is_session_now(cutoff=timedelta(hours=12)):
-    # todo: Handle case where session takes longer than defined in calendar event
     logging.info(f'Checking if we should reload the ical file from the web...')
     ical_file_path = credentials.ics_file
     if not os.path.exists(ical_file_path) or is_file_older_than(ical_file_path, cutoff):
@@ -71,7 +70,10 @@ def is_session_now(cutoff=timedelta(hours=12)):
     with open(ical_file_path, 'rb') as f:
         calendar = icalendar.Calendar.from_ical(f.read())
     # all_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT')]
-    current_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT') if event['DTSTART'].dt <= now_in_switzerland <= event['DTEND'].dt]
+    # handle case where session takes longer than defined in calendar event
+    hours_before_start = 4
+    hours_after_end = 10
+    current_entries = [dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT') if event['DTSTART'].dt - pd.Timedelta(hours=hours_before_start) <= now_in_switzerland <= event['DTEND'].dt + pd.Timedelta(hours=hours_after_end)]
     session_active = True if len(current_entries) > 0 else False
     logging.info(f'Session active now? {session_active}')
     return session_active
