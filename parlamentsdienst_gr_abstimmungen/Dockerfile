@@ -13,3 +13,5 @@ CMD ["python3", "-m", "parlamentsdienst_gr_abstimmungen.etl"]
 # docker build -t parlamentsdienst_gr_abstimmungen .
 # cd ..
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name parlamentsdienst_gr_abstimmungen parlamentsdienst_gr_abstimmungen
+# On Mac, run:
+# docker run -it --rm -v ~/PycharmProjects/data-processing:/code/data-processing --name parlamentsdienst_gr_abstimmungen parlamentsdienst_gr_abstimmungen
