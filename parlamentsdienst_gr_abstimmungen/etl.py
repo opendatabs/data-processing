@@ -122,9 +122,13 @@ def handle_polls():
                 # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
                 # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
                 # How to get geschaefts id from document id?
+
+                # todo: Use filename of pdf file in FTP Server to get Traktandum and Subtraktandum (last two numbers in file name), then use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
+                # todo: Remove test polls: (a) polls outside of session days, (b) polls during session day but with a certain poll type ("Testabstimmung" or similar)
                 details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
 
                 all_df = polls.merge(details_long, how='left', left_on=['Datum', 'Abst_Nr'], right_on=['Datum', 'Abst_Nr'])
+                # todo: Export CSV file and upload to FTP server, just to be sure not to lose any data in case realtime data is lost on ODS
                 # {"Abst_Nr":"1","Datum":"2022-03-16","Zeit":"09:05:45.000","Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
                 common.ods_realtime_push_df(all_df, credentials.push_url)
                 ct.update_hash_file(local_file)
