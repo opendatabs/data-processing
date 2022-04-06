@@ -1,3 +1,4 @@
+import io
 import logging
 from covid19dashboard import credentials
 import pandas as pd
@@ -7,15 +8,13 @@ import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 
 
-@common.retry(common.http_errors_to_handle, tries=6, delay=10, backoff=1)
-def read_data_from_url(uri):
-    return pd.read_csv(uri)
-
-
 def main():
     sourcefile = 'https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv'
     logging.info(f'Reading data from {sourcefile}...')
-    df = read_data_from_url(sourcefile)
+    r = common.requests_get(sourcefile)
+    r.raise_for_status()
+    s = r.text
+    df = pd.read_csv(io.StringIO(s))
     logging.info('Getting rid of unnecessary columns...')
     df.drop(columns=['time', 'source', 'ncumul_tested', 'new_hosp', 'current_vent'], inplace=True)
 
