@@ -1,3 +1,4 @@
+import io
 import numpy
 import pandas as pd
 import json
@@ -9,8 +10,11 @@ from lufthygiene_nmbs_pm25 import credentials
 def main():
     url = 'https://data-bs.ch/lufthygiene/nmbs_pm25/airmet_bs_museum_pm25_aktuell.csv'
     print(f'Downloading data from {url}...')
-    urllib3.disable_warnings()
-    df = common.pandas_read_csv(url, sep=';', encoding='cp1252', skiprows=range(1, 2))
+    # urllib3.disable_warnings()
+    r = common.requests_get(url)
+    r.raise_for_status()
+    s = r.text
+    df = pd.read_csv(io.StringIO(s), sep=';', encoding='cp1252', skiprows=range(1, 2))
     print(f'Calculating ISO8601 time string...')
     df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
 
