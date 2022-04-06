@@ -175,6 +175,10 @@ def get_pop_data(bin_def):
     logging.info(f'Retrieving population data from {credentials.pop_data_file_path}')
 
     df_pop = pd.read_csv(common.get_text_from_url(credentials.pop_data_file_path), sep=';')
+    # Fix strange first bytes of file in column name
+    if 'datum' in df_pop.columns[0]:
+        df_pop.columns.values[0] = 'datum'
+        # todo: fix theses strange bytes in the beginning, e.g. get the json instead of the csv
     logging.info(f'Filter 2020-12-31 data, create age groups, and sum')
     df_pop_2020 = df_pop.loc[df_pop['datum'] == '2020-12-31'][['person_alter', 'anzahl']]
     df_pop_2020['age_group'] = pd.cut(df_pop_2020.person_alter, bins=bin_def['bins'], labels=bin_def['labels'], include_lowest=True)
