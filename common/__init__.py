@@ -322,4 +322,4 @@ def rename_ftp(from_name, to_name, server, user, password):
 def get_text_from_url(url):
     req = requests_get(url)
     req.raise_for_status()
-    return io.stringIO(req.text)
+    return io.StringIO(req.text)
