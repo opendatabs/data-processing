@@ -170,10 +170,17 @@ def get_partial_reporting_df(df_bs_long_all, bin_def) -> pd.DataFrame:
     return df_bs_long_all
 
 
+def get_text_from_url(url):
+    req = common.requests_get(url)
+    req.raise_for_status()
+    return req.text
+
+
 def get_pop_data(bin_def):
     # Retrieve data from https://data.bs.ch/explore/dataset/100128
     logging.info(f'Retrieving population data from {credentials.pop_data_file_path}')
-    df_pop = common.pandas_read_csv(credentials.pop_data_file_path, sep=';')
+
+    df_pop = pd.read_csv(get_text_from_url(credentials.pop_data_file_path), sep=';')
     logging.info(f'Filter 2020-12-31 data, create age groups, and sum')
     df_pop_2020 = df_pop.loc[df_pop['datum'] == '2020-12-31'][['person_alter', 'anzahl']]
     df_pop_2020['age_group'] = pd.cut(df_pop_2020.person_alter, bins=bin_def['bins'], labels=bin_def['labels'], include_lowest=True)

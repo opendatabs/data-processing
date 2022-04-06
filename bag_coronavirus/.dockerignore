@@ -1,0 +1,13 @@
+.git
+**/*.csv
+**/*.CSV
+**/*.xlsx
+**/*.xls
+**/*.zip
+**/credentials.py
+__pycache__
+.pytest_cache
+secrets
+data
+MD-HMW
+test
