@@ -316,3 +316,9 @@ def rename_ftp(from_name, to_name, server, user, password):
     if not moved:
         logging.error(f'File to rename on FTP not found: {file}...')
         raise FileNotFoundError(file)
+
+
+def get_text_from_url(url):
+    req = requests_get(url)
+    req.raise_for_status()
+    return req.text
