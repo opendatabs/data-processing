@@ -1,3 +1,6 @@
 data/*
 data_orig/*
-credentials.py
+.git
+**/*.csv
+**/*.CSV
+**/credentials.py
