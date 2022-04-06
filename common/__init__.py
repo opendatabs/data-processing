@@ -74,7 +74,7 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_get(*args, **kwargs):
-    r = requests.get(*args, **kwargs)
+    r = requests.get(*args, proxies=os.environ['https_proxy'], **kwargs)
     r.raise_for_status()
     return r
 
@@ -88,14 +88,14 @@ def requests_post(*args, **kwargs):
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_patch(*args, **kwargs):
-    r = requests.patch(*args, **kwargs)
+    r = requests.patch(*args, proxies=os.environ['https_proxy'], **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_put(*args, **kwargs):
-    r = requests.put(*args, **kwargs)
+    r = requests.put(*args, proxies=os.environ['https_proxy'], **kwargs)
     r.raise_for_status()
     return r
 
@@ -182,7 +182,7 @@ def ensure_ftp_dir(server, user, password, folder):
 @retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
 def publish_ods_dataset(dataset_uid, creds):
     logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
-    response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies={'https': creds.proxy})
+    response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies=os.environ['https_proxy'])
     if not response.ok:
         logging.info(f'Received http error {response.status_code}:')
         logging.info(f'Error message: {response.text}')
@@ -209,7 +209,7 @@ def publish_ods_dataset(dataset_uid, creds):
 
 def get_ods_uid_by_id(ods_id, creds):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
-    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', auth=(creds.user_name, creds.password), proxies={'https': creds.proxy})
+    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', auth=(creds.user_name, creds.password))
     return response.json()['datasets'][0]['dataset_uid']
 
 
