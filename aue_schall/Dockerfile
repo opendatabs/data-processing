@@ -1,5 +1,5 @@
 FROM python:3.10.2-bullseye
-WORKDIR /code
+WORKDIR /code/data-processing
 ARG HTTPS_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
