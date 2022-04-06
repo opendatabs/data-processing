@@ -9,6 +9,7 @@ import pandas as pd
 import fnmatch
 import logging
 import dateutil
+from common import credentials
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
@@ -80,7 +81,7 @@ def requests_get(*args, **kwargs):
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_post(*args, **kwargs):
-    r = requests.post(*args, **kwargs)
+    r = requests.post(*args, **kwargs, proxies=credentials.proxies)
     r.raise_for_status()
     return r
 
