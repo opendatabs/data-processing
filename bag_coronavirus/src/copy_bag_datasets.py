@@ -42,7 +42,7 @@ def get_dataset_metadata():
 
 def extract(url):
     logging.info(f'Reading current csv from {url} into data frame...')
-    df_raw = common.pandas_read_csv(url)
+    df_raw = pd.read_csv(common.get_text_from_url(url))
     return df_raw
 
 
