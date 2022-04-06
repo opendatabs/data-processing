@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 import geopandas as gpd
 from datetime import datetime, timedelta
@@ -7,18 +8,24 @@ from tba_wildedeponien import credentials
 from io import StringIO
 
 
-# Subsequently get only data since yesterday
-from_timestamp = (datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
-api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&from={from_timestamp}&format=csv'
+def get_text_from_url(url):
+    req = common.requests_get(url)
+    req.raise_for_status()
+    return req.text
 
-# Or: get all data once
-# from_timestamp = 'ever'
-# api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&format=csv'
 
-print(f'Retrieving data since {from_timestamp} from API call to "{api_url}"...')
-r = common.requests_get(url=api_url, auth=(credentials.api_user, credentials.api_password))
+def main():
+    # Subsequently, get only data since yesterday
+    from_timestamp = (datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+    api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&from={from_timestamp}&format=csv'
 
-if r.status_code == 200:
+    # Or: get all data once
+    # from_timestamp = 'ever'
+    # api_url = f'https://tba-bs.ch/export?object=sr_wilde_deponien_ogd&format=csv'
+
+    print(f'Retrieving data since {from_timestamp} from API call to "{api_url}"...')
+    r = common.requests_get(url=api_url, auth=(credentials.api_user, credentials.api_password))
+    r.raise_for_status()
     if len(r.text) == 0:
         print('No data retrieved from API. Job successful!')
     else:
@@ -55,8 +62,10 @@ if r.status_code == 200:
 
         print('Reading Bezirk data into geopandas df...')
         # see e.g. https://stackoverflow.com/a/58518583/5005585
-        df_wv = gpd.read_file('https://data.bs.ch/explore/dataset/100042/download/?format=geojson')
-        df_bez = gpd.read_file('https://data.bs.ch/explore/dataset/100039/download/?format=geojson')
+        get_text_from_url('https://data.bs.ch/explore/dataset/100042/download/?format=geojson')
+
+        df_wv = gpd.read_file(get_text_from_url('https://data.bs.ch/explore/dataset/100042/download/?format=geojson'))
+        df_bez = gpd.read_file(get_text_from_url('https://data.bs.ch/explore/dataset/100039/download/?format=geojson'))
         df_points = gpd.GeoDataFrame(df, crs="EPSG:2056", geometry=gpd.points_from_xy(df.raster_lon, df.raster_lat))
         print('Reprojecting points...')
         df_points = df_points.to_crs('EPSG:4326')
@@ -77,5 +86,9 @@ if r.status_code == 200:
 
         common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'tba/illegale-deponien')
         print('Job successful!')
-else:
-    raise Exception(f'HTTP error getting values from API: {r.status_code}')
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
