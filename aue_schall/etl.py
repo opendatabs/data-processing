@@ -47,7 +47,7 @@ print('Reading csv files into data frames...')
 urllib3.disable_warnings()
 for station in stations:
     print(f'Retrieving latest timestamp for station "{station}" from ODS...')
-    r = common.requests_get(url=f'https://data.bs.ch/api/records/1.0/search/?dataset=100087&q=&rows=1&sort=timestamp&refine.station_id={station}', verify=False, proxies=credentials.proxies)
+    r = common.requests_get(url=f'https://data.bs.ch/api/records/1.0/search/?dataset=100087&q=&rows=1&sort=timestamp&refine.station_id={station}', verify=False)
     r.raise_for_status()
     latest_ods_timestamp = r.json()['records'][0]['fields']['timestamp']
     print(f'Latest timestamp is {latest_ods_timestamp}.')
