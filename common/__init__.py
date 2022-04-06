@@ -74,28 +74,28 @@ def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_get(*args, **kwargs):
-    r = requests.get(*args, proxies=os.environ['https_proxy'], **kwargs)
+    r = requests.get(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_post(*args, **kwargs):
-    r = requests.post(*args, proxies=os.environ['https_proxy'], **kwargs)
+    r = requests.post(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_patch(*args, **kwargs):
-    r = requests.patch(*args, proxies=os.environ['https_proxy'], **kwargs)
+    r = requests.patch(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_put(*args, **kwargs):
-    r = requests.put(*args, proxies=os.environ['https_proxy'], **kwargs)
+    r = requests.put(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
@@ -182,7 +182,7 @@ def ensure_ftp_dir(server, user, password, folder):
 @retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
 def publish_ods_dataset(dataset_uid, creds):
     logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
-    response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies=os.environ['https_proxy'])
+    response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies=credentials.proxies)
     if not response.ok:
         logging.info(f'Received http error {response.status_code}:')
         logging.info(f'Error message: {response.text}')
