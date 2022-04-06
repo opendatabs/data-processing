@@ -3,14 +3,12 @@ import numpy
 import pandas as pd
 import json
 import common
-import urllib3
 from lufthygiene_nmbs_pm25 import credentials
 
 
 def main():
     url = 'https://data-bs.ch/lufthygiene/nmbs_pm25/airmet_bs_museum_pm25_aktuell.csv'
     print(f'Downloading data from {url}...')
-    # urllib3.disable_warnings()
     r = common.requests_get(url)
     r.raise_for_status()
     s = r.text

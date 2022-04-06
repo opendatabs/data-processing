@@ -1,15 +1,17 @@
 import pandas as pd
+import io
 import json
 import common
-import urllib3
 from lufthygiene_pm25 import credentials
 
 
 def main():
     url = 'https://data-bs.ch/lufthygiene/regionales-mikroklima/airmet_bs_sensirion_pm25_aktuell.csv'
     print(f'Downloading data from {url}...')
-    urllib3.disable_warnings()
-    df = common.pandas_read_csv(url, sep=';', encoding='cp1252', skiprows=range(1, 6))
+    r = common.requests_get(url)
+    r.raise_for_status()
+    s = r.text
+    df = pd.read_csv(io.StringIO(s), sep=';', encoding='cp1252', skiprows=range(1, 2))
     print(f'Calculating ISO8601 time string...')
     df['timestamp'] = pd.to_datetime(df.Zeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
 
