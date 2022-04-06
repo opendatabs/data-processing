@@ -7,7 +7,7 @@ print(f"Getting today's data url...")
 context_json = common.requests_get(url='https://www.covid19.admin.ch/api/data/context').json()
 csv_daily_tests_url = context_json['sources']['individual']['csv']['daily']['test']
 print(f'Reading current csv from {csv_daily_tests_url} into data frame...')
-df = pd.read_csv(csv_daily_tests_url)
+df = pd.read_csv(common.get_text_from_url(csv_daily_tests_url))
 print(f'Filtering out BS rows, some columns, and rename them...')
 df_bs = df.query('geoRegion == "BS"')
 df_bs = df_bs.filter(items=['datum', 'entries_neg', 'entries_pos', 'entries'])
