@@ -1,3 +1,4 @@
+import io
 import requests
 import os
 import ftplib
@@ -321,4 +322,4 @@ def rename_ftp(from_name, to_name, server, user, password):
 def get_text_from_url(url):
     req = requests_get(url)
     req.raise_for_status()
-    return req.text
+    return io.stringIO(req.text)
