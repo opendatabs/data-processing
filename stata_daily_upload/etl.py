@@ -33,7 +33,8 @@ def main():
                {'file': 'StatA/FST-OGD/interfaces/interfaces.xlsx', 'dest_dir': 'FST-OGD', 'ods_id': '100184'},
                {'file': 'StatA/Bevoelkerung/sterberaten.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100173'},
                {'file': 'StatA/Bildung/SuS_Prognose_BS.csv', 'dest_dir': 'bildung', 'ods_id': '100121'},
-               {'file': 'StatA/Bildung/SuS_Prognose_RiBe.csv', 'dest_dir': 'bildung', 'ods_id': '100122'}
+               {'file': 'StatA/Bildung/SuS_Prognose_RiBe.csv', 'dest_dir': 'bildung', 'ods_id': '100122'},
+               {'file': 'StatA/Bildung/Perimeter_Schulprognose_korr.zip', 'dest_dir': 'bildung', 'ods_id': '100124'}
                ]
     file_not_found_errors = []
     for upload in uploads:
