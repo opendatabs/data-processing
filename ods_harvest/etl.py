@@ -1,6 +1,5 @@
 from ods_harvest import credentials
 import time
-import requests
 import common
 
 import sys
@@ -10,7 +9,7 @@ ods_harvester_ids = sys.argv[1].split(',')
 def wait_for_idle(harvester_id):
     while True:
         print(f'Checking status of harvester "{harvester_id}"...')
-        resp = common.requests_get(url=f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harvester_id}/', auth=(credentials.ods_user, credentials.ods_password), proxies={'https': credentials.proxy})
+        resp = common.requests_get(url=f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harvester_id}/', auth=(credentials.ods_user, credentials.ods_password))
         handle_http_errors(resp)
         status = resp.json()['status']
         print(f'Harvester "{harvester_id}" is "{status}".')
@@ -33,14 +32,12 @@ def handle_http_errors(resp):
 for harv_id in ods_harvester_ids:
     wait_for_idle(harv_id)
     print(f'Sending harvester "{harv_id}" the "start" signal...')
-    response = requests.put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/start/',
-                            auth=(credentials.ods_user, credentials.ods_password), proxies={'https': credentials.proxy})
+    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/start/', auth=(credentials.ods_user, credentials.ods_password))
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
     print(f'Sending harvester "{harv_id}" the "publish" signal...')
-    response = requests.put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/publish/',
-                            auth=(credentials.ods_user, credentials.ods_password), proxies={'https': credentials.proxy})
+    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/publish/', auth=(credentials.ods_user, credentials.ods_password))
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
