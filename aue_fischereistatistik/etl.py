@@ -62,11 +62,11 @@ for year in range(2010, 2021):
 df = df[['Jahr', 'Monat', 'Tag', 'Gewässercode', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
            'Abfluss_Rhein_über_1800m3']]
-df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv')
+df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
 
 
 # to do: filter empty rows: remove all rows that have no entry for date ánd Fischart
 df = pd.read_csv(f'{credentials.base_path_local}/fangstatistik.csv')
 condition = ~(df['Fischart'].isna() & df['Monat'].isna())
 df = df[condition]
-df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv')
+df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
