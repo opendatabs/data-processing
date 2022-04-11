@@ -2,17 +2,18 @@ import datetime
 import logging
 import os
 import pandas as pd
+from pyproj import Transformer
 import common
 from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
 
 
 def list_files():
-    files = []
+    file_list = []
     for remote_path in credentials.ftp_remote_paths:
         listing = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_path, credentials.data_orig_path, '*.csv', list_only=True)
-        files.extend(listing)
-    return files
+        file_list.extend(listing)
+    return file_list
 
 
 def process(file):
@@ -21,6 +22,17 @@ def process(file):
     logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
     df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S')
+    logging.info(f'Rounding LV95 coordinates as required, then transforming to WGS84...')
+    df.XCoord = df.XCoord.round(0).astype(int)
+    df.YCoord = df.YCoord.round(0).astype(int)
+    # see https://stackoverflow.com/a/65711998
+    t = Transformer.from_crs('EPSG:2056', 'EPSG:4326', always_xy=True)
+    df['lon'], df['lat'] = t.transform(df.XCoord.values, df.YCoord.values)
+    df['geo_point_2d'] = df.lat.astype(str).str.cat(df.lon.astype(str), sep=',')
+    # print(f'Created geo_point_2d column: ')
+    # print(df['geo_point_2d'])
+    # return
+
     exported_files = []
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing SensorNr {sensornr_filter}...')
@@ -64,4 +76,6 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    main()
+    # testing transformation during development using a single file:
+    files = process(credentials.test_file)
+    # main()
