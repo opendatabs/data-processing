@@ -15,6 +15,8 @@ __pycache__/
 **/*.sfv
 **/*.DS_Store
 **/*.pkl
+**/*.ics
 /gsv_covid19_hosp/*.html
 **/Pipfile
 **/Pipfile.lock
+/parlamentsdienst_gr_abstimmungen/**/*.json
