@@ -6,7 +6,7 @@ from gsv_covid19_hosp_bl import update_coreport, send_email2, credentials
 from zoneinfo import ZoneInfo
 
 # hospitals to be filled
-list_hospitals = ['USB', 'Clara', 'UKBB']
+list_hospitals = ['Arlesheim', 'Bruderholz', 'Liestal']
 
 # current time and date
 now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
