@@ -102,7 +102,7 @@ df['Fischart'].replace('Laube', 'Andere', inplace=True)
 
 
 # make new column with total grundel
-df['Grundel Total'] = df['Kesslergrundel'] +  df['Schwarzmundgrundel'] +  df['Nackthalsgrundel']
+df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
 
 # export csv file
 df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
