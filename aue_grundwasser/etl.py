@@ -57,20 +57,23 @@ def process(file):
 
 def archive(file):
     to_name = os.path.join('..', credentials.ftp_archive_path, os.path.basename(file))
+    logging.info(f'Renaming file on FTP server from {file} to {to_name}...')
     common.rename_ftp(file, to_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass)
 
 
 def main():
     files_to_process = list_files()
+    files = []
     for remote_file in files_to_process:
         logging.info(f"processing {remote_file['local_file']}...")
         file = common.download_ftp([remote_file['remote_file']], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_file['remote_path'], credentials.data_orig_path, '')[0]
         process(file['local_file'])
-        remote_file_with_path = os.path.join(file['remote_path'], file['remote_file'])
-        archive(remote_file_with_path)
+        files.append(file)
     if len(files_to_process) > 0:
         for ods_id in ['100164', '100179', '100180', '100181']:
             odsp.publish_ods_dataset_by_id(ods_id)
+    for file in files:
+        archive(os.path.join(file['remote_path'], file['remote_file']))
 
 
 if __name__ == "__main__":
