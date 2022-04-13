@@ -1,0 +1,9 @@
+name;label;description
+strassenid;Id Strasse;Eindeutiger Identifikator
+strname;Strassenname;Name der Strasse in Langschreibweise (z.B. Strasse statt Str.) 
+kurzek_ez;Erklärung erste Zeile;Erklärung der ersten Zeile des Strassenschildes
+kurzek_zz;Erklärung zweite Zeile;Erklärung der zweiten Zeile des Strassenschildes
+erst_erwae;Erstmals erwähnt;Jahr der ersten Erwähnung des Strassennamens 
+amtlich_be;Amtlich benannt;Jahr der amtlichen Benennung der Strasse 
+indextext;Indextext;Kurzschreibweise des Strassennamens (z.B. Str. statt Strasse)
+kurztext;Kurztext;Indextext der Strasse
