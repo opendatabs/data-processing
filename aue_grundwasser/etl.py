@@ -69,8 +69,9 @@ def main():
         remote_file_with_path = os.path.join(file['remote_path'], file['remote_file'])
         archive(remote_file_with_path)
     if len(files_to_process) > 0:
-        odsp.publish_ods_dataset_by_id('100164')
-        odsp.publish_ods_dataset_by_id('100179')
+        ods_dataset_ids = ['100164', '100179', '100180', '100181']
+        for ods_id in ods_dataset_ids:
+            odsp.publish_ods_dataset_by_id(*ods_id)
 
 
 if __name__ == "__main__":
