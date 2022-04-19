@@ -8,8 +8,8 @@ def total_betten_frei(df, a,b, c, e1, e2, f):
         return a-c-(e1-f)
 
 
-# Bettenanzahl IPS ohne Beatmung = c - d, can simplify function below....
-def ips_ohne_beatmung(df, c, d, f, g):
+# Bettenanzahl IPS ohne Beatmung = c - d, can probably simplify function below....
+def ips_ohne_beatmung(c, d, f, g):
     if c == g:
         return (c-d) -(f-g)
     elif  (c-d)-(f-g)<0:
@@ -17,7 +17,7 @@ def ips_ohne_beatmung(df, c, d, f, g):
     else:
         return (c-d) - (f-g)
 
-def ips_mit_beatmung(df, c, d, f, g):
+def ips_mit_beatmung(c, d, f, g):
     if c == g:
         return 0
     elif (c-d)-(f-g)<0:
@@ -77,8 +77,8 @@ def calculate_numbers(ies_numbers):
     df_coreport['Anzahl Patienten IMCU COVID mit Beatmung'] = i2
     df_coreport['Anzahl Patienten IMCU COVID ohne Beatmung'] = h2-i2
     df_coreport['Bettenanzahl IPS ohne Beatmung'] = c - d
-    df_coreport['Bettenanzahl frei "IPS ohne Beatmung"'] = df.apply(ips_ohne_beatmung, c, d, f, g, axis=1)
-    df_coreport['Bettenanzahl frei "IPS mit Beatmung"'] = df.apply(ips_mit_beatmung, c, d, f, g, axis=1)
+    df_coreport['Bettenanzahl frei "IPS ohne Beatmung"'] = ips_ohne_beatmung(c, d, f, g)
+    df_coreport['Bettenanzahl frei "IPS mit Beatmung"'] = ips_mit_beatmung(c, d, f, g)
     df_coreport['Bettenanzahl belegt "Normal" inkl. COVID Verdachtsfälle'] = e1-f -(h1-i)
     df_coreport['Bettenanzahl belegt "Normal" COVID'] = h1 - i
     df_coreport['Bettenanzahl belegt "IPS ohne Beatmung"'] = e1 - df_coreport['Bettenanzahl frei "IPS ohne Beatmung"']
@@ -157,3 +157,4 @@ else:
 """
 
 if __name__ == "__main__":
+    pass
