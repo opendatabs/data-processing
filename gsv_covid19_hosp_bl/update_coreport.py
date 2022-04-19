@@ -44,7 +44,6 @@ def get_properties_list(hospital):
     return properties_list
 
 
-# to do: check data names for BL hospitals
 def add_value_id(df, date):
     url_api = credentials.url_coreport_api
     username = credentials.username_coreport
@@ -58,11 +57,7 @@ def add_value_id(df, date):
     df.set_index("Hospital", inplace=True)
     for hospital in hospitals:
         organization = dict_org[hospital]
-        if hospital == 'USB':
-            data_names = columns
-        else:
-            data_names = [x for x in columns if x not in
-                          ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+        data_names = get_properties_list(hospital=hospital)
         for data_name in data_names:
             filter_result = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
             url = url_api + filter_result
