@@ -147,11 +147,17 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
-    day_of_week = get_data.check_day(date)
-    do_process = now_in_switzerland >= starting_time and day_of_week != "Weekend"
-    logging.info(f'Checking if we have to do anything right now: {do_process}')
-    if do_process:
-        logging.info(f"OK, let's start processing the data!")
-        main(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
+    # logging.basicConfig(level=logging.DEBUG)
+    # logging.info(f'Executing {__file__}...')
+    # day_of_week = get_data.check_day(date)
+    # do_process = now_in_switzerland >= starting_time and day_of_week != "Weekend"
+    # logging.info(f'Checking if we have to do anything right now: {do_process}')
+    # if do_process:
+    #     logging.info(f"OK, let's start processing the data!")
+    #     main(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
+
+    hospital = "Arlesheim"
+    date = now_in_switzerland.date()
+    df_entries = get_data.get_dataframe(hospital=hospital, date=date)
+    print(df_entries)
+
