@@ -71,7 +71,7 @@ def get_dataframe(hospital, date):
         df = df[["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
                  'OperIcuBedsC19', 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats',
                  'TotalAllPatsC19', 'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats',
-                 'TotalImcPatsC19', 'EcmoPats']]
+                 'TotalImcPatsC19', 'VentImcPatsC19']]
         df["Hospital"] = hospital
     return df
 
