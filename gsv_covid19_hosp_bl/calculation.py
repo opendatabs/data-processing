@@ -8,11 +8,11 @@ def total_betten_frei(df, a,b, c, e1, e2, f):
         return a-c-(e1-f)
 
 
-# Bettenanzahl IPS ohne Beatmung = c - d, can probably simplify function below....
+# Note: I took the below two functions from the Excel file, it could probably be simplified...
 def ips_ohne_beatmung(c, d, f, g):
     if c == g:
         return (c-d) -(f-g)
-    elif  (c-d)-(f-g)<0:
+    elif (c-d) - (f-g)<0:
         return 0
     else:
         return (c-d) - (f-g)
@@ -63,7 +63,6 @@ def calculate_numbers(ies_numbers):
     h1 = total_pat_covid
     h2 = total_imcu_pat_covid
     i = total_is_pat_covid
-    # I think that j = total_imcu_pat_covid, need to check...:
     j = total_imcu_pat_covid
 
     df_coreport['Bettenanzahl frei "Normal"'] = df.apply(total_betten_frei, a,b, c, e1, e2, f, axis=1)
