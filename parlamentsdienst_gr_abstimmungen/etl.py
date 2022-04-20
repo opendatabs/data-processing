@@ -93,11 +93,11 @@ def handle_polls(process_archive=False):
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path, '*.xml', xml_ls_file)
-    df_trakt = retrieve_traktanden_from_pdf(process_archive, remote_path)
+    df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     if True:  # ct.has_changed(xml_ls_file, do_update_hash_file=False):
         # todo: Continue working in this method here...
-        df_tagesordnungen = retrieve_tagesordnungen_from_txt()
-        df_trakt = calc_traktanden(df_trakt)
+        df_tagesordnungen = retrieve_tagesordnungen_from_txt_files()
+        df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         # todo: After testing, remove 'list_only' parameter
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
         # xml_files = common.download_ftp([], credentials.gr_ftp_server, credentials.gr_ftp_user, credentials.gr_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
@@ -105,12 +105,10 @@ def handle_polls(process_archive=False):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
             if True:  # ct.has_changed(local_file, do_update_hash_file=False):
-                details_long, polls, session_date = calc_details_from_xml(local_file)
-                df_merge1 = polls.merge(details_long, how='left', on=['Datum', 'Abst_Nr'])
-                df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
-                df_merge2 = df_merge1.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
+                df_poll_details = calc_details_from_xml(local_file)
+                df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
 
-                all_df = df_merge2
+                all_df = df_merge1
                 # {"Datum":"2022-03-16","Zeit":"09:05:45.000","Abst_Nr":"1","Traktandum":1,"Subtraktandum":0,"Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
                 common.ods_realtime_push_df(all_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
@@ -123,27 +121,66 @@ def handle_polls(process_archive=False):
         # ct.update_hash_file(ftp_ls_file)
 
 
-def retrieve_tagesordnungen_from_txt():
+def retrieve_tagesordnungen_from_txt_files():
     # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
     # todo: Move into own method and process data less often (as required)
     # todo: Remove list_only after testing
-    tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden*.txt', list_only=True)
+    tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden_col4.txt', list_only=True)
     # local_files = [file['local_file'] for file in tagesordnung_files]
-    tagesordnung_dfs = []
+    dfs = []
     for file in tagesordnung_files:
-        logging.info(f"Reading file into df: {file['local_file']}")
-        df = pd.read_csv(file['local_file'], delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'])
+        logging.info(f"Cleaning file and reading into df: {file['local_file']}")
+
+        def tidy_fn(txt: str):
+
+            return (txt
+                    .replace('\nPartnerschaftliches Geschäft', '\tPartnerschaftliches Geschäft')
+                    .replace('\nJSSK', '\tJSSK')
+                    .replace('\n17.5250.03', '\t17.5250.03')
+                    .replace('IGPK Rhein-häfen', 'IGPK Rheinhäfen')
+                    .replace('IGPK Rhein- häfen', 'IGPK Rheinhäfen')
+                    .replace('IGPK Uni-versität', 'IGPK Universität')
+                    .replace('IGPK Univer-sität', 'IGPK Universität')
+                    .replace('Rats-büro', 'Ratsbüro')
+                    .replace('00.0000.00', '\t00.0000.00')
+                    .replace('12.2035.01', '\t12.2035.01')
+                    # .replace('16.5326.01', '\t16.5326.01')
+                    # .replace('16.5327.01', '\t16.5327.01')
+                    .replace('Ratsbüro\t16.5326.01', 'Ratsbüro\t\t16.5326.01')
+                    .replace('Ratsbüro\t16.5327.01', 'Ratsbüro\t\t16.5327.01')
+                    .replace('17.0552.03', '\t17.0552.03')
+                    .replace('FD\t18.5143.02', '\tFD\t18.5143.02')
+                    .replace('18.5194.01', '\t18.5194.01')
+                    .replace('19.5040.02', '\t19.5040.02')
+                    .replace('19.5063.01', '\t19.5063.01')
+                    .replace('21.0546.01', '\t21.0546.01')
+                    .replace('\t18.0321.01', '18.0321.01')
+                    .replace('\t18.0616.02', '18.0616.02')
+                    .replace('\t17.5250.03', '17.5250.03')
+                    .replace('\t18.1319.02', '18.1319.02')
+                    )
+        tidy_file_name = tidy_file(file['local_file'], tidy_fn)
+        df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'], dtype={
+            'traktand': 'str', 'title': 'str', 'commission': 'str', 'department': 'str', 'geschnr': 'str', 'info': 'str', 'col_06': 'str', 'col_07': 'str', 'col_08': 'str', 'col_09': 'str', 'col_10': 'str'
+        })
         df['session_date'] = file['remote_file'].split('_')[0]
-        tagesordnung_dfs.append(df)
-    # tagesordnung_dfs = [pd.read_csv(file, delimiter='\t', encoding='cp1252') for file in glob.glob(os.path.join(credentials.local_data_path, "*traktanden*.txt"))]
-    df_tagesordnungen = pd.concat(tagesordnung_dfs)
-    return df_tagesordnungen
+        dfs.append(df)
+    df = pd.concat(dfs)
+    # remove leading and trailing characters
+    df.traktand = df.traktand.str.rstrip('. ')
+    df.commission = df.commission.str.lstrip(' ')
+    df.department = df.department.str.strip(' ')
+    return df
 
 
 def calc_details_from_xml(local_file):
     session_date = os.path.basename(local_file).split('_')[0]
     excel_handler = ExcelHandler()
-    xml.sax.parse(tidy_xml(local_file), excel_handler)
+
+    def tidy_fn(txt: str):
+        txt.replace('&', '+')
+    xml.sax.parse(tidy_file(local_file, tidy_fn), excel_handler)
+    # xml.sax.parse(tidy_xml(local_file), excel_handler)
     sheet_abstimmungen = excel_handler.tables[1]
     polls = pd.DataFrame(sheet_abstimmungen[1:], columns=sheet_abstimmungen[0])
     sheet_resultate = excel_handler.tables[0]
@@ -171,10 +208,12 @@ def calc_details_from_xml(local_file):
     # How to get geschaefts id from document id?
     # todo: Remove test polls: (a) polls outside of session days, (b) polls during session day but with a certain poll type ("Testabstimmung" or similar)
     details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
-    return details_long, polls, session_date
+    df_merge1 = polls.merge(details_long, how='left', on=['Datum', 'Abst_Nr'])
+    df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
+    return df_merge1
 
 
-def calc_traktanden(df_trakt):
+def calc_traktanden_from_pdf_filenames(df_trakt):
     df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
     df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
     # Get rid of leading zeros
@@ -187,7 +226,7 @@ def calc_traktanden(df_trakt):
     return df_trakt
 
 
-def retrieve_traktanden_from_pdf(process_archive, remote_path):
+def retrieve_traktanden_pdf_filenames(process_archive, remote_path):
     if process_archive:
         with ftplib.FTP(host=credentials.gr_polls_ftp_server) as ftp:
             ftp.login(user=credentials.gr_polls_ftp_user, passwd=credentials.gr_polls_ftp_pass)
@@ -247,30 +286,47 @@ def recursive_mlsd(ftp_object, path="", maxdepth=None):
         inner_mlsd = list(ftp_object.mlsd(path=path_))
         for name, properties in inner_mlsd:
             if properties["type"] == "dir":
-                rec_path = path_+"/"+name if path_ else name
+                rec_path = path_ + "/" + name if path_ else name
                 logging.info(f'Recursing into {rec_path}...')
-                res = _inner(rec_path, depth_+1)
+                res = _inner(rec_path, depth_ + 1)
                 if res is not None:
                     properties["children"] = res
             else:
                 if name not in ['.', '..']:
                     file_list.append(name)
         return inner_mlsd, file_list
+
     return _inner(path, 0), file_list
 
 
-def tidy_xml(file_name):
-    """Replace & with + in xml file"""
+# def tidy_xml(file_name):
+#     """Replace & with + in xml file"""
+#     with open(file_name, 'rb') as f:
+#         raw_data = f.read()
+#         result = chardet.detect(raw_data)
+#         enc = result['encoding']
+#     with open(file_name, 'r', encoding=enc) as f:
+#         raw_xml = f.read()
+#     cleaned_xml = raw_xml.replace('&', '+')
+#     clean_file = file_name.replace('.xml', '_clean.xml')
+#     with open(clean_file, 'w', encoding=enc) as f:
+#         f.write(cleaned_xml)
+#     return clean_file
+
+
+def tidy_file(file_name, tidy_fn):
+    """Data cleaning"""
     with open(file_name, 'rb') as f:
         raw_data = f.read()
         result = chardet.detect(raw_data)
         enc = result['encoding']
     with open(file_name, 'r', encoding=enc) as f:
-        raw_xml = f.read()
-    cleaned_xml = raw_xml.replace('&', '+')
-    clean_file = file_name.replace('.xml', '_clean.xml')
+        raw_txt = f.read()
+    cleaned_txt = tidy_fn(raw_txt)
+    filename, ext = os.path.splitext(file_name)
+    clean_file = file_name.replace(ext, f'_clean{ext}')
     with open(clean_file, 'w', encoding=enc) as f:
-        f.write(cleaned_xml)
+        f.write(cleaned_txt)
     return clean_file
 
 
