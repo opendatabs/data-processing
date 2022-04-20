@@ -158,6 +158,9 @@ def retrieve_tagesordnungen_from_txt_files():
                     .replace('\t18.0616.02', '18.0616.02')
                     .replace('\t17.5250.03', '17.5250.03')
                     .replace('\t18.1319.02', '18.1319.02')
+                    .replace('NIM18.', 'NIM\n18.')
+                    .replace('NIM17.', 'NIM\n17.')
+                    .replace('NIS15.', 'NIS\n15.')
                     )
         tidy_file_name = tidy_file(file['local_file'], tidy_fn)
         df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'], dtype={
