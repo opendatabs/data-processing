@@ -95,20 +95,8 @@ def handle_polls(process_archive=False):
     xml_ls = get_ftp_ls(remote_path, '*.xml', xml_ls_file)
     df_trakt = retrieve_traktanden_from_pdf(process_archive, remote_path)
     if True:  # ct.has_changed(xml_ls_file, do_update_hash_file=False):
-        # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
-        # todo: Move into own method and process data less often (as required)
-        # todo: Remove list_only after testing
-        tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden*.txt', list_only=True)
-        # local_files = [file['local_file'] for file in tagesordnung_files]
-        tagesordnung_dfs = []
-        for file in tagesordnung_files:
-            logging.info(f"Reading file into df: {file['local_file']}")
-            df = pd.read_csv(file['local_file'], delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'])
-            df['session_date'] = file['remote_file'].split('_')[0]
-            tagesordnung_dfs.append(df)
-
-        # tagesordnung_dfs = [pd.read_csv(file, delimiter='\t', encoding='cp1252') for file in glob.glob(os.path.join(credentials.local_data_path, "*traktanden*.txt"))]
-        df_tagesordnungen = pd.concat(tagesordnung_dfs)
+        # todo: Continue working in this method here...
+        df_tagesordnungen = retrieve_tagesordnungen_from_txt()
         df_trakt = calc_traktanden(df_trakt)
         # todo: After testing, remove 'list_only' parameter
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
@@ -117,7 +105,7 @@ def handle_polls(process_archive=False):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
             if True:  # ct.has_changed(local_file, do_update_hash_file=False):
-                details_long, polls, session_date = calc_details(local_file)
+                details_long, polls, session_date = calc_details_from_xml(local_file)
                 df_merge1 = polls.merge(details_long, how='left', on=['Datum', 'Abst_Nr'])
                 df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
                 df_merge2 = df_merge1.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
@@ -135,7 +123,24 @@ def handle_polls(process_archive=False):
         # ct.update_hash_file(ftp_ls_file)
 
 
-def calc_details(local_file):
+def retrieve_tagesordnungen_from_txt():
+    # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
+    # todo: Move into own method and process data less often (as required)
+    # todo: Remove list_only after testing
+    tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden*.txt', list_only=True)
+    # local_files = [file['local_file'] for file in tagesordnung_files]
+    tagesordnung_dfs = []
+    for file in tagesordnung_files:
+        logging.info(f"Reading file into df: {file['local_file']}")
+        df = pd.read_csv(file['local_file'], delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'])
+        df['session_date'] = file['remote_file'].split('_')[0]
+        tagesordnung_dfs.append(df)
+    # tagesordnung_dfs = [pd.read_csv(file, delimiter='\t', encoding='cp1252') for file in glob.glob(os.path.join(credentials.local_data_path, "*traktanden*.txt"))]
+    df_tagesordnungen = pd.concat(tagesordnung_dfs)
+    return df_tagesordnungen
+
+
+def calc_details_from_xml(local_file):
     session_date = os.path.basename(local_file).split('_')[0]
     excel_handler = ExcelHandler()
     xml.sax.parse(tidy_xml(local_file), excel_handler)
