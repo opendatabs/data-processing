@@ -144,8 +144,6 @@ def retrieve_tagesordnungen_from_txt_files():
                     .replace('Rats-büro', 'Ratsbüro')
                     .replace('00.0000.00', '\t00.0000.00')
                     .replace('12.2035.01', '\t12.2035.01')
-                    # .replace('16.5326.01', '\t16.5326.01')
-                    # .replace('16.5327.01', '\t16.5327.01')
                     .replace('Ratsbüro\t16.5326.01', 'Ratsbüro\t\t16.5326.01')
                     .replace('Ratsbüro\t16.5327.01', 'Ratsbüro\t\t16.5327.01')
                     .replace('17.0552.03', '\t17.0552.03')
