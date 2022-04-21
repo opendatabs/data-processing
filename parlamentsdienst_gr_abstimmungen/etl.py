@@ -121,7 +121,7 @@ def handle_polls(process_archive=False):
 
 def calc_tagesordnungen_from_txt_files():
     # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
-    # todo: Process data less often (as required)
+    # todo: Check for changes before uploading files
     # todo: Remove list_only after testing
     tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden_col4.txt')  # , list_only=True)
     # local_files = [file['local_file'] for file in tagesordnung_files]
