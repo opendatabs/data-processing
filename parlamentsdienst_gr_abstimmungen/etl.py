@@ -97,7 +97,7 @@ def handle_polls(process_archive=False):
     if True:  # ct.has_changed(xml_ls_file, do_update_hash_file=False):
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         # todo: After testing, remove 'list_only' parameter
-        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
+        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')  # , list_only=True)
         # xml_files = common.download_ftp([], credentials.gr_ftp_server, credentials.gr_ftp_user, credentials.gr_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
@@ -123,7 +123,7 @@ def calc_tagesordnungen_from_txt_files():
     # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
     # todo: Process data less often (as required)
     # todo: Remove list_only after testing
-    tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden_col4.txt', list_only=True)
+    tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden_col4.txt')  # , list_only=True)
     # local_files = [file['local_file'] for file in tagesordnung_files]
     dfs = []
     for file in tagesordnung_files:
