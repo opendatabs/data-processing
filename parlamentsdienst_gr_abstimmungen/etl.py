@@ -126,6 +126,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     pattern = '*traktanden_col4.txt'
     txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file)
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
+    logging.info(f'Value of process_archive: {process_archive}')
     if not process_archive and not ct.has_changed(txt_ls_file, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df = pd.read_pickle(pickle_file_name)
