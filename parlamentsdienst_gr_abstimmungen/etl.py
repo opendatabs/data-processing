@@ -126,7 +126,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     pattern = '*traktanden_col4.txt'
     txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file)
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
-    if not ct.has_changed(txt_ls_file, do_update_hash_file=False):
+    if not process_archive and not ct.has_changed(txt_ls_file, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df = pd.read_pickle(pickle_file_name)
     else:
@@ -185,7 +185,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             df['geschaeftsnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1
             df['dokumentnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1 + '.' + df.geschaeftsnr2
             df['geschaeft-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.geschaeftsnr
-            df['dokument-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.dokumentnr
+            df['dokument-url'] = 'https://grosserrat.bs.ch/?doknr=' + df.dokumentnr
             # Save pickle to be loaded and returned if no changes in files detected
             logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
             df.to_pickle(pickle_file_name)
@@ -360,7 +360,8 @@ def main():
     logging.info(f'Job completed successfully!')
 
 
-def handle_tagesordnungen(process_archive=False):
+# todo: Set process_archive to false after go-live
+def handle_tagesordnungen(process_archive=True):
     df_tagesordnungen = calc_tagesordnungen_from_txt_files(process_archive)
     tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
     df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
