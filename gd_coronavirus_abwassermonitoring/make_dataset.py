@@ -22,7 +22,7 @@ pop_BS = 196735
 def main():
     df_bl = make_dataframe_bl()
     df_abwasser = make_dataframe_abwasserdaten()
-    df_all = df_abwasser.merge(df_bl, how='right')
+    df_all = df_abwasser.merge(df_bl, how='outer')
     df_bs = make_dataframe_bs()
     df_all = df_all.merge(df_bs, how='right')
     df_all = calculate_columns(df_all)
