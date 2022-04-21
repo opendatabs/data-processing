@@ -180,7 +180,7 @@ def calc_details_from_xml_file(local_file):
     excel_handler = ExcelHandler()
 
     def tidy_fn(txt: str):
-        txt.replace('&', '+')
+        return txt.replace('&', '+')
     xml.sax.parse(tidy_file(local_file, tidy_fn), excel_handler)
     # xml.sax.parse(tidy_xml(local_file), excel_handler)
     sheet_abstimmungen = excel_handler.tables[1]
