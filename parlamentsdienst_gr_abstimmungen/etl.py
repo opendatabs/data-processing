@@ -95,8 +95,6 @@ def handle_polls(process_archive=False):
     xml_ls = get_ftp_ls(remote_path, '*.xml', xml_ls_file)
     df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     if True:  # ct.has_changed(xml_ls_file, do_update_hash_file=False):
-        # todo: Continue working in this method here...
-        df_tagesordnungen = retrieve_tagesordnungen_from_txt_files()
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         # todo: After testing, remove 'list_only' parameter
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
@@ -105,7 +103,7 @@ def handle_polls(process_archive=False):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
             if True:  # ct.has_changed(local_file, do_update_hash_file=False):
-                df_poll_details = calc_details_from_xml(local_file)
+                df_poll_details = calc_details_from_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
 
                 all_df = df_merge1
@@ -121,9 +119,9 @@ def handle_polls(process_archive=False):
         # ct.update_hash_file(ftp_ls_file)
 
 
-def retrieve_tagesordnungen_from_txt_files():
+def calc_tagesordnungen_from_txt_files():
     # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
-    # todo: Move into own method and process data less often (as required)
+    # todo: Process data less often (as required)
     # todo: Remove list_only after testing
     tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden_col4.txt', list_only=True)
     # local_files = [file['local_file'] for file in tagesordnung_files]
@@ -164,17 +162,20 @@ def retrieve_tagesordnungen_from_txt_files():
         df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'], dtype={
             'traktand': 'str', 'title': 'str', 'commission': 'str', 'department': 'str', 'geschnr': 'str', 'info': 'str', 'col_06': 'str', 'col_07': 'str', 'col_08': 'str', 'col_09': 'str', 'col_10': 'str'
         })
-        df['session_date'] = file['remote_file'].split('_')[0]
+        session_date = file['remote_file'].split('_')[0]
+        df['session_date'] = session_date
+        df['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
         dfs.append(df)
     df = pd.concat(dfs)
     # remove leading and trailing characters
     df.traktand = df.traktand.str.rstrip('. ')
     df.commission = df.commission.str.lstrip(' ')
     df.department = df.department.str.strip(' ')
+    df.traktand = df.traktand.fillna(method='ffill')
     return df
 
 
-def calc_details_from_xml(local_file):
+def calc_details_from_xml_file(local_file):
     session_date = os.path.basename(local_file).split('_')[0]
     excel_handler = ExcelHandler()
 
@@ -334,6 +335,11 @@ def tidy_file(file_name, tidy_fn):
 def main():
     # logging.info(f'Processing archive...')
     # handle_polls(process_archive=True)
+    df_tagesordnungen = calc_tagesordnungen_from_txt_files()
+    tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
+    df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
+    common.upload_ftp(tagesordnungen_export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_tagesordnungen')
+
     ical_file_path = get_session_calendar(cutoff=timedelta(hours=12))
     if True:  # is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         handle_polls()
