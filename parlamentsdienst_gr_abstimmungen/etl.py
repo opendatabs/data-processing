@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import xml
-# import cchardet as chardet
 import charset_normalizer
 from datetime import datetime, timezone, timedelta
 from xml.sax.handler import ContentHandler
@@ -93,12 +92,12 @@ def find_in_sheet(sheet, text_to_find):
 def handle_polls(process_archive=False):
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
-    xml_ls = get_ftp_ls(remote_path, '*.xml', xml_ls_file)
+    xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     if True:  # ct.has_changed(xml_ls_file, do_update_hash_file=False):
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         # todo: After testing, remove 'list_only' parameter
-        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')  # , list_only=True)
+        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
         # xml_files = common.download_ftp([], credentials.gr_ftp_server, credentials.gr_ftp_user, credentials.gr_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
@@ -118,61 +117,73 @@ def handle_polls(process_archive=False):
 
                 # ct.update_hash_file(local_file)
         # ct.update_hash_file(ftp_ls_file)
+    return all_df
 
 
-def calc_tagesordnungen_from_txt_files():
+def calc_tagesordnungen_from_txt_files(process_archive=False):
     # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
-    # todo: Check for changes before uploading files
-    # todo: Remove list_only after testing
-    tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, '*traktanden_col4.txt')  # , list_only=True)
-    # local_files = [file['local_file'] for file in tagesordnung_files]
-    dfs = []
-    for file in tagesordnung_files:
-        logging.info(f"Cleaning file and reading into df: {file['local_file']}")
+    txt_ls_file = credentials.ftp_ls_file.replace('.json', '_txt.json')
+    pattern = '*traktanden_col4.txt'
+    txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file)
+    pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
+    if not ct.has_changed(txt_ls_file, do_update_hash_file=False):
+        logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
+        df = pd.read_pickle(pickle_file_name)
+    else:
+        tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, pattern)
 
-        def tidy_fn(txt: str):
+        dfs = []
+        for file in tagesordnung_files:
+            logging.info(f"Cleaning file and reading into df: {file['local_file']}")
 
-            return (txt
-                    .replace('\nPartnerschaftliches Geschäft', '\tPartnerschaftliches Geschäft')
-                    .replace('\nJSSK', '\tJSSK')
-                    .replace('\n17.5250.03', '\t17.5250.03')
-                    .replace('IGPK Rhein-häfen', 'IGPK Rheinhäfen')
-                    .replace('IGPK Rhein- häfen', 'IGPK Rheinhäfen')
-                    .replace('IGPK Uni-versität', 'IGPK Universität')
-                    .replace('IGPK Univer-sität', 'IGPK Universität')
-                    .replace('Rats-büro', 'Ratsbüro')
-                    .replace('00.0000.00', '\t00.0000.00')
-                    .replace('12.2035.01', '\t12.2035.01')
-                    .replace('Ratsbüro\t16.5326.01', 'Ratsbüro\t\t16.5326.01')
-                    .replace('Ratsbüro\t16.5327.01', 'Ratsbüro\t\t16.5327.01')
-                    .replace('17.0552.03', '\t17.0552.03')
-                    .replace('FD\t18.5143.02', '\tFD\t18.5143.02')
-                    .replace('18.5194.01', '\t18.5194.01')
-                    .replace('19.5040.02', '\t19.5040.02')
-                    .replace('19.5063.01', '\t19.5063.01')
-                    .replace('21.0546.01', '\t21.0546.01')
-                    .replace('\t18.0321.01', '18.0321.01')
-                    .replace('\t18.0616.02', '18.0616.02')
-                    .replace('\t17.5250.03', '17.5250.03')
-                    .replace('\t18.1319.02', '18.1319.02')
-                    .replace('NIM18.', 'NIM\n18.')
-                    .replace('NIM17.', 'NIM\n17.')
-                    .replace('NIS15.', 'NIS\n15.')
-                    )
-        tidy_file_name = tidy_file(file['local_file'], tidy_fn)
-        df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'], dtype={
-            'traktand': 'str', 'title': 'str', 'commission': 'str', 'department': 'str', 'geschnr': 'str', 'info': 'str', 'col_06': 'str', 'col_07': 'str', 'col_08': 'str', 'col_09': 'str', 'col_10': 'str'
-        })
-        session_date = file['remote_file'].split('_')[0]
-        df['session_date'] = session_date
-        df['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
-        dfs.append(df)
-    df = pd.concat(dfs)
-    # remove leading and trailing characters
-    df.traktand = df.traktand.str.rstrip('. ')
-    df.commission = df.commission.str.lstrip(' ')
-    df.department = df.department.str.strip(' ')
-    df.traktand = df.traktand.fillna(method='ffill')
+            def tidy_fn(txt: str):
+
+                return (txt
+                        .replace('\nPartnerschaftliches Geschäft', '\tPartnerschaftliches Geschäft')
+                        .replace('\nJSSK', '\tJSSK')
+                        .replace('\n17.5250.03', '\t17.5250.03')
+                        .replace('IGPK Rhein-häfen', 'IGPK Rheinhäfen')
+                        .replace('IGPK Rhein- häfen', 'IGPK Rheinhäfen')
+                        .replace('IGPK Uni-versität', 'IGPK Universität')
+                        .replace('IGPK Univer-sität', 'IGPK Universität')
+                        .replace('Rats-büro', 'Ratsbüro')
+                        .replace('00.0000.00', '\t00.0000.00')
+                        .replace('12.2035.01', '\t12.2035.01')
+                        .replace('Ratsbüro\t16.5326.01', 'Ratsbüro\t\t16.5326.01')
+                        .replace('Ratsbüro\t16.5327.01', 'Ratsbüro\t\t16.5327.01')
+                        .replace('17.0552.03', '\t17.0552.03')
+                        .replace('FD\t18.5143.02', '\tFD\t18.5143.02')
+                        .replace('18.5194.01', '\t18.5194.01')
+                        .replace('19.5040.02', '\t19.5040.02')
+                        .replace('19.5063.01', '\t19.5063.01')
+                        .replace('21.0546.01', '\t21.0546.01')
+                        .replace('\t18.0321.01', '18.0321.01')
+                        .replace('\t18.0616.02', '18.0616.02')
+                        .replace('\t17.5250.03', '17.5250.03')
+                        .replace('\t18.1319.02', '18.1319.02')
+                        .replace('NIM18.', 'NIM\n18.')
+                        .replace('NIM17.', 'NIM\n17.')
+                        .replace('NIS15.', 'NIS\n15.')
+                        )
+            tidy_file_name = tidy_file(file['local_file'], tidy_fn)
+            df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'], dtype={
+                'traktand': 'str', 'title': 'str', 'commission': 'str', 'department': 'str', 'geschnr': 'str', 'info': 'str', 'col_06': 'str', 'col_07': 'str', 'col_08': 'str', 'col_09': 'str', 'col_10': 'str'
+            })
+            session_date = file['remote_file'].split('_')[0]
+            df['session_date'] = session_date
+            df['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
+            dfs.append(df)
+        df = pd.concat(dfs)
+        # remove leading and trailing characters
+        df.traktand = df.traktand.str.rstrip('. ')
+        df.commission = df.commission.str.lstrip(' ')
+        df.department = df.department.str.strip(' ')
+        df.traktand = df.traktand.fillna(method='ffill')
+        # Save pickle to be loaded and returned if no changes in files detected
+        logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
+        df.to_pickle(pickle_file_name)
+
+        ct.update_hash_file(txt_ls_file)
     return df
 
 
@@ -237,13 +248,13 @@ def retrieve_traktanden_pdf_filenames(process_archive, remote_path):
         df_trakt = pd.DataFrame(file_list, columns=['remote_file']).query("remote_file.str.contains('pdf')")
     else:
         pdf_ls_file = credentials.ftp_ls_file.replace('.json', '_pdf.json')
-        pdf_ls = get_ftp_ls(remote_path, '*.pdf', pdf_ls_file)
+        pdf_ls = get_ftp_ls(remote_path=remote_path, pattern='*.pdf', file_name=pdf_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
         df_trakt = pd.DataFrame(pdf_ls)
     return df_trakt
 
 
-def get_ftp_ls(remote_path, pattern, file_name):
-    ls = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, pattern, list_only=True)
+def get_ftp_ls(remote_path, pattern, file_name, ftp):
+    ls = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], remote_path, credentials.local_data_path, pattern, list_only=True)
     logging.info(f'Saving ftp ls file of pattern {pattern} to {file_name}...')
     json.dump(ls, open(file_name, 'w'), indent=1)
     return ls
@@ -335,16 +346,23 @@ def tidy_file(file_name, tidy_fn):
 
 def main():
     # logging.info(f'Processing archive...')
-    # handle_polls(process_archive=True)
-    df_tagesordnungen = calc_tagesordnungen_from_txt_files()
-    tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
-    df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
-    common.upload_ftp(tagesordnungen_export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_tagesordnungen')
-
+    # all_df = handle_polls(process_archive=True)
+    df_tagesordn = handle_tagesordnungen(process_archive=True)
     ical_file_path = get_session_calendar(cutoff=timedelta(hours=12))
     if True:  # is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
-        handle_polls()
+        all_df = handle_polls(process_archive=False)
     logging.info(f'Job completed successfully!')
+
+
+def handle_tagesordnungen(process_archive=False):
+    df_tagesordnungen = calc_tagesordnungen_from_txt_files(process_archive)
+    tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
+    df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
+    if ct.has_changed(tagesordnungen_export_file_name, do_update_hash_file=False):
+        common.upload_ftp(tagesordnungen_export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_tagesordnungen')
+        odsp.publish_ods_dataset_by_id('100190')
+        ct.update_hash_file(tagesordnungen_export_file_name)
+    return df_tagesordnungen
 
 
 if __name__ == "__main__":
