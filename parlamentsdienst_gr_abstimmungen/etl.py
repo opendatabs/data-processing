@@ -3,7 +3,8 @@ import json
 import logging
 import os
 import xml
-import cchardet as chardet
+# import cchardet as chardet
+import charset_normalizer
 from datetime import datetime, timezone, timedelta
 from xml.sax.handler import ContentHandler
 from zoneinfo import ZoneInfo
@@ -305,7 +306,7 @@ def recursive_mlsd(ftp_object, path="", maxdepth=None):
 #     """Replace & with + in xml file"""
 #     with open(file_name, 'rb') as f:
 #         raw_data = f.read()
-#         result = chardet.detect(raw_data)
+#         result = charset_normalizer.detect(raw_data)
 #         enc = result['encoding']
 #     with open(file_name, 'r', encoding=enc) as f:
 #         raw_xml = f.read()
@@ -320,7 +321,7 @@ def tidy_file(file_name, tidy_fn):
     """Data cleaning"""
     with open(file_name, 'rb') as f:
         raw_data = f.read()
-        result = chardet.detect(raw_data)
+        result = charset_normalizer.detect(raw_data)
         enc = result['encoding']
     with open(file_name, 'r', encoding=enc) as f:
         raw_txt = f.read()
