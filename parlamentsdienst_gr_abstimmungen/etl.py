@@ -137,7 +137,6 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             logging.info(f"Cleaning file and reading into df: {file['local_file']}")
 
             def tidy_fn(txt: str):
-
                 return (txt
                         .replace('\nPartnerschaftliches Geschäft', '\tPartnerschaftliches Geschäft')
                         .replace('\nJSSK', '\tJSSK')
@@ -166,9 +165,10 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
                         .replace('NIS15.', 'NIS\n15.')
                         )
             tidy_file_name = tidy_file(file['local_file'], tidy_fn)
-            df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1, names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'], dtype={
-                'traktand': 'str', 'title': 'str', 'commission': 'str', 'department': 'str', 'geschnr': 'str', 'info': 'str', 'col_06': 'str', 'col_07': 'str', 'col_08': 'str', 'col_09': 'str', 'col_10': 'str'
-            })
+            df = pd.read_csv(tidy_file_name, delimiter='\t', encoding='cp1252', on_bad_lines='error', skiprows=1,
+                             names=['traktand', 'title', 'commission', 'department', 'geschnr', 'info', 'col_06', 'col_07', 'col_08', 'col_09', 'col_10'],
+                             dtype={'traktand': 'str', 'title': 'str', 'commission': 'str', 'department': 'str', 'geschnr': 'str', 'info': 'str', 'col_06': 'str', 'col_07': 'str', 'col_08': 'str', 'col_09': 'str', 'col_10': 'str'}
+                             )
             session_date = file['remote_file'].split('_')[0]
             df['session_date'] = session_date
             df['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
@@ -179,10 +179,16 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
         df.commission = df.commission.str.lstrip(' ')
         df.department = df.department.str.strip(' ')
         df.traktand = df.traktand.fillna(method='ffill')
+        df['geschaeftsnr0'] = df.geschnr.str.split('.', expand=False).str.get(0)
+        df['geschaeftsnr1'] = df.geschnr.str.split('.', expand=False).str.get(1)
+        df['geschaeftsnr2'] = df.geschnr.str.split('.', expand=False).str.get(2)
+        df['geschaeftsnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1
+        df['dokumentnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1 + '.' + df.geschaeftsnr2
+        df['geschaeft-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.geschaeftsnr
+        df['dokument-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.dokumentnr
         # Save pickle to be loaded and returned if no changes in files detected
         logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
         df.to_pickle(pickle_file_name)
-
         ct.update_hash_file(txt_ls_file)
     return df
 
