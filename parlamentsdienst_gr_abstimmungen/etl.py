@@ -333,8 +333,8 @@ def tidy_file(file_name, tidy_fn):
 
 
 def main():
-    logging.info(f'Processing archive...')
-    handle_polls(process_archive=True)
+    # logging.info(f'Processing archive...')
+    # handle_polls(process_archive=True)
     df_tagesordnungen = calc_tagesordnungen_from_txt_files()
     tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
     df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
