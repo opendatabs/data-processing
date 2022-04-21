@@ -1,0 +1,37 @@
+name;label;description
+objid;Objekt-ID;Eindeutiger Identifikator
+bohr_id;Bohr-ID;Interner eindeutiger Identifikator
+catnr1;Kanton;Erster Teil Bohrnummer / Kanton
+catnr2;Gemeinde bzw. Sektion;Zweiter Teil Bohrnummer / Gemeinde bzw. Sektion
+catnr3;Klassifikation;Dritter Teil Bohrnummer / Klassifikation
+catnr4;Laufnummer;Vierter Teil Bohrnummer / Laufnummer
+catnr5;Laufnummer-Erweiterung;Fünfter Teil Bohrnummer / Laufnummer Extension (A,B,C etc.)
+catnr45;Vollständige Laufnummer;Vollständige Laufnummer (generiert aus den Werten catnumber4 und catnumber5)
+coordx;X-Koordinate;X-Koordinate der Bohrung
+coordy;Y-Koordinate;Y-Koordinate der Bohrung
+angular;Schrägbohrung (0/1);Schrägbohrung (0/1)
+year;Bohrjahr;Erstellungsjahr der Bohrung
+street;Strasse;Strasse
+h_number;Hausummer;Hausummer
+begin_heig;Bohransatz-Kote;Kote Ansatz der Bohrung m.ü.M
+rock_heigh;Oberkante Fels-Kote;Kote Felsoberfläche der Bohrung m.ü.M
+rock_desc;Oberkante Fels-Stratigraphie;Beschreibung Felsoberfläche (z.B. Cyrenenmergel)
+base_heigh;Sohle-Kote;Kote Sohle der Bohrung m.ü.M.
+cashdate;Kassierdatum einer Bohrung;Kassierdatum einer Bohrung
+yearbook;Im hydrografischen Jahrbuch;Bohrung im hydrografischen Jahrbuch vorhanden (0/1)
+cont_point;ID: Zustand einer Messstelle;Zustand einer Messstelle
+cont_pt_tx;Text: Zustand der Bohrung;messbar, verschlammt, etc. (Zustand einer Messstelle)
+chemicalid;Chemische Analyse;Chemische Analyse
+terrain;Terrain-Kote;Höhe Terrain
+intervalid;Intervall der chemischen Analyse;Intervall der chemischen Analyse
+planned;Geplant;"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet)"
+pipe_diame;Rohrdurchmesser;Durchmesser des eingebauten Rohrs in mm
+pipe_zcoor;Z-Koordinate vom Top;Z-Koordinate vom Top des Rohrabschnitts in m ü. M.
+pipe_zcoob;Z-Koordinate von der Basis;Z-Koordinate von der Basis des Rohrabschnitts in m ü. M.
+gwl_zcoord;Grundwasserspiegel;Z-Koordinate (Höhe) des Grundwasserstandes
+gwl_date;Datum des Grundwasserstandes;Datum des Grundwasserstandes (Datum im Ansiformat)
+gwl_datefo;Format des Datums;Format des Datums (dd.mm.yyyy)
+gwl_date_f;Datum des Grundwasserstandes;Datum des Grundwasserstandes (z.B. 04.11.1965)
+doc_profil;Bohrprofil-Dokument;Bohrprofil-Dokument zur Bohrung
+doc_situat;Situationsplan-Dokument;Situationsplan-Dokument zur Bohrung
+doc_pictur;Bild zur Bohrung;Bild zur Bohrung
