@@ -1,5 +1,6 @@
 
 from datetime import timezone, datetime
+import numpy as np
 import logging
 import common
 from gsv_covid19_hosp_bl import credentials
@@ -45,6 +46,7 @@ def get_properties_list(hospital):
 
 
 def add_value_id(df, date):
+    df = df.astype(str)
     url_api = credentials.url_coreport_api
     username = credentials.username_coreport
     password = credentials.password_coreport
@@ -68,7 +70,7 @@ def add_value_id(df, date):
             # make sure first result indeed has the right date
             assert result['timeslot']['deadline'] == timeslot
             value_id = result['id']
-            df.loc[hospital, data_name + " value_id"] = value_id
+            df.loc[hospital, data_name + " value_id"] = str(value_id)
     return df
 
 
