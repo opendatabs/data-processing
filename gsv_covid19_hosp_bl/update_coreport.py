@@ -39,8 +39,8 @@ def get_properties_list(hospital):
                            'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normal" inkl. COVID Verdachtsfälle',
                            'Bettenanzahl belegt "Normal" COVID', 'Bettenanzahl belegt "IPS ohne Beatmung"',
                            'Bettenanzahl belegt "IPS mit Beatmung"', 'Anzahl Patienten "IPS nicht Beatmet" inkl. COVID Verdachtsfälle',
-                           'Anzahl Patienten "IPS Beatmet" inkl. COVID Verdachtsfälle', 'Anzahl Patienten "IPS nicht Beatmet" COVID',
-                           'Anzahl Patienten "IPS Beatmet" COVID']
+                           'Anzahl Patienten "IPS  Beatmet"  inkl. COVID Verdachtsfälle', 'Anzahl Patienten "IPS nicht Beatmet" COVID',
+                           'Anzahl Patienten "IPS  Beatmet" COVID']
     return properties_list
 
 
@@ -62,6 +62,8 @@ def add_value_id(df, date):
             filter_result = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
             url = url_api + filter_result
             req = common.requests_get(url, auth=(username, password))
+            print(data_name)
+            print(req.json())
             result = req.json()[0]
             # make sure first result indeed has the right date
             assert result['timeslot']['deadline'] == timeslot
