@@ -5,6 +5,7 @@ WORKDIR /code/data-processing
 RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
+RUN python3 -m pip install --user --no-cache-dir cchardet==2.1.7
 RUN python3 -m pip install --user --no-cache-dir icalendar==4.0.9
 CMD ["python3", "-m", "parlamentsdienst_gr_abstimmungen.etl"]
 
