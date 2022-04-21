@@ -94,7 +94,7 @@ def handle_polls(process_archive=False):
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
-    if True:  # ct.has_changed(xml_ls_file, do_update_hash_file=False):
+    if ct.has_changed(xml_ls_file, do_update_hash_file=False):
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         # todo: After testing, remove 'list_only' parameter
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
@@ -102,7 +102,7 @@ def handle_polls(process_archive=False):
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
-            if True:  # ct.has_changed(local_file, do_update_hash_file=False):
+            if ct.has_changed(local_file, do_update_hash_file=False):
                 df_poll_details = calc_details_from_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
 
@@ -115,8 +115,8 @@ def handle_polls(process_archive=False):
                 all_df.to_csv(export_filename_csv, index=False)
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
 
-                # ct.update_hash_file(local_file)
-        # ct.update_hash_file(ftp_ls_file)
+                ct.update_hash_file(local_file)
+        ct.update_hash_file(xml_ls_file)
     return all_df
 
 
@@ -173,23 +173,23 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             df['session_date'] = session_date
             df['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
             dfs.append(df)
-        df = pd.concat(dfs)
-        # remove leading and trailing characters
-        df.traktand = df.traktand.str.rstrip('. ')
-        df.commission = df.commission.str.lstrip(' ')
-        df.department = df.department.str.strip(' ')
-        df.traktand = df.traktand.fillna(method='ffill')
-        df['geschaeftsnr0'] = df.geschnr.str.split('.', expand=False).str.get(0)
-        df['geschaeftsnr1'] = df.geschnr.str.split('.', expand=False).str.get(1)
-        df['geschaeftsnr2'] = df.geschnr.str.split('.', expand=False).str.get(2)
-        df['geschaeftsnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1
-        df['dokumentnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1 + '.' + df.geschaeftsnr2
-        df['geschaeft-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.geschaeftsnr
-        df['dokument-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.dokumentnr
-        # Save pickle to be loaded and returned if no changes in files detected
-        logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
-        df.to_pickle(pickle_file_name)
-        ct.update_hash_file(txt_ls_file)
+            df = pd.concat(dfs)
+            # remove leading and trailing characters
+            df.traktand = df.traktand.str.rstrip('. ')
+            df.commission = df.commission.str.lstrip(' ')
+            df.department = df.department.str.strip(' ')
+            df.traktand = df.traktand.fillna(method='ffill')
+            df['geschaeftsnr0'] = df.geschnr.str.split('.', expand=False).str.get(0)
+            df['geschaeftsnr1'] = df.geschnr.str.split('.', expand=False).str.get(1)
+            df['geschaeftsnr2'] = df.geschnr.str.split('.', expand=False).str.get(2)
+            df['geschaeftsnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1
+            df['dokumentnr'] = df.geschaeftsnr0 + '.' + df.geschaeftsnr1 + '.' + df.geschaeftsnr2
+            df['geschaeft-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.geschaeftsnr
+            df['dokument-url'] = 'https://grosserrat.bs.ch/?idurl=' + df.dokumentnr
+            # Save pickle to be loaded and returned if no changes in files detected
+            logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
+            df.to_pickle(pickle_file_name)
+            ct.update_hash_file(txt_ls_file)
     return df
 
 
@@ -355,7 +355,7 @@ def main():
     # all_df = handle_polls(process_archive=True)
     df_tagesordn = handle_tagesordnungen(process_archive=True)
     ical_file_path = get_session_calendar(cutoff=timedelta(hours=12))
-    if True:  # is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         all_df = handle_polls(process_archive=False)
     logging.info(f'Job completed successfully!')
 
