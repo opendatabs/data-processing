@@ -112,8 +112,6 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
 
-                # todo: Seat 182 does not have the correct miotglied_name assigned, fix together with Sitz_Nr
-                # todo: Fix other rows with Mitglied_Name like 'Vorname X Name Y'
                 # Correct historical incidence of wrong seat number 182
                 df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
                 # todo: Remove test polls:
@@ -121,7 +119,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 #  (b) polls during session day but with a certain poll type ("Testabstimmung" or similar)
                 # Remove Testabstimmungen by inner-joining session calendar with abstimmungen
                 df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
-                # todo: Session cal starts 2013-05-15, polls start earlier (2021-06-05) -> Enhance session calendar to not lose old polls
+                # todo: Session cal starts 2013-05-15, polls start earlier (2012-06-05) -> Enhance session calendar to not lose old polls
 
                 all_df = df_merge2
 
