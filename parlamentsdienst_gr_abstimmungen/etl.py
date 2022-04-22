@@ -54,8 +54,10 @@ def is_file_older_than(file, delta):
 def get_session_calendar(cutoff):
     logging.info(f'Checking if we should reload the ical file from the web...')
     ical_file_path = credentials.ics_file
-    if not os.path.exists(ical_file_path) or is_file_older_than(ical_file_path, cutoff):
-        logging.info(f'Ical file does not exist or is older than required - opening Google Calendar from web...')
+    cal_export_file = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_sitzungskalender.csv')
+    pickle_file_name = cal_export_file.replace('.csv', '.pickle')
+    if not os.path.exists(ical_file_path) or not os.path.exists(pickle_file_name) or is_file_older_than(ical_file_path, cutoff):
+        logging.info(f'Pickle or iCal file does not exist or is older than required - opening Google Calendar from web...')
         url = 'https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics'
         r = common.requests_get(url=url, allow_redirects=True)
         with open(ical_file_path, 'wb') as f:
@@ -63,13 +65,17 @@ def get_session_calendar(cutoff):
         logging.info(f'Parsing events into df to publish to dataset...')
         calendar = icalendar.Calendar.from_ical(r.content)
         df_cal = pd.DataFrame(dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT'))
-        cal_export_file = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_sitzungskalender.csv')
         df_cal.to_csv(cal_export_file, index=False)
         if ct.has_changed(cal_export_file, do_update_hash_file=False):
             common.upload_ftp(cal_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_sitzungskalender')
             odsp.publish_ods_dataset_by_id('100188')
+            logging.info(f'Saving session calendar as pickle {pickle_file_name}...')
+            df_cal.to_pickle(pickle_file_name)
             ct.update_hash_file(cal_export_file)
-    return ical_file_path
+    else:
+        logging.info(f'Reading session calendar from pickle {pickle_file_name}')
+        df_cal = pd.read_pickle(pickle_file_name)
+    return ical_file_path, df_cal
 
 
 def is_session_now(ical_file_path, hours_before_start, hours_after_end):
@@ -89,24 +95,35 @@ def find_in_sheet(sheet, text_to_find):
     return [(i, text.index(text_to_find)) for i, text in enumerate(sheet) if text_to_find in text]
 
 
-def handle_polls(process_archive=False):
+def handle_polls(process_archive=False, df_unique_session_dates=None):
+    logging.info(f'Handling polls, value of process_archive: {process_archive}...')
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
-    if ct.has_changed(xml_ls_file, do_update_hash_file=False):
+    if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
-        # todo: After testing, remove 'list_only' parameter
-        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml', list_only=True)
-        # xml_files = common.download_ftp([], credentials.gr_ftp_server, credentials.gr_ftp_user, credentials.gr_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
+        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
-            if ct.has_changed(local_file, do_update_hash_file=False):
-                df_poll_details = calc_details_from_xml_file(local_file)
+            if process_archive or ct.has_changed(local_file, do_update_hash_file=False):
+                df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
 
-                all_df = df_merge1
+                # todo: Seat 182 does not have the correct miotglied_name assigned, fix together with Sitz_Nr
+                # todo: Fix other rows with Mitglied_Name like 'Vorname X Name Y'
+                # Correct historical incidence of wrong seat number 182
+                df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
+                # todo: Remove test polls:
+                #  (a) polls outside of session days,
+                #  (b) polls during session day but with a certain poll type ("Testabstimmung" or similar)
+                # Remove Testabstimmungen by inner-joining session calendar with abstimmungen
+                df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
+                # todo: Session cal starts 2013-05-15, polls start earlier (2021-06-05) -> Enhance session calendar to not lose old polls
+
+                all_df = df_merge2
+
                 # {"Datum":"2022-03-16","Zeit":"09:05:45.000","Abst_Nr":"1","Traktandum":1,"Subtraktandum":0,"Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
                 common.ods_realtime_push_df(all_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
@@ -120,17 +137,27 @@ def handle_polls(process_archive=False):
     return all_df
 
 
+def get_unique_session_dates(df_cal):
+    # df_cal['start_date'] = df_cal.dtstart.dt.strftime(date_format='%Y-%m-%d')
+    # df_cal['end_date'] = df_cal.dtend.dt.strftime(date_format='%Y-%m-%d')
+    # df_cal.query('start_date != end_date')
+    logging.info(f'Calculating unique sesssion dates used to filter out test polls...')
+    df_cal['session_date'] = df_cal.dtstart.dt.strftime(date_format='%Y%m%d')
+    df_unique_cal_dates = df_cal.drop_duplicates(subset=['session_date'])[['session_date']]
+    return df_unique_cal_dates
+
+
 def calc_tagesordnungen_from_txt_files(process_archive=False):
-    # todo: Use Tagesordnung csv file to get Geschäftsnummer and Dokumentennummer
     txt_ls_file = credentials.ftp_ls_file.replace('.json', '_txt.json')
     pattern = '*traktanden_col4.txt'
     txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file)
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
     logging.info(f'Value of process_archive: {process_archive}')
-    if not process_archive and not ct.has_changed(txt_ls_file, do_update_hash_file=False):
+    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df = pd.read_pickle(pickle_file_name)
     else:
+        # todo: Only download changed files
         tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, pattern)
 
         dfs = []
@@ -194,7 +221,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     return df
 
 
-def calc_details_from_xml_file(local_file):
+def calc_details_from_single_xml_file(local_file):
     session_date = os.path.basename(local_file).split('_')[0]
     excel_handler = ExcelHandler()
 
@@ -223,11 +250,10 @@ def calc_details_from_xml_file(local_file):
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
-    # todo: Get Geschaefts-ID and Document-ID, then create links
+    # todo: Get Geschaefts-ID and Document-ID from Tagesordnungen, then create links
     # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
     # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
     # How to get geschaefts id from document id?
-    # todo: Remove test polls: (a) polls outside of session days, (b) polls during session day but with a certain poll type ("Testabstimmung" or similar)
     details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
     df_merge1 = polls.merge(details_long, how='left', on=['Datum', 'Abst_Nr'])
     df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
@@ -235,6 +261,7 @@ def calc_details_from_xml_file(local_file):
 
 
 def calc_traktanden_from_pdf_filenames(df_trakt):
+    logging.info(f'Calculating traktandfen from pdf filenames...')
     df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
     df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
     # Get rid of leading zeros
@@ -248,6 +275,7 @@ def calc_traktanden_from_pdf_filenames(df_trakt):
 
 
 def retrieve_traktanden_pdf_filenames(process_archive, remote_path):
+    logging.info(f'Retrieving traktanden PDF filenames, value of process_archive: {process_archive}...')
     if process_archive:
         with ftplib.FTP(host=credentials.gr_polls_ftp_server) as ftp:
             ftp.login(user=credentials.gr_polls_ftp_user, passwd=credentials.gr_polls_ftp_pass)
@@ -320,21 +348,6 @@ def recursive_mlsd(ftp_object, path="", maxdepth=None):
     return _inner(path, 0), file_list
 
 
-# def tidy_xml(file_name):
-#     """Replace & with + in xml file"""
-#     with open(file_name, 'rb') as f:
-#         raw_data = f.read()
-#         result = charset_normalizer.detect(raw_data)
-#         enc = result['encoding']
-#     with open(file_name, 'r', encoding=enc) as f:
-#         raw_xml = f.read()
-#     cleaned_xml = raw_xml.replace('&', '+')
-#     clean_file = file_name.replace('.xml', '_clean.xml')
-#     with open(clean_file, 'w', encoding=enc) as f:
-#         f.write(cleaned_xml)
-#     return clean_file
-
-
 def tidy_file(file_name, tidy_fn):
     """Data cleaning"""
     with open(file_name, 'rb') as f:
@@ -351,26 +364,27 @@ def tidy_file(file_name, tidy_fn):
     return clean_file
 
 
-def main():
-    # logging.info(f'Processing archive...')
-    # all_df = handle_polls(process_archive=True)
-    df_tagesordn = handle_tagesordnungen(process_archive=True)
-    ical_file_path = get_session_calendar(cutoff=timedelta(hours=12))
-    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
-        all_df = handle_polls(process_archive=False)
-    logging.info(f'Job completed successfully!')
-
-
-# todo: Set process_archive to false after go-live
-def handle_tagesordnungen(process_archive=True):
+def handle_tagesordnungen(process_archive=False):
     df_tagesordnungen = calc_tagesordnungen_from_txt_files(process_archive)
     tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
     df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
-    if ct.has_changed(tagesordnungen_export_file_name, do_update_hash_file=False):
+    if process_archive or ct.has_changed(tagesordnungen_export_file_name, do_update_hash_file=False):
         common.upload_ftp(tagesordnungen_export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_tagesordnungen')
         odsp.publish_ods_dataset_by_id('100190')
         ct.update_hash_file(tagesordnungen_export_file_name)
     return df_tagesordnungen
+
+
+def main():
+    # todo: Set process_archive to false after go-live
+    ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
+    df_unique_session_dates = get_unique_session_dates(df_cal)
+    all_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
+    df_tagesordn = handle_tagesordnungen(process_archive=True)
+
+    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+        all_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
+    logging.info(f'Job completed successfully!')
 
 
 if __name__ == "__main__":
