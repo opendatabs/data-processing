@@ -136,7 +136,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
 def get_unique_session_dates(df_cal):
     # df_cal['start_date'] = df_cal.dtstart.dt.strftime(date_format='%Y-%m-%d')
     # df_cal['end_date'] = df_cal.dtend.dt.strftime(date_format='%Y-%m-%d')
-    # df_cal.query('start_date != end_date')
+    # df_cal.query('start_date != end_date') --> none found, thus use start_date
     logging.info(f'Calculating unique sesssion dates used to filter out test polls...')
     df_cal['session_date'] = df_cal.dtstart.dt.strftime(date_format='%Y%m%d')
     df_unique_cal_dates = df_cal.drop_duplicates(subset=['session_date'])[['session_date']]
@@ -250,7 +250,6 @@ def calc_details_from_single_xml_file(local_file):
     # todo: Get Geschaefts-ID and Document-ID from Tagesordnungen, then create links
     # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
     # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
-    # How to get geschaefts id from document id?
     details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
     df_merge1 = polls.merge(details_long, how='left', on=['Datum', 'Abst_Nr'])
     df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
@@ -374,10 +373,10 @@ def handle_tagesordnungen(process_archive=False):
 
 def main():
     # todo: Set process_archive to false after go-live
+    df_tagesordn = handle_tagesordnungen(process_archive=True)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     all_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
-    df_tagesordn = handle_tagesordnungen(process_archive=True)
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         all_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
