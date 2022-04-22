@@ -114,12 +114,9 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
 
                 # Correct historical incidence of wrong seat number 182
                 df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
-                # todo: Remove test polls:
-                #  (a) polls outside of session days,
-                #  (b) polls during session day but with a certain poll type ("Testabstimmung" or similar)
-                # Remove Testabstimmungen by inner-joining session calendar with abstimmungen
+                # Remove test polls: (a) polls outside of session days --> done by inner-joining session calendar with abstimmungen
                 df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
-                # todo: Session cal starts 2013-05-15, polls start earlier (2012-06-05) -> Enhance session calendar to not lose old polls
+                # Remove test polls: (b) polls during session day but with a certain poll type ("Testabstimmung" or similar) --> none detected in whole archive
 
                 all_df = df_merge2
 
