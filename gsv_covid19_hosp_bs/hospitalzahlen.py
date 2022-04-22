@@ -13,9 +13,9 @@ now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zuri
 date = now_in_switzerland.date()
 
 # time conditions
-time_for_email = now_in_switzerland.replace(hour=9, minute=30, second=0, microsecond=0)
-time_for_email_to_call = now_in_switzerland.replace(hour=9, minute=50, second=0, microsecond=0)
-time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0)
+time_for_email = now_in_switzerland.replace(hour=12, minute=00, second=0, microsecond=0)
+time_for_email_to_call = now_in_switzerland.replace(hour=12, minute=30, second=0, microsecond=0)
+time_for_email_final_status = now_in_switzerland.replace(hour=13, minute=0, second=0, microsecond=0)
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
 
