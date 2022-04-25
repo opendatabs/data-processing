@@ -377,15 +377,17 @@ def main():
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     poll_archive_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-    poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
-    logging.info(f'Saving poll archive to {poll_archive_filename}...')
-    poll_archive_df.to_csv(poll_archive_filename, index=False)
+    if poll_archive_df:
+        poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
+        logging.info(f'Saving poll archive to {poll_archive_filename}...')
+        poll_archive_df.to_csv(poll_archive_filename, index=False)
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-        poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
-        logging.info(f'Saving poll live to {poll_live_filename}...')
-        poll_current_df.to_csv(poll_live_filename, index=False)
+        if poll_current_df:
+            poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
+            logging.info(f'Saving poll live to {poll_live_filename}...')
+            poll_current_df.to_csv(poll_live_filename, index=False)
     logging.info(f'Job completed successfully!')
 
 
