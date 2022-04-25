@@ -65,12 +65,12 @@ def get_session_calendar(cutoff):
         logging.info(f'Parsing events into df to publish to dataset...')
         calendar = icalendar.Calendar.from_ical(r.content)
         df_cal = pd.DataFrame(dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT'))
+        logging.info(f'Saving session calendar as pickle and csv: {pickle_file_name}, {cal_export_file}...')
+        df_cal.to_pickle(pickle_file_name)
         df_cal.to_csv(cal_export_file, index=False)
         if ct.has_changed(cal_export_file, do_update_hash_file=False):
             common.upload_ftp(cal_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_sitzungskalender')
             odsp.publish_ods_dataset_by_id('100188')
-            logging.info(f'Saving session calendar as pickle {pickle_file_name}...')
-            df_cal.to_pickle(pickle_file_name)
             ct.update_hash_file(cal_export_file)
     else:
         logging.info(f'Reading session calendar from pickle {pickle_file_name}')
