@@ -150,7 +150,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
     logging.info(f'Value of process_archive: {process_archive}')
     df = None
-    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls, do_update_hash_file=False):
+    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file_name, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df = pd.read_pickle(pickle_file_name)
     else:
@@ -214,7 +214,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             # Save pickle to be loaded and returned if no changes in files detected
             logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
             df.to_pickle(pickle_file_name)
-            ct.update_hash_file(txt_ls)
+            ct.update_hash_file(txt_ls_file_name)
     return df
 
 
