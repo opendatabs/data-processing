@@ -144,13 +144,13 @@ def get_unique_session_dates(df_cal):
 
 
 def calc_tagesordnungen_from_txt_files(process_archive=False):
-    txt_ls_file = credentials.ftp_ls_file.replace('.json', '_txt.json')
+    txt_ls_file_name = credentials.ftp_ls_file.replace('.json', '_txt.json')
     pattern = '*traktanden_col4.txt'
-    txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file)
+    txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file_name)
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
     logging.info(f'Value of process_archive: {process_archive}')
     df = None
-    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file, do_update_hash_file=False):
+    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df = pd.read_pickle(pickle_file_name)
     else:
@@ -214,7 +214,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             # Save pickle to be loaded and returned if no changes in files detected
             logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
             df.to_pickle(pickle_file_name)
-            ct.update_hash_file(txt_ls_file)
+            ct.update_hash_file(txt_ls)
     return df
 
 
@@ -381,7 +381,7 @@ def main():
     logging.info(f'Saving poll archive to {poll_archive_filename}...')
     poll_archive_df.to_csv(poll_archive_filename, index=False)
 
-    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+    if True: # is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
         poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
         logging.info(f'Saving poll live to {poll_live_filename}...')
