@@ -373,15 +373,15 @@ def handle_tagesordnungen(process_archive=False):
 
 def main():
     # todo: Set process_archive to false after go-live
-    df_tagesordn = handle_tagesordnungen(process_archive=True)
+    df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
-    poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
+    poll_archive_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
     poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
     logging.info(f'Saving poll archive to {poll_archive_filename}...')
     poll_archive_df.to_csv(poll_archive_filename, index=False)
 
-    if True: # is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
         poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
         logging.info(f'Saving poll live to {poll_live_filename}...')
