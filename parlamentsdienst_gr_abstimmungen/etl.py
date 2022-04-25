@@ -101,7 +101,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
-    all_df = None
+    all_df = []
     if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
@@ -118,16 +118,16 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
                 # Remove test polls: (b) polls during session day but with a certain poll type ("Testabstimmung" or similar) --> none detected in whole archive
 
-                all_df = df_merge2
+                curr_poll_df = df_merge2
 
                 # {"Datum":"2022-03-16","Zeit":"09:05:45.000","Abst_Nr":"1","Traktandum":1,"Subtraktandum":0,"Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
                 common.ods_realtime_push_df(all_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
                 logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
                 common.upload_ftp(local_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
-                all_df.to_csv(export_filename_csv, index=False)
+                curr_poll_df.to_csv(export_filename_csv, index=False)
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
-
+                all_df.append(curr_poll_df)
                 ct.update_hash_file(local_file)
         ct.update_hash_file(xml_ls_file)
     return all_df
@@ -377,10 +377,11 @@ def main():
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     poll_archive_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-    if poll_archive_df:
-        poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
-        logging.info(f'Saving poll archive to {poll_archive_filename}...')
-        poll_archive_df.to_csv(poll_archive_filename, index=False)
+    # todo: implement saving archived polls as csv
+    # if poll_archive_df:
+    #     poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
+    #     logging.info(f'Saving poll archive to {poll_archive_filename}...')
+    #     poll_archive_df.to_csv(poll_archive_filename, index=False)
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
