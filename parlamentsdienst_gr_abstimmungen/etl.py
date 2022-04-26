@@ -100,11 +100,11 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
-    df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
+    df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     all_df = []
     if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
-        df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
+        df_trakt = calc_traktanden_from_pdf_filenames(df_trakt_filenames)
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
@@ -257,16 +257,17 @@ def calc_details_from_single_xml_file(local_file):
 
 
 def calc_traktanden_from_pdf_filenames(df_trakt):
-    logging.info(f'Calculating traktanden from pdf filenames...')
-    df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
-    df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
-    # Get rid of leading zeros
-    df_trakt.Abst_Nr = df_trakt.Abst_Nr.astype(int).astype(str)
-    df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
-    # Get rid of some rogue text and leading zeros
-    # todo: Keep this as text in order not to fail on live imports?
-    df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
-    df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
+    if len(df_trakt) > 0:
+        logging.info(f'Calculating traktanden from pdf filenames...')
+        df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
+        df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
+        # Get rid of leading zeros
+        df_trakt.Abst_Nr = df_trakt.Abst_Nr.astype(int).astype(str)
+        df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
+        # Get rid of some rogue text and leading zeros
+        # todo: Keep this as text in order not to fail on live imports?
+        df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
+        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
     return df_trakt
 
 
