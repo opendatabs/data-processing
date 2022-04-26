@@ -101,7 +101,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
-    all_df = []
+    all_df = pd.DataFrame()
     if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
         # todo: handle xlsx files of polls during time at congress center
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
@@ -122,7 +122,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 curr_poll_df = df_merge2
 
                 # {"Datum":"2022-03-16","Zeit":"09:05:45.000","Abst_Nr":"1","Traktandum":1,"Subtraktandum":0,"Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
-                common.ods_realtime_push_df(all_df, credentials.push_url)
+                common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
                 logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
                 common.upload_ftp(local_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
