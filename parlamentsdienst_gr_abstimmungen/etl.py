@@ -257,7 +257,7 @@ def calc_details_from_single_xml_file(local_file):
 
 
 def calc_traktanden_from_pdf_filenames(df_trakt):
-    logging.info(f'Calculating traktandfen from pdf filenames...')
+    logging.info(f'Calculating traktanden from pdf filenames...')
     df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
     df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
     # Get rid of leading zeros
