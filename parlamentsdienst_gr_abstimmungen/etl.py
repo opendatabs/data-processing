@@ -103,6 +103,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     all_df = []
     if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
+        # todo: handle xlsx files of polls during time at congress center
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt_filenames)
         for i, file in enumerate(xml_files):
@@ -377,7 +378,8 @@ def main():
     df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
-    poll_archive_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
+    # Uncomment to process archived poll data
+    # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
     # todo: implement saving archived polls as csv
     # if poll_archive_df:
     #     poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
