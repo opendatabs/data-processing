@@ -112,7 +112,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
             if process_archive or ct.has_changed(local_file, do_update_hash_file=False):
                 df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
-
+                df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
                 # Correct historical incidence of wrong seat number 182
                 df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
                 # Remove test polls: (a) polls outside of session days --> done by inner-joining session calendar with abstimmungen
@@ -121,7 +121,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
 
                 curr_poll_df = df_merge2
 
-                # {"Datum":"2022-03-16","Zeit":"09:05:45.000","Abst_Nr":"1","Traktandum":1,"Subtraktandum":0,"Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
+                # {"session_date":"20141119","Abst_Nr":"745","Datum":"2014-11-19","Zeit":"09:24:56.000","Anz_J":"39","Anz_N":"47","Anz_E":"6","Anz_A":"7","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises","Zeitstempel_text":"2014-11-19T09:24:56.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Beatriz Greuter","Fraktion":"SP","Mitglied_Name_Fraktion":"Beatriz Greuter (SP)","Datenstand_text":"2022-03-17T12:19:35+01:00","Entscheid_Mitglied":"J","Traktandum":16,"Subtraktandum":3,"Abst_Typ":"ab","tagesordnung_link":"https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
                 common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
                 logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
@@ -253,7 +253,6 @@ def calc_details_from_single_xml_file(local_file):
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
-    # todo: Create link to Tagesordnung ODS dataset with traktandum as filter criterion, e.g. https://data.bs.ch/explore/dataset/100190/table/?disjunctive.traktand&sort=-traktand&refine.datum=2022%2F03%2F23&refine.traktand=14
     # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
     # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
     details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
@@ -383,7 +382,7 @@ def main():
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     # Uncomment to process archived poll data
-    # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
+    poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
