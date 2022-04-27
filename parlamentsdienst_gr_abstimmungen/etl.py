@@ -388,7 +388,7 @@ def main():
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-        if poll_current_df:
+        if len(poll_current_df) > 0:
             poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
             logging.info(f'Saving poll live to {poll_live_filename}...')
             poll_current_df.to_csv(poll_live_filename, index=False)
