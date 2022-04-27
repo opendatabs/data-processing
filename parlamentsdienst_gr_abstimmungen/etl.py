@@ -114,7 +114,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
                 df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
                 # Correct historical incidence of wrong seat number 182
-                df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
+                # df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
                 # Remove test polls: (a) polls outside of session days --> done by inner-joining session calendar with abstimmungen
                 df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
                 # Remove test polls: (b) polls during session day but with a certain poll type ("Testabstimmung" or similar) --> none detected in whole archive
