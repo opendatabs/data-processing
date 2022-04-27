@@ -128,7 +128,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 common.upload_ftp(local_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
                 curr_poll_df.to_csv(export_filename_csv, index=False)
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
-                all_df.append(curr_poll_df)
+                all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
                 ct.update_hash_file(local_file)
         if len(all_df) > 0:
             file_name_part = 'archiv' if process_archive else 'aktuell'
