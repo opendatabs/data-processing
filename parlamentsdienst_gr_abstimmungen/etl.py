@@ -121,7 +121,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
 
                 curr_poll_df = df_merge2
 
-                # {"session_date":"20141119","Abst_Nr":"745","Datum":"2014-11-19","Zeit":"09:24:56.000","Anz_J":"39","Anz_N":"47","Anz_E":"6","Anz_A":"7","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises","Zeitstempel_text":"2014-11-19T09:24:56.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Beatriz Greuter","Fraktion":"SP","Mitglied_Name_Fraktion":"Beatriz Greuter (SP)","Datenstand_text":"2022-03-17T12:19:35+01:00","Entscheid_Mitglied":"J","Traktandum":16,"Subtraktandum":3,"Abst_Typ":"ab","tagesordnung_link":"https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
+                # {"session_date":"20141119","Abst_Nr":"745","Datum":"2014-11-19","Zeit":"09:24:56.000","Anz_J":"39","Anz_N":"47","Anz_E":"6","Anz_A":"7","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises","Zeitstempel_text":"2014-11-19T09:24:56.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Beatriz Greuter","Fraktion":"SP","Mitglied_Name_Fraktion":"Beatriz Greuter (SP)","Datenstand_text":"2022-03-17T12:19:35+01:00","Entscheid_Mitglied":"J","Traktandum":16,"Subtraktandum":3,"tagesordnung_link":"https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
                 common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
                 logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
@@ -273,7 +273,7 @@ def calc_traktanden_from_pdf_filenames(df_trakt):
         # Get rid of some rogue text and leading zeros
         # todo: Keep this as text in order not to fail on live imports?
         df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
-        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
+        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum']] # , 'Abst_Typ']]
     return df_trakt
 
 
