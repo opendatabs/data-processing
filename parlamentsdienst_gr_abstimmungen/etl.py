@@ -241,6 +241,7 @@ def calc_details_from_single_xml_file(local_file):
     # Find 'Ja' and take the 7 rows starting there.
     sums_per_decision = pd.DataFrame(sheet_resultate[ja_row:ja_row + 6], columns=sheet_resultate[0])
     datenexport_row = find_in_sheet(sheet_resultate, 'Datenexport')[0][0]
+    # todo: Make sure time is correct here
     data_timestamp = datetime.strptime(sheet_resultate[datenexport_row + 1][1], '%Y-%m-%dT%H:%M:%S').astimezone(ZoneInfo('Europe/Zurich'))
     polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich')
     polls['Zeitstempel_text'] = polls.Zeitstempel.dt.strftime(date_format='%Y-%m-%dT%H:%M:%S.%f%z')
