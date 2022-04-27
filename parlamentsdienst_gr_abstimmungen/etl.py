@@ -242,10 +242,9 @@ def calc_details_from_single_xml_file(local_file):
     sums_per_decision = pd.DataFrame(sheet_resultate[ja_row:ja_row + 6], columns=sheet_resultate[0])
     datenexport_row = find_in_sheet(sheet_resultate, 'Datenexport')[0][0]
     data_timestamp = datetime.strptime(sheet_resultate[datenexport_row + 1][1], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=ZoneInfo('Europe/Zurich'))
-    polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich')
+    # Add timezone, then convert to UTC for ODS
+    polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich').dt.tz_convert('UTC')
     polls['Zeitstempel_text'] = polls.Zeitstempel.dt.strftime(date_format='%Y-%m-%dT%H:%M:%S.%f%z')
-    # Convert to UTC for ODS
-    polls['Zeitstempel'] = polls.Zeitstempel.dt.tz_convert('UTC')
     polls[['Datum', 'Zeit']] = polls.Datum.str.split('T', expand=True)
     polls = polls.rename(columns={'Nr': 'Abst_Nr', 'J': 'Anz_J', 'N': 'Anz_N', 'E': 'Anz_E', 'A': 'Anz_A', 'P': 'Anz_P'})
     details['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
