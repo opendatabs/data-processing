@@ -130,6 +130,11 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
                 all_df.append(curr_poll_df)
                 ct.update_hash_file(local_file)
+        if len(all_df) > 0:
+            file_name_part = 'archiv' if process_archive else 'aktuell'
+            polls_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), f'grosser_rat_abstimmungen_{file_name_part}.csv')
+            logging.info(f'Saving polls as a backup to {polls_filename}...')
+            all_df.to_csv(polls_filename, index=False)
         ct.update_hash_file(xml_ls_file)
     return all_df
 
@@ -248,7 +253,7 @@ def calc_details_from_single_xml_file(local_file):
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
-    # todo: Get Geschaefts-ID and Document-ID from Tagesordnungen, then create links
+    # todo: Create link to Tagesordnung ODS dataset with traktandum as filter criterion, e.g. https://data.bs.ch/explore/dataset/100190/table/?disjunctive.traktand&sort=-traktand&refine.datum=2022%2F03%2F23&refine.traktand=14
     # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
     # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
     details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
@@ -374,24 +379,14 @@ def handle_tagesordnungen(process_archive=False):
 
 
 def main():
-    # todo: Set process_archive to false after go-live
     df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     # Uncomment to process archived poll data
     # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
-    # todo: implement saving archived polls as csv
-    # if poll_archive_df:
-    #     poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
-    #     logging.info(f'Saving poll archive to {poll_archive_filename}...')
-    #     poll_archive_df.to_csv(poll_archive_filename, index=False)
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-        if len(poll_current_df) > 0:
-            poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
-            logging.info(f'Saving poll live to {poll_live_filename}...')
-            poll_current_df.to_csv(poll_live_filename, index=False)
     logging.info(f'Job completed successfully!')
 
 
