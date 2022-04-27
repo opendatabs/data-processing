@@ -113,6 +113,7 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                 df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
                 df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
+                # todo: Add link to pdf file (if possible)
                 # Correct historical incidence of wrong seat number 182 (2022-03-17)
                 df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
                 # Remove test polls: (a) polls outside of session days --> done by inner-joining session calendar with abstimmungen
@@ -210,6 +211,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             df.commission = df.commission.str.lstrip(' ')
             df.department = df.department.str.strip(' ')
             df.traktand = df.traktand.fillna(method='ffill')
+            # todo: Handle mutliple geschnr
             df['geschaeftsnr0'] = df.geschnr.str.split('.', expand=False).str.get(0)
             df['geschaeftsnr1'] = df.geschnr.str.split('.', expand=False).str.get(1)
             df['geschaeftsnr2'] = df.geschnr.str.split('.', expand=False).str.get(2)
