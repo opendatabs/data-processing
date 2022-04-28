@@ -144,7 +144,7 @@ def get_unique_session_dates(df_cal):
     # df_cal['start_date'] = df_cal.dtstart.dt.strftime(date_format='%Y-%m-%d')
     # df_cal['end_date'] = df_cal.dtend.dt.strftime(date_format='%Y-%m-%d')
     # df_cal.query('start_date != end_date') --> none found, thus use start_date
-    logging.info(f'Calculating unique sesssion dates used to filter out test polls...')
+    logging.info(f'Calculating unique session dates used to filter out test polls...')
     df_cal['session_date'] = df_cal.dtstart.dt.strftime(date_format='%Y%m%d')
     df_unique_cal_dates = df_cal.drop_duplicates(subset=['session_date'])[['session_date']]
     return df_unique_cal_dates
@@ -269,8 +269,8 @@ def calc_traktanden_from_pdf_filenames(df_trakt):
         logging.info(f'Calculating traktanden from pdf filenames...')
         df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
         df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
-        # Get rid of leading zeros
-        df_trakt.Abst_Nr = df_trakt.Abst_Nr.astype(int).astype(str)
+        # Remove spaces in filename, get rid of leading zeros.
+        df_trakt.Abst_Nr = df_trakt.Abst_Nr.str.replace(' ', '').astype(int).astype(str)
         df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
         # Get rid of some rogue text and leading zeros
         # todo: Keep this as text in order not to fail on live imports?
