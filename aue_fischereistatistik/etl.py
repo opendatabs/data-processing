@@ -26,9 +26,9 @@ for year in range(2010, 2021):
     # replace '0' with empty string
     # Question: In Gewässercode: 0=unbekannt?
     df_year[['Datum', 'Monat', 'Fischart',  'Gewicht',
-             'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']]\
+             'Länge','Abfluss_Rhein_über_1800m3']]\
         =  df_year[['Datum', 'Monat', 'Fischart',  'Gewicht',
-                    'Länge','Abfluss_Rhein_über_1800m3', 'Bemerkungen']].replace('0','')
+                    'Länge','Abfluss_Rhein_über_1800m3']].replace('0','')
 
     # make month column complete/in same format and add day column
     if (df_year['Monat'] == '').all():
