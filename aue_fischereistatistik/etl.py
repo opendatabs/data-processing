@@ -13,7 +13,7 @@ locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 
 columns = ['Fischereikarte', 'Fangbüchlein_retourniert', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
-           'Abfluss_Rhein_über_1800m3', 'Bemerkungen']
+           'Abfluss_Rhein_über_1800m3']
 
 df = pd.DataFrame(columns=columns)
 
