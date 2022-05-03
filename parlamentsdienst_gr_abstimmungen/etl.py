@@ -65,12 +65,12 @@ def get_session_calendar(cutoff):
         logging.info(f'Parsing events into df to publish to dataset...')
         calendar = icalendar.Calendar.from_ical(r.content)
         df_cal = pd.DataFrame(dict(summary=event['SUMMARY'], dtstart=event['DTSTART'].dt, dtend=event['DTEND'].dt) for event in calendar.walk('VEVENT'))
+        logging.info(f'Saving session calendar as pickle and csv: {pickle_file_name}, {cal_export_file}...')
+        df_cal.to_pickle(pickle_file_name)
         df_cal.to_csv(cal_export_file, index=False)
         if ct.has_changed(cal_export_file, do_update_hash_file=False):
             common.upload_ftp(cal_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_sitzungskalender')
             odsp.publish_ods_dataset_by_id('100188')
-            logging.info(f'Saving session calendar as pickle {pickle_file_name}...')
-            df_cal.to_pickle(pickle_file_name)
             ct.update_hash_file(cal_export_file)
     else:
         logging.info(f'Reading session calendar from pickle {pickle_file_name}')
@@ -100,35 +100,42 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
-    df_trakt = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
-    all_df = None
+    df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
+    all_df = pd.DataFrame()
     if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
-        df_trakt = calc_traktanden_from_pdf_filenames(df_trakt)
+        # todo: handle xlsx files of polls during time at congress center
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
+        df_trakt = calc_traktanden_from_pdf_filenames(df_trakt_filenames)
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
             if process_archive or ct.has_changed(local_file, do_update_hash_file=False):
                 df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
-
-                # Correct historical incidence of wrong seat number 182
+                df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
+                # todo: Add link to pdf file (if possible)
+                # Correct historical incidence of wrong seat number 182 (2022-03-17)
                 df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
                 # Remove test polls: (a) polls outside of session days --> done by inner-joining session calendar with abstimmungen
                 df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
                 # Remove test polls: (b) polls during session day but with a certain poll type ("Testabstimmung" or similar) --> none detected in whole archive
 
-                all_df = df_merge2
+                curr_poll_df = df_merge2
 
-                # {"Datum":"2022-03-16","Zeit":"09:05:45.000","Abst_Nr":"1","Traktandum":1,"Subtraktandum":0,"Anz_J":"83","Anz_N":"1","Anz_E":"0","Anz_A":"15","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Mitteilungen und Genehmigung der Tagesordnung.","Zeitstempel_text":"2022-03-16T09:05:45.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Lisa Mathys","Fraktion":"SP","Mitglied_Name_Fraktion":"Lisa Mathys (SP)","Datenstand_text":"2022-03-17T12:35:54+01:00","Entscheid_Mitglied":"J"}
-                common.ods_realtime_push_df(all_df, credentials.push_url)
+                # {"session_date":"20141119","Abst_Nr":"745","Datum":"2014-11-19","Zeit":"09:24:56.000","Anz_J":"39","Anz_N":"47","Anz_E":"6","Anz_A":"7","Anz_P":"1","Typ":"Abstimmung","Geschaeft":"Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises","Zeitstempel_text":"2014-11-19T09:24:56.000000+0100","Sitz_Nr":"1","Mitglied_Name":"Beatriz Greuter","Fraktion":"SP","Mitglied_Name_Fraktion":"Beatriz Greuter (SP)","Datenstand_text":"2022-03-17T12:19:35+01:00","Entscheid_Mitglied":"J","Traktandum":16,"Subtraktandum":3,"tagesordnung_link":"https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
+                common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
                 export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
                 logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
                 common.upload_ftp(local_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
-                all_df.to_csv(export_filename_csv, index=False)
+                curr_poll_df.to_csv(export_filename_csv, index=False)
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
-
+                all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
                 ct.update_hash_file(local_file)
+        if len(all_df) > 0:
+            file_name_part = 'archiv' if process_archive else 'aktuell'
+            polls_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), f'grosser_rat_abstimmungen_{file_name_part}.csv')
+            logging.info(f'Saving polls as a backup to {polls_filename}...')
+            all_df.to_csv(polls_filename, index=False)
         ct.update_hash_file(xml_ls_file)
     return all_df
 
@@ -137,20 +144,20 @@ def get_unique_session_dates(df_cal):
     # df_cal['start_date'] = df_cal.dtstart.dt.strftime(date_format='%Y-%m-%d')
     # df_cal['end_date'] = df_cal.dtend.dt.strftime(date_format='%Y-%m-%d')
     # df_cal.query('start_date != end_date') --> none found, thus use start_date
-    logging.info(f'Calculating unique sesssion dates used to filter out test polls...')
+    logging.info(f'Calculating unique session dates used to filter out test polls...')
     df_cal['session_date'] = df_cal.dtstart.dt.strftime(date_format='%Y%m%d')
     df_unique_cal_dates = df_cal.drop_duplicates(subset=['session_date'])[['session_date']]
     return df_unique_cal_dates
 
 
 def calc_tagesordnungen_from_txt_files(process_archive=False):
-    txt_ls_file = credentials.ftp_ls_file.replace('.json', '_txt.json')
+    txt_ls_file_name = credentials.ftp_ls_file.replace('.json', '_txt.json')
     pattern = '*traktanden_col4.txt'
-    txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file)
+    txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file_name)
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
     logging.info(f'Value of process_archive: {process_archive}')
     df = None
-    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file, do_update_hash_file=False):
+    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file_name, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df = pd.read_pickle(pickle_file_name)
     else:
@@ -204,6 +211,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             df.commission = df.commission.str.lstrip(' ')
             df.department = df.department.str.strip(' ')
             df.traktand = df.traktand.fillna(method='ffill')
+            # todo: Handle mutliple geschnr
             df['geschaeftsnr0'] = df.geschnr.str.split('.', expand=False).str.get(0)
             df['geschaeftsnr1'] = df.geschnr.str.split('.', expand=False).str.get(1)
             df['geschaeftsnr2'] = df.geschnr.str.split('.', expand=False).str.get(2)
@@ -214,7 +222,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             # Save pickle to be loaded and returned if no changes in files detected
             logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
             df.to_pickle(pickle_file_name)
-            ct.update_hash_file(txt_ls_file)
+            ct.update_hash_file(txt_ls_file_name)
     return df
 
 
@@ -235,8 +243,9 @@ def calc_details_from_single_xml_file(local_file):
     # Find 'Ja' and take the 7 rows starting there.
     sums_per_decision = pd.DataFrame(sheet_resultate[ja_row:ja_row + 6], columns=sheet_resultate[0])
     datenexport_row = find_in_sheet(sheet_resultate, 'Datenexport')[0][0]
-    data_timestamp = datetime.strptime(sheet_resultate[datenexport_row + 1][1], '%Y-%m-%dT%H:%M:%S').astimezone(ZoneInfo('Europe/Zurich'))
-    polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich')
+    data_timestamp = datetime.strptime(sheet_resultate[datenexport_row + 1][1], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=ZoneInfo('Europe/Zurich'))
+    # Add timezone, then convert to UTC for ODS
+    polls['Zeitstempel'] = pd.to_datetime(polls.Zeit, format='%Y-%m-%dT%H:%M:%S.%f').dt.tz_localize('Europe/Zurich').dt.tz_convert('UTC')
     polls['Zeitstempel_text'] = polls.Zeitstempel.dt.strftime(date_format='%Y-%m-%dT%H:%M:%S.%f%z')
     polls[['Datum', 'Zeit']] = polls.Datum.str.split('T', expand=True)
     polls = polls.rename(columns={'Nr': 'Abst_Nr', 'J': 'Anz_J', 'N': 'Anz_N', 'E': 'Anz_E', 'A': 'Anz_A', 'P': 'Anz_P'})
@@ -247,7 +256,6 @@ def calc_details_from_single_xml_file(local_file):
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
-    # todo: Get Geschaefts-ID and Document-ID from Tagesordnungen, then create links
     # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
     # See document details e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
     details_long = details.melt(id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand', 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
@@ -257,16 +265,17 @@ def calc_details_from_single_xml_file(local_file):
 
 
 def calc_traktanden_from_pdf_filenames(df_trakt):
-    logging.info(f'Calculating traktandfen from pdf filenames...')
-    df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
-    df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
-    # Get rid of leading zeros
-    df_trakt.Abst_Nr = df_trakt.Abst_Nr.astype(int).astype(str)
-    df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
-    # Get rid of some rogue text and leading zeros
-    # todo: Keep this as text in order not to fail on live imports?
-    df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
-    df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
+    if len(df_trakt) > 0:
+        logging.info(f'Calculating traktanden from pdf filenames...')
+        df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
+        df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
+        # Remove spaces in filename, get rid of leading zeros.
+        df_trakt.Abst_Nr = df_trakt.Abst_Nr.str.replace(' ', '').astype(int).astype(str)
+        df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
+        # Get rid of some rogue text and leading zeros
+        # todo: Keep this as text in order not to fail on live imports?
+        df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
+        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum']] # , 'Abst_Typ']]
     return df_trakt
 
 
@@ -372,20 +381,14 @@ def handle_tagesordnungen(process_archive=False):
 
 
 def main():
-    # todo: Set process_archive to false after go-live
-    df_tagesordn = handle_tagesordnungen(process_archive=True)
+    df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
-    poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
-    poll_archive_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_archiv.csv')
-    logging.info(f'Saving poll archive to {poll_archive_filename}...')
-    poll_archive_df.to_csv(poll_archive_filename, index=False)
+    # Uncomment to process archived poll data
+    # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-        poll_live_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_abstimmungen_aktuell.csv')
-        logging.info(f'Saving poll live to {poll_live_filename}...')
-        poll_current_df.to_csv(poll_live_filename, index=False)
     logging.info(f'Job completed successfully!')
 
 
@@ -393,3 +396,23 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+
+
+# This job processes the following data sources:
+# - Tagesordnungen (Traktandenlisten) - handle_tagesordnungen():
+#   - contents of 1 *.txt (csv) file for each session day: contains details of each Traktandum, which can be linked to a single poll, to none, one or multiple Geschäfte and Dokumente
+#   - 1 folder of csv files that contain all past and present Tagesordnungen
+#   - file for current session may be present only after first poll of session has been completed
+# - Session calendar - get_session_calendar():
+#   - iCal retrieved from Google Calendar, 1 entry per session day
+# - Live Polls from FTP Server - handle_polls(process_archive=False)
+#   - contents of 1 xml file per session: contain each individual Grossratsmitglied's decision for each Traktandum
+#       - calc_details_from_single_xml_file()
+#   - filename of 1 pdf file per poll: contains Traktandum and Subtraktandum for each single poll
+#       - retrieve_traktanden_pdf_filenames()
+#       - calc_traktanden_from_pdf_filenames()
+# - Past polls from FTP Server - handle_polls(process_archive=True)
+#   - contents and filenames contain same as live polls, but for past polls
+#   - 1 folder with subfolder structure for pdf file
+#   - 1 flat folder for all xml files
+#   - 1 flat folder for xlsx files for the time the Grosser Rat held session at Congress Center Basel
