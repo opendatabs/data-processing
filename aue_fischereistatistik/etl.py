@@ -99,6 +99,7 @@ df['Fischart'].replace('Saibling', 'Andere', inplace=True)
 df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
 df['Fischart'].replace('Karausche', 'Andere', inplace=True)
 df['Fischart'].replace('Laube', 'Andere', inplace=True)
+df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
 # make new column with total grundel
