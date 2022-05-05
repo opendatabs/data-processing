@@ -254,9 +254,6 @@ def calc_details_from_single_xml_file(local_file):
     details.columns.values[1] = 'Mitglied_Name_Fraktion'
     # Replace multiple spaces with single space
     details.Mitglied_Name_Fraktion = details.Mitglied_Name_Fraktion.str.replace(r'\s+', ' ', regex=True)
-    # if details.Mitglied_Name_Fraktion.str.contains('  ', regex=False).any():
-    #     logging.info(f'double space replacement has not worked...')
-    #     pass
     # Get the text in between ( and ) as Fraktion
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name
