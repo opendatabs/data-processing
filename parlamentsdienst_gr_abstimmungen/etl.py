@@ -156,10 +156,10 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     txt_ls = get_ftp_ls(remote_path='', pattern=pattern, ftp={'server': credentials.gr_trakt_list_ftp_server, 'user': credentials.gr_trakt_list_ftp_user, 'password': credentials.gr_polls_ftp_pass}, file_name=txt_ls_file_name)
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
     logging.info(f'Value of process_archive: {process_archive}')
-    df = None
+    df_all = None
     if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file_name, do_update_hash_file=False):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
-        df = pd.read_pickle(pickle_file_name)
+        df_all = pd.read_pickle(pickle_file_name)
     else:
         # todo: Only download changed files
         tagesordnung_files = common.download_ftp([], credentials.gr_trakt_list_ftp_server, credentials.gr_trakt_list_ftp_user, credentials.gr_trakt_list_ftp_pass, '', credentials.local_data_path, pattern)
@@ -180,8 +180,8 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
                         .replace('Rats-büro', 'Ratsbüro')
                         .replace('00.0000.00', '\t00.0000.00')
                         .replace('12.2035.01', '\t12.2035.01')
-                        .replace('Ratsbüro\t16.5326.01', 'Ratsbüro\t\t16.5326.01')
-                        .replace('Ratsbüro\t16.5327.01', 'Ratsbüro\t\t16.5327.01')
+                        .replace('16.5326.01', '\t16.5326.01')
+                        .replace('16.5327.01', '\t16.5327.01')
                         .replace('17.0552.03', '\t17.0552.03')
                         .replace('FD\t18.5143.02', '\tFD\t18.5143.02')
                         .replace('18.5194.01', '\t18.5194.01')
@@ -204,8 +204,6 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             session_date = file['remote_file'].split('_')[0]
             df['session_date'] = session_date
             df['Datum'] = session_date[:4] + '-' + session_date[4:6] + '-' + session_date[6:8]
-            dfs.append(df)
-            df = pd.concat(dfs)
             # remove leading and trailing characters
             df.traktand = df.traktand.str.rstrip('. ')
             df.commission = df.commission.str.lstrip(' ')
@@ -222,8 +220,10 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
             # Save pickle to be loaded and returned if no changes in files detected
             logging.info(f'Saving tagesordnung df to pickle {pickle_file_name}...')
             df.to_pickle(pickle_file_name)
-            ct.update_hash_file(txt_ls_file_name)
-    return df
+            dfs.append(df)
+        df_all = pd.concat(dfs)
+        ct.update_hash_file(txt_ls_file_name)
+    return df_all
 
 
 def calc_details_from_single_xml_file(local_file):
