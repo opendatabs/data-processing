@@ -52,10 +52,7 @@ def get_data(hospital, date):
     headers = {
         'Authorization': credentials.authorization_live}
     requests.request("GET", url, headers=headers, data=payload)
-    if hospital == 'UKBB':
-        url2 = credentials.url_hosp_children + get_filter(hospital, date)
-    else:
-        url2 = credentials.url_hosp_adults + get_filter(hospital, date)
+    url2 = credentials.url_hosp_adults + get_filter(hospital, date)
     response = requests.request("GET", url2, headers=headers, data=payload)
     response.raise_for_status()
     results = response.json()["d"]["results"]
