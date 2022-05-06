@@ -88,9 +88,9 @@ def calculate_numbers(ies_numbers):
     df_coreport['Bettenanzahl belegt "IPS ohne Beatmung"'] = df_coreport['Bettenanzahl IPS ohne Beatmung'] - df_coreport['Bettenanzahl frei "IPS ohne Beatmung"']
     df_coreport['Bettenanzahl belegt "IPS mit Beatmung"'] = d - df_coreport['Bettenanzahl frei "IPS mit Beatmung"']
     df_coreport['Anzahl Patienten "IPS nicht Beatmet" inkl. COVID Verdachtsfälle'] = (f-g)-(i-j)
-    df_coreport['Anzahl Patienten "IPS Beatmet" inkl. COVID Verdachtsfälle'] = g - j
+    df_coreport['Anzahl Patienten "IPS  Beatmet"  inkl. COVID Verdachtsfälle'] = g - j
     df_coreport['Anzahl Patienten "IPS nicht Beatmet" COVID'] = i - j
-    df_coreport['Anzahl Patienten "IPS Beatmet" COVID'] = j
+    df_coreport['Anzahl Patienten "IPS  Beatmet" COVID'] = j
     return df_coreport
 
 
