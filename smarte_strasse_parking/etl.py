@@ -15,7 +15,22 @@ def main():
     # common.ods_realtime_push_df(df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
     # common.ods_realtime_push_df(df=df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
     # push_timeseries_data(df=df1, min_time_delta_minutes=60, url=credentials.ods_realtime_push_url_hist, push_key=credentials.ods_realtime_push_key_hist, api_key=credentials.ods_api_key)
+
+    # df = get_statistics()
     logging.info(f'Job successful!')
+
+
+def get_statistics():
+    headers = {'Authorization': f'Bearer {credentials.api3_token}'}
+    dfs = []
+    for spot in credentials.spots:
+        spot_id = spot["id"]
+        r = common.requests_get(f'{credentials.api3_stat_url}&spot={spot_id}', headers=headers)
+        df = pd.json_normalize(r.json())
+        df['spot_id'] = spot_id
+        dfs.append(df)
+    all_df = pd.concat(dfs)
+    return all_df
 
 
 def get_current_state_date():
@@ -40,6 +55,12 @@ def get_current_state_date():
     df_wide['Yellow_total'] = 2
     df_wide['timestamp_text'] = df_wide.timestamp
     return df_wide
+
+
+if __name__ == "__main__":
+        logging.basicConfig(level=logging.DEBUG)
+        logging.info(f'Executing {__file__}...')
+        main()
 
 
     # 1 row in total
@@ -108,7 +129,4 @@ def get_current_state_date():
 #     return df_hist
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
-    main()
+
