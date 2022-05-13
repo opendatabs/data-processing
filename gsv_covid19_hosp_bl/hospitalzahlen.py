@@ -156,8 +156,13 @@ if __name__ == "__main__":
     #     logging.info(f"OK, let's start processing the data!")
     #     main(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
 
-    hospital = "Arlesheim"
-    date = now_in_switzerland.date()
-    df_entries = get_data.get_dataframe(hospital=hospital, date=date)
-    print(df_entries)
 
+    from gsv_covid19_hosp_bl import calculation
+    pd.set_option('display.max_columns', 500)
+    hospital = "Bruderholz"
+    df_entries = get_df_for_date(list_hospitals=list_hospitals, date=date)
+    print(df_entries[0])
+    df_coreport = calculation.calculate_numbers(df_entries[0])
+    print(df_coreport)
+    df = update_coreport.add_value_id(df_coreport, date)
+    print(df)
