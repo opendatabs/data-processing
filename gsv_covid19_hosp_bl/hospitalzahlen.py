@@ -92,7 +92,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df['email_negative_value'] = ""
     df['email_reminder'] = ""
     df['email_for_calling'] = ""
-    df['email_status_at_10'] = ""
+    df['email_status_at_12'] = ""
     df['email_all_filled'] = ""
     df['all_filled'] = 0
     df.to_pickle(credentials.path_log_pkl)
