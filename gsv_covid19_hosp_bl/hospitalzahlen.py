@@ -18,6 +18,8 @@ time_for_email_to_call = now_in_switzerland.replace(hour=9, minute=50, second=0,
 time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0)
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
+# To do the same on all day and ignore the different weekend case for bs just define day_of_week = "Other workday"
+day_of_week = "Other workday"
 
 def main(date, day_of_week, list_hospitals):
     check_for_log_file(date, day_of_week, list_hospitals)
@@ -149,8 +151,7 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.DEBUG)
     # logging.info(f'Executing {__file__}...')
-    # day_of_week = get_data.check_day(date)
-    # do_process = now_in_switzerland >= starting_time and day_of_week != "Weekend"
+    # do_process = now_in_switzerland >= starting_time
     # logging.info(f'Checking if we have to do anything right now: {do_process}')
     # if do_process:
     #     logging.info(f"OK, let's start processing the data!")
