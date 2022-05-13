@@ -149,21 +149,21 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 
 
 if __name__ == "__main__":
-    # logging.basicConfig(level=logging.DEBUG)
-    # logging.info(f'Executing {__file__}...')
-    # do_process = now_in_switzerland >= starting_time
-    # logging.info(f'Checking if we have to do anything right now: {do_process}')
-    # if do_process:
-    #     logging.info(f"OK, let's start processing the data!")
-    #     main(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    do_process = now_in_switzerland >= starting_time
+    logging.info(f'Checking if we have to do anything right now: {do_process}')
+    if do_process:
+        logging.info(f"OK, let's start processing the data!")
+        main(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
 
-
-    from gsv_covid19_hosp_bl import calculation
-    pd.set_option('display.max_columns', 500)
-    hospital = "Bruderholz"
-    df_entries = get_df_for_date(list_hospitals=list_hospitals, date=date)
-    print(df_entries[0])
-    df_coreport = calculation.calculate_numbers(df_entries[0])
-    print(df_coreport)
-    df = update_coreport.add_value_id(df_coreport, date)
-    print(df)
+    # print out results for checking:
+    # from gsv_covid19_hosp_bl import calculation
+    # pd.set_option('display.max_columns', 500)
+    # hospital = "Bruderholz"
+    # df_entries = get_df_for_date(list_hospitals=list_hospitals, date=date)
+    # print(df_entries[0])
+    # df_coreport = calculation.calculate_numbers(df_entries[0])
+    # print(df_coreport)
+    # df = update_coreport.add_value_id(df_coreport, date)
+    # print(df)
