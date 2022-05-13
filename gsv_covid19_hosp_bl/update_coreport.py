@@ -1,5 +1,6 @@
 
 from datetime import timezone, datetime
+import numpy as np
 import logging
 import common
 from gsv_covid19_hosp_bl import credentials
@@ -39,13 +40,13 @@ def get_properties_list(hospital):
                            'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normal" inkl. COVID Verdachtsfälle',
                            'Bettenanzahl belegt "Normal" COVID', 'Bettenanzahl belegt "IPS ohne Beatmung"',
                            'Bettenanzahl belegt "IPS mit Beatmung"', 'Anzahl Patienten "IPS nicht Beatmet" inkl. COVID Verdachtsfälle',
-                           'Anzahl Patienten "IPS Beatmet" inkl. COVID Verdachtsfälle', 'Anzahl Patienten "IPS nicht Beatmet" COVID',
-                           'Anzahl Patienten "IPS Beatmet" COVID']
+                           'Anzahl Patienten "IPS  Beatmet"  inkl. COVID Verdachtsfälle', 'Anzahl Patienten "IPS nicht Beatmet" COVID',
+                           'Anzahl Patienten "IPS  Beatmet" COVID']
     return properties_list
 
 
-# to do: check data names for BL hospitals
 def add_value_id(df, date):
+    df = df.astype(str)
     url_api = credentials.url_coreport_api
     username = credentials.username_coreport
     password = credentials.password_coreport
@@ -58,20 +59,18 @@ def add_value_id(df, date):
     df.set_index("Hospital", inplace=True)
     for hospital in hospitals:
         organization = dict_org[hospital]
-        if hospital == 'USB':
-            data_names = columns
-        else:
-            data_names = [x for x in columns if x not in
-                          ['Bettenanzahl frei " IPS ECMO"', 'Bettenanzahl belegt "IPS ECMO"']]
+        data_names = get_properties_list(hospital=hospital)
         for data_name in data_names:
             filter_result = f'&organization={organization}&timeslot={timeslot}&question={data_name}'
             url = url_api + filter_result
             req = common.requests_get(url, auth=(username, password))
+            print(data_name)
+            print(req.json())
             result = req.json()[0]
             # make sure first result indeed has the right date
             assert result['timeslot']['deadline'] == timeslot
             value_id = result['id']
-            df.loc[hospital, data_name + " value_id"] = value_id
+            df.loc[hospital, data_name + " value_id"] = str(value_id)
     return df
 
 

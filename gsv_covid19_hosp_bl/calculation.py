@@ -1,28 +1,7 @@
 import pandas as pd
 
-"""
-example: 
-def betten_frei_ips_ohne_beatmung(df):
-    if df['C'] < 0:
-        return 0
-    else:
-        return df['C']
-    df_coreport['Bettenanzahl frei "IPS ohne Beatmung"'] = df.apply(betten_frei_ips_ohne_beatmung, axis=1)
-"""
 
-def total_betten_frei(df, a,b, c, e1, e2, f):
-    if df['Hospital'] == 'Arlesheim':
-        return a-b-(e1-e2)
-    else:
-        return a-c-(e1-f)
-
-
-def calculate_numbers(ies_numbers):
-    df = ies_numbers
-    df_coreport = pd.DataFrame()
-    df_coreport[["Hospital", "NoauResid", "CapacDate", "CapacTime"]] = \
-        df[["Hospital", "NoauResid", "CapacDate", "CapacTime"]]
-
+def import_numbers(df):
     total_betten = df['TotalAllBeds']
     total_betten_covid = df['TotalAllBedsC19']
     betriebene_is_betten = df['OperIcuBeds']
@@ -37,11 +16,7 @@ def calculate_numbers(ies_numbers):
     beatmete_is_pat = df['VentIcuPats']
     total_imcu_pat = df['TotalImcPats']
     total_imcu_pat_covid = df['TotalImcPatsC19']
-
     beatmete_imcu_pat_covid = df['VentImcPatsC19']
-
-    # to add total_imcu_pat_covid_vent..?
-
 
     a = total_betten
     b = betriebene_imcu_betten
@@ -54,50 +29,68 @@ def calculate_numbers(ies_numbers):
     h1 = total_pat_covid
     h2 = total_imcu_pat_covid
     i = total_is_pat_covid
-    # I think that j = total_imcu_pat_covid, need to check...:
+    i2 = beatmete_imcu_pat_covid
     j = total_imcu_pat_covid
 
-    df_coreport['Bettenanzahl frei "Normal"'] = df.apply(total_betten_frei, a,b, c, e1, e2, f, axis=1)
+    return a, b, c, d, e1, e2, f, g, h1, h2, i, i2, j
+
+def total_betten_frei(df):
+    a, b, c, d, e1, e2, f, g, h1, h2, i, i2, j  = import_numbers(df)
+    if df['Hospital'] == 'Arlesheim':
+        return a-b-(e1-e2)
+    else:
+        return a-c-(e1-f)
+
+
+# Note: I took the below two functions from the Excel file, it could probably be simplified...
+def ips_ohne_beatmung(df):
+    a, b, c, d, e1, e2, f, g, h1, h2, i, i2, j  = import_numbers(df)
+    if c == g:
+        return (c-d) -(f-g)
+    elif (c-d) - (f-g)<0:
+        return 0
+    else:
+        return (c-d) - (f-g)
+
+def ips_mit_beatmung(df):
+    a, b, c, d, e1, e2, f, g, h1, h2, i, i2, j  = import_numbers(df)
+    if c == g:
+        return 0
+    elif (c-d)-(f-g)<0:
+        return (d-g) + ((c-d) - (f-g))
+    else:
+        return d-g
+
+
+def calculate_numbers(ies_numbers):
+    df = ies_numbers
+    df_coreport = pd.DataFrame()
+    df_coreport[["Hospital", "NoauResid", "CapacDate", "CapacTime"]] = \
+        df[["Hospital", "NoauResid", "CapacDate", "CapacTime"]]
+
+    a, b, c, d, e1, e2, f, g, h1, h2, i, i2, j  = import_numbers(df)
+
+    df_coreport['Bettenanzahl frei "Normal"'] = df.apply(total_betten_frei, axis=1)
     df_coreport['Bettenanzahl frei "IMCU"'] = b-e2
     df_coreport['Bettenanzahl belegt "Normal"'] = e1-e2
     df_coreport['Bettenanzahl belegt "IMCU"'] = e2
     df_coreport['Anzahl Patienten Normal COVID'] = h1-h2
 
-    # for the moment I will assume we have i2 == 0, i2 = anzahl patienten IMCU COVID mit Beatmung, it's in IES system, need to add
-    i2 = beatmete_imcu_pat_covid
+
+
     df_coreport['Anzahl Patienten IMCU COVID mit Beatmung'] = i2
     df_coreport['Anzahl Patienten IMCU COVID ohne Beatmung'] = h2-i2
     df_coreport['Bettenanzahl IPS ohne Beatmung'] = c - d
-
-
-    """"
-    'Bettenanzahl frei "IPS ohne Beatmung"' =
-    if c == g:
-        Bettenanzahl IPS ohne Beatmung-(f-g)
-    elif Bettenanzahl IPS ohne Beatmung-(f-g)<0:
-        0
-    else:
-        Bettenanzahl IPS ohne Beatmung-(f-g)
-    ??
-
-    'Bettenanzahl frei "IPS mit Beatmung"' =
-    if c = g:
-        0
-    elif Bettenanzahl IPS ohne Beatmung-(f-g)<0:
-        (d-g) + (Bettenanzahl IPS ohne Beatmung-(f-g))
-        else:
-        d-g
-        
-    """
-
+    df_coreport['Bettenanzahl frei "IPS ohne Beatmung"'] = df.apply(ips_ohne_beatmung, axis=1)
+    df_coreport['Bettenanzahl frei "IPS mit Beatmung"'] = df.apply(ips_mit_beatmung, axis=1)
     df_coreport['Bettenanzahl belegt "Normal" inkl. COVID Verdachtsfälle'] = e1-f -(h1-i)
     df_coreport['Bettenanzahl belegt "Normal" COVID'] = h1 - i
-    df_coreport['Bettenanzahl belegt "IPS ohne Beatmung"'] = e1 - df_coreport['Bettenanzahl frei "IPS ohne Beatmung"']
+    df_coreport['Bettenanzahl belegt "IPS ohne Beatmung"'] = df_coreport['Bettenanzahl IPS ohne Beatmung'] - df_coreport['Bettenanzahl frei "IPS ohne Beatmung"']
     df_coreport['Bettenanzahl belegt "IPS mit Beatmung"'] = d - df_coreport['Bettenanzahl frei "IPS mit Beatmung"']
     df_coreport['Anzahl Patienten "IPS nicht Beatmet" inkl. COVID Verdachtsfälle'] = (f-g)-(i-j)
-    df_coreport['Anzahl Patienten "IPS Beatmet" inkl. COVID Verdachtsfälle'] = g - j
+    df_coreport['Anzahl Patienten "IPS  Beatmet"  inkl. COVID Verdachtsfälle'] = g - j
     df_coreport['Anzahl Patienten "IPS nicht Beatmet" COVID'] = i - j
-    df_coreport['Anzahl Patienten "IPS Beatmet" COVID'] = j
+    df_coreport['Anzahl Patienten "IPS  Beatmet" COVID'] = j
     return df_coreport
 
 
@@ -168,15 +161,4 @@ else:
 """
 
 if __name__ == "__main__":
-    df_coreport = pd.DataFrame()
-    df = pd.DataFrame()
-    df['Hospital'] = ['Arlesheim', 'Liestal']
-    df_coreport['Hospital'] = df['Hospital']
-    a = pd.Series([1,3])
-    b = pd.Series([1, 3])
-    c = pd.Series([1, 5])
-    e1 = pd.Series([1, 3])
-    e2 = pd.Series([2, 3])
-    f = pd.Series([1, 3])
-    df_coreport['Bettenanzahl frei "Normal"'] = df.apply(total_betten_frei, args=(a,b, c, e1, e2, f), axis=1)
-    print(df_coreport)
+    pass
