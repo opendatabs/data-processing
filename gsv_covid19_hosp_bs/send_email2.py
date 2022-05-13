@@ -11,12 +11,12 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
     df_missing = df_log[(df_log['time_IES_entry'] == "") & (df_log["Date"] == date)]
     if not df_missing.empty:
         if day == "today" and now_in_switzerland > time_for_email_final_status:
-            if (df_log['email_status_at_10'] == "").all():
-                df_log['email_status_at_10'] = "Sent"
-                logging.info("Sending email: not all filled after 10...")
-                send_email(hospital=None, email_type="Not all filled at 10", day=day, df_log=df_log)
+            if (df_log['email_status_at_13'] == "").all():
+                df_log['email_status_at_13'] = "Sent"
+                logging.info("Sending email: not all filled after 13...")
+                send_email(hospital=None, email_type="Not all filled at 13", day=day, df_log=df_log)
             else:
-                logging.info('email not all filled after 10 has already been sent')
+                logging.info('email not all filled after 13 has already been sent')
         else:
             for index, row in df_missing.iterrows():
                 hospital = row["Hospital"]
@@ -89,9 +89,9 @@ def send_email(hospital, email_type, day="today", extra_info=None, df_log=None, 
             f"\n\n" \
             f"{phone_hospital}"
         subject = f"Still no IES entries {hospital} today"
-    elif email_type == "Not all filled at 10":
+    elif email_type == "Not all filled at 13":
         logging.info("Send email with log file, message whether all is filled or not")
-        subject = "Warning: CoReport has not been filled completely before 10"
+        subject = "Warning: CoReport has not been filled completely before 1pm"
         text = "Please find in the attachment today's log file."
         df_log.to_csv(credentials.path_log_csv, index=False)
         attachment = credentials.path_log_csv
