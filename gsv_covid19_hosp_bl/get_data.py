@@ -52,17 +52,13 @@ def get_data(hospital, date):
     headers = {
         'Authorization': credentials.authorization_live}
     requests.request("GET", url, headers=headers, data=payload)
-    if hospital == 'UKBB':
-        url2 = credentials.url_hosp_children + get_filter(hospital, date)
-    else:
-        url2 = credentials.url_hosp_adults + get_filter(hospital, date)
+    url2 = credentials.url_hosp_adults + get_filter(hospital, date)
     response = requests.request("GET", url2, headers=headers, data=payload)
     response.raise_for_status()
     results = response.json()["d"]["results"]
     return results
 
 
-# To do: Check if we get the same data from the BL hospitals
 def get_dataframe(hospital, date):
     results = get_data(hospital, date)
     logging.info(f"Put IES entries into dataframe and filter out properties we need")
@@ -71,13 +67,9 @@ def get_dataframe(hospital, date):
         df = df[["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
                  'OperIcuBedsC19', 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats',
                  'TotalAllPatsC19', 'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats',
-                 'TotalImcPatsC19', 'EcmoPats']]
+                 'TotalImcPatsC19', 'VentImcPatsC19']]
         df["Hospital"] = hospital
     return df
 
 if __name__ == "__main__":
-    from zoneinfo import ZoneInfo
-    from datetime import timezone, datetime, timedelta
-    now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
-    date = now_in_switzerland.date()
-    print(get_filter('Clara', date))
+    pass

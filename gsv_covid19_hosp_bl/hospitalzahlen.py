@@ -1,23 +1,25 @@
 import pandas as pd
-from gsv_covid19_hosp_bs import get_data
+from gsv_covid19_hosp_bl import get_data
 from datetime import timezone, datetime, timedelta
 import logging
 from gsv_covid19_hosp_bl import update_coreport, send_email2, credentials
 from zoneinfo import ZoneInfo
 
 # hospitals to be filled
-list_hospitals = ['USB', 'Clara', 'UKBB']
+list_hospitals = ['Arlesheim', 'Bruderholz', 'Liestal']
 
 # current time and date
 now_in_switzerland = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Zurich'))
 date = now_in_switzerland.date()
 
 # time conditions
-time_for_email = now_in_switzerland.replace(hour=9, minute=30, second=0, microsecond=0)
-time_for_email_to_call = now_in_switzerland.replace(hour=9, minute=50, second=0, microsecond=0)
-time_for_email_final_status = now_in_switzerland.replace(hour=10, minute=0, second=0, microsecond=0)
+time_for_email = now_in_switzerland.replace(hour=9, minute=35, second=0, microsecond=0)
+time_for_email_to_call = now_in_switzerland.replace(hour=9, minute=55, second=0, microsecond=0)
+time_for_email_final_status = now_in_switzerland.replace(hour=12, minute=0, second=0, microsecond=0)
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
+# To do the same on all day and ignore the different weekend case for bs just define day_of_week = "Other workday"
+day_of_week = "Other workday"
 
 def main(date, day_of_week, list_hospitals):
     check_for_log_file(date, day_of_week, list_hospitals)
@@ -90,7 +92,7 @@ def make_log_file(date, day_of_week, list_hospitals):
     df['email_negative_value'] = ""
     df['email_reminder'] = ""
     df['email_for_calling'] = ""
-    df['email_status_at_10'] = ""
+    df['email_status_at_12'] = ""
     df['email_all_filled'] = ""
     df['all_filled'] = 0
     df.to_pickle(credentials.path_log_pkl)
@@ -149,9 +151,19 @@ def get_df_for_date_hospital(hospital, date, weekend=False):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    day_of_week = get_data.check_day(date)
-    do_process = now_in_switzerland >= starting_time and day_of_week != "Weekend"
+    do_process = now_in_switzerland >= starting_time
     logging.info(f'Checking if we have to do anything right now: {do_process}')
     if do_process:
         logging.info(f"OK, let's start processing the data!")
         main(date=date, day_of_week=day_of_week, list_hospitals=list_hospitals)
+
+    # print out results for checking:
+    # from gsv_covid19_hosp_bl import calculation
+    # pd.set_option('display.max_columns', 500)
+    # hospital = "Bruderholz"
+    # df_entries = get_df_for_date(list_hospitals=list_hospitals, date=date)
+    # print(df_entries[0])
+    # df_coreport = calculation.calculate_numbers(df_entries[0])
+    # print(df_coreport)
+    # df = update_coreport.add_value_id(df_coreport, date)
+    # print(df)
