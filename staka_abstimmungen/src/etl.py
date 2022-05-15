@@ -97,6 +97,7 @@ def publish_datasets(active_abst, details_changed, kennz_changed, what_changed):
 
 
 def calculate_and_upload(active_files):
+    # todo: Use ODS Realtime API to push data. Using FTP pull often required de- and re-publishing because of perceived schema changes
     details_abst_date, de_details = calculate_details(active_files)
     details_export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{details_abst_date}.csv')
     details_changed = upload_ftp_if_changed(de_details, details_export_file_name)
