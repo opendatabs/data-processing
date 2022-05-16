@@ -41,12 +41,12 @@ def process(file):
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != 1632')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
         logging.info(f'Exporting value data to {value_filename}...')
-        value_columns = ['Date', 'Time', 'StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'Value', 'lat', 'lon', 'geo_point_2d', 'topTerrain', 'refPoint', 'Status', 'on/offline', 'timestamp_text', 'timestamp']
+        value_columns = ['Date', 'Time', 'StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'Value', 'lat', 'lon', 'geo_point_2d', 'XCoord', 'YCoord', 'topTerrain', 'refPoint', 'Status', 'on/offline', 'timestamp_text', 'timestamp']
         df_filter[value_columns].to_csv(value_filename, index=False)
         common.upload_ftp(value_filename, credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up, os.path.join(credentials.ftp_path_up, 'values', f'SensorNr_{sensornr_filter}'))
         exported_files.append(value_filename)
 
-        stat_columns = ['StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'lat', 'lon', 'geo_point_2d', 'topTerrain', 'refPoint', '10YMin', '10YMean', '10YMax', 'startStatist', 'endStatist']
+        stat_columns = ['StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'lat', 'lon', 'geo_point_2d', 'XCoord', 'YCoord', 'topTerrain', 'refPoint', '10YMin', '10YMean', '10YMax', 'startStatist', 'endStatist']
         df_stat = df_filter[stat_columns].drop_duplicates(ignore_index=True)
         df_stat['stat_start_timestamp'] = pd.to_datetime(df_stat.startStatist, dayfirst=True).dt.strftime(date_format='%Y-%m-%dT%H:%M:%S')
         df_stat['stat_end_timestamp'] = pd.to_datetime(df_stat.endStatist, dayfirst=True).dt.strftime(date_format='%Y-%m-%dT%H:%M:%S')
