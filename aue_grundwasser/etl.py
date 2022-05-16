@@ -38,7 +38,7 @@ def process(file):
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing SensorNr {sensornr_filter}...')
         df['StationId'] = df.StationNr.str.lstrip('0')
-        df_filter = df.query('SensorNr == @sensornr_filter and StationId != 1632')
+        df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
         logging.info(f'Exporting value data to {value_filename}...')
         value_columns = ['Date', 'Time', 'StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'Value', 'lat', 'lon', 'geo_point_2d', 'XCoord', 'YCoord', 'topTerrain', 'refPoint', 'Status', 'on/offline', 'timestamp_text', 'timestamp']
