@@ -6,6 +6,7 @@ from pyproj import Transformer
 import common
 from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
+from zoneinfo import ZoneInfo
 
 
 def list_files():
@@ -21,7 +22,7 @@ def process(file):
     df = pd.read_csv(file, sep=';', encoding='cp1252', low_memory=False)
     logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
-    df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S')
+    df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize(ZoneInfo('Etc/GMT+1')).dt.tz_convert('UTC')
     logging.info(f'Rounding LV95 coordinates as required, then transforming to WGS84...')
     df.XCoord = df.XCoord.round(0).astype(int)
     df.YCoord = df.YCoord.round(0).astype(int)
