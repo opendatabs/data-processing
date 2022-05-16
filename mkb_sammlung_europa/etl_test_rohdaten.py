@@ -7,7 +7,7 @@ import ods_publish.etl_id as odsp
 
 
 def main():
-    path = credentials.path_data
+    path = credentials.path_data_roh
     df_MKB = common.pandas_read_csv(path, encoding='utf8')
     df_MKB = remove_commas_at_end(df_MKB)
     df_MKB = remove_irrelevant(df_MKB)
@@ -26,7 +26,8 @@ def main():
     df_MKB = join_duplicates(df_MKB)
     # df_MKB.to_csv("MKB_Sammlung_Europa_new.csv", index=False)
     # export new file
-    df_MKB.to_csv(credentials.path_export_file, index=False)
+    df_MKB.to_csv("Sammlung_Europa_test")
+    # df_MKB.to_csv(credentials.path_export_file, index=False)
     # if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
     #     common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
     #                       credentials.ftp_pass, 'mkb/sammlung_europa')
