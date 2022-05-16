@@ -6,6 +6,7 @@ from pyproj import Transformer
 import common
 from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
+from zoneinfo import ZoneInfo
 
 
 def list_files():
@@ -21,7 +22,7 @@ def process(file):
     df = pd.read_csv(file, sep=';', encoding='cp1252', low_memory=False)
     logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
-    df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S')
+    df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize(ZoneInfo('Etc/GMT+1')).dt.tz_convert('UTC')
     logging.info(f'Rounding LV95 coordinates as required, then transforming to WGS84...')
     df.XCoord = df.XCoord.round(0).astype(int)
     df.YCoord = df.YCoord.round(0).astype(int)
@@ -36,15 +37,16 @@ def process(file):
     exported_files = []
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing SensorNr {sensornr_filter}...')
-        df_filter = df.query('SensorNr == @sensornr_filter')
+        df['StationId'] = df.StationNr.str.lstrip('0')
+        df_filter = df.query('SensorNr == @sensornr_filter and StationId != 1632')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
         logging.info(f'Exporting value data to {value_filename}...')
-        value_columns = ['Date', 'Time', 'StationNr', 'StationName', 'SensorNr', 'SensName', 'Value', 'lat', 'lon', 'geo_point_2d', 'topTerrain', 'refPoint', 'Status', 'on/offline', 'timestamp_text', 'timestamp']
+        value_columns = ['Date', 'Time', 'StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'Value', 'lat', 'lon', 'geo_point_2d', 'XCoord', 'YCoord', 'topTerrain', 'refPoint', 'Status', 'on/offline', 'timestamp_text', 'timestamp']
         df_filter[value_columns].to_csv(value_filename, index=False)
         common.upload_ftp(value_filename, credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up, os.path.join(credentials.ftp_path_up, 'values', f'SensorNr_{sensornr_filter}'))
         exported_files.append(value_filename)
 
-        stat_columns = ['StationNr', 'StationName', 'SensorNr', 'SensName', 'lat', 'lon', 'geo_point_2d', 'topTerrain', 'refPoint', '10YMin', '10YMean', '10YMax', 'startStatist', 'endStatist']
+        stat_columns = ['StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'lat', 'lon', 'geo_point_2d', 'XCoord', 'YCoord', 'topTerrain', 'refPoint', '10YMin', '10YMean', '10YMax', 'startStatist', 'endStatist']
         df_stat = df_filter[stat_columns].drop_duplicates(ignore_index=True)
         df_stat['stat_start_timestamp'] = pd.to_datetime(df_stat.startStatist, dayfirst=True).dt.strftime(date_format='%Y-%m-%dT%H:%M:%S')
         df_stat['stat_end_timestamp'] = pd.to_datetime(df_stat.endStatist, dayfirst=True).dt.strftime(date_format='%Y-%m-%dT%H:%M:%S')

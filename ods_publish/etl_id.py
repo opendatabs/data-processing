@@ -32,7 +32,7 @@ def ods_set_general_access_policy(dataset_id: str, access_policy: str, do_publis
     dataset_uid = common.get_ods_uid_by_id(dataset_id, credentials)
     logging.info(f'Getting General Access Policy before setting it...')
     url = f'https://data.bs.ch/api/management/v2/datasets/{dataset_uid}/security/access_policy'
-    r = common.requests_get(url=url, auth=(credentials.user_name, credentials.password), proxies={'https': credentials.proxy})
+    r = common.requests_get(url=url, auth=(credentials.user_name, credentials.password))
     r.raise_for_status()
     existing_policy = r.text
     data = f'"{access_policy}"'
@@ -40,7 +40,7 @@ def ods_set_general_access_policy(dataset_id: str, access_policy: str, do_publis
     logging.info(f'Current access policy: {existing_policy}. Do we have to change that? {do_change_policy}. ')
     if do_change_policy:
         logging.info(f'Setting General Access Policy to {data}...')
-        r = common.requests_put(url=url, data=data, auth=(credentials.user_name, credentials.password), proxies={'https': credentials.proxy})
+        r = common.requests_put(url=url, data=data, auth=(credentials.user_name, credentials.password))
         r.raise_for_status()
         if do_publish:
             logging.info(f'Publishing dataset...')
