@@ -29,7 +29,7 @@ def main():
     df_MKB = join_duplicates(df_MKB)
     # df_MKB.to_csv("MKB_Sammlung_Europa_new.csv", index=False)
     # export new file
-    df_MKB.to_csv("Sammlung_Europa_test")
+    df_MKB.to_csv("Sammlung_Europa_test.csv")
     # df_MKB.to_csv(credentials.path_export_file, index=False)
     # if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
     #     common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
