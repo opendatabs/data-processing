@@ -61,7 +61,8 @@ def remove_einlaufnummern(df):
 
 # extract irrelevant text in Datierung using Hackathon file
 def remove_irrelevant(df_MKB):
-    path = credentials.path_hackathon
+    # path = credentials.path_hackathon
+    path = credentials.path_hackathon_local
     df_new = common.pandas_read_csv(path)
     text_to_remove = list(df_new["Datierung_Info"].unique())
 
