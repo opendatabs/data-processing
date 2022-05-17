@@ -26,6 +26,7 @@ def main():
 
 
 def get_statistics():
+    logging.info(f'Retrieving statistics data from API...')
     headers = {'Authorization': f'Bearer {credentials.api3_token}'}
     dfs = []
     for spot in credentials.spots:
