@@ -7,8 +7,11 @@ import ods_publish.etl_id as odsp
 
 
 def main():
-    path = credentials.path_data_roh
-    df_MKB = common.pandas_read_csv(path, encoding='utf8')
+    # path = credentials.path_data_roh
+    path = credentials.path_data_roh_local
+    columns = ['Inventarnummer', 'Kurzbezeichnung und Titel', 'Datierung', 'Material & Technik', 'Masse', 'Herkunft',
+               'Einlauf-Info']
+    df_MKB = common.pandas_read_csv(path, names=columns, usecols=[2, 3, 5, 6, 7, 9, 10], encoding='utf8')
     df_MKB = remove_commas_at_end(df_MKB)
     df_MKB = remove_irrelevant(df_MKB)
     # split up Kurzbezeichning and Titel
