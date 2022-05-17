@@ -11,7 +11,8 @@ def main():
     path = credentials.path_data_roh_local
     columns = ['Inventarnummer', 'Kurzbezeichnung und Titel', 'Datierung', 'Material & Technik', 'Masse', 'Herkunft',
                'Einlauf-Info']
-    df_MKB = common.pandas_read_csv(path, names=columns, usecols=[2, 3, 5, 6, 7, 9, 10], encoding='utf8')
+    df_MKB = common.pandas_read_csv(path, names=columns, usecols=[2, 3, 5, 6, 7, 9, 10], encoding='utf8', index_col=None)
+    print(df_MKB)
     df_MKB = remove_commas_at_end(df_MKB)
     df_MKB = remove_irrelevant(df_MKB)
     # split up Kurzbezeichning and Titel
@@ -29,7 +30,7 @@ def main():
     df_MKB = join_duplicates(df_MKB)
     # df_MKB.to_csv("MKB_Sammlung_Europa_new.csv", index=False)
     # export new file
-    df_MKB.to_csv("Sammlung_Europa_test.csv")
+    df_MKB.to_csv("Sammlung_Europa_test.csv", index=False)
     # df_MKB.to_csv(credentials.path_export_file, index=False)
     # if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
     #     common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
