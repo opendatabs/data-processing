@@ -7,7 +7,7 @@ from smarte_strasse_parking import credentials
 
 
 def main():
-    df1 = get_current_state_date()
+    df1 = get_current_state_data()
     # {"timestamp":"2022-02-03T16:43:09+00:00","Blue_occupied":4,"Yellow_occupied":2,"Blue_available":0,"Yellow_available":0,"Blue_total":4,"Yellow_total":2,"timestamp_text":"2022-02-03T16:43:09+00:00"}
     common.ods_realtime_push_df(df1, url=credentials.ods_push_url)
     # todo: Save csv file
@@ -30,10 +30,14 @@ def get_statistics():
         df['spot_id'] = spot_id
         dfs.append(df)
     all_df = pd.concat(dfs)
+    # todo:
+    #  sum inflow and outflow per zone (yellow, blue) per hour
+    #  avg occupancy per zone per hour
+
     return all_df
 
 
-def get_current_state_date():
+def get_current_state_data():
     logging.info(f'Retrieving current state data from API...')
     df_spots = pd.DataFrame.from_dict(credentials.spots)
     headers = {'Authorization': f'Bearer {credentials.api3_token}'}
@@ -58,9 +62,9 @@ def get_current_state_date():
 
 
 if __name__ == "__main__":
-        logging.basicConfig(level=logging.DEBUG)
-        logging.info(f'Executing {__file__}...')
-        main()
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
 
 
     # 1 row in total
