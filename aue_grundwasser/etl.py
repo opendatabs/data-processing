@@ -24,6 +24,8 @@ def process(file):
         logging.info(f'Processing archive file {file}...')
         dfa = pd.read_csv(file, sep=';', names=['StationNr', 'SensorNr', 'Date_text', 'Time', 'Value'], low_memory=False)
         logging.info(f'Pre-processing archive dataframe...')
+        dfa.Value = dfa.Value.replace('---', np.nan)
+        dfa = dfa.dropna(subset=['Value'])
         dfa['StationId'] = dfa.StationNr.str.lstrip('0')
         dfa['Date'] = pd.to_datetime(dfa['Date_text'], dayfirst=True).dt.strftime(date_format='%Y-%m-%d')
         metadata_file = common.download_ftp(['Ergaenzende_Angaben.xlsx'], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'archiv', credentials.data_orig_path, '')[0]
