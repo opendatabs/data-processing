@@ -59,6 +59,6 @@ DM\DatenmarktAdressen;False;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-
 DM\DatenmarktGebaeude;False;;;;;;;;;http://purl.org/cld/freq/irregular;;2021-01-26;
 BS\Liegenschaften;False;;;;;;;;;;;;
 CT\CoronaTeststellen;True;;Coronavirus (Covid-19): Teststellen;100134;;;Gesundheit;"Corona;COVID-19;Spital;Krankheit;Coronavirus;Virus;Pandemie;Test;Lungenentzündung";;http://purl.org/cld/freq/irregular;True;2021-03-31;
-OW\SportBewegung;True;;Sportanlagen;100151;Der Datensatz bildet die Anlagen im Perimeter Kanton Basel-Stadt ab, die für die sportliche Aktivität gedacht sind. Auch werden die kantonalen Sportanlagen, die ausserhalb der Kantons- und Landesgrenzen sind, in diesem Datensatz erfasst.;;"Kultur, Medien, Informationsgesellschaft, Sport;Geographie";"Sport;Sportanlagen";;http://purl.org/cld/freq/irregular;True;2021-07-23;
+OW\SportBewegung;True;;;100151;;;"Kultur, Medien, Informationsgesellschaft, Sport;Geographie";"Sport;Sportanlagen";;http://purl.org/cld/freq/irregular;True;2021-07-23;
 SN\Strassennamen;True;;;100189;Der Datensatz beinhaltet die Namen aller Strassen im Kanton Basel-Stadt sowie kurze Erläuterungen zur Bedeutung der Strassennamen der Stadt Basel. Die Felder zu den Erklärungen sind ausserhalb des Stadtgebietes leer.;;"Geographie;Raum und Umwelt;";"Nomenklatur; Name; Strasse";;http://purl.org/cld/freq/irregular;True;2022-04-11;
 BK\Bohrkataster;True;;;100182;;;"Geographie;Raum und Umwelt";"Grundwasser; Erdwärme; Hydrogeologie";;http://purl.org/cld/freq/quarterly;True;2022-04-12;
