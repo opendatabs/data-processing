@@ -7,9 +7,14 @@ from smarte_strasse_parking import credentials
 
 
 def main():
-    df1 = get_current_state_date()
+    df_stat = get_statistics()
+    # {"from":"2022-04-19T10:00:00","to":"2022-04-19T11:00:00","type":"Blue","sum_inflow":1.0,"sum_outflow":1.0,"avg_occupancy_abs":1.0}
+    common.ods_realtime_push_df(df_stat, url=credentials.ods_push_url_stat)
+    # todo: Save csv file
+
+    df_curr = get_current_state_data()
     # {"timestamp":"2022-02-03T16:43:09+00:00","Blue_occupied":4,"Yellow_occupied":2,"Blue_available":0,"Yellow_available":0,"Blue_total":4,"Yellow_total":2,"timestamp_text":"2022-02-03T16:43:09+00:00"}
-    common.ods_realtime_push_df(df1, url=credentials.ods_push_url)
+    common.ods_realtime_push_df(df_curr, url=credentials.ods_push_url_curr)
     # todo: Save csv file
 
     # common.ods_realtime_push_df(df1, url=credentials.ods_realtime_push_url_curr, push_key=credentials.ods_realtime_push_key_curr)
@@ -21,19 +26,27 @@ def main():
 
 
 def get_statistics():
+    logging.info(f'Retrieving statistics data from API...')
     headers = {'Authorization': f'Bearer {credentials.api3_token}'}
     dfs = []
     for spot in credentials.spots:
         spot_id = spot["id"]
         r = common.requests_get(f'{credentials.api3_stat_url}&spot={spot_id}', headers=headers)
         df = pd.json_normalize(r.json())
-        df['spot_id'] = spot_id
+        df['id'] = spot_id
         dfs.append(df)
-    all_df = pd.concat(dfs)
-    return all_df
+    df_all = pd.concat(dfs)
+    df_spots = pd.DataFrame.from_dict(credentials.spots)
+    df_merged = df_all.merge(df_spots, on='id', how='left')
+    df_agg = df_merged.query('not occupancy_abs.isnull()').groupby(['from', 'to', 'type'], as_index=False).agg(
+        sum_inflow=('inflow', sum),
+        sum_outflow=('outflow', sum),
+        avg_occupancy_abs=pd.NamedAgg(column='occupancy_abs', aggfunc='mean')
+    )
+    return df_agg
 
 
-def get_current_state_date():
+def get_current_state_data():
     logging.info(f'Retrieving current state data from API...')
     df_spots = pd.DataFrame.from_dict(credentials.spots)
     headers = {'Authorization': f'Bearer {credentials.api3_token}'}
@@ -58,9 +71,9 @@ def get_current_state_date():
 
 
 if __name__ == "__main__":
-        logging.basicConfig(level=logging.DEBUG)
-        logging.info(f'Executing {__file__}...')
-        main()
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
 
 
     # 1 row in total
