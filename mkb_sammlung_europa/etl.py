@@ -20,7 +20,7 @@ def main():
     # remove Einlaufnummern VI_0000.1, VI_0000.2
     df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
-    df_MKB = df_MKB[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung", \
+    df_MKB = df_MKB[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung",
                      "Material & Technik", "Masse", "Herkunft", "Einlauf-Info"]]
     # join duplicates
     df_MKB = join_duplicates(df_MKB)
@@ -123,7 +123,7 @@ def join_duplicates(df_MKB):
     list_inventar_duplicates_1 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep='first')].reset_index()
     list_inventar_duplicates_2 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep='last')].reset_index()
     # make dataframe with one entry for each duplicate, with two different entries for Herkunft separated by a comma
-    df_duplicates = list_inventar_duplicates_1[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung", \
+    df_duplicates = list_inventar_duplicates_1[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung",
                      "Material & Technik", "Masse", "Einlauf-Info"]]
     df_duplicates['Herkunft']=''
     df_duplicates["Herkunft"] = list_inventar_duplicates_1['Herkunft'].astype(str) + ", " + list_inventar_duplicates_2['Herkunft'].astype(str)
