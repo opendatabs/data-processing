@@ -63,8 +63,21 @@ cols=["Jahr","Monat","Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
 
+# add column Gewässer
+dict_gew =  {   '0' : '-',
+                '1' : 'Rhein - Staubereich Kembs',
+                '2' : 'Rhein - Staubereich Birsfelden',
+                '3' : 'Wiese - Pachtstrecke KFVBS',
+                '4' : 'Birs - Pachtstrecke KFVBS',
+                '5' : 'Riehenteich - Pachtstrecke Riehen',
+                '6' : 'Wiese - Pachtstrecke Riehen',
+                '7' : 'Privatfischenzen - Privatstrecke Riehen'
+}
+
+df['Gewässer'] = df['Gewässercode'].map(dict_gew)
+
 # filter columns for export
-df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Fischart', 'Gewicht',
+df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
            'Abfluss_Rhein_über_1800m3']]
 df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
