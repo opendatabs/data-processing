@@ -58,8 +58,13 @@ for year in range(2010, 2021):
             df_year['Tag'] = df_year['Datum']
     df = pd.concat([df, df_year])
 
+# make date column
+cols=["Jahr","Monat","Tag"]
+df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
+
+
 # filter columns for export
-df = df[['Jahr', 'Monat', 'Tag', 'Fischereikarte', 'Gewässercode', 'Fischart', 'Gewicht',
+df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
            'Abfluss_Rhein_über_1800m3']]
 df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
