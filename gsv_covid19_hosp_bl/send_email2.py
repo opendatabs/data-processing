@@ -73,14 +73,14 @@ def send_email(hospital, email_type, day="today", extra_info=None, df_log=None, 
                 f"{email_receivers_hospital}" \
                 f"\n\n" \
                 f"{text_reminder}"
-            subject = f"No IES entries {hospital} today"
+            subject = f"BL: No IES entries {hospital} today"
         else:
             text = f"There are no entries in IES for {hospital} on {day}, " \
                    f"\n\n" \
                    f"Send a message to receive the numbers by email to the following email-addresses:" \
                    f"\n\n" \
                    f"{email_receivers_hospital}"
-            subject = f"No IES entries {hospital} on {day}"
+            subject = f"BL: No IES entries {hospital} on {day}"
     elif email_type == "Call":
         phone_hospital = phone_dict[hospital]
         text = f"There are still no entries in IES for {hospital} today, " \
@@ -88,16 +88,16 @@ def send_email(hospital, email_type, day="today", extra_info=None, df_log=None, 
             f"Please call:" \
             f"\n\n" \
             f"{phone_hospital}"
-        subject = f"Still no IES entries {hospital} today"
+        subject = f"BL: Still no IES entries {hospital} today"
     elif email_type == "Not all filled at 12":
         logging.info("Send email with log file, message whether all is filled or not")
-        subject = "Warning: CoReport has not been filled completely before 12"
+        subject = "BL: Warning: CoReport has not been filled completely before 12"
         text = "Please find in the attachment today's log file."
         df_log.to_csv(credentials.path_log_csv, index=False)
         attachment = credentials.path_log_csv
         html_content = df_log.to_html()
     elif email_type == "All filled":
-        subject = "CoReport all filled"
+        subject = "BL: CoReport all filled"
         text = "All values of today have been entered into CoReport." \
                "\n" \
                "Please find in the attachment today's log file."
@@ -111,7 +111,7 @@ def send_email(hospital, email_type, day="today", extra_info=None, df_log=None, 
         email_receivers_hospital = email_dict[hospital]
         phone_hospital = phone_dict[hospital]
         logging.info(f"Send email informing about negative value for {prop} of {hospital} ")
-        subject = f"Warning: obtained negative value for {prop} of {hospital}."
+        subject = f"BL: Warning: obtained negative value for {prop} of {hospital}."
         text = f"Nothing has been entered for {prop} of {hospital} since a negative value was obtained." \
                f"\n" \
                f"Please check with hospital." \
