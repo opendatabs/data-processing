@@ -76,6 +76,9 @@ dict_gew =  {   '0' : '-',
 
 df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 
+# remove "unbekannt" in column Länge
+df['Länge'].replace('unbekannt', '', inplace=True)
+
 # filter columns for export
 df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
