@@ -83,12 +83,10 @@ df['Länge'].replace('unbekannt', '', inplace=True)
 df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
            'Abfluss_Rhein_über_1800m3']]
-df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
 
 
 # filter empty rows: remove all rows that have no entry for date ánd Fischart
-df = pd.read_csv(f'{credentials.base_path_local}/fangstatistik.csv')
-condition = ~(df['Fischart'].isna() & df['Monat'].isna())
+condition = ~(df['Fischart'].isna() & pd.to_numeric(df['Monat']).isna())
 df = df[condition]
 
 # list types of fish: Aal
