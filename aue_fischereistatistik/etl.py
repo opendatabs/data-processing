@@ -58,17 +58,37 @@ for year in range(2010, 2021):
             df_year['Tag'] = df_year['Datum']
     df = pd.concat([df, df_year])
 
+# make date column
+cols=["Jahr","Monat","Tag"]
+df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
+
+
+# add column Gewässer
+dict_gew =  {   '0' : '-',
+                '1' : 'Rhein - Staubereich Kembs',
+                '2' : 'Rhein - Staubereich Birsfelden',
+                '3' : 'Wiese - Pachtstrecke KFVBS',
+                '4' : 'Birs - Pachtstrecke KFVBS',
+                '5' : 'Riehenteich - Pachtstrecke Riehen',
+                '6' : 'Wiese - Pachtstrecke Riehen',
+                '7' : 'Privatfischenzen - Privatstrecke Riehen'
+}
+
+df['Gewässer'] = df['Gewässercode'].map(dict_gew)
+
+# remove "unbekannt" in column Länge
+df['Länge'].replace('unbekannt', '', inplace=True)
+
 # filter columns for export
-df = df[['Jahr', 'Monat', 'Tag', 'Fischereikarte', 'Gewässercode', 'Fischart', 'Gewicht',
+df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
            'Abfluss_Rhein_über_1800m3']]
-df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
 
 
 # filter empty rows: remove all rows that have no entry for date ánd Fischart
-df = pd.read_csv(f'{credentials.base_path_local}/fangstatistik.csv')
-condition = ~(df['Fischart'].isna() & df['Monat'].isna())
+condition = ~((df['Fischart'] == '') & pd.to_numeric(df['Monat']).isna())
 df = df[condition]
+
 
 # list types of fish: Aal
 # Alet
@@ -94,11 +114,11 @@ df['Fischart'].replace('Bach/Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Bach-/ Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Barbe ', 'Barbe', inplace=True)
 df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
-df['Fischart'].replace('Barsch', 'Andere', inplace=True)
-df['Fischart'].replace('Saibling', 'Andere', inplace=True)
-df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
-df['Fischart'].replace('Karausche', 'Andere', inplace=True)
-df['Fischart'].replace('Laube', 'Andere', inplace=True)
+# df['Fischart'].replace('Barsch', 'Andere', inplace=True)
+# df['Fischart'].replace('Saibling', 'Andere', inplace=True)
+# df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
+# df['Fischart'].replace('Karausche', 'Andere', inplace=True)
+# df['Fischart'].replace('Laube', 'Andere', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
