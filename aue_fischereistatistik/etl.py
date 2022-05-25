@@ -36,7 +36,8 @@ for year in range(2010, 2021):
         df_year['Datum'] = df_year['Datum'].str.strip()
         # remove point/komma at end of entries in Datum column if it's there
         df_year['Datum'] = df_year['Datum'].apply(lambda x: x[:-1] if (x != '' and (x[-1] == '.' or x[-1] ==',')) else x)
-        df_year['Monat'] = pd.to_datetime(df_year['Datum'], format='%d.%m', errors='coerce').dt.strftime('%m')
+        df_year['Monat_num'] = pd.to_datetime(df_year['Datum'], format='%d.%m', errors='coerce').dt.strftime('%m')
+        df_year['Monat'] = pd.to_datetime(df_year['Datum'], format='%d.%m', errors='coerce').dt.strftime('%B')
         # add day column
         df_year['Tag'] = pd.to_datetime(df_year['Datum'], format='%d.%m', errors='coerce').dt.strftime('%d')
     else:
@@ -62,6 +63,8 @@ for year in range(2010, 2021):
 cols=["Jahr","Monat","Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
+# Change Monat column to full month name
+df['Monat'] = df['Monat'].dt.strftime('%B')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
@@ -114,11 +117,11 @@ df['Fischart'].replace('Bach/Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Bach-/ Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Barbe ', 'Barbe', inplace=True)
 df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
-df['Fischart'].replace('Barsch', 'Andere', inplace=True)
-df['Fischart'].replace('Saibling', 'Andere', inplace=True)
-df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
-df['Fischart'].replace('Karausche', 'Andere', inplace=True)
-df['Fischart'].replace('Laube', 'Andere', inplace=True)
+# df['Fischart'].replace('Barsch', 'Andere', inplace=True)
+# df['Fischart'].replace('Saibling', 'Andere', inplace=True)
+# df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
+# df['Fischart'].replace('Karausche', 'Andere', inplace=True)
+# df['Fischart'].replace('Laube', 'Andere', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
