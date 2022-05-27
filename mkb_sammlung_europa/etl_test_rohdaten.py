@@ -7,8 +7,12 @@ import ods_publish.etl_id as odsp
 
 
 def main():
-    path = credentials.path_data
-    df_MKB = common.pandas_read_csv(path, encoding='utf8')
+    # path = credentials.path_data_roh
+    path = credentials.path_data_roh_local
+    columns = ['Inventarnummer', 'Kurzbezeichnung und Titel', 'Datierung', 'Material & Technik', 'Masse', 'Herkunft',
+               'Einlauf-Info']
+    df_MKB = common.pandas_read_csv(path, names=columns, usecols=[2, 3, 5, 6, 7, 9, 10], encoding='utf8', index_col=None)
+    print(df_MKB)
     df_MKB = remove_commas_at_end(df_MKB)
     df_MKB = remove_irrelevant(df_MKB)
     # split up Kurzbezeichning and Titel
@@ -20,19 +24,20 @@ def main():
     # remove Einlaufnummern VI_0000.1, VI_0000.2
     df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
-    df_MKB = df_MKB[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung",
+    df_MKB = df_MKB[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung", \
                      "Material & Technik", "Masse", "Herkunft", "Einlauf-Info"]]
     # join duplicates
     df_MKB = join_duplicates(df_MKB)
     # df_MKB.to_csv("MKB_Sammlung_Europa_new.csv", index=False)
     # export new file
-    df_MKB.to_csv(credentials.path_export_file, index=False)
-    if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
-        common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
-                          credentials.ftp_pass, 'mkb/sammlung_europa')
-        odsp.publish_ods_dataset_by_id('100148')
-        ct.update_hash_file(credentials.path_export_file)
-    logging.info('Job successful!')
+    df_MKB.to_csv("Sammlung_Europa_test.csv", index=False)
+    # df_MKB.to_csv(credentials.path_export_file, index=False)
+    # if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
+    #     common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
+    #                       credentials.ftp_pass, 'mkb/sammlung_europa')
+    #     odsp.publish_ods_dataset_by_id('100148')
+    #     ct.update_hash_file(credentials.path_export_file)
+    # logging.info('Job successful!')
 
 def remove_commas_at_end(df):
     for column in list(df.columns):
@@ -57,7 +62,8 @@ def remove_einlaufnummern(df):
 
 # extract irrelevant text in Datierung using Hackathon file
 def remove_irrelevant(df_MKB):
-    path = credentials.path_hackathon
+    # path = credentials.path_hackathon
+    path = credentials.path_hackathon_local
     df_new = common.pandas_read_csv(path)
     text_to_remove = list(df_new["Datierung_Info"].unique())
 
@@ -123,7 +129,7 @@ def join_duplicates(df_MKB):
     list_inventar_duplicates_1 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep='first')].reset_index()
     list_inventar_duplicates_2 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep='last')].reset_index()
     # make dataframe with one entry for each duplicate, with two different entries for Herkunft separated by a comma
-    df_duplicates = list_inventar_duplicates_1[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung",
+    df_duplicates = list_inventar_duplicates_1[["Inventarnummer", "Einlaufnummer", "Kurzbezeichnung", "Titel", "Datierung", \
                      "Material & Technik", "Masse", "Einlauf-Info"]]
     df_duplicates['Herkunft']=''
     df_duplicates["Herkunft"] = list_inventar_duplicates_1['Herkunft'].astype(str) + ", " + list_inventar_duplicates_2['Herkunft'].astype(str)

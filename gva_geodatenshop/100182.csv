@@ -9,7 +9,7 @@ catnr5;Laufnummer-Erweiterung;Fünfter Teil Bohrnummer / Laufnummer Extension (A
 catnr45;Vollständige Laufnummer;Vollständige Laufnummer (generiert aus den Werten catnumber4 und catnumber5)
 coordx;X-Koordinate;X-Koordinate der Bohrung
 coordy;Y-Koordinate;Y-Koordinate der Bohrung
-angular;Schrägbohrung (0/1);Schrägbohrung (0/1)
+angular;Schrägbohrung (0/1);0 = Nein, 1 = Ja
 year;Bohrjahr;Erstellungsjahr der Bohrung
 street;Strasse;Strasse
 h_number;Hausummer;Hausummer
@@ -17,14 +17,14 @@ begin_heig;Bohransatz-Kote;Kote Ansatz der Bohrung m.ü.M
 rock_heigh;Oberkante Fels-Kote;Kote Felsoberfläche der Bohrung m.ü.M
 rock_desc;Oberkante Fels-Stratigraphie;Beschreibung Felsoberfläche (z.B. Cyrenenmergel)
 base_heigh;Sohle-Kote;Kote Sohle der Bohrung m.ü.M.
-cashdate;Kassierdatum einer Bohrung;Kassierdatum einer Bohrung
-yearbook;Im hydrografischen Jahrbuch;Bohrung im hydrografischen Jahrbuch vorhanden (0/1)
+cashdate;Kassierdatum einer Bohrung;Das ist das ungefähre Datum, an dem eine ursprünglich verrohrte Bohrung kassiert (zurückgebaut und/oder verfüllt) wurde. D.h. die Bohrung ist nicht mehr zugänglich.
+yearbook;Im hydrografischen Jahrbuch;Bohrung im hydrografischen Jahrbuch vorhanden, 0 = Nein, 1 = Ja
 cont_point;ID: Zustand einer Messstelle;Zustand einer Messstelle
 cont_pt_tx;Text: Zustand der Bohrung;messbar, verschlammt, etc. (Zustand einer Messstelle)
 chemicalid;Chemische Analyse;Chemische Analyse
 terrain;Terrain-Kote;Höhe Terrain
 intervalid;Intervall der chemischen Analyse;Intervall der chemischen Analyse
-planned;Geplant;"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet)"
+planned;Geplant (0/1);"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet)", 0 = Nein, 1 = Ja
 pipe_diame;Rohrdurchmesser;Durchmesser des eingebauten Rohrs in mm
 pipe_zcoor;Z-Koordinate vom Top;Z-Koordinate vom Top des Rohrabschnitts in m ü. M.
 pipe_zcoob;Z-Koordinate von der Basis;Z-Koordinate von der Basis des Rohrabschnitts in m ü. M.
