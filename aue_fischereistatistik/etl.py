@@ -63,7 +63,7 @@ cols=["Jahr","Monat","Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
 
-# correct/remove incomplete dates
+# correct date
 df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
 
 
