@@ -66,8 +66,8 @@ df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="col
 # correct date
 df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
 
-# to do: remove incomplete dates
-
+# put date column in correct datetime format (thereby removing incomplete dates)
+df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
