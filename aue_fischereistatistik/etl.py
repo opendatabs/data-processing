@@ -63,6 +63,10 @@ cols=["Jahr","Monat","Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
 
+# correct/remove incomplete dates
+df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
+
+
 # add column Gewässer
 dict_gew =  {   '0' : '-',
                 '1' : 'Rhein - Staubereich Kembs',
@@ -78,6 +82,9 @@ df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 
 # remove "unbekannt" in column Länge
 df['Länge'].replace('unbekannt', '', inplace=True)
+
+# correct typo in 'Gewicht' column
+df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 
 # filter columns for export
 df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
