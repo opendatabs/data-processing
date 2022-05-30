@@ -90,35 +90,11 @@ condition = ~((df['Fischart'] == '') & pd.to_numeric(df['Monat']).isna())
 df = df[condition]
 
 
-# list types of fish: Aal
-# Alet
-# Aesche
-# Bach-/Flussforelle
-# Barbe
-# Blicke
-# Brachsmen
-# Egli
-# Hecht
-# Karpfen
-# Rapfen
-# Regenbogenforelle
-# Rotauge
-# Schleie
-# Wels
-# Zander
-# Andere
-
-
-# change/correct the entries that do not correspond to the above, I'm not replacing 'Nase' by 'Andere' since it has a significant amount of entries (115):
+# Correct spelling fish names
 df['Fischart'].replace('Bach/Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Bach-/ Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Barbe ', 'Barbe', inplace=True)
 df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
-# df['Fischart'].replace('Barsch', 'Andere', inplace=True)
-# df['Fischart'].replace('Saibling', 'Andere', inplace=True)
-# df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
-# df['Fischart'].replace('Karausche', 'Andere', inplace=True)
-# df['Fischart'].replace('Laube', 'Andere', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
