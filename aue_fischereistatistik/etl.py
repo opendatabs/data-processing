@@ -98,6 +98,12 @@ df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
+# force some columns to be of integer type
+df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
+df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
+df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
+df['Nasenfänge'] = pd.to_numeric(df['Nasenfänge'], errors='coerce').astype('Int64')
+
 # make new column with total grundel
 df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
 
