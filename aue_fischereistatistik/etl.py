@@ -63,6 +63,12 @@ cols=["Jahr","Monat","Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
 
+# correct date
+df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
+
+# put date column in correct datetime format (thereby removing incomplete dates)
+df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
+
 # add column Gewässer
 dict_gew =  {   '0' : '-',
                 '1' : 'Rhein - Staubereich Kembs',
@@ -76,49 +82,36 @@ dict_gew =  {   '0' : '-',
 
 df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 
+# remove "unbekannt" in column Länge
+df['Länge'].replace('unbekannt', '', inplace=True)
+
+# correct typo in 'Gewicht' column
+df['Gewicht'].replace('1.1.', '1.1', inplace=True)
+
 # filter columns for export
 df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
            'Abfluss_Rhein_über_1800m3']]
-df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
 
 
 # filter empty rows: remove all rows that have no entry for date ánd Fischart
-df = pd.read_csv(f'{credentials.base_path_local}/fangstatistik.csv')
-condition = ~(df['Fischart'].isna() & df['Monat'].isna())
+condition = ~((df['Fischart'] == '') & pd.to_numeric(df['Monat']).isna())
 df = df[condition]
 
-# list types of fish: Aal
-# Alet
-# Aesche
-# Bach-/Flussforelle
-# Barbe
-# Blicke
-# Brachsmen
-# Egli
-# Hecht
-# Karpfen
-# Rapfen
-# Regenbogenforelle
-# Rotauge
-# Schleie
-# Wels
-# Zander
-# Andere
 
-
-# change/correct the entries that do not correspond to the above, I'm not replacing 'Nase' by 'Andere' since it has a significant amount of entries (115):
+# Correct spelling fish names
 df['Fischart'].replace('Bach/Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Bach-/ Flussforelle', 'Bach-/Flussforelle', inplace=True)
 df['Fischart'].replace('Barbe ', 'Barbe', inplace=True)
 df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
-df['Fischart'].replace('Barsch', 'Andere', inplace=True)
-df['Fischart'].replace('Saibling', 'Andere', inplace=True)
-df['Fischart'].replace('Rotfeder', 'Andere', inplace=True)
-df['Fischart'].replace('Karausche', 'Andere', inplace=True)
-df['Fischart'].replace('Laube', 'Andere', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
+
+# force some columns to be of integer type
+df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
+df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
+df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
+df['Nasenfänge'] = pd.to_numeric(df['Nasenfänge'], errors='coerce').astype('Int64')
 
 # make new column with total grundel
 df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
