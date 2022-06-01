@@ -72,7 +72,7 @@ def main():
 
     logging.info(f'Adding days with no vaccinations...')
     # int columns become float once nan values are added
-    df_date_range = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=df_bs.vacc_day.max()).astype(str), columns=['vacc_day'])
+    df_date_range = pd.DataFrame(data=pd.date_range(start=df_bs.vacc_day.min(), end=vmdl.yesterday_string()).astype(str), columns=['vacc_day'])
     df_filled = df_type_counts.merge(df_date_range, how='right', on='vacc_day')
 
     logging.info(f'Pivoting dataframe...')
@@ -98,7 +98,7 @@ def main():
     vollst = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['12'].squeeze() + df_pivot['101'].squeeze()
     aufgefr = df_pivot['22'].squeeze() + df_pivot['29'].squeeze() + df_pivot['-21'].squeeze()
     mind_1 = df_pivot['1'].squeeze() + df_pivot['100'].squeeze() + df_pivot['11'].squeeze() + df_pivot['101'].squeeze()
-    neu_teilw = df_pivot['11'].diff()
+    neu_teilw = df_pivot['11'].diff().fillna(value=0)
     df_pivot.insert(1,  column='Vollstaendig geimpft', value=vollst)
     df_pivot.insert(2,  column='Teilweise geimpft', value=teilw)
     df_pivot.insert(3,  column='Impfung aufgefrischt', value=aufgefr)
@@ -125,7 +125,7 @@ def main():
     df_pivot.columns = ["_".join(str(c) for c in col).rstrip('_').replace(' ', '_') for col in df_pivot.columns.values]
     df_pivot = df_pivot.sort_values(by='vacc_day', ascending=False)
 
-    logging.info(f'Filling nan values with 0, droping unwanted columns...')
+    logging.info(f'Filling nan values with 0, dropping unwanted columns...')
     df_pivot = (df_pivot
                 .fillna(0)
                 .drop(columns=['nan_nan']))
@@ -144,3 +144,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    logging.info('Job successful!')
