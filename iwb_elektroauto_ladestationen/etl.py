@@ -1,12 +1,11 @@
-import io
 import logging
 import os
 import pathlib
-from common import change_tracking as ct
 import pandas as pd
 import common
-from iwb_elektroauto_ladestationen import credentials
 import ods_publish.etl_id as odsp
+from common import change_tracking as ct
+from iwb_elektroauto_ladestationen import credentials
 
 
 def main():
@@ -22,7 +21,6 @@ def main():
     df_groups = df.groupby(['addresse', 'parkingfield']).size().reset_index().rename(columns={0: 'count'})
     dfs = []
     for index, row in df_groups.iterrows():
-        # dft = df.sort_values(by=['ts']).query('addresse == "Sevogelstrasse 113/115" and parkingfield == 1')
         dft = df.sort_values(by=['ts']).query('addresse == @row.addresse and parkingfield == @row.parkingfield')
         dft['timestamp_diff'] = dft.ts.diff()
         dft['status_changed'] = dft.status.ne(dft.status.shift(1).bfill()).astype(int)
@@ -43,7 +41,7 @@ def main():
     # df_export = df_status_changes.merge(df_loc, how='left', left_on='address', right_on='name')[export_columns]
 
     export_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'iwb_elektroauto_ladestationen_status_changes.csv')
-    logging.info(f'Exporting data as csv to {export_file}')
+    logging.info(f'Exporting data as csv to {export_file}...')
     df_export.to_csv(export_file, index=False)
     if ct.has_changed(export_file, do_update_hash_file=False):
         common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/elektroauto_ladestationen')
