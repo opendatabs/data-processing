@@ -14,6 +14,8 @@ def main():
     df = pd.read_csv(io.StringIO(s), sep=';', encoding='cp1252', skiprows=range(1, 2))
     print(f'Calculating ISO8601 time string...')
     df['timestamp'] = pd.to_datetime(df.Zeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
+    # Rename new St.Johann sensor back to old name
+    df.rename(columns={'bl_StJohann2': 'St.Johann'}, inplace=True)
 
     # we simplify the code and re-push all current data all the time instead of checking for the latest timestamp in ODS.
     # Otherwise we'd need to check for the latest timestamp of each single sensor, instead of the latest overall.
