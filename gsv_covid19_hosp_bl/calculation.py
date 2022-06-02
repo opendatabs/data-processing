@@ -3,12 +3,9 @@ import pandas as pd
 
 def import_numbers(df):
     total_betten = df['TotalAllBeds']
-    total_betten_covid = df['TotalAllBedsC19']
     betriebene_is_betten = df['OperIcuBeds']
-    betriebene_is_betten_covid = df['OperIcuBedsC19']
     beatmete_is_betten = df['VentIcuBeds']
     betriebene_imcu_betten = df['OperImcBeds']
-    betriebene_imcu_betten_covid = df['OperImcBedsC19']
     total_pat = df['TotalAllPats']
     total_pat_covid = df['TotalAllPatsC19']
     total_is_pat = df['TotalIcuPats']

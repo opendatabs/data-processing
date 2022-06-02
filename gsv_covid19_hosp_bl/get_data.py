@@ -64,9 +64,9 @@ def get_dataframe(hospital, date):
     logging.info(f"Put IES entries into dataframe and filter out properties we need")
     df = pd.DataFrame(results)
     if not df.empty:
-        df = df[["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'TotalAllBedsC19', 'OperIcuBeds',
-                 'OperIcuBedsC19', 'VentIcuBeds', 'OperImcBeds', 'OperImcBedsC19', 'TotalAllPats',
-                 'TotalAllPatsC19', 'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats',
+        df = df[["NoauResid", "CapacDate", "CapacTime", 'TotalAllBeds', 'OperIcuBeds',
+                    'VentIcuBeds', 'OperImcBeds', 'TotalAllPats', 'TotalAllPatsC19',
+                 'TotalIcuPats', 'TotalIcuPatsC19', 'VentIcuPats', 'TotalImcPats',
                  'TotalImcPatsC19', 'VentImcPatsC19']]
         df["Hospital"] = hospital
     return df
