@@ -108,6 +108,9 @@ df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
 # To do: Harmonize column Fischereikarte
+df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
+df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=True)
+df['Fischereikarte'] = df['Fischereikarte'].str.replace(' B$', ' Birs', regex=True)
 
 
 # force some columns to be of integer type
