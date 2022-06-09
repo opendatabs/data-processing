@@ -12,6 +12,8 @@ from stata_befragungen import credentials
 
 
 def main():
+    # todo: get zip file and unzip to data_orig, then load data from there.
+    # todo: load data from all years
     enc = get_encoding(credentials.data_file)
     logging.info(f'Normalizing unicode data to get rid of &nbsp; (\\xa0)...')
     with open(credentials.data_file, 'r', encoding=enc) as f:
