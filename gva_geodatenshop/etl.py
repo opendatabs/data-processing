@@ -189,8 +189,6 @@ for index, row in joined_data.iterrows():
 
                 if str(row['dcat_ap_ch.domain']) != '':
                     dcat_ap_ch_domain = str(row['dcat_ap_ch.domain'])
-                else:
-                    dcat_ap_ch_domain = 'geoinformation-kanton-basel-stadt'
 
                 # Add entry to harvester file
                 metadata_for_ods.append({
