@@ -13,7 +13,7 @@ CMD ["python3", "-m", "stata_befragungen.etl"]
 # cd stata_befragungen
 # docker build -t stata_befragungen .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name stata_befragungen stata_befragungen
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/Befragungen:/code/data-processing/stata_befragungen/data_orig --name stata_befragungen stata_befragungen
 
 # Docker on Mac:
 # docker run -it --rm -v /Users/jonasbieri/PycharmProjects/data-processing:/code/data-processing --name stata_befragungen stata_befragungen
