@@ -187,6 +187,7 @@ for index, row in joined_data.iterrows():
                 description_list = str(row['beschreibung']).split(';')
                 description = description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
 
+                dcat_ap_ch_domain = ''
                 if str(row['dcat_ap_ch.domain']) != '':
                     dcat_ap_ch_domain = str(row['dcat_ap_ch.domain'])
 
