@@ -22,3 +22,4 @@ __pycache__/
 **/Pipfile
 **/Pipfile.lock
 /parlamentsdienst_gr_abstimmungen/**/*.json
+**/*.pdf
