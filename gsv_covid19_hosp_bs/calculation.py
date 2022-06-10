@@ -36,26 +36,26 @@ def calculate_numbers(ies_numbers):
         df[["Hospital", "NoauResid", "CapacDate", "CapacTime"]]
 
     total_betten = df['TotalAllBeds']
-    total_betten_covid = df['TotalAllBedsC19']
     betriebene_is_betten = df['OperIcuBeds']
-    betriebene_is_betten_covid = df['OperIcuBedsC19']
-    # Beatmete_IS_Betten = df['VentIcuBeds']
     betriebene_imcu_betten = df['OperImcBeds']
-    betriebene_imcu_betten_covid = df['OperImcBedsC19']
     total_pat = df['TotalAllPats']
-    total_pat_covid = df['TotalAllPatsC19']
+    # still available, but not used:
+    # total_pat_covid = df['TotalAllPatsC19']
     total_is_pat = df['TotalIcuPats']
-    total_is_pat_covid = df['TotalIcuPatsC19']
+    # still available, but not used:
+    # total_is_pat_covid = df['TotalIcuPatsC19']
     beatmete_is_pat = df['VentIcuPats']
     total_imcu_pat = df['TotalImcPats']
-    total_imcu_pat_covid = df['TotalImcPatsC19']
+    # still available, but not used:
+    # total_imcu_pat_covid = df['TotalImcPatsC19']
     betriebene_ecmo_betten = 5  # not available (for USB) at the moment, we take ECMO = 5...
     total_ecmo_pat = df['EcmoPats']
 
     # numbers to return
-    df_coreport['Bettenanzahl frei "Normalstation" COVID'] = \
-        total_betten_covid - betriebene_is_betten_covid - betriebene_imcu_betten_covid \
-        - total_pat_covid + total_is_pat_covid + total_imcu_pat_covid
+    # df_coreport['Bettenanzahl frei "Normalstation" COVID'] = \
+    #     total_betten_covid - betriebene_is_betten_covid - betriebene_imcu_betten_covid \
+    #     - total_pat_covid + total_is_pat_covid + total_imcu_pat_covid
+    df_coreport['Bettenanzahl frei "Normalstation" COVID'] = 0
     df_coreport['Bettenanzahl frei "Normalstation"'] = \
         total_betten - betriebene_is_betten - betriebene_imcu_betten \
         - total_pat + total_is_pat + total_imcu_pat - df_coreport['Bettenanzahl frei "Normalstation" COVID']
