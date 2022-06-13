@@ -26,10 +26,10 @@ def main(value_id, value):
                               auth=(username, password))
     r.raise_for_status()
 
-# To do: once autofill is working, remove 'Bettenanzahl frei "Normalstation" COVID'
+
 def get_properties_list(hospital):
     if hospital == 'USB':
-        properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
+        properties_list = ['Bettenanzahl frei "Normalstation"',
                            'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
                            'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
                            'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
@@ -37,7 +37,7 @@ def get_properties_list(hospital):
                            'Bettenanzahl belegt "IPS ECMO"']
 
     else:
-        properties_list = ['Bettenanzahl frei "Normalstation"', 'Bettenanzahl frei "Normalstation" COVID',
+        properties_list = ['Bettenanzahl frei "Normalstation"',
                            'Bettenanzahl frei "IMCU"', 'Bettenanzahl frei "IPS ohne Beatmung"',
                            'Bettenanzahl frei "IPS mit Beatmung"', 'Bettenanzahl belegt "Normalstation"',
                            'Bettenanzahl belegt "IMCU"', 'Bettenanzahl belegt "IPS ohne Beatmung"',
