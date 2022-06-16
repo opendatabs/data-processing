@@ -5,7 +5,10 @@ import zoneinfo
 import zoneinfo
 import pandas as pd
 import xlrd
+import ods_publish.etl_id as odsp
+import common
 from ibs_parkhaus_bewegungen import credentials
+from common import change_tracking as ct
 
 
 def main():
@@ -21,6 +24,10 @@ def main():
     all_df = all_df.convert_dtypes()
     export_filename = os.path.join(pathlib.Path(__file__).parent, 'data', 'parkhaus_bewegungen.csv')
     all_df.to_csv(export_filename, index=False)
+    if ct.has_changed(export_filename, do_update_hash_file=False):
+        common.upload_ftp(export_filename, credentials.ftp_user, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_path)
+        odsp.publish_ods_dataset_by_id('100198')
+        ct.update_hash_file(export_filename)
     pass
 
 
