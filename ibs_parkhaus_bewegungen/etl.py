@@ -25,7 +25,7 @@ def main():
     export_filename = os.path.join(pathlib.Path(__file__).parent, 'data', 'parkhaus_bewegungen.csv')
     all_df.to_csv(export_filename, index=False)
     if ct.has_changed(export_filename, do_update_hash_file=False):
-        common.upload_ftp(export_filename, credentials.ftp_user, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_path)
+        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_path)
         odsp.publish_ods_dataset_by_id('100198')
         ct.update_hash_file(export_filename)
     pass
