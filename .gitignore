@@ -18,6 +18,8 @@ __pycache__/
 **/*.DS_Store
 **/*.pkl
 **/*.ics
+**/*.kml
+**/*.kmz
 /gsv_covid19_hosp/*.html
 **/Pipfile
 **/Pipfile.lock
