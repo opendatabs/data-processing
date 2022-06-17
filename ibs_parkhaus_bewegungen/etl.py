@@ -14,11 +14,15 @@ from common import change_tracking as ct
 def main():
     dfs = []
     for entry in credentials.data_files:
-        logging.info(f'Parsing file {entry["file_name"]}...')
-        df = pd.read_excel(entry['file_name'], skiprows=7, usecols='A:D', header=None, names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
+        file_name = os.path.join(credentials.data_file_root, entry['file_name'])
+        logging.info(f'Parsing file {file_name}...')
+        df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
         df = df.dropna(subset=['ausfahrten'])
-        df.title = entry['title']
         df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%d %H:%M:%S').dt.tz_localize(tz='Europe/Zurich', ambiguous=True).dt.tz_convert('UTC')
+        logging.info(f'Adding rows with no data...')
+        df = df.set_index('timestamp').asfreq('1H').reset_index()
+        df[['einfahrten', 'ausfahrten']] = df[['einfahrten', 'ausfahrten']].fillna(0)
+        df.title = entry['title']
         dfs.append(df)
     all_df = pd.concat(dfs)
     all_df = all_df.convert_dtypes()
