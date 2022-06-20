@@ -89,9 +89,8 @@ df['Länge'].replace('unbekannt', '', inplace=True)
 df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 
 # filter columns for export
-df = df[['Jahr', 'Monat', 'Datum', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
-           'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
-           'Abfluss_Rhein_über_1800m3']]
+df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']]
 
 
 # filter empty rows: remove all rows that have no entry for date ánd Fischart
