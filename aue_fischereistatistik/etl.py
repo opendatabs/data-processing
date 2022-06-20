@@ -75,13 +75,13 @@ df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
-                '1' : 'Rhein - Staubereich Kembs',
-                '2' : 'Rhein - Staubereich Birsfelden',
-                '3' : 'Wiese - Pachtstrecke KFVBS',
-                '4' : 'Birs - Pachtstrecke KFVBS',
+                '1' : 'Rhein - Basel-Stadt',
+                '2' : 'Rhein - Basel-Stadt',
+                '3' : 'Wiese - Pachtstrecke Basel',
+                '4' : 'Birs - Pachtstrecke Basel-Stadt',
                 '5' : 'Riehenteich - Pachtstrecke Riehen',
                 '6' : 'Wiese - Pachtstrecke Riehen',
-                '7' : 'Privatfischenzen - Privatstrecke Riehen'
+                '7' : 'Wiese - Pachstrecke Riehen'
 }
 
 df['Gewässer'] = df['Gewässercode'].map(dict_gew)
