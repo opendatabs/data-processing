@@ -105,7 +105,7 @@ df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').
 df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
 
 # filter empty rows: remove all rows that have no entry for Fischart or Grundeln
-condition = ~((df['Fischart'] == '') & (df['Grundel Total']) == 0)
+condition = ~((df['Fischart'] == '') & (df['Grundel Total'] == 0))
 df = df[condition]
 
 
