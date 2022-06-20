@@ -115,6 +115,7 @@ df['Fischart'].replace('Bach-/ Flussforelle', 'Bach-/Flussforelle', inplace=True
 df['Fischart'].replace('Barbe ', 'Barbe', inplace=True)
 df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
+df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 
 
 # To do: Harmonize column Fischereikarte
