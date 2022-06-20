@@ -9,7 +9,11 @@ from datetime import datetime
 pd.set_option('display.max_columns', None)
 pd.set_option( 'display.max_rows', None)
 # datetime in German
-locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+#locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+locale.setlocale(
+    category=locale.LC_ALL,
+    locale="German"  # Note: do not use "de_DE" as it doesn't work
+)
 
 columns = ['Fischereikarte', 'Fangbüchlein_retourniert', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
@@ -71,13 +75,13 @@ df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
-                '1' : 'Rhein - Staubereich Kembs',
-                '2' : 'Rhein - Staubereich Birsfelden',
-                '3' : 'Wiese - Pachtstrecke KFVBS',
-                '4' : 'Birs - Pachtstrecke KFVBS',
+                '1' : 'Rhein - Basel-Stadt',
+                '2' : 'Rhein - Basel-Stadt',
+                '3' : 'Wiese - Pachtstrecke Basel',
+                '4' : 'Birs - Pachtstrecke Basel-Stadt',
                 '5' : 'Riehenteich - Pachtstrecke Riehen',
                 '6' : 'Wiese - Pachtstrecke Riehen',
-                '7' : 'Privatfischenzen - Privatstrecke Riehen'
+                '7' : 'Wiese - Pachstrecke Riehen'
 }
 
 df['Gewässer'] = df['Gewässercode'].map(dict_gew)
@@ -96,13 +100,12 @@ df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fisch
 df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
 df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
 df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
-df['Nasenfänge'] = pd.to_numeric(df['Nasenfänge'], errors='coerce').astype('Int64')
 
 # make new column with total grundel
 df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
 
 # filter empty rows: remove all rows that have no entry for Fischart or Grundeln
-condition = ~((df['Fischart'] == '') & (df['Grundel Total']) == 0)
+condition = ~((df['Fischart'] == '') & (df['Grundel Total'] == 0))
 df = df[condition]
 
 
@@ -112,9 +115,19 @@ df['Fischart'].replace('Bach-/ Flussforelle', 'Bach-/Flussforelle', inplace=True
 df['Fischart'].replace('Barbe ', 'Barbe', inplace=True)
 df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
+df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 
 
 # To do: Harmonize column Fischereikarte
+# Current values:
+# ['unbekannt' 'Galgenkarte Rhein' 'Fischerkarte Rhein' 'Fischerkarte Wiese'
+#  'Jugendfischerkarte Rhein' 'Fischerkarte der Gemeinde Riehen'
+#  'Fischerkarte Wiese, Fischerkarte der Gemeinde Riehen'
+#  'Fischerkarte Riehen' 'Fischerkarte Birs' 'Galgenkarte'
+#  'Jugendfischerkarte' 'Jahreskarte E' 'Jahreskarte Wiese'
+#  'Jahreskarte Riehen' 'Jahreskarte Birs' 'Fischereikarte Rhein'
+#  'Fischereikarte Wiese' 'Fischereikarte Birs' 'Jugendliche Rhein'
+#  'Tageskarte Rhein' 'Fischereikarte Riehen' 'Tageskarte Wiese']
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' B$', ' Birs', regex=True)
