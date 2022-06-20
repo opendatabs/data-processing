@@ -118,6 +118,15 @@ df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 
 
 # To do: Harmonize column Fischereikarte
+# Current values:
+# ['unbekannt' 'Galgenkarte Rhein' 'Fischerkarte Rhein' 'Fischerkarte Wiese'
+#  'Jugendfischerkarte Rhein' 'Fischerkarte der Gemeinde Riehen'
+#  'Fischerkarte Wiese, Fischerkarte der Gemeinde Riehen'
+#  'Fischerkarte Riehen' 'Fischerkarte Birs' 'Galgenkarte'
+#  'Jugendfischerkarte' 'Jahreskarte E' 'Jahreskarte Wiese'
+#  'Jahreskarte Riehen' 'Jahreskarte Birs' 'Fischereikarte Rhein'
+#  'Fischereikarte Wiese' 'Fischereikarte Birs' 'Jugendliche Rhein'
+#  'Tageskarte Rhein' 'Fischereikarte Riehen' 'Tageskarte Wiese']
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' B$', ' Birs', regex=True)
