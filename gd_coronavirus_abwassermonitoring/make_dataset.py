@@ -10,6 +10,7 @@ sources:
 import pandas as pd
 from datetime import datetime
 from gd_coronavirus_abwassermonitoring import credentials
+from functools import reduce
 import common
 import logging
 from common import change_tracking as ct
@@ -151,7 +152,8 @@ def make_dataframe_bs():
     make_column_dt(df_repr, "Datum")
     # join the datasets
     dfs = [df_zahlen_bs, df_hosp, df_pos_rate, df_repr]
-    df_bs = pd.concat([df.set_index('Datum') for df in dfs], axis=1, join='outer').reset_index()
+    df_bs = reduce(lambda left, right: pd.merge(left, right, on=['Datum'],
+                                                    how='outer'), dfs)
     # take date from 1 July 2021
     df_bs = df_bs[df_bs['Datum'] >= datetime(2021, 7, 1)]
     return df_bs
