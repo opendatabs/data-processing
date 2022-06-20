@@ -92,9 +92,17 @@ df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
            'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']]
 
+# force some columns to be of integer type
+df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
+df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
+df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
+df['Nasenfänge'] = pd.to_numeric(df['Nasenfänge'], errors='coerce').astype('Int64')
 
-# filter empty rows: remove all rows that have no entry for date ánd Fischart
-condition = ~((df['Fischart'] == '') & pd.to_numeric(df['Monat']).isna())
+# make new column with total grundel
+df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
+
+# filter empty rows: remove all rows that have no entry for Fischart or Grundeln
+condition = ~((df['Fischart'] == '') & (df['Grundel Total']) == 0)
 df = df[condition]
 
 
@@ -112,14 +120,7 @@ df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=T
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' B$', ' Birs', regex=True)
 
 
-# force some columns to be of integer type
-df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
-df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
-df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
-df['Nasenfänge'] = pd.to_numeric(df['Nasenfänge'], errors='coerce').astype('Int64')
 
-# make new column with total grundel
-df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
 
 # export csv file
 df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
