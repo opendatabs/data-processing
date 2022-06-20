@@ -100,7 +100,6 @@ df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fisch
 df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
 df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
 df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
-df['Nasenfänge'] = pd.to_numeric(df['Nasenfänge'], errors='coerce').astype('Int64')
 
 # make new column with total grundel
 df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
