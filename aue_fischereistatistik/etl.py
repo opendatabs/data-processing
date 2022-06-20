@@ -9,7 +9,11 @@ from datetime import datetime
 pd.set_option('display.max_columns', None)
 pd.set_option( 'display.max_rows', None)
 # datetime in German
-locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+#locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+locale.setlocale(
+    category=locale.LC_ALL,
+    locale="German"  # Note: do not use "de_DE" as it doesn't work
+)
 
 columns = ['Fischereikarte', 'Fangbüchlein_retourniert', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart', 'Gewicht',
            'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
