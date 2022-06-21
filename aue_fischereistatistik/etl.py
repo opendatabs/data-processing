@@ -96,15 +96,14 @@ df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 
 # filter columns for export
 df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart', 'Gewicht',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']]
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
 
 # force some columns to be of integer type
 df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
 df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
-df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
 
 # make new column with total grundel
-df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
+df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel']
 
 # filter empty rows: remove all rows that have no entry for Fischart or Grundeln
 condition = ~((df['Fischart'] == '') & (df['Grundel Total'] == 0))
