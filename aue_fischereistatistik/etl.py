@@ -63,9 +63,11 @@ for year in range(2010, 2021):
     df = pd.concat([df, df_year])
 
 # make date column
-cols=["Jahr","Monat","Tag"]
+cols=["Jahr", "Monat", "Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
+# Add year to month column
+df['Monat'] = df['Monat'] + ' ' + df['Jahr']
 
 # correct date
 df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
@@ -75,10 +77,10 @@ df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
-                '1' : 'Rhein - Basel-Stadt',
-                '2' : 'Rhein - Basel-Stadt',
-                '3' : 'Wiese - Pachtstrecke Basel',
-                '4' : 'Birs - Pachtstrecke Basel-Stadt',
+                '1' : 'Rhein - Basel',
+                '2' : 'Rhein - Basel',
+                '3' : 'Wiese - Pachtstrecke Stadt Basel',
+                '4' : 'Birs - Pachtstrecke Stadt Basel',
                 '5' : 'Riehenteich - Pachtstrecke Riehen',
                 '6' : 'Wiese - Pachtstrecke Riehen',
                 '7' : 'Wiese - Pachstrecke Riehen'
@@ -93,16 +95,15 @@ df['Länge'].replace('unbekannt', '', inplace=True)
 df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 
 # filter columns for export
-df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässercode', 'Gewässer', 'Fischart', 'Gewicht',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']]
+df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart', 'Gewicht',
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
 
 # force some columns to be of integer type
 df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
 df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
-df['Nackthalsgrundel'] = pd.to_numeric(df['Nackthalsgrundel'], errors='coerce').astype('Int64')
 
 # make new column with total grundel
-df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel'] + df['Nackthalsgrundel']
+df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel']
 
 # filter empty rows: remove all rows that have no entry for Fischart or Grundeln
 condition = ~((df['Fischart'] == '') & (df['Grundel Total'] == 0))
@@ -118,21 +119,25 @@ df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 
 
-# To do: Harmonize column Fischereikarte
-# Current values:
-# ['unbekannt' 'Galgenkarte Rhein' 'Fischerkarte Rhein' 'Fischerkarte Wiese'
-#  'Jugendfischerkarte Rhein' 'Fischerkarte der Gemeinde Riehen'
-#  'Fischerkarte Wiese, Fischerkarte der Gemeinde Riehen'
-#  'Fischerkarte Riehen' 'Fischerkarte Birs' 'Galgenkarte'
-#  'Jugendfischerkarte' 'Jahreskarte E' 'Jahreskarte Wiese'
-#  'Jahreskarte Riehen' 'Jahreskarte Birs' 'Fischereikarte Rhein'
-#  'Fischereikarte Wiese' 'Fischereikarte Birs' 'Jugendliche Rhein'
-#  'Tageskarte Rhein' 'Fischereikarte Riehen' 'Tageskarte Wiese']
+# Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' B$', ' Birs', regex=True)
+df['Fischereikarte'] = df['Fischereikarte'].str.replace('Fischerkarte', 'Fischereikarte')
+df['Fischereikarte'] = df['Fischereikarte'].str.replace('Jahreskarte', 'Fischereikarte')
 
+dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
+               'Fischereikarte Wiese, Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
+               'Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
+               'Fischereikarte Riehen': 'Fischereikarte Wiese',
+               'Galgenkarte': ' Galgenkarte Rhein',
+               'Jugendfischerkarte Rhein': 'Jugendfischereikarte Rhein',
+               'Jugendfischerkarte': 'Jugendfischereikarte Rhein',
+               'Jugendliche Rhein': 'Jugendfischereikarte Rhein',
+               'Fischereikarte E': 'Fischereikarte Rhein'
+               }
 
+df['Fischereikarte'].replace(dict_karten, inplace=True)
 
 
 # export csv file
