@@ -66,8 +66,8 @@ for year in range(2010, 2021):
 cols=["Jahr", "Monat", "Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
-# write out month name
-df['Monat'] = pd.to_datetime(df['Monat'], format='%m', errors='coerce').dt.strftime('%B')
+# Add year to month column
+df['Monat'] = df['Monat'] + ' ' + df['Jahr']
 
 # correct date
 df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
