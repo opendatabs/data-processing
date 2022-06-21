@@ -70,8 +70,8 @@ def process(file):
             logging.info(f'Processing stats for SensorNr {sensornr_filter}...')
             stat_columns = ['StationNr', 'StationId', 'StationName', 'SensorNr', 'SensName', 'lat', 'lon', 'geo_point_2d', 'XCoord', 'YCoord', 'topTerrain', 'refPoint', '10YMin', '10YMean', '10YMax', 'startStatist', 'endStatist', 'bohrkataster-link']
             df_stat = df_filter[stat_columns].drop_duplicates(ignore_index=True)
-            df_stat['stat_start_timestamp'] = pd.to_datetime(df_stat.startStatist, dayfirst=True).dt.strftime(date_format='%Y-%m-%dT%H:%M:%S')
-            df_stat['stat_end_timestamp'] = pd.to_datetime(df_stat.endStatist, dayfirst=True).dt.strftime(date_format='%Y-%m-%dT%H:%M:%S')
+            df_stat['stat_start_timestamp'] = pd.to_datetime(df_stat.startStatist, dayfirst=True).dt.tz_localize(ZoneInfo('Etc/GMT-1')).dt.tz_convert('UTC')
+            df_stat['stat_end_timestamp'] = pd.to_datetime(df_stat.endStatist, dayfirst=True).dt.tz_localize(ZoneInfo('Etc/GMT-1')).dt.tz_convert('UTC')
             stat_filename = os.path.join(credentials.data_path, 'stat', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
             logging.info(f'Exporting stat data to {stat_filename}...')
             df_stat.to_csv(stat_filename, index=False)
