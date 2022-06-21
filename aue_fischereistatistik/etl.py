@@ -63,7 +63,7 @@ for year in range(2010, 2021):
     df = pd.concat([df, df_year])
 
 # make date column
-cols=["Jahr","Monat","Tag"]
+cols=["Jahr", "Monat", "Tag"]
 df['Datum'] = df[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
 
 # write out month name
