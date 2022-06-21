@@ -118,21 +118,25 @@ df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 
 
-# To do: Harmonize column Fischereikarte
-# Current values:
-# ['unbekannt' 'Galgenkarte Rhein' 'Fischerkarte Rhein' 'Fischerkarte Wiese'
-#  'Jugendfischerkarte Rhein' 'Fischerkarte der Gemeinde Riehen'
-#  'Fischerkarte Wiese, Fischerkarte der Gemeinde Riehen'
-#  'Fischerkarte Riehen' 'Fischerkarte Birs' 'Galgenkarte'
-#  'Jugendfischerkarte' 'Jahreskarte E' 'Jahreskarte Wiese'
-#  'Jahreskarte Riehen' 'Jahreskarte Birs' 'Fischereikarte Rhein'
-#  'Fischereikarte Wiese' 'Fischereikarte Birs' 'Jugendliche Rhein'
-#  'Tageskarte Rhein' 'Fischereikarte Riehen' 'Tageskarte Wiese']
+# Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' B$', ' Birs', regex=True)
+df['Fischereikarte'] = df['Fischereikarte'].str.replace('Fischerkarte', 'Fischereikarte')
+df['Fischereikarte'] = df['Fischereikarte'].str.replace('Jahreskarte', 'Fischereikarte')
 
+dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
+               'Fischereikarte Wiese, Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
+               'Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
+               'Fischereikarte Riehen': 'Fischereikarte Wiese',
+               'Galgenkarte': ' Galgenkarte Rhein',
+               'Jugendfischerkarte Rhein': 'Jugendfischereikarte Rhein',
+               'Jugendfischerkarte': 'Jugendfischereikarte Rhein',
+               'Jugendliche Rhein': 'Jugendfischereikarte Rhein',
+               'Fischereikarte E': 'Fischereikarte Rhein'
+               }
 
+df['Fischereikarte'].replace(dict_karten, inplace=True)
 
 
 # export csv file
