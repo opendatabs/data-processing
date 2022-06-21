@@ -8,6 +8,7 @@ from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
 from zoneinfo import ZoneInfo
 import numpy as np
+from io import StringIO
 
 
 def list_files():
@@ -18,7 +19,7 @@ def list_files():
     return file_list
 
 
-def process(file):
+def process(file, x_coords_1416):
     export_stats = True
     if 'historische_Daten_inaktive_Messstellen.csv' in file:
         logging.info(f'Processing archive file {file}...')
@@ -42,9 +43,12 @@ def process(file):
     logging.info(f'Dataframe present in memory now ({datetime.datetime.now()}).')
     df['timestamp_text'] = df.Date + 'T' + df.Time
     df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize(ZoneInfo('Etc/GMT-1')).dt.tz_convert('UTC')
-    logging.info(f'Rounding LV95 coordinates as required, then transforming to WGS84...')
+    logging.info(f'Rounding LV95 coordinates as required...')
     df.XCoord = df.XCoord.round(0).astype(int)
     df.YCoord = df.YCoord.round(0).astype(int)
+    logging.info(f'Replacing potentially wrong xcoord for 1416 with value "{x_coords_1416}"...')
+    df.loc[(df.StationNr == '0000001416'), 'XCoord'] = x_coords_1416
+    logging.info(f'transforming coords to WGS84')
     # see https://stackoverflow.com/a/65711998
     t = Transformer.from_crs('EPSG:2056', 'EPSG:4326', always_xy=True)
     df['lon'], df['lat'] = t.transform(df.XCoord.values, df.YCoord.values)
@@ -87,13 +91,25 @@ def archive(file):
     common.rename_ftp(file, to_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass)
 
 
+def retrieve_1416_x_coordinates():
+    bohrkataster_url = 'https://data.bs.ch/explore/dataset/100182/download/?format=csv&use_labels_for_header=true&refine.catnr4=1416'
+    logging.info(f'Retrieving Bohrkataster data for laufnr 1416 from {bohrkataster_url}...')
+    r = common.requests_get(bohrkataster_url)
+    df = pd.read_csv(StringIO(r.text), sep=';')
+    df_export = df[['Laufnummer', 'Geo Point', 'X-Koordinate', 'Y-Koordinate']].rename(columns={'Geo Point': 'GeoPoint2d', 'X-Koordinate': 'XCoord', 'Y-Koordinate': 'YCoord'})
+    return df_export.iloc[0]['XCoord']
+
+
 def main():
+    x_coord_1416 = 0
     files_to_process = list_files()
+    if len(files_to_process) > 0:
+        x_coord_1416 = retrieve_1416_x_coordinates()
     files = []
     for remote_file in files_to_process:
         logging.info(f"processing {remote_file['local_file']}...")
         file = common.download_ftp([remote_file['remote_file']], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_file['remote_path'], credentials.data_orig_path, '')[0]
-        process(file['local_file'])
+        process(file['local_file'], x_coord_1416)
         files.append(file)
     if len(files_to_process) > 0:
         for ods_id in ['100164', '100179', '100180', '100181']:
