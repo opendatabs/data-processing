@@ -13,7 +13,7 @@ CMD ["python3", "-m", "ibs_parkhaus_bewegungen.etl"]
 # cd ibs_parkhaus_bewegungen
 # docker build -t ibs_parkhaus_bewegungen .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/FD-immobilienbs/2022-06-09:/code/data-processingibs_parkhaus_bewegungen/data_orig --name ibs_parkhaus_bewegungen ibs_parkhaus_bewegungen
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/FD-immobilienbs/2022-06-09:/code/data-processing/ibs_parkhaus_bewegungen/data_orig --name ibs_parkhaus_bewegungen ibs_parkhaus_bewegungen
 
 # Docker on Mac:
 # docker run -it --rm -v /Users/jonasbieri/PycharmProjects/data-processing:/code/data-processing --name ibs_parkhaus_bewegungen ibs_parkhaus_bewegungen
