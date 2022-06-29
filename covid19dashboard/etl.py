@@ -46,7 +46,7 @@ def main():
     filename = os.path.join(credentials.path, credentials.filename)
     logging.info(f'Exporting data to {filename}')
     df_filled.to_csv(filename, index=False)
-    if ct.has_changed(filename, do_update_hash_file=False):
+    if ct.has_changed(filename):
         common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19dashboard')
         odsp.publish_ods_dataset_by_id('100085')
         ct.update_hash_file(filename)

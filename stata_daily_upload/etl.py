@@ -44,7 +44,7 @@ def main():
         file_path = os.path.join(credentials.path_work, upload['file'])
         try:
             if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
-                if ct.has_changed(file_path, do_update_hash_file=False, method='modification_date'):
+                if ct.has_changed(file_path, method='modification_date'):
                     common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
                     odsp.publish_ods_dataset_by_id(upload['ods_id'])
                     ct.update_mod_timestamp_file(file_path)

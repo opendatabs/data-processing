@@ -68,7 +68,7 @@ def get_session_calendar(cutoff):
         logging.info(f'Saving session calendar as pickle and csv: {pickle_file_name}, {cal_export_file}...')
         df_cal.to_pickle(pickle_file_name)
         df_cal.to_csv(cal_export_file, index=False)
-        if ct.has_changed(cal_export_file, do_update_hash_file=False):
+        if ct.has_changed(cal_export_file):
             common.upload_ftp(cal_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_sitzungskalender')
             odsp.publish_ods_dataset_by_id('100188')
             ct.update_hash_file(cal_export_file)
@@ -102,14 +102,14 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     all_df = pd.DataFrame()
-    if process_archive or ct.has_changed(xml_ls_file, do_update_hash_file=False):
+    if process_archive or ct.has_changed(xml_ls_file):
         # todo: handle xlsx files of polls during time at congress center
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt_filenames)
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
             logging.info(f'Processing file {i} of {len(xml_files)}: {local_file}...')
-            if process_archive or ct.has_changed(local_file, do_update_hash_file=False):
+            if process_archive or ct.has_changed(local_file):
                 df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
                 df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
@@ -157,7 +157,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     pickle_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'gr_tagesordnung.pickle')
     logging.info(f'Value of process_archive: {process_archive}')
     df_all = None
-    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file_name, do_update_hash_file=False):
+    if os.path.exists(pickle_file_name) and not process_archive and not ct.has_changed(txt_ls_file_name):
         logging.info(f'Reading tagesordnung data from pickle {pickle_file_name}...')
         df_all = pd.read_pickle(pickle_file_name)
     else:
@@ -377,7 +377,7 @@ def handle_tagesordnungen(process_archive=False):
     df_tagesordnungen = calc_tagesordnungen_from_txt_files(process_archive)
     tagesordnungen_export_file_name = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), 'grosser_rat_tagesordnungen.csv')
     df_tagesordnungen.to_csv(tagesordnungen_export_file_name, index=False)
-    if process_archive or ct.has_changed(tagesordnungen_export_file_name, do_update_hash_file=False):
+    if process_archive or ct.has_changed(tagesordnungen_export_file_name):
         common.upload_ftp(tagesordnungen_export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_tagesordnungen')
         odsp.publish_ods_dataset_by_id('100190')
         ct.update_hash_file(tagesordnungen_export_file_name)

@@ -16,7 +16,7 @@ def main():
     df_wl, df_impf = extract_data()
     df = calculate_report(df_wl, df_impf)
     filename = export_data(df)
-    if ct.has_changed(filename, do_update_hash_file=False):
+    if ct.has_changed(filename):
         common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_vacc')
         odsp.publish_ods_dataset_by_id('100147')
         ct.update_hash_file(filename)

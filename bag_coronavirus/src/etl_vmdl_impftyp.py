@@ -16,7 +16,7 @@ def main():
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
     # We don't check for changes here anymore to handle cases where no vacc have happened and we need to add a 0 line for yesterday
-    # if ct.has_changed(vmdl_copy_path, do_update_hash_file=False):
+    # if ct.has_changed(vmdl_copy_path):
     logging.info(f'Reading vmdl file {vmdl_copy_path} into dataframe...')
     df = pd.read_csv(vmdl_copy_path, sep=';')
     df['vacc_day'] = df.vacc_date.str.slice(stop=10)
@@ -133,7 +133,7 @@ def main():
     export_file_name = os.path.join(credentials.vmdl_path, 'vaccination_report_bs_impftyp.csv')
     logging.info(f'Exporting dataframe to file {export_file_name}...')
     df_pivot.to_csv(export_file_name, index=False, sep=';')
-    if ct.has_changed(export_file_name, do_update_hash_file=False):
+    if ct.has_changed(export_file_name):
         common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
         odsp.publish_ods_dataset_by_id('100162')
         ct.update_hash_file(export_file_name)

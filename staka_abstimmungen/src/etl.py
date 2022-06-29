@@ -111,7 +111,7 @@ def calculate_and_upload(active_files):
 def have_data_files_changed(active_files):
     data_files_changed = False
     for file in active_files:
-        if ct.has_changed(os.path.join(credentials.path, file), do_update_hash_file=False):
+        if ct.has_changed(os.path.join(credentials.path, file)):
             data_files_changed = True
     logging.info(f'Are there any changes in the active data files? {data_files_changed}.')
     return data_files_changed
@@ -138,7 +138,7 @@ def check_embargos(active_abst, active_active_size):
 def upload_ftp_if_changed(df, file_name):
     print(f'Exporting to {file_name}...')
     df.to_csv(file_name, index=False)
-    has_changed = ct.has_changed(file_name, do_update_hash_file=False)
+    has_changed = ct.has_changed(file_name)
     if has_changed:
         common.upload_ftp(file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
     return has_changed

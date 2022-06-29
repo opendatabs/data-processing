@@ -16,7 +16,7 @@ def namestr(obj, namespace):
 logging.basicConfig(level=logging.DEBUG)
 datafilename = 'OGD-Daten.CSV'
 datafile_with_path = os.path.join(credentials.path_orig, datafilename)
-if ct.has_changed(datafile_with_path, do_update_hash_file=False):
+if ct.has_changed(datafile_with_path):
     no_file_copy = False
     if 'no_file_copy' in sys.argv:
         no_file_copy = True
@@ -96,7 +96,7 @@ if ct.has_changed(datafile_with_path, do_update_hash_file=False):
         files_to_upload = generated_filenames
         files_to_upload.append(datafilename)
         for filename in files_to_upload:
-            if ct.has_changed(credentials.path_work + filename, do_update_hash_file=False):
+            if ct.has_changed(credentials.path_work + filename):
                 common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
                 ct.update_hash_file(credentials.path_work + filename)
 

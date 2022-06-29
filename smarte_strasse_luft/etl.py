@@ -73,7 +73,7 @@ def etl(download_url, column_name_replacements, export_file, push_url, push_key)
         print(f'No rows to push to ODS... ')
     else:
         df.to_csv(export_file, index=False)
-        if ct.has_changed(export_file, do_update_hash_file=False):
+        if ct.has_changed(export_file):
             common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'smarte_strasse/luft')
             ct.update_hash_file(export_file)
 

@@ -98,11 +98,11 @@ def main():
     # Upload processed and truncated data
     for datafile in filename_orig:
         datafile_with_path = os.path.join(credentials.path_orig, datafile)
-        if ct.has_changed(datafile_with_path, do_update_hash_file=False):
+        if ct.has_changed(datafile_with_path):
             file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
             if not no_file_copy:
                 for file in file_names:
-                    if ct.has_changed(file, do_update_hash_file=False):
+                    if ct.has_changed(file):
                         common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
                         ct.update_hash_file(file)
             ct.update_hash_file(datafile_with_path)
@@ -111,7 +111,7 @@ def main():
     if not no_file_copy:
         for orig_file in filename_orig:
             path_to_file = os.path.join(credentials.path_dest, orig_file)
-            if ct.has_changed(path_to_file, do_update_hash_file=False):
+            if ct.has_changed(path_to_file):
                 common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
                 ct.update_hash_file(path_to_file)
 

@@ -14,7 +14,7 @@ def main():
         df_raw = extract(url=dataset['base_path'][name])
         df_transformed = transform(df_raw, dataset['suffix'])
         export_file_name = load(name, df_transformed, dataset['suffix'])
-        if ct.has_changed(export_file_name, do_update_hash_file=False):
+        if ct.has_changed(export_file_name):
             common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
             odsp.publish_ods_dataset_by_id(dataset['ods_id'])
             ct.update_hash_file(export_file_name)

@@ -119,7 +119,7 @@ for index, row in joined_data.iterrows():
 
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
-                if ct.has_changed(zipfilepath, do_update_hash_file=False) and (not no_file_copy):
+                if ct.has_changed(zipfilepath) and (not no_file_copy):
                     common.upload_ftp(zipfilepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
                     ct.update_hash_file(zipfilepath)
 
@@ -258,7 +258,7 @@ if len(metadata_for_ods) > 0:
     ods_metadata_filename = os.path.join(credentials.path_root, 'Opendatasoft_Export_GVA.csv')
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
-    if ct.has_changed(ods_metadata_filename, do_update_hash_file=False) and (not no_file_copy):
+    if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
         print(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
         common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
         ct.update_hash_file(ods_metadata_filename)
@@ -268,7 +268,7 @@ if len(metadata_for_ods) > 0:
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
             schemafile_with_path = os.path.join(credentials.path_root, schemafile)
-            if ct.has_changed(schemafile_with_path, do_update_hash_file=False) and (not no_file_copy):
+            if ct.has_changed(schemafile_with_path) and (not no_file_copy):
                 print(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
                 common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
                 ct.update_hash_file(schemafile_with_path)

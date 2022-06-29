@@ -63,7 +63,7 @@ def main():
             export_file = os.path.join(credentials.export_path, report_def['file_name'])
             logging.info(f'Exporting data derived from table {report_def["table_name"]} to file {export_file}...')
             report.to_csv(export_file, index=False)
-            if ct.has_changed(export_file, do_update_hash_file=False):
+            if ct.has_changed(export_file):
                 common.upload_ftp(export_file, credentials.up_ftp_server, credentials.up_ftp_user, credentials.up_ftp_pass, 'gd_gs/coronavirus_massenteststs')
                 odsp.publish_ods_dataset_by_id(report_def['ods_id'])
                 ct.update_hash_file(export_file)
