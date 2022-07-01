@@ -5,6 +5,7 @@ import os
 import common
 import numpy as np
 from common import change_tracking as ct
+import ods_publish.etl_id as odsp
 
 
 def main(): 
@@ -94,6 +95,7 @@ def main():
         df_append.to_csv(export_filename, index=False)
         if ct.has_changed(export_filename):
             common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'covid19bs/auto_generated')
+            odsp.publish_ods_dataset_by_id('100073')
             ct.update_hash_file(export_filename)
 
         if pub_file_changed:
