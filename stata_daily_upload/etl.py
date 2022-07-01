@@ -37,7 +37,8 @@ def main():
                {'file': 'StatA/Bildung/Perimeter_Schulprognose_korr.zip', 'dest_dir': 'bildung', 'ods_id': '100124'},
                {'file': 'StatA/Bevoelkerung/vornamen_neugeborene.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100192'},
                {'file': 'StatA/Bildung/Studierende.csv', 'dest_dir': 'bildung', 'ods_id': '100191'},
-               {'file': 'StatA/Bevoelkerung/06bevoelkerung_jahr_plz.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100197'}
+               {'file': 'StatA/Bevoelkerung/06bevoelkerung_jahr_plz.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100197'},
+               {'file': 'MD/upload/faelle_minderjaehrige_3j_klassen.csv', 'dest_dir': 'covid19bs', 'ods_id': '100152'}
                ]
     file_not_found_errors = []
     for upload in uploads:
