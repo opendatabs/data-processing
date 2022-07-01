@@ -94,13 +94,19 @@ def transform():
     df_for_checking = df0.copy()
     hospitals = list(df_for_checking.columns)[1:]
     for hospital in hospitals:
+        series_hosp = df_for_checking[hospital]
         # column with difference compared to previous day
-        df_for_checking[hospital + '_diff'] = df_for_checking[hospital].diff()
+        df_for_checking[hospital + '_diff'] = series_hosp.diff()
         # column with maximum absolute difference until yesterday
         df_for_checking[hospital + '_max'] = df_for_checking[hospital + '_diff'][0: -1 ].abs().max()
         # check plausibility
         df_for_checking[hospital + '_plaus'] = df_for_checking[hospital + '_diff'] <= df_for_checking[hospital + '_max']
-
+        # check the case where number = 0, say not plausible if difference with previous day is larger than 3
+        equal_zero = (series_hosp == 0)
+        index_zero = equal_zero[equal_zero].index
+        for i in index_zero:
+            if abs(df_for_checking[hospital + '_diff'][i]) > 3:
+                df_for_checking.loc[i,hospital + '_plaus'] = False
 
     logging.info(f'Counting sum of cases in hospitals...')
     df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
