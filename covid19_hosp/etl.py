@@ -91,6 +91,17 @@ def transform():
     df['hospital_count'] = df.count(axis='columns')
     df['date'] = pd.to_datetime(df['Datum'], format='%d/%m/%Y')
 
+    df_for_checking = df0.copy()
+    hospitals = list(df_for_checking.columns)[1:]
+    for hospital in hospitals:
+        # column with difference compared to previous day
+        df_for_checking[hospital + '_diff'] = df_for_checking[hospital].diff()
+        # column with maximum absolute difference until yesterday
+        df_for_checking[hospital + '_max'] = df_for_checking[hospital + '_diff'][0: -1 ].abs().max()
+        # check plausibility
+        df_for_checking[hospital + '_plaus'] = df_for_checking[hospital + '_diff'] <= df_for_checking[hospital + '_max']
+
+
     logging.info(f'Counting sum of cases in hospitals...')
     df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
     logging.info(f'Determining if all hospitals have reported their data...')
@@ -121,6 +132,11 @@ def transform():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
-    main()
+    # logging.basicConfig(level=logging.DEBUG)
+    # logging.info(f'Executing {__file__}...')
+    # main()
+
+    extract()
+    df_public, export_filename = transform()
+    pd.set_option('display.max_columns', None)
+    print(df_public)
