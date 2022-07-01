@@ -93,6 +93,7 @@ def transform():
 
     df_for_checking = df0.copy()
     hospitals = list(df_for_checking.columns)[1:]
+    # To do: check the case of NaN values
     for hospital in hospitals:
         series_hosp = df_for_checking[hospital]
         # column with difference compared to previous day
