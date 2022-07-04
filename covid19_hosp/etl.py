@@ -91,6 +91,7 @@ def transform():
     df['hospital_count'] = df.count(axis='columns')
     df['date'] = pd.to_datetime(df['Datum'], format='%d/%m/%Y')
 
+
     logging.info(f'Counting sum of cases in hospitals...')
     df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
     logging.info(f'Determining if all hospitals have reported their data...')
@@ -98,6 +99,28 @@ def transform():
     # Add 1 here: The number of columns with data is one bigger than the number of hospitals because of the date column
     # Entries before a certain date are set to true for simplicity's sake (in the early days of the pandemic, not all hospitals had to report cases)
     df0['data_from_all_hosp'] = (df['hospital_count'] >= credentials.target_hosp_count + 1) | (df['date'] < datetime.strptime(credentials.target_hosp_count_from_date, '%Y-%m-%d'))
+
+
+    # Plausibility check
+    df_for_checking = df0.copy()
+    hospitals = list(df_for_checking.columns)[1:]
+    for hospital in hospitals:
+        series_hosp = df_for_checking[hospital]
+        # column with difference compared to previous day
+        df_for_checking[hospital + '_diff'] = series_hosp.diff()
+        # column with maximum absolute difference until yesterday
+        df_for_checking[hospital + '_max'] = df_for_checking[hospital + '_diff'][0: -1 ].abs().max()
+        # check plausibility
+        df_for_checking[hospital + '_plaus'] = df_for_checking[hospital + '_diff'].fillna(0) <= df_for_checking[hospital + '_max']
+        # check the case where number = 0, say not plausible if difference with previous day is larger than 3
+        equal_zero = (series_hosp == 0)
+        index_zero = equal_zero[equal_zero].index
+        for i in index_zero:
+            if abs(df_for_checking[hospital + '_diff'][i]) > 3:
+                df_for_checking.loc[i,hospital + '_plaus'] = False
+    # Add column 'data_plausible', gives false if in one of the columns there is a false, hence also false if 'data_from_all_hosp' = false
+    df0['data_plausible'] = df_for_checking.all(axis='columns', bool_only=True)
+
 
     df1 = parse_data_file(1)
     df1['current_hosp_non_resident'] = df1[credentials.hosp_df1_total_non_resident_columns].sum(axis=1, skipna=True, numeric_only=True)
@@ -112,7 +135,7 @@ def transform():
     logging.info(f'Reformatting date...')
     df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d/%m/%Y')
     logging.info(f'Filtering columns...')
-    df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp']]
+    df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp', 'data_plausible']]
 
     export_filename = os.path.join(credentials.export_path,credentials.export_filename_hosp)
     logging.info(f'Exporting merged dataset to file {export_filename}...')
