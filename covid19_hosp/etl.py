@@ -144,11 +144,6 @@ def transform():
 
 
 if __name__ == "__main__":
-    # logging.basicConfig(level=logging.DEBUG)
-    # logging.info(f'Executing {__file__}...')
-    # main()
-
-    extract()
-    df_public, export_filename = transform()
-    pd.set_option('display.max_columns', None)
-    print(df_public)
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
