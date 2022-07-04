@@ -91,6 +91,17 @@ def transform():
     df['hospital_count'] = df.count(axis='columns')
     df['date'] = pd.to_datetime(df['Datum'], format='%d/%m/%Y')
 
+
+    logging.info(f'Counting sum of cases in hospitals...')
+    df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
+    logging.info(f'Determining if all hospitals have reported their data...')
+    df0['hospital_count'] = df['hospital_count']
+    # Add 1 here: The number of columns with data is one bigger than the number of hospitals because of the date column
+    # Entries before a certain date are set to true for simplicity's sake (in the early days of the pandemic, not all hospitals had to report cases)
+    df0['data_from_all_hosp'] = (df['hospital_count'] >= credentials.target_hosp_count + 1) | (df['date'] < datetime.strptime(credentials.target_hosp_count_from_date, '%Y-%m-%d'))
+
+
+    # Plausibility check
     df_for_checking = df0.copy()
     hospitals = list(df_for_checking.columns)[1:]
     for hospital in hospitals:
@@ -107,14 +118,6 @@ def transform():
         for i in index_zero:
             if abs(df_for_checking[hospital + '_diff'][i]) > 3:
                 df_for_checking.loc[i,hospital + '_plaus'] = False
-
-    logging.info(f'Counting sum of cases in hospitals...')
-    df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
-    logging.info(f'Determining if all hospitals have reported their data...')
-    df0['hospital_count'] = df['hospital_count']
-    # Add 1 here: The number of columns with data is one bigger than the number of hospitals because of the date column
-    # Entries before a certain date are set to true for simplicity's sake (in the early days of the pandemic, not all hospitals had to report cases)
-    df0['data_from_all_hosp'] = (df['hospital_count'] >= credentials.target_hosp_count + 1) | (df['date'] < datetime.strptime(credentials.target_hosp_count_from_date, '%Y-%m-%d'))
 
     df1 = parse_data_file(1)
     df1['current_hosp_non_resident'] = df1[credentials.hosp_df1_total_non_resident_columns].sum(axis=1, skipna=True, numeric_only=True)
