@@ -118,6 +118,9 @@ def transform():
         for i in index_zero:
             if abs(df_for_checking[hospital + '_diff'][i]) > 3:
                 df_for_checking.loc[i,hospital + '_plaus'] = False
+    # Add column 'data_plausible', gives false if in one of the columns there is a false, hence also false if 'data_from_all_hosp' = false
+    df0['data_plausible'] = df_for_checking.all(axis='columns', bool_only=True)
+
 
     df1 = parse_data_file(1)
     df1['current_hosp_non_resident'] = df1[credentials.hosp_df1_total_non_resident_columns].sum(axis=1, skipna=True, numeric_only=True)
