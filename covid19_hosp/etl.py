@@ -135,7 +135,7 @@ def transform():
     logging.info(f'Reformatting date...')
     df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d/%m/%Y')
     logging.info(f'Filtering columns...')
-    df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp']]
+    df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp', 'data_plausible']]
 
     export_filename = os.path.join(credentials.export_path,credentials.export_filename_hosp)
     logging.info(f'Exporting merged dataset to file {export_filename}...')
