@@ -93,7 +93,6 @@ def transform():
 
     df_for_checking = df0.copy()
     hospitals = list(df_for_checking.columns)[1:]
-    # To do: check the case of NaN values
     for hospital in hospitals:
         series_hosp = df_for_checking[hospital]
         # column with difference compared to previous day
@@ -101,7 +100,7 @@ def transform():
         # column with maximum absolute difference until yesterday
         df_for_checking[hospital + '_max'] = df_for_checking[hospital + '_diff'][0: -1 ].abs().max()
         # check plausibility
-        df_for_checking[hospital + '_plaus'] = df_for_checking[hospital + '_diff'] <= df_for_checking[hospital + '_max']
+        df_for_checking[hospital + '_plaus'] = df_for_checking[hospital + '_diff'].fillna(0) <= df_for_checking[hospital + '_max']
         # check the case where number = 0, say not plausible if difference with previous day is larger than 3
         equal_zero = (series_hosp == 0)
         index_zero = equal_zero[equal_zero].index
