@@ -50,7 +50,7 @@ def main():
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
-    if ct.has_changed(filename=metadata_filename, do_update_hash_file=False, method='hash'):
+    if ct.has_changed(filename=metadata_filename, method='hash'):
         common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100112')
         ct.update_hash_file(metadata_filename)
@@ -70,7 +70,7 @@ def main():
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
-    if ct.has_changed(filename=richtung_filename, do_update_hash_file=False, method='hash'):
+    if ct.has_changed(filename=richtung_filename, method='hash'):
         common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100115')
         ct.update_hash_file(richtung_filename)
@@ -118,7 +118,7 @@ def main():
                 new_df.append(raw_df)
 
     for data_file in files_to_upload:
-        if ct.has_changed(filename=data_file, do_update_hash_file=False, method='hash'):
+        if ct.has_changed(filename=data_file, method='hash'):
             common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
             ct.update_hash_file(data_file)
     
@@ -140,7 +140,7 @@ def main():
         all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
         logging.info(f'Exporting into one huge csv to {all_data_filename}...')
         all_df.to_csv(all_data_filename, index=False)
-        if ct.has_changed(filename=all_data_filename, do_update_hash_file=False, method='hash'):
+        if ct.has_changed(filename=all_data_filename, method='hash'):
             common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
             ct.update_hash_file(all_data_filename)
@@ -155,7 +155,7 @@ def main():
             logging.info(f'Saving {current_filename}...')
             year_data.to_csv(current_filename, index=False)
             year_file_names.append(current_filename)
-            if ct.has_changed(filename=current_filename, do_update_hash_file=False, method='hash'):
+            if ct.has_changed(filename=current_filename, method='hash'):
                 common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
                 # todo: Publish ODS data when ready
                 # odsp.publish_ods_dataset_by_id('100XXX')

@@ -15,7 +15,7 @@ import pandas as pd
 def main():
     logging.info(f'Checking for new data...')
     latest_data_file = list(sorted(get_data_files_list(), reverse=True))[0]
-    if ct.has_changed(latest_data_file, do_update_hash_file=False):
+    if ct.has_changed(latest_data_file):
         logging.info(f'New data found.')
         df = load_data()
         df, df_agg = transform(df)

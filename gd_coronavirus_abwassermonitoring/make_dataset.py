@@ -30,7 +30,7 @@ def main():
     # change date format for json file
     df_all['Datum'] = df_all['Datum'].dt.strftime('%Y-%m-%d')
     df_all.to_csv(credentials.path_export_file, index=False)
-    if ct.has_changed(credentials.path_export_file, do_update_hash_file=False):
+    if ct.has_changed(credentials.path_export_file):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
                           credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
         ct.update_hash_file(credentials.path_export_file)

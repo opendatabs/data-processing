@@ -16,7 +16,7 @@ import ods_publish.etl_id as odsp
 def main():
     extract()
     df_public, export_filename = transform()
-    if ct.has_changed(export_filename, do_update_hash_file=False):
+    if ct.has_changed(export_filename):
         common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'md/covid19_cases')
         odsp.publish_ods_dataset_by_id('100109')
         ct.update_hash_file(export_filename)

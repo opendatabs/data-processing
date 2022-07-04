@@ -43,7 +43,7 @@ def main():
     export_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'iwb_elektroauto_ladestationen_status_changes.csv')
     logging.info(f'Exporting data as csv to {export_file}...')
     df_export.to_csv(export_file, index=False)
-    if ct.has_changed(export_file, do_update_hash_file=False):
+    if ct.has_changed(export_file):
         common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/elektroauto_ladestationen')
         odsp.publish_ods_dataset_by_id('100196')
         ct.update_hash_file(export_file)

@@ -17,7 +17,7 @@ def main():
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
     # We don't check for changes here anymore to handle cases where no vacc have happened and we need to add 0 lines for yesterday
-    # if ct.has_changed(vmdl_copy_path, do_update_hash_file=False):
+    # if ct.has_changed(vmdl_copy_path):
     df_bs_long_all = get_raw_df(file_path=vmdl_copy_path, bins=get_age_group_periods())
     df_bs_perc = get_reporting_df(file_path=vmdl_copy_path, bins=get_age_group_periods())
     for dataset in [
@@ -28,7 +28,7 @@ def main():
         logging.info(f'Exporting resulting data to {export_file_name}...')
         dataset['dataframe'].to_csv(export_file_name, index=False)
         logging.info(f'Checking if resulting csv has changed before uploading...')
-        if ct.has_changed(export_file_name, do_update_hash_file=False):
+        if ct.has_changed(export_file_name):
             common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag/vmdl')
             odsp.publish_ods_dataset_by_id(dataset['ods_id'])
             ct.update_hash_file(export_file_name)

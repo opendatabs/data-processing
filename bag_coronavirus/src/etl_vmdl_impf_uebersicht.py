@@ -15,11 +15,11 @@ def main():
     logging.info(f'Copying vmdl csv for this specific job to {vmdl_copy_path}...')
     shutil.copy(vmdl.file_path(), vmdl_copy_path)
     # We don't check for changes here anymore to handle cases where no vacc have happened and we need to add a 0 line for yesterday
-    # if ct.has_changed(vmdl_copy_path, do_update_hash_file=False):
+    # if ct.has_changed(vmdl_copy_path):
     df = extract_data(vmdl_copy_path)
     df_export = transform_data(df)
     export_file_name = load_data(df_export)
-    if ct.has_changed(export_file_name, do_update_hash_file=False):
+    if ct.has_changed(export_file_name):
         common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,'bag/vmdl')
         odsp.publish_ods_dataset_by_id('100111')
         ct.update_hash_file(export_file_name)

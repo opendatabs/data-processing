@@ -37,14 +37,15 @@ def main():
                {'file': 'StatA/Bildung/Perimeter_Schulprognose_korr.zip', 'dest_dir': 'bildung', 'ods_id': '100124'},
                {'file': 'StatA/Bevoelkerung/vornamen_neugeborene.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100192'},
                {'file': 'StatA/Bildung/Studierende.csv', 'dest_dir': 'bildung', 'ods_id': '100191'},
-               {'file': 'StatA/Bevoelkerung/06bevoelkerung_jahr_plz.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100197'}
+               {'file': 'StatA/Bevoelkerung/06bevoelkerung_jahr_plz.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100197'},
+               {'file': 'MD/upload/faelle_minderjaehrige_3j_klassen.csv', 'dest_dir': 'covid19bs', 'ods_id': '100152'}
                ]
     file_not_found_errors = []
     for upload in uploads:
         file_path = os.path.join(credentials.path_work, upload['file'])
         try:
             if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
-                if ct.has_changed(file_path, do_update_hash_file=False, method='modification_date'):
+                if ct.has_changed(file_path, method='modification_date'):
                     common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
                     odsp.publish_ods_dataset_by_id(upload['ods_id'])
                     ct.update_mod_timestamp_file(file_path)

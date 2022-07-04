@@ -60,7 +60,7 @@ def get_check_file(filename, folder='', extension='sfv') -> str:
     return check_filename
 
 
-def has_changed(filename: str, hash_file_dir='', do_update_hash_file=True, method='hash') -> bool:
+def has_changed(filename: str, hash_file_dir='', do_update_hash_file=False, method='hash') -> bool:
     if not os.path.exists(filename):
         raise FileNotFoundError(f'File does not exist: {filename}')
     if method not in ['hash', 'modification_date']:
