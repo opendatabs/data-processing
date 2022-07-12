@@ -35,10 +35,6 @@ line = gdf[gdf['gew_name']== 'Wiese']['geometry'].iloc[0]
 point = Point(7.623379999359302, 47.578078114071396)
 
 test = split(line, point)
-print(test.geoms[0])
-print(test.geoms[1])
-
-
 
 geo_gewaesser = gpd.GeoSeries([gdf[gdf['gew_name']== 'Rhein']['geometry'].iloc[0],
                                 test.geoms[1],
@@ -48,7 +44,5 @@ geo_gewaesser = gpd.GeoSeries([gdf[gdf['gew_name']== 'Rhein']['geometry'].iloc[0
                                 ])
 
 gdf_gewaesser = gpd.GeoDataFrame(df_gewaesser, geometry=geo_gewaesser)
-
-print(gdf_gewaesser)
 
 gdf_gewaesser.to_file("gewaesser_adapted.geojson")
