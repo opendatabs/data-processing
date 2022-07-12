@@ -37,6 +37,13 @@ point = Point(7.623379999359302, 47.578078114071396)
 
 split_Wiese = split(line, point)
 
+
+
+
+
+
+
+# Construct gdf_gewaesser
 geo_gewaesser = gpd.GeoSeries([gdf[gdf['gew_name']== 'Rhein']['geometry'].iloc[0],
                                 split_Wiese.geoms[1],
                                 split_Wiese.geoms[0],
