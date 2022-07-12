@@ -31,6 +31,7 @@ print(gdf)
 
 # split up Wiese in Basel and Riehen part, breaking point: 47.57906, 7.62498
 # (closest in geometry:  7.623379999359302 47.578078114071396)
+# Still add small pieces to Basel Wiese?
 line = gdf[gdf['gew_name']== 'Wiese']['geometry'].iloc[0]
 point = Point(7.623379999359302, 47.578078114071396)
 
