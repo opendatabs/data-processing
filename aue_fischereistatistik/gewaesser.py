@@ -34,11 +34,11 @@ print(gdf)
 line = gdf[gdf['gew_name']== 'Wiese']['geometry'].iloc[0]
 point = Point(7.623379999359302, 47.578078114071396)
 
-test = split(line, point)
+split_Wiese = split(line, point)
 
 geo_gewaesser = gpd.GeoSeries([gdf[gdf['gew_name']== 'Rhein']['geometry'].iloc[0],
-                                test.geoms[1],
-                                test.geoms[0],
+                                split_Wiese.geoms[1],
+                                split_Wiese.geoms[0],
                                 gdf[gdf['gew_name']== 'Birs']['geometry'].iloc[0],
                                 gdf[gdf['gew_name']== 'Mühleteich']['geometry'].iloc[0]
                                 ])
