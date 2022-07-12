@@ -16,7 +16,6 @@ df_gewaesser['Gewässer'] = ['Rhein - Basel',
 
 # Read in relevant coordinates from Gewässernetz Basel
 gdf = gpd.read_file('data/gewaesser/gewaesser.geojson')
-print(gdf)
 
 # function to split line at point closest to a given point
 def split_line_at_point(line,point):
