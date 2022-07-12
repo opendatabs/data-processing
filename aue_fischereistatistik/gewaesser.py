@@ -32,20 +32,27 @@ def split_line_at_point(line,point):
 
 
 # split up Wiese in Basel and Riehen part, breaking point: 47.57906, 7.62498
-# (closest in geometry:  7.623379999359302 47.578078114071396)
 # Still add small pieces to Basel Wiese?
 line = gdf[gdf['gew_name']== 'Wiese']['geometry'].iloc[0]
-point = Point(7.623379999359302, 47.578078114071396)
+point = Point(7.62498, 47.57906)
+split_Wiese = split_line_at_point(line, point)
 
-split_Wiese = split(line, point)
+# 'Riehenteich - Pachtstrecke Riehen': Add Neuer Teich and Mühleteich, cut off at border (7.65363, 47.59551)
+line1 = gdf[gdf['gew_name']== 'Neuer Teich']['geometry'].iloc[0]
+line2 = gdf[gdf['gew_name']== 'Mühleteich']['geometry'].iloc[0]
+multi_line = MultiLineString([line1, line2])
+merged_line = linemerge(multi_line)
+point = Point(7.65363, 47.59551)
+line_riehenteich, _ = split_line_at_point(merged_line, point)
+
 
 
 # Construct gdf_gewaesser
 geo_gewaesser = gpd.GeoSeries([gdf[gdf['gew_name']== 'Rhein']['geometry'].iloc[0],
-                                split_Wiese.geoms[1],
-                                split_Wiese.geoms[0],
+                                split_Wiese[1],
+                                split_Wiese[0],
                                 gdf[gdf['gew_name']== 'Birs']['geometry'].iloc[0],
-                                gdf[gdf['gew_name']== 'Mühleteich']['geometry'].iloc[0]
+                                line_riehenteich
                                 ])
 
 gdf_gewaesser = gpd.GeoDataFrame(df_gewaesser, geometry=geo_gewaesser)
