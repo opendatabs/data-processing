@@ -47,16 +47,18 @@ def main():
 
 def create_metadata_per_location_df(df):
     raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
-    logging.info(f'Saving raw metadata (as received from db) to {raw_metadata_filename}...')
+    logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
+    df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
     df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
                       ]]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
-    logging.info(f'Exporting processed metadata to {metadata_filename}...')
+    logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
+    df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=metadata_filename, method='hash'):
         common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100112')
@@ -78,8 +80,9 @@ def create_metadata_per_direction_df(df_metadata):
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote']]
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
-    logging.info(f'Exporting richtung data to {richtung_filename}...')
+    logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
+    df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=richtung_filename, method='hash'):
         common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100115')
@@ -152,8 +155,9 @@ def create_measurements_df(df_meta_raw):
             logging.info(f'No new raw data found...')
 
         all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
-        logging.info(f'Exporting into one huge csv to {all_data_filename}...')
+        logging.info(f'Exporting into one huge csv and pickle to {all_data_filename}...')
         all_df.to_csv(all_data_filename, index=False)
+        all_df.to_pickle(all_data_filename.replace('.csv', '.pkl'))
         if ct.has_changed(filename=all_data_filename, method='hash'):
             common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
