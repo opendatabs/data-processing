@@ -48,6 +48,9 @@ def main():
     df_dtv['dtv_lt_3.5m'] = df_dtv['count_lt_3.5m'] / df_dtv.Messdauer_h * 24
     df_dtv['dtv_3.5_to_lt_8m'] = df_dtv['count_3.5_to_lt_8m'] / df_dtv.Messdauer_h * 24
     df_dtv['dtv_gte_8m'] = df_dtv['count_gte_8m'] / df_dtv.Messdauer_h * 24
+
+    # todo: Join with df_metadata_raw nand filter out measurements that should not be used for DTV
+
     pass
 
 
