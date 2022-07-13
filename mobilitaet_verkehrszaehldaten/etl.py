@@ -3,7 +3,7 @@ from shutil import copy2
 import pandas as pd
 import common
 from common import change_tracking as ct
-from verkehrszaehldaten import credentials
+from mobilitaet_verkehrszaehldaten import credentials
 import sys
 import os
 import platform

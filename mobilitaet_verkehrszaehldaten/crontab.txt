@@ -1,0 +1,1 @@
+0 5 * * * /home/jonas.bieri/dev/workspace/mobilitaet_verkehrszaehldaten/etl.sh
