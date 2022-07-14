@@ -1,14 +1,10 @@
 import pandas as pd
 import geopandas as gpd
 from aue_fischereistatistik import credentials
-import common
-import logging
-from common import change_tracking as ct
 import locale
 from datetime import datetime
 
-pd.set_option('display.max_columns', None)
-pd.set_option( 'display.max_rows', None)
+
 # datetime in German
 # MAC:
 locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
@@ -80,8 +76,8 @@ df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
-                '1' : 'Rhein - Basel',
-                '2' : 'Rhein - Basel',
+                '1' : 'Rhein - Basel-Stadt',
+                '2' : 'Rhein - Basel-Stadt',
                 '3' : 'Wiese - Pachtstrecke Stadt Basel',
                 '4' : 'Birs - Pachtstrecke Stadt Basel',
                 '5' : 'Riehenteich - Pachtstrecke Riehen',
