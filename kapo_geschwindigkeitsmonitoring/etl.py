@@ -36,25 +36,37 @@ def main():
     logging.info(f'Connecting to DB...')
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
-    df = psql.read_sql('SELECT *, ST_AsGeoJSON(the_geom) as the_geom_json, ST_AsEWKT(the_geom) as the_geom_EWKT, ST_AsText(the_geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
+    df_meta_raw = psql.read_sql('SELECT *, ST_AsGeoJSON(the_geom) as the_geom_json, ST_AsEWKT(the_geom) as the_geom_EWKT, ST_AsText(the_geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
     con.close()
-    raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
-    logging.info(f'Saving raw metadata (as received from db) to {raw_metadata_filename}...')
-    df.to_csv(raw_metadata_filename, index=False)
 
+    df_metadata = create_metadata_per_location_df(df_meta_raw)
+    df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
+    df_measurements = create_measurements_df(df_meta_raw)
+    year_file_names = create_measures_per_year(df_measurements)
+
+
+def create_metadata_per_location_df(df):
+    raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
+    logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
+    df.to_csv(raw_metadata_filename, index=False)
+    df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
     df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
                       ]]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
-    logging.info(f'Exporting processed metadata to {metadata_filename}...')
+    logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
+    df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=metadata_filename, method='hash'):
         common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100112')
         ct.update_hash_file(metadata_filename)
-    
+    return df_metadata
+
+
+def create_metadata_per_direction_df(df_metadata):
     logging.info(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
     # Manual stacking of the columns for Richtung 1 and 2
     df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1']]
@@ -68,22 +80,27 @@ def main():
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote']]
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
-    logging.info(f'Exporting richtung data to {richtung_filename}...')
+    logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
+    df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=richtung_filename, method='hash'):
         common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100115')
         ct.update_hash_file(richtung_filename)
-    
+    return df_richtung
+
+
+def create_measurements_df(df_meta_raw):
     dfs = []
     new_df = []
     files_to_upload = []
     # error_df = pd.DataFrame(columns=['line_text_orig', 'line_text_fixed', 'file', 'line_number'])
     # empty_df = pd.DataFrame(columns=['ID'])
     logging.info(f'Removing metadata without data...')
-    df = df.dropna(subset=['Verzeichnis'])
-    for index, row in df.iterrows():
-        logging.info(f'Processing row {index + 1} of {len(df)}...')
+    df_meta_raw = df_meta_raw.dropna(subset=['Verzeichnis'])
+
+    for index, row in df_meta_raw.iterrows():
+        logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
         # logging.info(f'Creating case-sensitive directory to data files...')
         metadata_file_path = credentials.detail_data_q_drive + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(credentials.detail_data_q_base_path, '')
@@ -95,7 +112,7 @@ def main():
             file = file.replace('\\', '/')
             # Does not work - not all files have #1 or #2 in their filename
             # direction_csv = os.path.basename(file).split('#')[1]
-            filename_current_measure = os.path.join(credentials.path, 'processed',  f'{str(measure_id)}_{i}.csv')
+            filename_current_measure = os.path.join(credentials.path, 'processed', f'{str(measure_id)}_{i}.csv')
             # logging.info(f'Detecting encoding of {file}...')
             with open(file, 'rb') as f:
                 raw_data = f.read()
@@ -121,7 +138,7 @@ def main():
         if ct.has_changed(filename=data_file, method='hash'):
             common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
             ct.update_hash_file(data_file)
-    
+
     if len(dfs) == 0:
         logging.info(f'No raw data present at all, raising IOError...')
         raise IOError()
@@ -136,37 +153,42 @@ def main():
             logging.info(new_df_details[['Messung-ID', 'Richtung ID']])
         else:
             logging.info(f'No new raw data found...')
-    
+
         all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
-        logging.info(f'Exporting into one huge csv to {all_data_filename}...')
+        logging.info(f'Exporting into one huge csv and pickle to {all_data_filename}...')
         all_df.to_csv(all_data_filename, index=False)
+        all_df.to_pickle(all_data_filename.replace('.csv', '.pkl'))
         if ct.has_changed(filename=all_data_filename, method='hash'):
             common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
             ct.update_hash_file(all_data_filename)
-    
-        # Create a separate data file per year
-        all_df['jahr'] = all_df.Timestamp.dt.year
-        all_years = all_df.jahr.unique()
-        year_file_names = []
-        for year in all_years:
-            year_data = all_df[all_df.jahr.eq(year)]
-            current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
-            logging.info(f'Saving {current_filename}...')
-            year_data.to_csv(current_filename, index=False)
-            year_file_names.append(current_filename)
-            if ct.has_changed(filename=current_filename, method='hash'):
-                common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
-                # todo: Publish ODS data when ready
-                # odsp.publish_ods_dataset_by_id('100XXX')
-                # todo: Create new ods dataset when necessary
-                ct.update_hash_file(current_filename)
 
-    logging.info('Job successful!')
+        return all_df
+
+
+def create_measures_per_year(all_df):
+    # Create a separate data file per year
+    all_df['jahr'] = all_df.Timestamp.dt.year
+    all_years = all_df.jahr.unique()
+    year_file_names = []
+    for year in all_years:
+        year_data = all_df[all_df.jahr.eq(year)]
+        current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
+        logging.info(f'Saving {current_filename}...')
+        year_data.to_csv(current_filename, index=False)
+        year_file_names.append(current_filename)
+        if ct.has_changed(filename=current_filename, method='hash'):
+            common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+            # todo: Publish ODS data when ready
+            # odsp.publish_ods_dataset_by_id('100XXX')
+            # todo: Create new ods dataset when necessary
+            ct.update_hash_file(current_filename)
+    return year_file_names
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    logging.info('Job successful!')
     
