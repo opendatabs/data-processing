@@ -1,14 +1,10 @@
 import pandas as pd
 import geopandas as gpd
 from aue_fischereistatistik import credentials
-import common
-import logging
-from common import change_tracking as ct
 import locale
 from datetime import datetime
 
-pd.set_option('display.max_columns', None)
-pd.set_option( 'display.max_rows', None)
+
 # datetime in German
 # MAC:
 locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')

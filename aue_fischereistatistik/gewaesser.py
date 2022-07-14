@@ -3,7 +3,6 @@ import geopandas as gpd
 from shapely.ops import split, linemerge, nearest_points
 from shapely.geometry import Point, LineString, MultiLineString
 
-pd.options.display.max_colwidth = 1000
 
 # Add df_gewaesser
 df_gewaesser = pd.DataFrame()
