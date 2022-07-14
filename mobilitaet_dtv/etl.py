@@ -49,8 +49,14 @@ def main():
     df_dtv['dtv_3.5_to_lt_8m'] = df_dtv['count_3.5_to_lt_8m'] / df_dtv.Messdauer_h * 24
     df_dtv['dtv_gte_8m'] = df_dtv['count_gte_8m'] / df_dtv.Messdauer_h * 24
 
-    # todo: Join with df_metadata_raw nand filter out measurements that should not be used for DTV
+    logging.info(f'Calculating column extraordinary_traffic_routing...')
+    df_metadata_raw['extraordinary_traffic_routing'] = df_metadata_raw['Messung während ausserordentlicher Verkehrsführung'].fillna(0).astype(bool)
+    logging.info(f'Filtering out measurements based on Status, and joining with df_metadata_raw ...')
+    df_status = df_metadata_raw.query("Status == 'Messung beendet'").rename(columns={'ID': 'Messung-ID'})
+    df_dtv_status = df_status.merge(df_dtv, how='inner')
 
+    # todo: filter columns to export
+    # df_export = df_dtv_status[[]]
     pass
 
 
