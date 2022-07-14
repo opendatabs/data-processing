@@ -80,8 +80,8 @@ df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
 dict_gew =  {   '0' : '-',
-                '1' : 'Rhein - Basel',
-                '2' : 'Rhein - Basel',
+                '1' : 'Rhein - Basel-Stadt',
+                '2' : 'Rhein - Basel-Stadt',
                 '3' : 'Wiese - Pachtstrecke Stadt Basel',
                 '4' : 'Birs - Pachtstrecke Stadt Basel',
                 '5' : 'Riehenteich - Pachtstrecke Riehen',

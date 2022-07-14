@@ -7,7 +7,7 @@ pd.options.display.max_colwidth = 1000
 
 # Add df_gewaesser
 df_gewaesser = pd.DataFrame()
-df_gewaesser['Gewässer'] = ['Rhein - Basel',
+df_gewaesser['Gewässer'] = ['Rhein - Basel-Stadt',
                              'Wiese - Pachtstrecke Stadt Basel',
                              'Wiese - Pachtstrecke Riehen',
                              'Birs - Pachtstrecke Stadt Basel',
