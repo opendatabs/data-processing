@@ -78,19 +78,25 @@ def transform_data(df):
         'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'im_aph_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'im_aph_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'im_aph_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
     ]:
         if column_name not in df_pivot.columns:
             df_pivot[column_name] = 0
     logging.info(f'Calculating columns...')
-    df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2 + df_pivot.hosp_3 + df_pivot.hosp_4
-    df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2 + df_pivot.vacc_centre_3 + df_pivot.vacc_centre_4
-    df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2 + df_pivot.other_3 + df_pivot.other_4
+    df_pivot['hosp'] = df_pivot.hosp_1 + df_pivot.hosp_2 + df_pivot.hosp_3 + df_pivot.hosp_4 + df_pivot.hosp_5
+    df_pivot['vacc_centre'] = df_pivot.vacc_centre_1 + df_pivot.vacc_centre_2 + df_pivot.vacc_centre_3 + df_pivot.vacc_centre_4 + df_pivot.vacc_centre_5
+    df_pivot['other'] = df_pivot.other_1 + df_pivot.other_2 + df_pivot.other_3 + df_pivot.other_4 + df_pivot.other_5
     df_pivot['vacc_count_1'] = df_pivot.hosp_1 + df_pivot.vacc_centre_1 + df_pivot.other_1
     df_pivot['vacc_count_2'] = df_pivot.hosp_2 + df_pivot.vacc_centre_2 + df_pivot.other_2
-    df_pivot['vacc_count_3'] = df_pivot.hosp_3 + df_pivot.vacc_centre_3 + df_pivot.other_3 + df_pivot.hosp_4 + df_pivot.vacc_centre_4 + df_pivot.other_4
+    df_pivot['vacc_count_3'] = df_pivot.hosp_3 + df_pivot.vacc_centre_3 + df_pivot.other_3
+    df_pivot['vacc_count_4'] = df_pivot.hosp_4 + df_pivot.vacc_centre_4 + df_pivot.other_4
+    df_pivot['vacc_count_5'] = df_pivot.hosp_5 + df_pivot.vacc_centre_5 + df_pivot.other_5
     df_pivot['cum_1'] = df_pivot.vacc_count_1.cumsum()
     df_pivot['cum_2'] = df_pivot.vacc_count_2.cumsum()
     df_pivot['cum_3'] = df_pivot.vacc_count_3.cumsum()
+    df_pivot['cum_4'] = df_pivot.vacc_count_4.cumsum()
+    df_pivot['cum_5'] = df_pivot.vacc_count_5.cumsum()
     df_pivot['only_1'] = df_pivot.cum_1 - df_pivot.cum_2
     df_pivot['total'] = df_pivot.hosp + df_pivot.vacc_centre + df_pivot.other
     df_pivot['total_cum'] = df_pivot.total.cumsum()
@@ -100,21 +106,31 @@ def transform_data(df):
         'hosp_1': 'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
         'hosp_2': 'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'hosp_3': 'im_spital_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'hosp_4': 'im_spital_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'hosp_5': 'im_spital_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'vacc_centre_1': 'im_impfzentrum_mit_erster_dosis_geimpfte_personen_pro_tag',
         'vacc_centre_2': 'im_impfzentrum_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'vacc_centre_3': 'im_impfzentrum_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'vacc_centre_4': 'im_impfzentrum_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'vacc_centre_5': 'im_impfzentrum_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'other_1': 'anderswo_mit_erster_dosis_geimpfte_personen_pro_tag',
         'other_2': 'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'other_3': 'anderswo_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'other_4': 'anderswo_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'other_5': 'anderswo_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'hosp': 'im_spital_verabreichte_impfungen_pro_tag',
         'vacc_centre': 'im_impfzentrum_verabreichte_impfungen_pro_tag',
         'other': 'anderswo_verabreichte_impfungen_pro_tag',
         'vacc_count_1': 'total_mit_erster_dosis_geimpfte_personen_pro_tag',
         'vacc_count_2': 'total_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'vacc_count_3': 'total_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'vacc_count_4': 'total_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'vacc_count_5': 'total_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'cum_1': 'total_personen_mit_erster_dosis',
         'cum_2': 'total_personen_mit_zweiter_dosis',
         'cum_3': 'total_personen_mit_dritter_dosis',
+        'cum_4': 'total_personen_mit_vierter_dosis',
+        'cum_5': 'total_personen_mit_fuenfter_dosis',
         'only_1': 'total_personen_mit_ausschliesslich_erster_dosis',
         'total': 'total_verabreichte_impfungen_pro_tag',
         'total_cum': 'total_verabreichte_impfungen',
@@ -124,7 +140,7 @@ def transform_data(df):
     df_boost = sqldf('''
         select vacc_day, count(vacc_day) as auffrischimpfungen_pro_tag
         from df_bs
-        where vacc_count > 2 and serie = 2
+        where vacc_count > 2 and serie >= 2
         group by vacc_day
     ''')
     df_3_non_boost = sqldf('''
@@ -151,22 +167,32 @@ def transform_data(df):
         'total_personen_mit_ausschliesslich_erster_dosis',
         'total_personen_mit_zweiter_dosis',
         'total_personen_mit_dritter_dosis',
+        'total_personen_mit_vierter_dosis',
+        'total_personen_mit_fuenfter_dosis',
         'im_impfzentrum_verabreichte_impfungen_pro_tag',
         'im_impfzentrum_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_impfzentrum_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'im_impfzentrum_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'im_impfzentrum_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'im_impfzentrum_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'in_aph_verabreichte_impfungen_pro_tag',
         'im_aph_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_aph_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'im_aph_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'im_aph_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'im_aph_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'im_spital_verabreichte_impfungen_pro_tag',
         'im_spital_mit_erster_dosis_geimpfte_personen_pro_tag',
         'im_spital_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'im_spital_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'im_spital_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'im_spital_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'anderswo_verabreichte_impfungen_pro_tag',
         'anderswo_mit_erster_dosis_geimpfte_personen_pro_tag',
         'anderswo_mit_zweiter_dosis_geimpfte_personen_pro_tag',
         'anderswo_mit_dritter_dosis_geimpfte_personen_pro_tag',
+        'anderswo_mit_vierter_dosis_geimpfte_personen_pro_tag',
+        'anderswo_mit_fuenfter_dosis_geimpfte_personen_pro_tag',
         'total_verabreichte_impfungen_pro_tag',
         'total_auffrischimpfungen',
         'auffrischimpfungen_pro_tag',
