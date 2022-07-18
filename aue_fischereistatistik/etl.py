@@ -80,7 +80,7 @@ dict_gew =  {   '0' : '-',
                 '2' : 'Rhein - Basel-Stadt',
                 '3' : 'Wiese - Pachtstrecke Stadt Basel',
                 '4' : 'Birs - Pachtstrecke Stadt Basel',
-                '5' : 'Riehenteich - Pachtstrecke Riehen',
+                '5' : 'Neuer Teich / Mühleteich - Pachtstrecke Riehen',
                 '6' : 'Wiese - Pachtstrecke Riehen',
                 '7' : 'Wiese - Pachstrecke Riehen'
 }

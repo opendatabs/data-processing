@@ -10,7 +10,7 @@ df_gewaesser['Gewässer'] = ['Rhein - Basel-Stadt',
                              'Wiese - Pachtstrecke Stadt Basel',
                              'Wiese - Pachtstrecke Riehen',
                              'Birs - Pachtstrecke Stadt Basel',
-                             'Riehenteich - Pachtstrecke Riehen',
+                             'Neuer Teich / Mühleteich - Pachtstrecke Riehen',
                             ]
 
 # Read in relevant coordinates from Gewässernetz Basel
