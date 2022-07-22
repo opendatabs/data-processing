@@ -1,4 +1,5 @@
 import logging
+import os
 import numpy as np
 import pandas as pd
 import common
@@ -55,8 +56,14 @@ def main():
     df_status = df_metadata_raw.query("Status == 'Messung beendet'").rename(columns={'ID': 'Messung-ID'})
     df_dtv_status = df_status.merge(df_dtv, how='inner')
 
-    # todo: filter columns to export
-    # df_export = df_dtv_status[[]]
+    df_export = df_dtv_status[['Messung-ID',
+       'extraordinary_traffic_routing', 'min_timestamp', 'max_timestamp',
+       'Messdauer_h', 'Richtung ID', 'count', 'count_lt_3.5m',
+       'count_3.5_to_lt_8m', 'count_gte_8m', 'dtv', 'dtv_lt_3.5m',
+       'dtv_3.5_to_lt_8m', 'dtv_gte_8m']]
+    export_filename = os.path.join(os.path.dirname(__file__), 'data', 'dtv.csv')
+    logging.info(f'Exporting data to {export_filename}...')
+    df_export.to_csv(export_filename, index=False)
     pass
 
 
