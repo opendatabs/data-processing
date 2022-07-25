@@ -45,7 +45,10 @@ def main():
         df_dtv_lk_pivot = common.collapse_multilevel_column_names(df_dtv_laengenklasse.pivot_table(index=['Messung-ID', 'Richtung ID'], columns=['Laengenklasse']).reset_index()).rename(columns={'Messung-ID_': 'Messung-ID', 'Richtung ID_': 'Richtung ID'})
 
         logging.info(f'Merging all dtv tables...')
-        df_dtv = df_dtv_messung.merge(df_dtv_richtung, how='inner').merge(df_dtv_lk_pivot, how='inner')
+        df_dtv = (df_dtv_messung.merge(df_dtv_richtung, how='inner')
+                  .merge(df_dtv_lk_pivot, how='inner')
+                  .merge(df_metadata_richtung, how='left')
+                  )
 
         logging.info(f'calculating DTV...')
         df_dtv['dtv'] = df_dtv['count'] / df_dtv['Messdauer_h'] * 24
@@ -59,13 +62,14 @@ def main():
         df_status = df_metadata_raw.query("Status == 'Messung beendet'").rename(columns={'ID': 'Messung-ID'})
         df_dtv_status = df_status.merge(df_dtv, how='inner')
 
-        df_export = df_dtv_status[['Messung-ID',
+        df_export = df_dtv_status[['Messung-ID', 'Strasse', 'Strasse_Nr', 'Ort', 'the_geom',
            'extraordinary_traffic_routing', 'min_timestamp', 'max_timestamp',
-           'Messdauer_h', 'Richtung ID', 'count', 'count_lt_3.5m',
+           'Messdauer_h', 'Richtung ID', 'Richtung', 'count', 'count_lt_3.5m',
            'count_3.5_to_lt_8m', 'count_gte_8m', 'dtv', 'dtv_lt_3.5m',
            'dtv_3.5_to_lt_8m', 'dtv_gte_8m']].copy()
         df_export['min_timestamp_text'] = df_export['min_timestamp']
         df_export['max_timestamp_text'] = df_export['max_timestamp']
+        df_export['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/100097/table/?refine.messung_id=' + df_export['Messung-ID'].astype(str)
         export_filename = os.path.join(os.path.dirname(__file__), 'data', 'dtv.csv')
         logging.info(f'Exporting data to {export_filename}...')
         df_export.to_csv(export_filename, index=False)
