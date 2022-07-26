@@ -141,7 +141,7 @@ def create_measurements_df(df_meta_raw):
                 new_df.append(raw_df)
 
     for obj in files_to_upload:
-        if ct.has_changed(filename=obj['filename'], method='hash'):
+        if True: # ct.has_changed(filename=obj['filename'], method='hash'):
             common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
@@ -164,7 +164,7 @@ def create_measurements_df(df_meta_raw):
         logging.info(f'Exporting into one huge csv and pickle to {all_data_filename}...')
         all_df.to_csv(all_data_filename, index=False)
         all_df.to_pickle(all_data_filename.replace('.csv', '.pkl'))
-        if ct.has_changed(filename=all_data_filename, method='hash'):
+        if True: # ct.has_changed(filename=all_data_filename, method='hash'):
             common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
             odsp.publish_ods_dataset_by_id('100200')
