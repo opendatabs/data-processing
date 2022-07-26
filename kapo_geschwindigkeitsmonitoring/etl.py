@@ -58,7 +58,7 @@ def create_metadata_per_location_df(df):
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
     df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
-                      'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
+                      'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
