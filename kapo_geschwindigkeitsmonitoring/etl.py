@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import pandas as pd
 import glob
 import pandas.io.sql as psql
@@ -39,10 +40,15 @@ def main():
     df_meta_raw = psql.read_sql('SELECT *, ST_AsGeoJSON(the_geom) as the_geom_json, ST_AsEWKT(the_geom) as the_geom_EWKT, ST_AsText(the_geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
     con.close()
 
+    logging.info(f'Calculating in dataset to put single measurements in...')
+    df_meta_raw['messbeginn_jahr'] = df_meta_raw.Beginn.astype(str).str.slice(0,4).astype(int)
+    df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100097')
+    df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw['dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
+
     df_metadata = create_metadata_per_location_df(df_meta_raw)
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
     df_measurements = create_measurements_df(df_meta_raw)
-    year_file_names = create_measures_per_year(df_measurements)
+    # year_file_names = create_measures_per_year(df_measurements)
 
 
 def create_metadata_per_location_df(df):
@@ -53,7 +59,7 @@ def create_metadata_per_location_df(df):
     df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende'
-                      ]]
+                      'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
@@ -131,13 +137,13 @@ def create_measurements_df(df_meta_raw):
                 dfs.append(raw_df)
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
                 raw_df.to_csv(filename_current_measure, index=False)
-                files_to_upload.append(filename_current_measure)
+                files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
                 new_df.append(raw_df)
 
-    for data_file in files_to_upload:
-        if ct.has_changed(filename=data_file, method='hash'):
-            common.upload_ftp(filename=data_file, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_data)
-            ct.update_hash_file(data_file)
+    for obj in files_to_upload:
+        if ct.has_changed(filename=obj['filename'], method='hash'):
+            common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
+            ct.update_hash_file(obj['filename'])
 
     if len(dfs) == 0:
         logging.info(f'No raw data present at all, raising IOError...')
@@ -161,6 +167,7 @@ def create_measurements_df(df_meta_raw):
         if ct.has_changed(filename=all_data_filename, method='hash'):
             common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
+            odsp.publish_ods_dataset_by_id('100200')
             ct.update_hash_file(all_data_filename)
 
         return all_df
