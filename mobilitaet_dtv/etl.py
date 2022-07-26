@@ -66,10 +66,9 @@ def main():
            'extraordinary_traffic_routing', 'min_timestamp', 'max_timestamp',
            'Messdauer_h', 'Richtung ID', 'Richtung', 'count', 'count_lt_3.5m',
            'count_3.5_to_lt_8m', 'count_gte_8m', 'dtv', 'dtv_lt_3.5m',
-           'dtv_3.5_to_lt_8m', 'dtv_gte_8m']].copy()
+           'dtv_3.5_to_lt_8m', 'dtv_gte_8m', 'dataset_id', 'link_zu_einzelmessungen']].copy()
         df_export['min_timestamp_text'] = df_export['min_timestamp']
         df_export['max_timestamp_text'] = df_export['max_timestamp']
-        df_export['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/100097/table/?refine.messung_id=' + df_export['Messung-ID'].astype(str)
         export_filename = os.path.join(os.path.dirname(__file__), 'data', 'dtv.csv')
         logging.info(f'Exporting data to {export_filename}...')
         df_export.to_csv(export_filename, index=False)
