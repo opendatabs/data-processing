@@ -32,7 +32,6 @@ def main():
         ['101', 'Genesen mit erster Dosis einer Mehrdosisimpfung'],
         ['102', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Grundimmunisierung)'],
         ['202', 'Genesen mit zweiter Dosis einer Mehrdosisimpfung (Auffrischimpfung)'],
-        ['309', 'Genesen mit mindestens zweiter Auffrischimpfung'],
         ['-21', 'Fehleingabe: serie 2, vacc_count 1'],
         ['-1',  'Andere'],
     ]
@@ -48,7 +47,6 @@ def main():
                 when person_recovered_from_covid = 1.0 and serie = 1 and vacc_count = 1 and vacc_id <> 5413868120110 then '101'
                 when person_recovered_from_covid = 1.0 and serie = 1 and vacc_count = 2 and vacc_id <> 5413868120110 then '102'
                 when person_recovered_from_covid = 1.0 and serie = 2 and vacc_count = 2 and vacc_id <> 5413868120110 then '202'
-                when person_recovered_from_covid = 1.0 and serie >= 3 and vacc_count >= 3 then '309'
                 when serie = 2 and vacc_count = 2 and vacc_id <> 5413868120110 then '22'
                 when serie = 1 and vacc_count = 1 and vacc_id <> 5413868120110 then '11'
                 when serie = 1 and vacc_count = 2 and vacc_id <> 5413868120110 then '12'
