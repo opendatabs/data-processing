@@ -1,0 +1,5 @@
+name;label;description
+liegenscha;Liegenschaft;
+r1_egris_e;EGRID;Die Eidgenössische Grundstücksidentifikation (E-GRID) dient der eindeutigen Identifikation jedes Grundstücks gemäss schweizerischem Grundbuchrecht.
+r1_nummer;Parzellennummer;Anhand dieser Nummer ist es möglich, Parzellen zu identifizieren und weitere Informationen zu ihnen einzuholen.
+r1_art_txt;Kategorie;Unterschieden wird zwischen Liegenschaft und Allmendparzelle.
