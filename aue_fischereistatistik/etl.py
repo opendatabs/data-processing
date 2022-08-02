@@ -93,9 +93,6 @@ df['Länge'].replace('unbekannt', '', inplace=True)
 # correct typo in 'Gewicht' column
 df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 
-# filter columns for export
-df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
 
 # force some columns to be of integer type
 df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
@@ -137,6 +134,10 @@ dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde
                }
 
 df['Fischereikarte'].replace(dict_karten, inplace=True)
+
+# filter columns for export
+df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
 
 
 # Add geometry
