@@ -14,9 +14,8 @@ locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 #     locale="German"  # Note: do not use "de_DE" as it doesn't work
 # )
 
-columns = ['Fischereikarte', 'Fangbüchlein_retourniert', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart', 'Gewicht',
-           'Länge', 'Nasenfänge', 'Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel',
-           'Abfluss_Rhein_über_1800m3']
+columns = ['Fischereikarte', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart',
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']
 
 df = pd.DataFrame(columns=columns)
 
@@ -89,10 +88,6 @@ df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 
 # remove "unbekannt" in column Länge
 df['Länge'].replace('unbekannt', '', inplace=True)
-
-# correct typo in 'Gewicht' column
-df['Gewicht'].replace('1.1.', '1.1', inplace=True)
-
 
 # force some columns to be of integer type
 df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
