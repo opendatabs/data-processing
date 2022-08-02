@@ -94,7 +94,7 @@ df['Länge'].replace('unbekannt', '', inplace=True)
 df['Gewicht'].replace('1.1.', '1.1', inplace=True)
 
 # filter columns for export
-df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart', 'Gewicht',
+df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
            'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
 
 # force some columns to be of integer type
