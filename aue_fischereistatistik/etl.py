@@ -4,6 +4,11 @@ from aue_fischereistatistik import credentials
 import locale
 from datetime import datetime
 
+# When adding data for new year:
+# 1. In the new Excel file, filter out all rows that have 'zurückgesetzt' in the Bemerkungen column
+# 2. copy the relevant columns from the Excel file into template.csv
+# 3. save as csv file with utf-8 encoding
+# 4. Check spelling of Fish and Fischereikarte
 
 # datetime in German
 # MAC:
@@ -15,7 +20,7 @@ locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 # )
 
 columns = ['Fischereikarte', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel']
 
 df = pd.DataFrame(columns=columns)
 
@@ -27,10 +32,10 @@ for year in range(2010, 2021):
     df_year['Jahr'] = year
     # replace '0' with empty string
     # Question: In Gewässercode: 0=unbekannt?
-    df_year[['Datum', 'Monat', 'Fischart',  'Gewicht',
-             'Länge','Abfluss_Rhein_über_1800m3']]\
-        =  df_year[['Datum', 'Monat', 'Fischart',  'Gewicht',
-                    'Länge','Abfluss_Rhein_über_1800m3']].replace('0','')
+    df_year[['Datum', 'Monat', 'Fischart',
+             'Länge']]\
+        =  df_year[['Datum', 'Monat', 'Fischart',
+                    'Länge']].replace('0','')
 
     # make month column complete/in same format and add day column
     if (df_year['Monat'] == '').all():
@@ -109,6 +114,13 @@ df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 
+# Remove Nase: they are put back into the water and therefore do not belong in these statistics
+condition = (df['Fischart'] != 'Nase')
+df = df[condition]
+
+# Rotfeder wieder freigelassen
+condition = (df['Fischart'] != 'Rotfeder')
+df = df[condition]
 
 # Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
@@ -130,10 +142,16 @@ dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde
 
 df['Fischereikarte'].replace(dict_karten, inplace=True)
 
+
+# Add index column to keep identical rows in OpenDataSoft
+df = df.sort_values(by=['Jahr','Monat'])
+df.reset_index(inplace=True)
+df['Laufnummer'] = df.index
+
+
 # filter columns for export
 df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
-
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Laufnummer']]
 
 # Add geometry
 df_geom = gpd.read_file("gewaesser_adapted.geojson")
