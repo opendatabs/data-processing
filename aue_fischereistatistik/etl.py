@@ -20,7 +20,7 @@ locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 # )
 
 columns = ['Fischereikarte', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischart',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Nackthalsgrundel']
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel']
 
 df = pd.DataFrame(columns=columns)
 
@@ -122,7 +122,6 @@ df = df[condition]
 condition = (df['Fischart'] != 'Rotfeder')
 df = df[condition]
 
-
 # Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' W$', ' Wiese', regex=True)
@@ -151,7 +150,6 @@ df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
 df = df.sort_values(by=['Jahr','Monat'])
 df.reset_index(inplace=True)
 df['Laufnummer'] = df.index
-
 
 # Add geometry
 df_geom = gpd.read_file("gewaesser_adapted.geojson")
