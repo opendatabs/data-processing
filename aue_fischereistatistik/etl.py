@@ -142,14 +142,16 @@ dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde
 
 df['Fischereikarte'].replace(dict_karten, inplace=True)
 
-# filter columns for export
-df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
-           'Länge','Kesslergrundel', 'Schwarzmundgrundel']]
 
 # Add index column to keep identical rows in OpenDataSoft
 df = df.sort_values(by=['Jahr','Monat'])
 df.reset_index(inplace=True)
 df['Laufnummer'] = df.index
+
+
+# filter columns for export
+df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
+           'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Laufnummer']]
 
 # Add geometry
 df_geom = gpd.read_file("gewaesser_adapted.geojson")
