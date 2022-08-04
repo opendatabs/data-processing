@@ -109,6 +109,9 @@ df['Fischart'].replace('Barsch (Egli)', 'Egli', inplace=True)
 df['Fischart'].replace('Aesche', 'Äsche', inplace=True)
 df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 
+# Remove Nase: they are put back into the water and therefore do not belong in these statistics
+condition = (df['Fischart'] != 'Nase')
+df = df[condition]
 
 # Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
