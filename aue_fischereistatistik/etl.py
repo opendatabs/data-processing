@@ -118,6 +118,10 @@ df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 condition = (df['Fischart'] != 'Nase')
 df = df[condition]
 
+# Rotfeder wieder freigelassen
+condition = (df['Fischart'] != 'Rotfeder')
+df = df[condition]
+
 
 # Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
