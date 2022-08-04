@@ -4,6 +4,11 @@ from aue_fischereistatistik import credentials
 import locale
 from datetime import datetime
 
+# When adding data for new year:
+# 1. In the new Excel file, filter out all rows that have 'zurückgesetzt' in the Bemerkungen column
+# 2. copy the relevant columns from the Excel file into template.csv
+# 3. save as csv file with utf-8 encoding
+# 4. Check spelling of Fish and Fischereikarte
 
 # datetime in German
 # MAC:
@@ -112,6 +117,7 @@ df['Fischart'].replace('Barsch', 'Egli', inplace=True)
 # Remove Nase: they are put back into the water and therefore do not belong in these statistics
 condition = (df['Fischart'] != 'Nase')
 df = df[condition]
+
 
 # Names Fischereikarte as in the Fischereiverordnung
 df['Fischereikarte'] = df['Fischereikarte'].str.replace(' R$', ' Rhein', regex=True)
