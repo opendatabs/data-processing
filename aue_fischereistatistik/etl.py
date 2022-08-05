@@ -166,5 +166,5 @@ df_geom = gpd.read_file("gewaesser_adapted.geojson")
 
 gdf = df_geom.merge(df, on='Gewässer')
 
-# export csv file
+# export geojson file
 gdf.to_file(f'{credentials.base_path_local}/fangstatistik.geojson', index=False)
