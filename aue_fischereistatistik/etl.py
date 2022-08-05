@@ -79,16 +79,18 @@ df['Datum'].replace('2020-09-31', '2020-09-30', inplace=True)
 df['Datum'] = pd.to_datetime(df['Datum'], format = '%Y-%m-%d', errors='coerce')
 
 # add column Gewässer
-dict_gew =  {   '0' : '-',
-                '1' : 'Rhein - Basel-Stadt',
-                '2' : 'Rhein - Basel-Stadt',
-                '3' : 'Wiese - Pachtstrecke Stadt Basel',
-                '4' : 'Birs - Pachtstrecke Stadt Basel',
-                '5' : 'Neuer Teich / Mühleteich - Pachtstrecke Riehen',
-                '6' : 'Wiese - Pachtstrecke Riehen',
-                '7' : 'Wiese - Pachstrecke Riehen'
+dict_gew = {'0': 'unbekannt',
+            '1': 'Rhein - Basel-Stadt',
+            '2': 'Rhein - Basel-Stadt',
+            '3': 'Wiese - Pachtstrecke Stadt Basel',
+            '4': 'Birs - Pachtstrecke Stadt Basel',
+            '5': 'Neuer Teich / Mühleteich - Pachtstrecke Riehen',
+            '6': 'Wiese - Pachtstrecke Riehen',
+            '7': 'Wiese - Pachstrecke Riehen',
+            '8': 'unbekannt',
+            'unbekannt': 'unbekannt'
 }
-
+df['Gewässercode'] = df['Gewässercode'].astype("string")
 df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 
 # remove "unbekannt" in column Länge
@@ -142,6 +144,12 @@ dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde
 
 df['Fischereikarte'].replace(dict_karten, inplace=True)
 
+# To do:
+# deal with case where Gewässer is 'unbekannt':
+# if Fischereikarte Wiese: 'Wiese - Pachtstrecke Riehen'
+# if Galgenkarte/Fischereikarte Rhein: 'Rhein - Basel-Stadt'
+condition = (df['Gewässer'] == 'unbekannt')
+indices = list(condition[condition == True].index)
 
 # Add index column to keep identical rows in OpenDataSoft
 df = df.sort_values(by=['Jahr','Monat'])
@@ -158,5 +166,5 @@ df_geom = gpd.read_file("gewaesser_adapted.geojson")
 
 gdf = df_geom.merge(df, on='Gewässer')
 
-# export csv file
+# export geojson file
 gdf.to_file(f'{credentials.base_path_local}/fangstatistik.geojson', index=False)
