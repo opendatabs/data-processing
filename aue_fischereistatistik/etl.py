@@ -88,7 +88,7 @@ dict_gew =  {   '0' : '-',
                 '6' : 'Wiese - Pachtstrecke Riehen',
                 '7' : 'Wiese - Pachstrecke Riehen'
 }
-
+df['Gewässercode'] = df['Gewässercode'].astype("string")
 df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 
 # remove "unbekannt" in column Länge
