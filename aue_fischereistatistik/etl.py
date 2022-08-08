@@ -97,8 +97,8 @@ df['Gewässer'] = df['Gewässercode'].map(dict_gew)
 df['Länge'].replace('unbekannt', '', inplace=True)
 
 # force some columns to be of integer type
-df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce').astype('Int64')
-df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce').astype('Int64')
+df['Kesslergrundel'] = pd.to_numeric(df['Kesslergrundel'], errors='coerce', downcast='integer').fillna(0)
+df['Schwarzmundgrundel'] = pd.to_numeric(df['Schwarzmundgrundel'], errors='coerce', downcast='integer').fillna(0)
 
 # make new column with total grundel
 df['Grundel Total'] = df['Kesslergrundel'] + df['Schwarzmundgrundel']
