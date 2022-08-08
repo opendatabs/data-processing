@@ -20,10 +20,15 @@ def main():
     df_2020_10_15['Übertretungsjahr'] = df_2020_10_15['Übertretungsdatum'].dt.year
     df_2018 = df_2020_10_15.query('Übertretungsjahr == 2018') # .drop(columns=credentials.columns_to_drop)
 
-    logging.info(f'Reading 2019+ data from xslx...')
-    df_ab_2019 = pd.read_excel(os.path.join(credentials.data_orig_path, '2021_09_30/OGD.xlsx'))
+    logging.info(f'Reading 2019 data from csv...')
+    df_2019 = pd.read_csv(os.path.join(credentials.data_orig_path, '2021_12_31/OGD2019.csv'), sep=';', encoding='cp1252')
+    df_2019['Übertretungsdatum'] = pd.to_datetime(df_2019['Übertretungsdatum'], format='%d.%m.%Y')
+    df_2019['Übertretungsjahr'] = df_2019['Übertretungsdatum'].dt.year
 
-    df_all = pd.concat([df_2017, df_2018, df_ab_2019], ignore_index=True)
+    logging.info(f'Reading 2020+ data from xslx...')
+    df_ab_2020 = pd.read_excel(os.path.join(credentials.data_orig_path, '2022_06_30/OGD.xlsx'))
+
+    df_all = pd.concat([df_2017, df_2018, df_2019, df_ab_2020], ignore_index=True)
     logging.info('Calculating weekday, weekday number, and its combination...')
     df_all['Übertretungswochentag'] = df_all['Übertretungsdatum'].dt.weekday.apply(lambda x: common.weekdays_german[x])
     # Translate from Mo=0 to So=1, Mo=2 etc. to be backward.compatible with previously used SAS code
@@ -34,7 +39,7 @@ def main():
     df_all['Ü-Ort PLZ'] = df_all['Ü-Ort PLZ'].replace(credentials.plz_replacements).astype(int)
 
     logging.info(f'Replacing old BuZi with new ones using lookup table...')
-    df_lookup = pd.read_excel(os.path.join(credentials.data_orig_path, '2021_06_30', 'Lookup-Tabelle BuZi.xlsx'))
+    df_lookup = pd.read_excel(os.path.join(credentials.data_orig_path, '2022_06_30', 'Lookup-Tabelle BuZi.xlsx'))
     df_all['BuZi'] = df_all['BuZi'].replace(df_lookup.ALT.to_list(), df_lookup.NEU.to_list())
 
     logging.info('Cleaning up data for export...')
