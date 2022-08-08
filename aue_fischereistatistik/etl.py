@@ -135,7 +135,7 @@ dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde
                'Fischereikarte Wiese, Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
                'Fischereikarte der Gemeinde Riehen': 'Fischereikarte Wiese',
                'Fischereikarte Riehen': 'Fischereikarte Wiese',
-               'Galgenkarte': ' Galgenkarte Rhein',
+               'Galgenkarte': 'Galgenkarte Rhein',
                'Jugendfischerkarte Rhein': 'Jugendfischereikarte Rhein',
                'Jugendfischerkarte': 'Jugendfischereikarte Rhein',
                'Jugendliche Rhein': 'Jugendfischereikarte Rhein',
@@ -144,12 +144,14 @@ dict_karten = {'unbekannt': 'Fischereikarte Rhein', 'Fischereikarte der Gemeinde
 
 df['Fischereikarte'].replace(dict_karten, inplace=True)
 
-# To do:
+
 # deal with case where Gewässer is 'unbekannt':
 # if Fischereikarte Wiese: 'Wiese - Pachtstrecke Riehen'
 # if Galgenkarte/Fischereikarte Rhein: 'Rhein - Basel-Stadt'
-condition = (df['Gewässer'] == 'unbekannt')
-indices = list(condition[condition == True].index)
+df.loc[((df['Gewässer'] == 'unbekannt') & (df['Fischereikarte'] == 'Fischereikarte Wiese')), 'Gewässer'] = 'Wiese - Pachtstrecke Riehen'
+df.loc[((df['Gewässer'] == 'unbekannt') & (df['Fischereikarte'] == 'Galgenkarte Rhein')), 'Gewässer'] = 'Rhein - Basel-Stadt'
+df.loc[((df['Gewässer'] == 'unbekannt') & (df['Fischereikarte'] == 'Fischereikarte Rhein')), 'Gewässer'] = 'Rhein - Basel-Stadt'
+
 
 # Add index column to keep identical rows in OpenDataSoft
 df = df.sort_values(by=['Jahr','Monat'])
