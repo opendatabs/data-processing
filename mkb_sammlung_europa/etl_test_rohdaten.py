@@ -19,6 +19,10 @@ def main():
     df_MKB[['Kurzbezeichnung', 'Titel']] = df_MKB['Kurzbezeichnung und Titel'].str.split(':', expand=True, n=1)
     # split off Einlaufnummer from Einlauf-Info
     df_MKB[['Einlaufnummer', 'Einlauf-Info']] = df_MKB['Einlauf-Info'].str.split(',', expand=True, n=1)
+
+    # To do: "Aus rechtlichen Gründen nicht angezeigt" in der Spalte  «Einlieferer*in, Erwerbungsart, Jahr der Einlieferung» for
+    # Alle Nummern ab VI 63692 und «RHO».
+
     # "Aus rechtlichen Gründen nicht angezeigt" should appear in both columns
     df_MKB['Einlauf-Info'].fillna('Aus rechtlichen Gründen nicht angezeigt', inplace=True)
     # remove Einlaufnummern VI_0000.1, VI_0000.2
