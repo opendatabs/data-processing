@@ -7,8 +7,8 @@ import ods_publish.etl_id as odsp
 
 
 def main():
-    # path = credentials.path_data_roh
-    path = credentials.path_data_roh_local
+    path = credentials.path_data_roh
+    # path = credentials.path_data_roh_local
     columns = ['Inventarnummer', 'Kurzbezeichnung und Titel', 'Datierung', 'Material & Technik', 'Masse', 'Herkunft',
                'Einlauf-Info']
     df_MKB = common.pandas_read_csv(path, names=columns, usecols=[2, 3, 5, 6, 7, 9, 10], encoding='utf8', index_col=None)
@@ -20,11 +20,17 @@ def main():
     # split off Einlaufnummer from Einlauf-Info
     df_MKB[['Einlaufnummer', 'Einlauf-Info']] = df_MKB['Einlauf-Info'].str.split(',', expand=True, n=1)
 
-    # To do: "Aus rechtlichen Gründen nicht angezeigt" in der Spalte  «Einlieferer*in, Erwerbungsart, Jahr der Einlieferung» for
+    # "Aus rechtlichen Gründen nicht angezeigt" in der Spalte  «Einlieferer*in, Erwerbungsart, Jahr der Einlieferung» = 'Einlauf-Info' for
     # Alle Nummern ab VI 63692 und «RHO».
+    from_number = range(63692, 100000)
+    einlaufinfo_nicht_angezeigt_rho = (df_MKB['Inventarnummer'].str.startswith('RHO'))
+    einlaufinfo_nicht_angezeigt_VI  =  (df_MKB['Inventarnummer'].str.startswith(tuple(['VI ' + str(j) for j in from_number])))
+    # print(tuple(['VI ' + str(i) for i in from_number]))
+    df_MKB['Einlauf-Info'] = [df_MKB.loc[i, 'Einlauf-Info'] if ((not einlaufinfo_nicht_angezeigt_VI.loc[i]) and (not einlaufinfo_nicht_angezeigt_rho.loc[i])) else "Aus rechtlichen Gründen nicht angezeigt" for i in range(len(df_MKB))]
 
+    # REMOVE THIS?
     # "Aus rechtlichen Gründen nicht angezeigt" should appear in both columns
-    df_MKB['Einlauf-Info'].fillna('Aus rechtlichen Gründen nicht angezeigt', inplace=True)
+    # df_MKB['Einlauf-Info'].fillna('Aus rechtlichen Gründen nicht angezeigt', inplace=True)
     # remove Einlaufnummern VI_0000.1, VI_0000.2
     df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
@@ -66,8 +72,8 @@ def remove_einlaufnummern(df):
 
 # extract irrelevant text in Datierung using Hackathon file
 def remove_irrelevant(df_MKB):
-    # path = credentials.path_hackathon
-    path = credentials.path_hackathon_local
+    path = credentials.path_hackathon
+    # path = credentials.path_hackathon_local
     df_new = common.pandas_read_csv(path)
     text_to_remove = list(df_new["Datierung_Info"].unique())
 
