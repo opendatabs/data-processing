@@ -60,7 +60,7 @@ def process(file, x_coords_1416):
     exported_files = []
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing values for SensorNr {sensornr_filter}...')
-        df['StationId'] = df.StationNr.str.lstrip('0')
+        df['StationId'] = df.StationNr.astype(str).str.lstrip('0')
         df['bohrkataster-link'] = 'https://data.bs.ch/explore/dataset/100182/table/?refine.catnr45=' + df.StationId
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
