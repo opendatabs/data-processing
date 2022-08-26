@@ -47,6 +47,7 @@ def main():
         push_url = credentials.ods_live_realtime_push_url
         push_key = credentials.ods_live_realtime_push_key
         common.ods_realtime_push_df(df_all, url=push_url, push_key=push_key)
+    if ct.has_changed(credentials.path_export_file_public):
         logging.info("push for dataset 100187")
         push_url2 = credentials.ods_live_realtime_push_url2
         push_key2 = credentials.ods_live_realtime_push_key2
