@@ -30,6 +30,14 @@ def main():
     # change date format for json file
     df_all['Datum'] = df_all['Datum'].dt.strftime('%Y-%m-%d')
     df_all.to_csv(credentials.path_export_file, index=False)
+
+    # make public dataset, remove empty rows
+    df_public = df_all[["7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]].dropna(how='all')
+    df_datum = df_all[["Datum"]]
+    df_public = df_datum.join(df_public, how='right')
+    df_public.to_csv(credentials.path_export_file_public, index=False)
+
+
     if ct.has_changed(credentials.path_export_file):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
                           credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
@@ -42,11 +50,11 @@ def main():
         logging.info("push for dataset 100187")
         push_url2 = credentials.ods_live_realtime_push_url2
         push_key2 = credentials.ods_live_realtime_push_key2
-        common.ods_realtime_push_df(df_all, url=push_url2, push_key=push_key2)
+        common.ods_realtime_push_df(df_public, url=push_url2, push_key=push_key2)
     logging.info('Job successful!')
 
 
-# Realtime API bootstrap data:
+# Realtime API bootstrap data for dataset 100167:
 # {
 #     "datum": "2021-07-11",
 #     "ba_nr": "Ba210336",
@@ -86,6 +94,13 @@ def main():
 #     "7t_median_bs_bl": "0.5"
 # }
 
+# Realtime API boostrap data for dataset 100187
+#
+# {
+#     "datum": "2021-07-11",
+#     "7_tagemedian_of_e_n1_n2_pro_tag_100_000_pers": "0.5",
+#     "7t_median_bs_bl": "0.5"
+# }
 
 def make_column_dt(df, column):
     df[column] = pd.to_datetime(df[column])
