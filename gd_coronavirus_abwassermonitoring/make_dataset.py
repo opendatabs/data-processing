@@ -48,6 +48,9 @@ def main():
         push_key = credentials.ods_live_realtime_push_key
         common.ods_realtime_push_df(df_all, url=push_url, push_key=push_key)
     if ct.has_changed(credentials.path_export_file_public):
+        common.upload_ftp(credentials.path_export_file_public, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'gd_kantonslabor/covid19_abwassermonitoring')
+        ct.update_hash_file(credentials.path_export_file_public)
         logging.info("push for dataset 100187")
         push_url2 = credentials.ods_live_realtime_push_url2
         push_key2 = credentials.ods_live_realtime_push_key2
