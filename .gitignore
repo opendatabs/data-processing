@@ -26,3 +26,4 @@ __pycache__/
 **/Pipfile.lock
 /parlamentsdienst_gr_abstimmungen/**/*.json
 **/*.pdf
+**/*.sasb7dat
