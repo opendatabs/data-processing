@@ -52,7 +52,7 @@ def main():
 
 
 def process_single_file(data_file, var_file, export_file, ftp_folder, ods_id, jahr=None):
-    # todo: get zip file and unzip to data_orig, then load data from there.
+    # todo: Create and publish ZIP File
     logging.info(f'Processing survey with data file {data_file}...')
     enc = get_encoding(data_file)
     logging.info(f'Normalizing unicode data to get rid of &nbsp; (\\xa0)...')
