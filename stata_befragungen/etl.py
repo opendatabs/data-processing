@@ -15,16 +15,16 @@ def main():
     root = credentials.import_root_folder
     befragungen = [
         {
-            'data_file': os.path.join(root, '55plus/Alle_Jahre/DATENSATZ_55plus_OGD_CODE/DATENSATZ_55plus_OGD_TEXT.csv'),
-            'var_file': os.path.join(root, '55plus/Alle_Jahre/DATENSATZ_55plus_OGD_CODE/VARIABLEN_2019.csv'),
+            'data_file': os.path.join(root, '55plus/Alle_Jahre/DATENSATZ_55plus_OGD_TEXT.csv'),
+            'var_file': os.path.join(root, '55plus/Alle_Jahre/VARIABLEN_2019.csv'),
             'export_file': 'Befragung_55_plus_alle_jahre.csv',
             'ftp_folder': '55plus',
             'jahr': None,
             'ods_id': '100185'
         },
         {
-            'data_file': os.path.join(root, '55plus/2019/_Befragung_55plus_2019/DATENSATZ2019_OGD_TEXT.csv'),
-            'var_file': os.path.join(root, '55plus/2019/_Befragung_55plus_2019/VARIABLEN_2019.csv'),
+            'data_file': os.path.join(root, '55plus/2019/DATENSATZ2019_OGD_TEXT.csv'),
+            'var_file': os.path.join(root, '55plus/2019/VARIABLEN_2019.csv'),
             'export_file': 'Befragung_55_plus_2019.csv',
             'ftp_folder': '55plus',
             'jahr': 2019,
