@@ -21,9 +21,11 @@ locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 def main():
     df_publ = get_previous_data_from_20210307()
     latest_file, datetime_abst = get_latest_file_and_date()
-    date_abst = datetime.strptime(datetime_abst, '%Y%m%d')
+    date_abst = str(datetime_abst.date())
     # to do: check if this is the date of currently active Abstimmung...
-    if date_abst not in df_publ['abstimmungsdatum']:
+    dates = [str(x.date()) for x in df_publ['abstimmungsdatum']]
+    if date_abst not in dates:
+        logging.info(f'Add data of currently active Abstimmung of {date_abst}')
         df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
 
