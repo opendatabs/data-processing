@@ -6,17 +6,8 @@ import logging
 import os
 import glob
 from datetime import datetime
-import locale
 import numpy as np
 
-# datetime in German
-# MAC:
-locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
-# Windows:
-# locale.setlocale(
-#     category=locale.LC_ALL,
-#     locale="German"  # Note: do not use "de_DE" as it doesn't work
-# )
 
 def main():
     df_publ = get_previous_data_from_20210307()
