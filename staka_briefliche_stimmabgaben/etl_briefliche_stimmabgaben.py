@@ -56,7 +56,6 @@ def get_previous_data_from_20210307():
     df_all = pd.DataFrame()
     for file in file_list:
         datetime_abst = os.path.basename(file).split("_", 1)[0]
-        print(datetime_abst)
         datetime_abst = datetime.strptime(datetime_abst, '%Y%m%d')
         df = make_df_for_publ(latest_file=file, datetime_abst=datetime_abst)
         df_all = pd.concat([df_all, df], ignore_index=True)
