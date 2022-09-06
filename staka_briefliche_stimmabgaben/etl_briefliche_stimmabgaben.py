@@ -76,8 +76,7 @@ def get_previous_data_from_20210307():
 def get_latest_file_and_date():
     pattern = '????????_Eingang_Stimmabgaben*.xlsx'
     data_file_names = []
-    # to do: change the path
-    file_list = glob.glob(os.path.join(credentials.path_local, pattern))
+    file_list = glob.glob(os.path.join(credentials.path_stimmabgaben, pattern))
     if len(file_list) > 0:
         latest_file = max(file_list, key=os.path.getmtime)
         data_file_names.append(os.path.basename(latest_file))
