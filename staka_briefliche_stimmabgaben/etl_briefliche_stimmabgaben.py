@@ -1,6 +1,7 @@
 import pandas as pd
-from staka_abstimmungen import credentials
+from staka_briefliche_stimmabgaben import credentials
 import common
+from common import change_tracking as ct
 import logging
 import os
 import glob
@@ -20,30 +21,43 @@ locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
 def main():
     df_publ = get_previous_data_from_20210307()
     latest_file, datetime_abst = get_latest_file_and_date()
-    # date_abst = datetime_abst.date()
+    date_abst = str(datetime_abst.date())
     # to do: check if this is the date of currently active Abstimmung...
-    # to do: add data of an active Abstimmung
-    # df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
-    # df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
+    dates = [str(x.date()) for x in df_publ['abstimmungsdatum']]
+    if date_abst not in dates:
+        logging.info(f'Add data of currently active Abstimmung of {date_abst}')
+        df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
+        df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
 
     df_viz = make_df_for_visualization(df=df_publ.copy(), datetime_abst=datetime_abst)
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
 
+    # upload csv files
+    df_publ.to_csv(credentials.path_export_file_publ, index=False)
+    df_viz.to_csv(credentials.path_export_file_viz, index=False)
 
-    # df_publ.to_csv('data_publ.csv', index=False)
-    # df_viz.to_csv('data_viz.csv', index=False)
-
-    # to do: check if there are any changes
     # push df_publ
-    push_url = credentials.ods_live_realtime_push_url_publ
-    push_key = credentials.ods_live_realtime_push_key_publ
-    common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
+    if ct.has_changed(credentials.path_export_file_publ):
+        common.upload_ftp(credentials.path_export_file_publ, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'staka-abstimmungen')
+        ct.update_hash_file(credentials.path_export_file_publ)
+        logging.info("push data to ODS realtime API")
+        logging.info("push for dataset 100223")
+        push_url = credentials.ods_live_realtime_push_url_publ
+        push_key = credentials.ods_live_realtime_push_key_publ
+        common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
     # push df_viz
-    push_url = credentials.ods_live_realtime_push_url_viz
-    push_key = credentials.ods_live_realtime_push_key_viz
-    common.ods_realtime_push_df(df_viz, url=push_url, push_key=push_key)
+    if ct.has_changed(credentials.path_export_file_viz):
+        common.upload_ftp(credentials.path_export_file_viz, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'staka-abstimmungen')
+        ct.update_hash_file(credentials.path_export_file_viz)
+        logging.info("push data to ODS realtime API")
+        logging.info("push for dataset 100224")
+        push_url = credentials.ods_live_realtime_push_url_viz
+        push_key = credentials.ods_live_realtime_push_key_viz
+        common.ods_realtime_push_df(df_viz, url=push_url, push_key=push_key)
 
 def get_previous_data_from_20210307():
     pattern = '????????_Eingang_Stimmabgaben*morgen.xlsx'
@@ -62,8 +76,7 @@ def get_previous_data_from_20210307():
 def get_latest_file_and_date():
     pattern = '????????_Eingang_Stimmabgaben*.xlsx'
     data_file_names = []
-    # to do: change the path
-    file_list = glob.glob(os.path.join(credentials.path_local, pattern))
+    file_list = glob.glob(os.path.join(credentials.path_stimmabgaben, pattern))
     if len(file_list) > 0:
         latest_file = max(file_list, key=os.path.getmtime)
         data_file_names.append(os.path.basename(latest_file))
