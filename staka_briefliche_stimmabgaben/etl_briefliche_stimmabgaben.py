@@ -52,8 +52,7 @@ def main():
 
 def get_previous_data_from_20210307():
     pattern = '????????_Eingang_Stimmabgaben*morgen.xlsx'
-    # to do: change the path
-    file_list = glob.glob(os.path.join(credentials.path_local, pattern))
+    file_list = glob.glob(os.path.join(credentials.path_stimmabgaben, pattern))
     df_all = pd.DataFrame()
     for file in file_list:
         datetime_abst = os.path.basename(file).split("_", 1)[0]
