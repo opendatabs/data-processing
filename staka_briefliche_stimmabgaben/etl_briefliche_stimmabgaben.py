@@ -31,8 +31,6 @@ def main():
 
     # push df_publ
     if ct.has_changed(credentials.path_export_file_publ):
-        common.upload_ftp(credentials.path_export_file_publ, credentials.ftp_server, credentials.ftp_user,
-                          credentials.ftp_pass, 'staka-abstimmungen')
         ct.update_hash_file(credentials.path_export_file_publ)
         logging.info("push data to ODS realtime API")
         logging.info("push for dataset 100223")
@@ -41,8 +39,6 @@ def main():
         common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
     # push df_viz
     if ct.has_changed(credentials.path_export_file_viz):
-        common.upload_ftp(credentials.path_export_file_viz, credentials.ftp_server, credentials.ftp_user,
-                          credentials.ftp_pass, 'staka-abstimmungen')
         ct.update_hash_file(credentials.path_export_file_viz)
         logging.info("push data to ODS realtime API")
         logging.info("push for dataset 100224")
