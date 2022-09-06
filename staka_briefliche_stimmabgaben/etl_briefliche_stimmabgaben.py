@@ -1,6 +1,7 @@
 import pandas as pd
-from staka_abstimmungen import credentials
+from staka_briefliche_stimmabgaben import credentials
 import common
+from common import change_tracking as ct
 import logging
 import os
 import glob
@@ -31,19 +32,30 @@ def main():
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
 
+    # upload csv files
+    df_publ.to_csv(credentials.path_export_file_publ, index=False)
+    df_viz.to_csv(credentials.path_export_file_viz, index=False)
 
-    # df_publ.to_csv('data_publ.csv', index=False)
-    # df_viz.to_csv('data_viz.csv', index=False)
-
-    # to do: check if there are any changes
     # push df_publ
-    push_url = credentials.ods_live_realtime_push_url_publ
-    push_key = credentials.ods_live_realtime_push_key_publ
-    common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
+    if ct.has_changed(credentials.path_export_file_publ):
+        common.upload_ftp(credentials.path_export_file_publ, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'staka-abstimmungen')
+        ct.update_hash_file(credentials.path_export_file_publ)
+        logging.info("push data to ODS realtime API")
+        logging.info("push for dataset 100223")
+        push_url = credentials.ods_live_realtime_push_url_publ
+        push_key = credentials.ods_live_realtime_push_key_publ
+        common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
     # push df_viz
-    push_url = credentials.ods_live_realtime_push_url_viz
-    push_key = credentials.ods_live_realtime_push_key_viz
-    common.ods_realtime_push_df(df_viz, url=push_url, push_key=push_key)
+    if ct.has_changed(credentials.path_export_file_viz):
+        common.upload_ftp(credentials.path_export_file_viz, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'staka-abstimmungen')
+        ct.update_hash_file(credentials.path_export_file_viz)
+        logging.info("push data to ODS realtime API")
+        logging.info("push for dataset 100224")
+        push_url = credentials.ods_live_realtime_push_url_viz
+        push_key = credentials.ods_live_realtime_push_key_viz
+        common.ods_realtime_push_df(df_viz, url=push_url, push_key=push_key)
 
 def get_previous_data_from_20210307():
     pattern = '????????_Eingang_Stimmabgaben*morgen.xlsx'
