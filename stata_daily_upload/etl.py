@@ -19,6 +19,7 @@ def main():
                {'file': 'StatA/Bevoelkerung/04bevoelkerung_jahr_nach_vorname.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100129'},
                {'file': 'StatA/Bevoelkerung/05bevoelkerung_jahr_nach_nachname.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100127'},
                {'file': 'StatA/Quartierradar/quartierradar_ogd.csv', 'dest_dir': 'quartierradar', 'ods_id': '100011'},
+               {'file': 'StatA/Quartierradar/quartierradar_ogd_long.csv', 'dest_dir': 'quartierradar', 'ods_id': '100226'},
                {'file': 'StatA/Bevoelkerungsszenarien/Bevoelkerungsszenarien_Basel-Stadt.csv', 'dest_dir': 'bevoelkerungsszenarien', 'ods_id': '100007'},
                {'file': 'StatA/Leerstand/leerstand.csv', 'dest_dir': 'leerstand', 'ods_id': '100010'},
                {'file': 'StatA/Bevoelkerung/OpenDataMigration.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100002'},
