@@ -1,37 +1,28 @@
 name;label;description
-objid;Objekt-ID;Eindeutiger Identifikator
-bohr_id;Bohr-ID;Interner eindeutiger Identifikator
-catnr1;Kanton;Erster Teil Bohrnummer / Kanton
-catnr2;Gemeinde bzw. Sektion;Zweiter Teil Bohrnummer / Gemeinde bzw. Sektion
-catnr3;Klassifikation;Dritter Teil Bohrnummer / Klassifikation
-catnr4;Laufnummer;Vierter Teil Bohrnummer / Laufnummer
-catnr5;Laufnummer-Erweiterung;Fünfter Teil Bohrnummer / Laufnummer Extension (A,B,C etc.)
-catnr45;Vollständige Laufnummer;Vollständige Laufnummer (generiert aus den Werten catnumber4 und catnumber5)
-coordx;X-Koordinate;X-Koordinate der Bohrung
-coordy;Y-Koordinate;Y-Koordinate der Bohrung
-angular;Schrägbohrung (0/1);0 = Nein, 1 = Ja
-year;Bohrjahr;Erstellungsjahr der Bohrung
-street;Strasse;Strasse
-h_number;Hausummer;Hausummer
-begin_heig;Bohransatz-Kote;Kote Ansatz der Bohrung m.ü.M
-rock_heigh;Oberkante Fels-Kote;Kote Felsoberfläche der Bohrung m.ü.M
-rock_desc;Oberkante Fels-Stratigraphie;Beschreibung Felsoberfläche (z.B. Cyrenenmergel)
-base_heigh;Sohle-Kote;Kote Sohle der Bohrung m.ü.M.
-cashdate;Kassierdatum einer Bohrung;Das ist das ungefähre Datum, an dem eine ursprünglich verrohrte Bohrung kassiert (zurückgebaut und/oder verfüllt) wurde. D.h. die Bohrung ist nicht mehr zugänglich.
-yearbook;Im hydrografischen Jahrbuch;Bohrung im hydrografischen Jahrbuch vorhanden, 0 = Nein, 1 = Ja
-cont_point;ID: Zustand einer Messstelle;Zustand einer Messstelle
-cont_pt_tx;Text: Zustand der Bohrung;messbar, verschlammt, etc. (Zustand einer Messstelle)
-chemicalid;Chemische Analyse;Chemische Analyse
-terrain;Terrain-Kote;Höhe Terrain
-intervalid;Intervall der chemischen Analyse;Intervall der chemischen Analyse
-planned;Geplant (0/1);"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet)", 0 = Nein, 1 = Ja
-pipe_diame;Rohrdurchmesser;Durchmesser des eingebauten Rohrs in mm
-pipe_zcoor;Z-Koordinate vom Top;Z-Koordinate vom Top des Rohrabschnitts in m ü. M.
-pipe_zcoob;Z-Koordinate von der Basis;Z-Koordinate von der Basis des Rohrabschnitts in m ü. M.
-gwl_zcoord;Grundwasserspiegel;Z-Koordinate (Höhe) des Grundwasserstandes
-gwl_date;Datum des Grundwasserstandes;Datum des Grundwasserstandes (Datum im Ansiformat)
-gwl_datefo;Format des Datums;Format des Datums (dd.mm.yyyy)
-gwl_date_f;Datum des Grundwasserstandes;Datum des Grundwasserstandes (z.B. 04.11.1965)
-doc_profil;Bohrprofil-Dokument;Bohrprofil-Dokument zur Bohrung
-doc_situat;Situationsplan-Dokument;Situationsplan-Dokument zur Bohrung
-doc_pictur;Bild zur Bohrung;Bild zur Bohrung
+id_bohrung;Objekt-ID;Eindeutiger Identifikator
+catnummer45;Vollständige Laufnummer;Vollständige Laufnummer
+xkoord;X-Koordinate;X-Koordinate der Bohrung
+ykoord;Y-Koordinate;Y-Koordinate der Bohrung
+schraeg;Schrägbohrung (0/1);0 = Nein, 1 = Ja
+erstellung;Bohrjahr;Erstellungsjahr der Bohrung
+strasse;Strasse;Strasse
+hausnummer;Hausummer;Hausummer
+hoehestart;Bohransatz-Kote;Kote Ansatz der Bohrung m.ü.M
+hoehefels;Oberkante Fels-Kote;Kote Felsoberfläche der Bohrung m.ü.M
+artfels;Oberkante Fels-Stratigraphie;Beschreibung Felsoberfläche (z.B. Cyrenenmergel)
+hoehesole;Sohle-Kote;Kote Sohle der Bohrung m.ü.M.
+jahrbuch;Im hydrografischen Jahrbuch;Bohrung im hydrografischen Jahrbuch vorhanden, 0 = Nein, 1 = Ja
+zuststelle;Text: Zustand der Bohrung;messbar, verschlammt, etc. (Zustand einer Messstelle)
+hoehegelae;Höhe des Geländes;Höhe des Geländes
+bohgeplant;Geplant (0/1);"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet), 0 = Nein, 1 = Ja"
+rohrdurchm;Rohrdurchmesser;Durchmesser des eingebauten Rohrs in mm
+rohrhoehet;Höhe Rohrabschnitt oben;Höhe des Rohrabschnitts gemesen oben in m ü. M.
+rohrhoeheb;Höhe Rohrabschnitt oben;Höhe des Rohrabschnitts gemesen unten in m ü. M.
+heohegwl;Grundwasserspiegel;Höhe des Grundwasserstandes in m ü. M
+datumforma;Format des Datums;Format des Datums (dd.mm.yyyy)
+datumgwl;Datum des Grundwasserstandes;Datum des Grundwasserstandes (z.B. 04.11.1965)
+dokbohrpro;Bohrprofil-Dokument;Bohrprofil-Dokument zur Bohrung
+doksituat;Situationsplan-Dokument;Situationsplan-Dokument zur Bohrung
+bildbohrun;Bild zur Bohrung;Bild zur Bohrung
+geothermalbohrung;Erdwärmesonde vorhanden;Erdwärmesonde vorhanden
+gwlmesssta;Art der Grundwassermessstelle;Art der Grundwassermessstelle
