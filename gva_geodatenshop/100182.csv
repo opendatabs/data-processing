@@ -17,7 +17,7 @@ hoehegelae;Höhe des Geländes;Höhe des Geländes
 bohgeplant;Geplant (0/1);"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet), 0 = Nein, 1 = Ja"
 rohrdurchm;Rohrdurchmesser;Durchmesser des eingebauten Rohrs in mm
 rohrhoehet;Höhe Rohrabschnitt oben;Höhe des Rohrabschnitts gemesen oben in m ü. M.
-rohrhoeheb;Höhe Rohrabschnitt oben;Höhe des Rohrabschnitts gemesen unten in m ü. M.
+rohrhoeheb;Höhe Rohrabschnitt unten;Höhe des Rohrabschnitts gemesen unten in m ü. M.
 heohegwl;Grundwasserspiegel;Höhe des Grundwasserstandes in m ü. M
 datumforma;Format des Datums;Format des Datums (dd.mm.yyyy)
 datumgwl;Datum des Grundwasserstandes;Datum des Grundwasserstandes (z.B. 04.11.1965)
