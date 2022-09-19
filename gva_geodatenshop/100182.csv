@@ -12,7 +12,7 @@ hoehefels;Oberkante Fels-Kote;Kote Felsoberfläche der Bohrung m.ü.M
 artfels;Oberkante Fels-Stratigraphie;Beschreibung Felsoberfläche (z.B. Cyrenenmergel)
 hoehesole;Sohle-Kote;Kote Sohle der Bohrung m.ü.M.
 jahrbuch;Im hydrografischen Jahrbuch;Bohrung im hydrografischen Jahrbuch vorhanden, 0 = Nein, 1 = Ja
-zuststelle;Text: Zustand der Bohrung;messbar, verschlammt, etc. (Zustand einer Messstelle)
+zuststelle;Zustand der Bohrung;messbar, verschlammt, etc. (Zustand einer Messstelle)
 hoehegelae;Höhe des Geländes;Höhe des Geländes
 bohgeplant;Geplant (0/1);"Geplante Bohrung (wird für online Visualisierung ""geplante Bohrung"" verwendet), 0 = Nein, 1 = Ja"
 rohrdurchm;Rohrdurchmesser;Durchmesser des eingebauten Rohrs in mm
