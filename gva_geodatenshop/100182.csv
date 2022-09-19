@@ -1,6 +1,9 @@
 name;label;description
-id_bohrung;Objekt-ID;Eindeutiger Identifikator
-catnummer45;Vollständige Laufnummer;Vollständige Laufnummer
+id_bohrung;ID-Bohrung;Eindeutiger Identifikator
+art;Art der Bohrung;Art der Bohrung
+grundwasserdaten;Grundwasserdaten (0/1);Grundwasserdaten vorhanden (0 = Nein, 1 = Ja)
+flurabstand;Flurabstand;Differenz Höhe Gelände und Grundwasserspiegel
+catnum45;Vollständige Laufnummer;Vollständige Laufnummer
 xkoord;X-Koordinate;X-Koordinate der Bohrung
 ykoord;Y-Koordinate;Y-Koordinate der Bohrung
 schraeg;Schrägbohrung (0/1);0 = Nein, 1 = Ja
@@ -24,5 +27,5 @@ datumgwl;Datum des Grundwasserstandes;Datum des Grundwasserstandes (z.B. 04.11.1
 dokbohrpro;Bohrprofil-Dokument;Bohrprofil-Dokument zur Bohrung
 doksituat;Situationsplan-Dokument;Situationsplan-Dokument zur Bohrung
 bildbohrun;Bild zur Bohrung;Bild zur Bohrung
-geothermalbohrung;Erdwärmesonde vorhanden;Erdwärmesonde vorhanden
+geothermal;Erdwärmesonde vorhanden;Erdwärmesonde vorhanden
 gwlmesssta;Art der Grundwassermessstelle;Art der Grundwassermessstelle
