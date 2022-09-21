@@ -18,12 +18,13 @@ def main():
     if ct.has_changed(zip_file_path):
         with zipfile.ZipFile(zip_file_path) as z:
             z.extractall(os.path.join(data_orig_path, zip_folder))
-        filenames = ['eingang_entree_entrata.csv', 'gebaeude_batiment_edificio.csv', 'kodes_codes_codici.csv', 'wohnung_logement_abitazione.csv']
-        for filename in filenames:
+        for filename in os.listdir(os.path.join(data_orig_path, zip_folder)):
             file_path = os.path.join(data_orig_path, zip_folder, filename)
-            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, f'gwr/{zip_folder}')
-            # todo: Publish ods dataset
-            # odsp.publish_ods_dataset_by_id('')
+            if os.path.isfile(file_path):
+                common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, f'gwr/{zip_folder}')
+        # todo: Publish ods datasets
+        # filenames = ['eingang_entree_entrata.csv', 'gebaeude_batiment_edificio.csv', 'kodes_codes_codici.csv', 'wohnung_logement_abitazione.csv']
+        # odsp.publish_ods_dataset_by_id('')
         ct.update_hash_file(zip_file_path)
     pass
 
