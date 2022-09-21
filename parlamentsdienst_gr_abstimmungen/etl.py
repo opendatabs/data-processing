@@ -102,6 +102,8 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
     all_df = pd.DataFrame()
+    # todo: Parse every poll pdf file name to check for the new type "un" (ungültig) and set those polls' type correctly.
+    # Renaming of a pdf file to type "un" can happen after session, so we have to check for changes in the poll pdf files even if no change to the poll xml file has happened.
     if process_archive or ct.has_changed(xml_ls_file):
         # todo: handle xlsx files of polls during time at congress center
         xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
