@@ -1,7 +1,7 @@
 import base64
 import pandas as pd
 import requests
-from gsv_covid19_hosp_bs import credentials
+from gsv_covid19_hosp_bl import credentials
 from datetime import timezone, datetime
 import logging
 
