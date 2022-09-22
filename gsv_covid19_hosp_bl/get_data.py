@@ -15,7 +15,7 @@ def create_auth_string(username, password):
     print(f'Basic {base64_message}')
 
 
-def check_day(date=datetime.datetime.today()):
+def check_day(date=datetime.today()):
     logging.info("Check which day it is")
     if date.weekday() == 0:
         logging.info("It is Monday")
