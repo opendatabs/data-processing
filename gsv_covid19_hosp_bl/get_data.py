@@ -35,9 +35,21 @@ def filter_hospital(hospital):
     return hosp_filter
 
 
+def convert_to_utc(date):
+    string_start = str(date) + " 00:00:00"
+    string_end = str(date) + " 23:59:59"
+    naive_datetime_start = datetime.strptime(string_start, "%Y-%m-%d %H:%M:%S")
+    datetime_utc_start = naive_datetime_start.astimezone(timezone.utc)
+    string_utc_start = datetime_utc_start.strftime("%Y-%m-%dT%H:%M:%S")
+    naive_datetime_end = datetime.strptime(string_end, "%Y-%m-%d %H:%M:%S")
+    datetime_utc_end = naive_datetime_end.astimezone(timezone.utc)
+    string_utc_end = datetime_utc_end.strftime("%Y-%m-%dT%H:%M:%S")
+    return string_utc_start, string_utc_end
+
+
 def filter_date(date):
-    datefilter = "(CapacStamp gt datetime'" + str(date) + "T00:00:00'" + "or CapacStamp lt datetime'" + str(
-        date) + "T23:59:59')"
+    string_utc_start, string_utc_end = convert_to_utc(date)
+    datefilter = f"(CapacStamp gt datetime'{string_utc_start}' or CapacStamp lt datetime'{string_utc_end}')"
     return datefilter
 
 
