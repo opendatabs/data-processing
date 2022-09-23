@@ -116,7 +116,7 @@ def main():
         files.append(file)
     if len(files_to_process) > 0:
         for ods_id in ['100164', '100179', '100180', '100181']:
-            # odsp.publish_ods_dataset_by_id(ods_id)
+            odsp.publish_ods_dataset_by_id(ods_id)
             pass
     for file in files:
         archive(os.path.join(file['remote_path'], file['remote_file']))
