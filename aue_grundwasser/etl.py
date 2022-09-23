@@ -125,3 +125,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    logging.info('Job successful!')
