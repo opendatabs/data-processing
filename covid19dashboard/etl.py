@@ -43,6 +43,10 @@ def main():
 
         df_filled = df_filled.append(df_canton_filled, ignore_index=True)
 
+    # if the (empty) column current_quarantined_total is imported, remove it
+    if 'current_quarantined_total' in df_filled:
+        df_filled = df_filled.drop('current_quarantined_total', axis=1)
+
     filename = os.path.join(credentials.path, credentials.filename)
     logging.info(f'Exporting data to {filename}')
     df_filled.to_csv(filename, index=False)
