@@ -61,7 +61,7 @@ def process(file, x_coords_1416):
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing values for SensorNr {sensornr_filter}...')
         df['StationId'] = df.StationNr.astype(str).str.lstrip('0')
-        df['bohrkataster-link'] = 'https://data.bs.ch/explore/dataset/100182/table/?refine.catnr45=' + df.StationId
+        df['bohrkataster-link'] = 'https://data.bs.ch/explore/dataset/100182/table/?refine.catnum45=' + df.StationId
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
         logging.info(f'Exporting value data to {value_filename}...')
@@ -92,7 +92,7 @@ def archive(file):
 
 
 def retrieve_1416_x_coordinates():
-    # bohrkataster_url = 'https://data.bs.ch/explore/dataset/100182/download/?format=csv&use_labels_for_header=true&refine.catnr4=1416'
+    # bohrkataster_url = 'https://data.bs.ch/explore/dataset/100182/download/?format=csv&use_labels_for_header=true&refine.catnum45=1416'
     # logging.info(f'Retrieving Bohrkataster data for laufnr 1416 from {bohrkataster_url}...')
     # r = common.requests_get(bohrkataster_url)
     # df = pd.read_csv(StringIO(r.text), sep=';')
