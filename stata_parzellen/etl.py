@@ -1,4 +1,5 @@
 import os
+from io import StringIO
 import pandas as pd
 import logging
 import common.change_tracking as ct
@@ -13,9 +14,9 @@ def main():
     if ct.has_changed(parzellen_data_file):
         logging.info(f'Reading data from 4 datasets...')
         df = pd.read_csv(parzellen_data_file)
-        df_wohnviertel = common.pandas_read_csv('https://data.bs.ch/explore/dataset/100042/download/?format=csv', sep=';')[['wov_id', 'wov_label', 'wov_name', 'gemeinde_name']]
-        df_bezirk = common.pandas_read_csv('https://data.bs.ch/explore/dataset/100039/download/?format=csv', sep=';')[['bez_id', 'bez_label', 'bez_name']]
-        df_block = common.pandas_read_csv('https://data.bs.ch/explore/dataset/100040/download/?format=csv', sep=';')[['blo_id', 'blo_label']]
+        df_wohnviertel = common.pandas_read_csv(StringIO(common.requests_get('https://data.bs.ch/explore/dataset/100042/download/?format=csv').text), sep=';')[['wov_id', 'wov_label', 'wov_name', 'gemeinde_name']]
+        df_bezirk = common.pandas_read_csv(StringIO(common.requests_get('https://data.bs.ch/explore/dataset/100039/download/?format=csv').text), sep=';')[['bez_id', 'bez_label', 'bez_name']]
+        df_block = common.pandas_read_csv(StringIO(common.requests_get('https://data.bs.ch/explore/dataset/100040/download/?format=csv').text), sep=';')[['blo_id', 'blo_label']]
         logging.info(f'Merging datasets...')
         df_export = (df.merge(df_wohnviertel, left_on='WOV_ID', right_on='wov_id', how='left')
                      .merge(df_bezirk, left_on='BEZ_ID', right_on='bez_id', how='left')
