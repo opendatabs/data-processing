@@ -97,6 +97,7 @@ def find_in_sheet(sheet, text_to_find):
 
 def handle_polls(process_archive=False, df_unique_session_dates=None):
     logging.info(f'Handling polls, value of process_archive: {process_archive}...')
+    # todo: Change to different ftp users for archived vs. live polls
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
