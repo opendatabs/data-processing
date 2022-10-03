@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 from gsv_covid19_hosp_bs import credentials
 from datetime import timezone, datetime
+from zoneinfo import ZoneInfo
 import logging
 
 
@@ -38,11 +39,11 @@ def filter_hospital(hospital):
 def convert_to_utc(date):
     string_start = str(date) + " 00:00:00"
     string_end = str(date) + " 23:59:59"
-    naive_datetime_start = datetime.strptime(string_start, "%Y-%m-%d %H:%M:%S")
-    datetime_utc_start = naive_datetime_start.astimezone(timezone.utc)
+    datetime_start = datetime.strptime(string_start, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo('Europe/Zurich'))
+    datetime_utc_start = datetime_start.astimezone(timezone.utc)
     string_utc_start = datetime_utc_start.strftime("%Y-%m-%dT%H:%M:%S")
-    naive_datetime_end = datetime.strptime(string_end, "%Y-%m-%d %H:%M:%S")
-    datetime_utc_end = naive_datetime_end.astimezone(timezone.utc)
+    datetime_end = datetime.strptime(string_end, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo('Europe/Zurich'))
+    datetime_utc_end = datetime_end.astimezone(timezone.utc)
     string_utc_end = datetime_utc_end.strftime("%Y-%m-%dT%H:%M:%S")
     return string_utc_start, string_utc_end
 
