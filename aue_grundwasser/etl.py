@@ -14,14 +14,14 @@ from io import StringIO
 def list_files():
     file_list = []
     for remote_path in credentials.ftp_remote_paths:
-        listing = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_path, credentials.data_orig_path, '*.csv', list_only=True)
+        listing = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, remote_path, credentials.data_orig_path, 'BS_Grundwasser_odExp_*.csv', list_only=True)
         file_list.extend(listing)
     return file_list
 
 
 def process(file, x_coords_1416):
     export_stats = True
-    if 'historische_Daten_inaktive_Messstellen.csv' in file:
+    if 'BS_Grundwasser_odExp_historische_inaktive_Messstellen.csv' in file:
         logging.info(f'Processing archive file {file}...')
         dfa = pd.read_csv(file, sep=';', names=['StationNr', 'SensorNr', 'Date_text', 'Time', 'Value'], low_memory=False)
         logging.info(f'Pre-processing archive dataframe...')
@@ -61,7 +61,7 @@ def process(file, x_coords_1416):
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing values for SensorNr {sensornr_filter}...')
         df['StationId'] = df.StationNr.astype(str).str.lstrip('0')
-        df['bohrkataster-link'] = 'https://data.bs.ch/explore/dataset/100182/table/?refine.catnr45=' + df.StationId
+        df['bohrkataster-link'] = 'https://data.bs.ch/explore/dataset/100182/table/?refine.catnum45=' + df.StationId
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
         logging.info(f'Exporting value data to {value_filename}...')
@@ -86,13 +86,13 @@ def process(file, x_coords_1416):
 
 
 def archive(file):
-    to_name = os.path.join('..', credentials.ftp_archive_path, os.path.basename(file))
+    to_name = os.path.basename(file).replace('BS_Grundwasser_odExp_', 'BS_Grundwasser_odProc_')
     logging.info(f'Renaming file on FTP server from {file} to {to_name}...')
     common.rename_ftp(file, to_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass)
 
 
 def retrieve_1416_x_coordinates():
-    # bohrkataster_url = 'https://data.bs.ch/explore/dataset/100182/download/?format=csv&use_labels_for_header=true&refine.catnr4=1416'
+    # bohrkataster_url = 'https://data.bs.ch/explore/dataset/100182/download/?format=csv&use_labels_for_header=true&refine.catnum45=1416'
     # logging.info(f'Retrieving Bohrkataster data for laufnr 1416 from {bohrkataster_url}...')
     # r = common.requests_get(bohrkataster_url)
     # df = pd.read_csv(StringIO(r.text), sep=';')

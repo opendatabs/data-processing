@@ -12,7 +12,7 @@ CMD ["python3", "-m", "stata_parzellen.etl"]
 # cd stata_parzellen
 # docker build -t stata_parzellen .
 # cd ..
-# docker run -it --rm -v /mnt/OGD-DataExch:/code/data-processing/stata_parzellen/data -v /data/dev/workspace/data-processing:/code/data-processing --name stata_parzellen stata_parzellen
+# docker run -it --rm -v /mnt/OGD-DataExch/StatA/Parzellen:/code/data-processing/stata_parzellen/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name stata_parzellen stata_parzellen
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd stata_parzellen
