@@ -94,15 +94,16 @@ def make_df_for_visualization(df):
     df['tage_bis_abst'] = df['abstimmungsdatum'] - df['datum']
     df['tage_bis_abst'] = [x.days for x in df['tage_bis_abst']]
     df['stimmbeteiligung_vis'] = [round(x, 1) if not np.isnan(x) else 0.0 for x in
-                                               df['stimmbeteiligung']]
+                                  df['stimmbeteiligung']]
     df_stimmabgaben_vis = pd.DataFrame()
-    df_stimmabgaben_vis[['datum', 'stimmbeteiligung', 'abstimmungsdatum']] = df[['datum', 'stimmbeteiligung_vis', 'abstimmungsdatum']]
+    df_stimmabgaben_vis[['datum', 'stimmbeteiligung', 'abstimmungsdatum', 'tage_bis_abst']] \
+        = df[['datum', 'stimmbeteiligung_vis', 'abstimmungsdatum', 'tage_bis_abst']]
     df_stimmabgaben_vis = df_stimmabgaben_vis[df.tage_bis_abst.isin([18, 11, 6, 5, 4, 3, 2, 1])]
     # add dates with tage_bis_abst in [18, 11, 6, 5, 4, 3, 2, 1]
     for abst_datum in df.abstimmungsdatum.unique():
-        df_abst = df[df.abstimmungsdatum == abst_datum]
+        df_abst = df_stimmabgaben_vis[df_stimmabgaben_vis.abstimmungsdatum == abst_datum]
         for i in [18, 11, 6, 5, 4, 3, 2, 1, 0]:
-            if i not in df_abst.tage_bis_abst:
+            if i not in df_abst.tage_bis_abst.values.astype(int):
                 s = pd.DataFrame([[abst_datum-np.timedelta64(i, 'D'), 0.0, abst_datum]],
                                  columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
                 df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
