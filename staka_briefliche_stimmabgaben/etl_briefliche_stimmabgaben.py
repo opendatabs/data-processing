@@ -5,7 +5,7 @@ from common import change_tracking as ct
 import logging
 import os
 import glob
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 
 
@@ -98,9 +98,19 @@ def make_df_for_visualization(df, datetime_abst):
     df_stimmabgaben_vis = pd.DataFrame()
     df_stimmabgaben_vis[['datum', 'stimmbeteiligung', 'abstimmungsdatum']] = df[['datum', 'stimmbeteiligung_vis', 'abstimmungsdatum']]
     df_stimmabgaben_vis = df_stimmabgaben_vis[df.tage_bis_abst.isin([18, 11, 6, 5, 4, 3, 2, 1])]
+    # add dates with tage_bis_abst in [18, 11, 6, 5, 4, 3, 2, 1]
+    for abst_datum in df.abstimmungsdatum.unique():
+        df_abst = df[df.abstimmungsdatum == abst_datum]
+        for i in [18, 11, 6, 5, 4, 3, 2, 1, 0]:
+            if i not in df_abst.tage_bis_abst:
+                s = pd.DataFrame([[abst_datum-timedelta(i), 0.0, datetime_abst.date()]],
+                                 columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
+                df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
+
+
     # add date of Abstimmung
-    s = pd.DataFrame([[datetime_abst, 0.0, datetime_abst.date()]], columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
-    df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
+    # s = pd.DataFrame([[datetime_abst, 0.0, datetime_abst.date()]], columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
+    # df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
     df_stimmabgaben_vis['datum'] = df_stimmabgaben_vis['datum'].dt.strftime('%Y-%m-%d')
     df_stimmabgaben_vis['abstimmungsdatum'] = [str(x) for x in df_stimmabgaben_vis['abstimmungsdatum']]
     return df_stimmabgaben_vis
