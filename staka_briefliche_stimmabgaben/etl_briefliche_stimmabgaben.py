@@ -20,7 +20,7 @@ def main():
         df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
 
-    df_viz = make_df_for_visualization(df=df_publ.copy(), datetime_abst=datetime_abst)
+    df_viz = make_df_for_visualization(df=df_publ.copy())
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
@@ -89,7 +89,7 @@ def make_df_for_publ(latest_file, datetime_abst):
     return df_stimmabgaben
 
 
-def make_df_for_visualization(df, datetime_abst):
+def make_df_for_visualization(df):
     # df['tage_bis_abst'] = [(datetime_abst - d0).days for d0 in df['datum']]
     df['tage_bis_abst'] = df['abstimmungsdatum'] - df['datum']
     df['tage_bis_abst'] = [x.days for x in df['tage_bis_abst']]
@@ -103,7 +103,7 @@ def make_df_for_visualization(df, datetime_abst):
         df_abst = df[df.abstimmungsdatum == abst_datum]
         for i in [18, 11, 6, 5, 4, 3, 2, 1, 0]:
             if i not in df_abst.tage_bis_abst:
-                s = pd.DataFrame([[abst_datum-timedelta(i), 0.0, datetime_abst.date()]],
+                s = pd.DataFrame([[abst_datum-np.timedelta64(i, 'D'), 0.0, abst_datum]],
                                  columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
                 df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
 
