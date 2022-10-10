@@ -104,8 +104,8 @@ def make_df_for_visualization(df):
         df_abst = df_stimmabgaben_vis[df_stimmabgaben_vis.abstimmungsdatum == abst_datum]
         for i in [18, 11, 6, 5, 4, 3, 2, 1, 0]:
             if i not in df_abst.tage_bis_abst.values.astype(int):
-                s = pd.DataFrame([[abst_datum-np.timedelta64(i, 'D'), 0.0, abst_datum]],
-                                 columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
+                s = pd.DataFrame([[abst_datum-np.timedelta64(i, 'D'), 0.0, abst_datum, i]],
+                                 columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum', 'tage_bis_abst'])
                 df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
 
 
@@ -131,7 +131,8 @@ def make_df_for_visualization(df):
 # {
 #     "datum": "2022-05-15",
 #     "stimmbeteiligung": 1.0,
-#     "abstimmungsdatum": "2022-05-15"
+#     "abstimmungsdatum": "2022-05-15",
+#      "tage_bis_abst": 1
 # }
 
 
