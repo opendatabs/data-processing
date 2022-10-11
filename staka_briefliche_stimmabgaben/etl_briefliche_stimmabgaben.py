@@ -78,14 +78,11 @@ def get_latest_file_and_date():
 
 def make_df_for_publ(latest_file, datetime_abst):
     columns = ['tag', 'datum', 'eingang_pro_tag', 'eingang_kumuliert', 'stimmbeteiligung']
-    dtypes = {'datum': 'datetime64'
-     }
     df_stimmabgaben = pd.read_excel(latest_file,
                                     sheet_name=0,
                                     header=None,
                                     names=columns,
                                     skiprows=6,
-                                    dtype=dtypes
                                     )
     df_stimmabgaben['stimmbeteiligung'] = 100 * df_stimmabgaben['stimmbeteiligung']
     # add column Abstimmungsdatum
