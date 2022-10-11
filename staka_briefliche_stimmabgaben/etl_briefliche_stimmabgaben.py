@@ -21,6 +21,7 @@ def main():
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
 
     df_viz = make_df_for_visualization(df=df_publ.copy())
+    remove_old_zero_entries(df=df_viz)
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
@@ -107,15 +108,26 @@ def make_df_for_visualization(df):
                 s = pd.DataFrame([[abst_datum-np.timedelta64(i, 'D'), 0.0, abst_datum, i]],
                                  columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum', 'tage_bis_abst'])
                 df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
-
-
-    # add date of Abstimmung
-    # s = pd.DataFrame([[datetime_abst, 0.0, datetime_abst.date()]], columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum'])
-    # df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
+    # change format of datum, abstimmungsdatum
     df_stimmabgaben_vis['datum'] = df_stimmabgaben_vis['datum'].dt.strftime('%Y-%m-%d')
     df_stimmabgaben_vis['abstimmungsdatum'] = [str(x) for x in df_stimmabgaben_vis['abstimmungsdatum']]
     return df_stimmabgaben_vis
 
+def remove_old_zero_entries(df):
+    # obtain all entries with stimmbeteiliging = 0.0 (remove auth once dataset is public)
+    req = common.requests_get(
+        f'https://data.bs.ch/api/v2/catalog/datasets/100224/exports/json?refine=stimmbeteiligung:{0.0}&limit=-1&offset=0&timezone=UTC',
+        auth=(credentials.username, credentials.password))
+    file = req.json()
+    df_zero = pd.DataFrame.from_dict(file)
+    # remove those records for which there is now an entry, i.e. those 0-entries that are not in df_stimmabgaben_vis
+    common_rows = pd.merge(df_zero, df, how='inner')
+    to_delete = df_zero.subtract(common_rows, axis='columns')
+    payload = to_delete.to_json(orient="records")
+    delete_url = credentials.ods_live_realtime_delete_url_viz
+    push_key = credentials.ods_live_realtime_push_key_viz
+    r = common.requests_post(url=delete_url, data=payload, params={'pushkey': push_key})
+    r.raise_for_status()
 
 # Realtime API bootstrap data df_publ:
 # {
