@@ -82,7 +82,7 @@ def make_df_for_publ(latest_file, datetime_abst):
                                     sheet_name=0,
                                     header=None,
                                     names=columns,
-                                    skiprows=6,
+                                    skiprows=6
                                     )
     df_stimmabgaben['stimmbeteiligung'] = 100 * df_stimmabgaben['stimmbeteiligung']
     # add column Abstimmungsdatum
