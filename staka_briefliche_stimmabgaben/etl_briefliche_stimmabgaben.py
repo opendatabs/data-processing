@@ -5,7 +5,7 @@ from common import change_tracking as ct
 import logging
 import os
 import glob
-from datetime import datetime, timedelta
+from datetime import datetime
 import numpy as np
 
 
@@ -82,11 +82,11 @@ def make_df_for_publ(latest_file, datetime_abst):
                                     sheet_name=0,
                                     header=None,
                                     names=columns,
-                                    skiprows=6,
+                                    skiprows=6
                                     )
     df_stimmabgaben['stimmbeteiligung'] = 100 * df_stimmabgaben['stimmbeteiligung']
     # add column Abstimmungsdatum
-    df_stimmabgaben["abstimmungsdatum"] = datetime_abst#.date()
+    df_stimmabgaben["abstimmungsdatum"] = datetime_abst
     # remove empty rows
     df_stimmabgaben = df_stimmabgaben.dropna()
     return df_stimmabgaben
