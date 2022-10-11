@@ -10,23 +10,28 @@ import numpy as np
 
 
 def main():
+    logging.info('get previous data, starting from 07-03-2021')
     df_publ = get_previous_data_from_20210307()
+    logging.info('get file and date of latest available file')
     latest_file, datetime_abst = get_latest_file_and_date()
     date_abst = str(datetime_abst.date())
     # to do: check if this is the date of currently active Abstimmung...
     dates = [str(x.date()) for x in df_publ['abstimmungsdatum']]
+    logging.info('check if data from latest Abstimmung is already in the df, if not add it')
     if date_abst not in dates:
         logging.info(f'Add data of currently active Abstimmung of {date_abst}')
         df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
-
+    logging.info('make df for visualisation')
     df_viz = make_df_for_visualization(df=df_publ.copy())
+    logging.info('remove 0-entries for now available data')
     remove_old_zero_entries(df=df_viz)
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
 
     # upload csv files
+    logging.info('upload csv files of the two dataframes')
     df_publ.to_csv(credentials.path_export_file_publ, index=False)
     df_viz.to_csv(credentials.path_export_file_viz, index=False)
 
