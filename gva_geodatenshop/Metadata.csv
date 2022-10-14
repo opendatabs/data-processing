@@ -63,3 +63,4 @@ OW\SportBewegung;True;;Sport- und Bewegungsanlagen;100151;<b>Der Datensatz bilde
 SN\Strassennamen;True;;;100189;Der Datensatz beinhaltet die Namen aller Strassen im Kanton Basel-Stadt sowie kurze Erläuterungen zur Bedeutung der Strassennamen der Stadt Basel. Die Felder zu den Erklärungen sind ausserhalb des Stadtgebietes leer.;;"Geographie;Raum und Umwelt;";"Nomenklatur; Name; Strasse";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-04-11;
 BK\Bohrkataster;True;;;100182;;;"Geographie;Raum und Umwelt";"Grundwasser; Erdwärme; Hydrogeologie";;http://publications.europa.eu/resource/authority/frequency/QUARTERLY;True;2022-04-12;
 GZ\Gewaesserachsen;True;;;;;;;;;;;;
+NP\Festlegungen;True;Ueberlagernde_Festlegung;;100234;;;;;;;;;
