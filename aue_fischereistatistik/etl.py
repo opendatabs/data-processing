@@ -7,8 +7,10 @@ from datetime import datetime
 # When adding data for new year:
 # 1. In the new Excel file, filter out all rows that have 'zurückgesetzt' in the Bemerkungen column
 # 2. copy the relevant columns from the Excel file into template.csv
-# 3. save as csv file with utf-8 encoding
-# 4. Check spelling of Fish and Fischereikarte
+# 3. save as csv file with utf-8 encoding in folder csv_rohdaten
+# 4. Change range of years in for loop
+# 5. Check spelling of Fish and Fischereikarte
+# 6. Upload fangstatistik.geojson to dataportal
 
 # datetime in German
 # MAC:
@@ -25,7 +27,7 @@ columns = ['Fischereikarte', 'Datum', 'Monat', 'Jahr', 'Gewässercode', 'Fischar
 df = pd.DataFrame(columns=columns)
 
 
-for year in range(2010, 2021):
+for year in range(2010, 2022):
     year = str(year)
     path = f'{credentials.path_csv}/fangstatistik_{year}.csv'
     df_year = pd.read_csv(path, encoding='utf-8', keep_default_na=False)
@@ -162,6 +164,8 @@ df['Laufnummer'] = df.index
 # filter columns for export
 df = df[['Jahr', 'Monat', 'Fischereikarte', 'Gewässer', 'Fischart',
            'Länge','Kesslergrundel', 'Schwarzmundgrundel', 'Laufnummer']]
+
+df.to_csv(f'{credentials.base_path_local}/fangstatistik.csv', index=False)
 
 # Add geometry
 df_geom = gpd.read_file("gewaesser_adapted.geojson")
