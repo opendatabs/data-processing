@@ -2,12 +2,17 @@ import logging
 import pandas as pd
 import os
 import pathlib
+import openpyxl
+
+
+def create_timestamp(df):
+    return df['Ab-Datum'].dt.to_period('d').astype(str) + 'T' + df['Ab-Zeit'].astype(str)
 
 
 def main():
-    data_file = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
-    df = pd.read_excel(data_file)
-    df['timestamp_2021'] = df['Ab-Datum'].dt.to_period('d').astype(str) + 'T' + df['Ab-Zeit'].astype(str)
+    file_1 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
+    df = pd.read_excel(file_1)
+    df['timestamp_2021'] = create_timestamp(df)
     df['timestamp_2022'] = df['timestamp_2021'].str.replace('2021', '2022')
 
     df_export = pd.concat(
@@ -15,7 +20,14 @@ def main():
             df[['timestamp_2021', 'Stadtlast 2021']].rename(columns={'timestamp_2021': 'timestamp', 'Stadtlast 2021': 'netzlast_kwh'}),
             df[['timestamp_2022', 'Stadtlast 2022']].rename(columns={'timestamp_2022': 'timestamp', 'Stadtlast 2022': 'netzlast_kwh'}),
          ]
-    ).dropna(subset=['netzlast_kwh']).reset_index(drop=True)
+    )
+
+    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast 2022_Update16.10.xlsx')
+    df2 = pd.read_excel(file_2)
+    df2['timestamp'] = create_timestamp(df2)
+    df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
+    df_export = pd.concat([df_export, df_update]).dropna(subset=['netzlast_kwh']).reset_index(drop=True)
+
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
     df_export.to_csv(export_filename, index=False, sep=';')
     pass
