@@ -114,6 +114,8 @@ def main():
     df_pivot.insert(10, column='Anteil Impfung aufgefrischt an Wohnbevoelkerung', value=aufgefr/pop_count_statpop*100)
     df_pivot.insert(11, column='Anteil mit mindestens einer Dosis geimpft', value=mind_1/pop_count_statpop*100)
     df_pivot.insert(12, column='Bevoelkerungszahl STATPOP', value=pop_count_statpop)
+    df_pivot.insert(13, column='Anteil mit mindestens dritter Dosis geimpft an Wohnbevoelkerung', value=df_pivot['29'].squeeze()/pop_count_statpop*100)
+    df_pivot.insert(14, column='Anteil mit mindestens zweiter Auffrischimpfung geimpft an Wohnbevoelkerung', value=df_pivot['39'].squeeze()/pop_count_statpop*100)
 
     # df_pivot.insert(13, column='BFS Anteil vollstaendig geimpft an Wohnbevoelkerung', value=vollst/pop_count_statpop*100)
     # df_pivot.insert(14, column='BFS Anteil teilweise geimpft an Wohnbevoelkerung STATPOP', value=teilw/pop_count_statpop*100)
