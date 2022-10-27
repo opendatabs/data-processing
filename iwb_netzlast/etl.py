@@ -3,6 +3,10 @@ import pandas as pd
 import os
 import pathlib
 import openpyxl
+import ods_publish.etl_id as odsp
+import common
+from iwb_netzlast import credentials
+from common import change_tracking as ct
 
 
 def create_timestamp(df):
@@ -22,7 +26,7 @@ def main():
          ]
     )
 
-    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast 2022_Update16.10.xlsx')
+    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_25102022.xlsx')
     df2 = pd.read_excel(file_2)
     df2['timestamp'] = create_timestamp(df2)
     df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
@@ -30,6 +34,10 @@ def main():
 
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
     df_export.to_csv(export_filename, index=False, sep=';')
+    if ct.has_changed(export_filename):
+        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
+        odsp.publish_ods_dataset_by_id('100233')
+        ct.update_hash_file(export_filename)
     pass
 
 
