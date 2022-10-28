@@ -2,9 +2,11 @@ import common
 import pandas as pd
 from _management_api_test import credentials
 import html
-
+import logging
 
 import codecs
+logging.basicConfig(level=logging.DEBUG)
+
 f=codecs.open("button.html", 'r')
 print (f.read())
 
@@ -52,9 +54,9 @@ def data_page(date_str):
              f'"template": "contact.html", \n'
              f'"content": \n'
                  f'{{"html": {{"de":"page content",\n'
-                       #     f'"fr": {f.read()}, \n'
-                        #    f' "en": "Page content"}}, \n'
-                  f' "css": {{"de": {css_code},\n'
+                           f'"fr": "Page content", \n'
+                        f' "en": "Page content"}}, \n'
+                  f' "css": {{"de": "p {{ color: black; }}",\n'
                             f'"fr": "p {{ color: black; }}", \n'
                             f'"en": "p {{ color: black; }}"}}}}, \n'
             f'"tags": ["tag1", "tag2"],\n'
