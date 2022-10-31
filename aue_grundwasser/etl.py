@@ -28,6 +28,7 @@ def process(file, x_coords_1416):
         dfa.Value = dfa.Value.replace('---', np.nan)
         dfa = dfa.dropna(subset=['Value'])
         dfa['StationId'] = dfa.StationNr.str.lstrip('0')
+        dfa['StationNr'] = dfa['StationNr'].astype(str).str.zfill(10)
         dfa['Date'] = pd.to_datetime(dfa['Date_text'], dayfirst=True).dt.strftime(date_format='%Y-%m-%d')
         metadata_file = common.download_ftp(['Ergaenzende_Angaben.xlsx'], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'archiv', credentials.data_orig_path, '')[0]
         dfe = pd.read_excel(metadata_file['local_file'], dtype={'StationId': 'str'})
@@ -61,6 +62,7 @@ def process(file, x_coords_1416):
     for sensornr_filter in [10, 20]:
         logging.info(f'Processing values for SensorNr {sensornr_filter}...')
         df['StationId'] = df.StationNr.astype(str).str.lstrip('0')
+        df['StationNr'] = df['StationNr'].astype(str).str.zfill(10)
         df['bohrkataster-link'] = 'https://data.bs.ch/explore/dataset/100182/table/?refine.catnum45=' + df.StationId
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr_filter}', os.path.basename(file).replace('.csv', f'_{sensornr_filter}.csv'))
