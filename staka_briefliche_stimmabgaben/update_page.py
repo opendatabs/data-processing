@@ -42,13 +42,11 @@ def update_css(data_missing_from=data_missing_from):
         days = [18, 11, 6, 5, 4, 3, 2, 1, 0]
         days_missing = [i for i in days if i <= data_missing_from]
         days_to_remove = len(days_missing)
-        print(days_missing)
         text = ""
         for i in range(days_to_remove):
             number = 9 - i
             add_text = f".pick-values-20220925 .highcharts-data-label:nth-child({number}){{\n    display: none;\n}}"
             text = text + add_text
-        print(text)
     css_str = json.dumps(text)
     return css_str
 
