@@ -1,5 +1,5 @@
 import pandas as pd
-from staka_briefliche_stimmabgaben import credentials
+from staka_briefliche_stimmabgaben import credentials, update_page
 import common
 from common import change_tracking as ct
 import logging
@@ -23,7 +23,7 @@ def main():
         df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
     logging.info('make df for visualisation')
-    df_viz = make_df_for_visualization(df=df_publ.copy())
+    df_viz, data_missing_from = make_df_for_visualization(df=df_publ.copy())
     logging.info('remove 0-entries for now available data')
     remove_old_zero_entries(df=df_viz)
     # make date columns of string type
@@ -51,6 +51,8 @@ def main():
         push_url = credentials.ods_live_realtime_push_url_viz
         push_key = credentials.ods_live_realtime_push_key_viz
         common.ods_realtime_push_df(df_viz, url=push_url, push_key=push_key)
+        logging.info("update page with visualisation")
+        update_page.main(data_missing_from=data_missing_from)
 
 def get_previous_data_from_20210307():
     pattern = '????????_Eingang_Stimmabgaben*morgen.xlsx'
@@ -103,17 +105,19 @@ def make_df_for_visualization(df):
         = df[['datum', 'stimmbeteiligung_vis', 'abstimmungsdatum', 'tage_bis_abst']]
     df_stimmabgaben_vis = df_stimmabgaben_vis[df.tage_bis_abst.isin([18, 11, 6, 5, 4, 3, 2, 1])]
     # add dates with tage_bis_abst in [18, 11, 6, 5, 4, 3, 2, 1]
+    data_missing_from = -1
     for abst_datum in df.abstimmungsdatum.unique():
         df_abst = df_stimmabgaben_vis[df_stimmabgaben_vis.abstimmungsdatum == abst_datum]
         for i in [18, 11, 6, 5, 4, 3, 2, 1, 0]:
             if i not in df_abst.tage_bis_abst.values.astype(int):
+                data_missing_from = max(i, data_missing_from)
                 s = pd.DataFrame([[abst_datum-np.timedelta64(i, 'D'), 0.0, abst_datum, i]],
                                  columns=['datum', 'stimmbeteiligung', 'abstimmungsdatum', 'tage_bis_abst'])
                 df_stimmabgaben_vis = pd.concat([df_stimmabgaben_vis, s])
     # change format of datum, abstimmungsdatum
     df_stimmabgaben_vis['datum'] = df_stimmabgaben_vis['datum'].dt.strftime('%Y-%m-%d')
     df_stimmabgaben_vis['abstimmungsdatum'] = [str(x) for x in df_stimmabgaben_vis['abstimmungsdatum']]
-    return df_stimmabgaben_vis
+    return df_stimmabgaben_vis, data_missing_from
 
 def remove_old_zero_entries(df):
     # obtain all entries with stimmbeteiliging = 0.0 (remove auth once dataset is public)
