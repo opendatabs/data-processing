@@ -14,13 +14,15 @@ def create_timestamp(df):
 
 
 def main():
+    logging.info(f'Processing historical data 2018-2020...')
     hist_dfs = []
     for year in ['2018', '2019', '2020']:
         file_hist = os.path.join(pathlib.Path(__file__).parent, 'data_orig', f'Stadtlast_IDS_{year}.xls')
         df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E')
         hist_dfs.append(df_hist)
-    df_history = pd.concat(hist_dfs)
+    df_history = pd.concat(hist_dfs).rename(columns={'Zeitstempel': 'timestamp', 'Werte (kWh)': 'netzlast_kwh'})
 
+    logging.info(f'Processing data 2021, half of 2022...')
     file_1 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
     df = pd.read_excel(file_1)
     df['timestamp_2021'] = create_timestamp(df)
@@ -33,11 +35,12 @@ def main():
          ]
     )
 
+    logging.info(f'Processing latest data since 2022-07.01...')
     file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_01112022.xlsx')
     df2 = pd.read_excel(file_2)
     df2['timestamp'] = create_timestamp(df2)
     df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
-    df_export = pd.concat([df_export, df_update]).dropna(subset=['netzlast_kwh']).reset_index(drop=True)
+    df_export = pd.concat([df_history, df_export, df_update]).dropna(subset=['netzlast_kwh']).reset_index(drop=True)
 
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
     df_export.to_csv(export_filename, index=False, sep=';')
