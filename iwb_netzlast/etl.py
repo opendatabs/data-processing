@@ -26,7 +26,7 @@ def main():
          ]
     )
 
-    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_25102022.xlsx')
+    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_01112022.xlsx')
     df2 = pd.read_excel(file_2)
     df2['timestamp'] = create_timestamp(df2)
     df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
