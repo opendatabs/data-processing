@@ -14,6 +14,13 @@ def create_timestamp(df):
 
 
 def main():
+    hist_dfs = []
+    for year in ['2018', '2019', '2020']:
+        file_hist = os.path.join(pathlib.Path(__file__).parent, 'data_orig', f'Stadtlast_IDS_{year}.xls')
+        df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E')
+        hist_dfs.append(df_hist)
+    df_history = pd.concat(hist_dfs)
+
     file_1 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
     df = pd.read_excel(file_1)
     df['timestamp_2021'] = create_timestamp(df)
