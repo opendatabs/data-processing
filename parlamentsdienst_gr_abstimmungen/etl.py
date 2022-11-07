@@ -97,7 +97,7 @@ def find_in_sheet(sheet, text_to_find):
 
 def handle_polls(process_archive=False, df_unique_session_dates=None):
     logging.info(f'Handling polls, value of process_archive: {process_archive}...')
-    if True:  # process_archive:
+    if process_archive:
         process_archive = True
         ftp = {'server': credentials.gr_polls_archive_ftp_server, 'user': credentials.gr_polls_archive_ftp_user, 'password': credentials.gr_polls_archive_ftp_pass}
         dir_ls_file = credentials.ftp_ls_file.replace('.json', f'_archive_dir.json')
