@@ -97,17 +97,40 @@ def find_in_sheet(sheet, text_to_find):
 
 def handle_polls(process_archive=False, df_unique_session_dates=None):
     logging.info(f'Handling polls, value of process_archive: {process_archive}...')
-    # todo: Change to different ftp users for archived vs. live polls. Maybe first only switch live polls, add archive later?
-    remote_path = '' if not process_archive else credentials.xml_archive_path
-    xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
-    xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
-    df_trakt_filenames = retrieve_traktanden_pdf_filenames(process_archive, remote_path)
+    if True:  # process_archive:
+        process_archive = True
+        ftp = {'server': credentials.gr_polls_archive_ftp_server, 'user': credentials.gr_polls_archive_ftp_user, 'password': credentials.gr_polls_archive_ftp_pass}
+        dir_ls_file = credentials.ftp_ls_file.replace('.json', f'_archive_dir.json')
+        # xml and pdf Files are located in folders "Amtsjahr_????-????/????.??.??", e.g. "Amtsjahr_2022-2023/2022.10.19", so we dive into a
+        # two folder deep file structure
+        dir_ls = get_ftp_ls(remote_path='', pattern='Amtsjahr_*', file_name=dir_ls_file, ftp=ftp)
+        all_df = pd.DataFrame()
+        for remote_file in dir_ls:
+            remote_path = remote_file['remote_file']
+            subdir_ls_file = credentials.ftp_ls_file.replace('.json', f'_archive_{remote_path}.json')
+            subdir_ls = get_ftp_ls(remote_path=remote_path, pattern='*.*.*', file_name=subdir_ls_file, ftp=ftp)
+            for subdir in subdir_ls:
+                if subdir['remote_file'] not in ['.', '..']:
+                    remote_path_subdir = remote_path + '/' + subdir['remote_file']
+                    poll_df = handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path_subdir)
+                    all_df = pd.concat(objs=[all_df, poll_df], sort=False)
+        return all_df
+    else:
+        ftp = {'server': credentials.gr_current_polls_ftp_server, 'user': credentials.gr_current_polls_ftp_user, 'password': credentials.gr_current_polls_ftp_pass}
+        remote_path = ''
+        return handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path)
+
+
+def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path):
+    xml_ls_file = credentials.ftp_ls_file.replace('.json', f'_xml_{remote_path.replace("/", "_")}.json')
+    xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp=ftp)
+    df_trakt_filenames = retrieve_traktanden_pdf_filenames(ftp, remote_path)
     all_df = pd.DataFrame()
     # todo: Parse every poll pdf file name to check for the new type "un" (ungültig) and set those polls' type correctly.
     # Renaming of a pdf file to type "un" can happen after session, so we have to check for changes in the poll pdf files even if no change to the poll xml file has happened.
     if process_archive or ct.has_changed(xml_ls_file):
         # todo: handle xlsx files of polls during time at congress center
-        xml_files = common.download_ftp([], credentials.gr_polls_ftp_server, credentials.gr_polls_ftp_user, credentials.gr_polls_ftp_pass, remote_path, credentials.local_data_path, '*.xml')
+        xml_files = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], remote_path, credentials.local_data_path, '*.xml')
         df_trakt = calc_traktanden_from_pdf_filenames(df_trakt_filenames)
         for i, file in enumerate(xml_files):
             local_file = file['local_file']
@@ -286,17 +309,11 @@ def calc_traktanden_from_pdf_filenames(df_trakt):
     return df_trakt
 
 
-def retrieve_traktanden_pdf_filenames(process_archive, remote_path):
-    logging.info(f'Retrieving traktanden PDF filenames, value of process_archive: {process_archive}...')
-    if process_archive:
-        with ftplib.FTP(host=credentials.gr_polls_ftp_server) as ftp:
-            ftp.login(user=credentials.gr_polls_ftp_user, passwd=credentials.gr_polls_ftp_pass)
-            listing, file_list = recursive_mlsd(ftp, credentials.archive_path)
-        df_trakt = pd.DataFrame(file_list, columns=['remote_file']).query("remote_file.str.contains('pdf')")
-    else:
-        pdf_ls_file = credentials.ftp_ls_file.replace('.json', '_pdf.json')
-        pdf_ls = get_ftp_ls(remote_path=remote_path, pattern='*.pdf', file_name=pdf_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
-        df_trakt = pd.DataFrame(pdf_ls)
+def retrieve_traktanden_pdf_filenames(ftp, remote_path):
+    logging.info(f'Retrieving traktanden PDF filenames')
+    pdf_ls_file = credentials.ftp_ls_file.replace('.json', '_pdf.json')
+    pdf_ls = get_ftp_ls(remote_path=remote_path, pattern='*.pdf', file_name=pdf_ls_file, ftp=ftp)
+    df_trakt = pd.DataFrame(pdf_ls)
     return df_trakt
 
 
