@@ -97,7 +97,7 @@ def find_in_sheet(sheet, text_to_find):
 
 def handle_polls(process_archive=False, df_unique_session_dates=None):
     logging.info(f'Handling polls, value of process_archive: {process_archive}...')
-    # todo: Change to different ftp users for archived vs. live polls
+    # todo: Change to different ftp users for archived vs. live polls. Maybe first only switch live polls, add archive later?
     remote_path = '' if not process_archive else credentials.xml_archive_path
     xml_ls_file = credentials.ftp_ls_file.replace('.json', '_xml.json')
     xml_ls = get_ftp_ls(remote_path=remote_path, pattern='*.xml', file_name=xml_ls_file, ftp={'server': credentials.gr_polls_ftp_server, 'user': credentials.gr_polls_ftp_user, 'password': credentials.gr_polls_ftp_pass})
@@ -388,7 +388,7 @@ def handle_tagesordnungen(process_archive=False):
 
 
 def main():
-    df_tagesordn = handle_tagesordnungen(process_archive=False)
+    # df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     # Uncomment to process archived poll data
@@ -396,13 +396,13 @@ def main():
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
-    logging.info(f'Job completed successfully!')
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    logging.info(f'Job completed successfully!')
 
 
 # This job processes the following data sources:
