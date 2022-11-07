@@ -126,7 +126,7 @@ def upload_ftp(filename, server, user, password, remote_path):
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def download_ftp(files: list, server: str, user: str, password: str, remote_path: str, local_path: str, pattern: str, list_only=False) -> list:
-    logging.info(f'Connecting to FTP Server "{server}" in path "{remote_path}" to download file(s) "{files}" or pattern "{pattern}" to local path "{local_path}"...')
+    logging.info(f'Connecting to FTP Server "{server}" using user "{user}" in path "{remote_path}" to download file(s) "{files}" or pattern "{pattern}" to local path "{local_path}"...')
     ftp = ftplib.FTP(server, user, password)
     ftp.cwd(remote_path)
     remote_files = []
