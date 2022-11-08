@@ -127,6 +127,7 @@ def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, re
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(ftp, remote_path)
     all_df = pd.DataFrame()
     # todo: Parse every poll pdf file name to check for the new type "un" (ungültig) and set those polls' type correctly.
+    # todo: Check for changes in PDF files, only those change if a poll is invalid (xml file doe snot change)
     # Renaming of a pdf file to type "un" can happen after session, so we have to check for changes in the poll pdf files even if no change to the poll xml file has happened.
     if process_archive or ct.has_changed(xml_ls_file):
         # todo: handle xlsx files of polls during time at congress center
