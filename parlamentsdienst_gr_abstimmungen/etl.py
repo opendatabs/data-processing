@@ -7,6 +7,7 @@ import charset_normalizer
 from datetime import datetime, timezone, timedelta
 from xml.sax.handler import ContentHandler
 from zoneinfo import ZoneInfo
+import numpy as np
 import ods_publish.etl_id as odsp
 import icalendar
 import pandas as pd
@@ -137,6 +138,9 @@ def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, re
             if process_archive or ct.has_changed(local_file):
                 df_poll_details = calc_details_from_single_xml_file(local_file)
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
+                # Overriding invalid polls: Their pdf file name contains 'un' in column 'Abst_Typ'
+                df_merge1['Typ'] = np.where(df_merge1['Abst_Typ'] == 'un', 'ungültig', df_merge1['Typ'])
+                df_merge1 = df_merge1.drop(columns=['Abst_Typ'])
                 df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
                 # todo: Add link to pdf file (if possible)
                 # Correct historical incidence of wrong seat number 182 (2022-03-17)
@@ -304,7 +308,7 @@ def calc_traktanden_from_pdf_filenames(df_trakt):
         # Get rid of some rogue text and leading zeros
         # todo: Keep this as text in order not to fail on live imports?
         df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
-        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum']] # , 'Abst_Typ']]
+        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
     return df_trakt
 
 
