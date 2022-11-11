@@ -14,9 +14,10 @@ def create_timestamp(df):
 
 
 def main():
-    logging.info(f'Processing historical data 2018-2020...')
+    logging.info(f'Processing historical data 2012-2020...')
     hist_dfs = []
-    for year in ['2018', '2019', '2020']:
+    for year in range(2012, 2021):
+        logging.info(f'Processing year {year}...')
         file_hist = os.path.join(pathlib.Path(__file__).parent, 'data_orig', f'Stadtlast_IDS_{year}.xls')
         df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E')
         hist_dfs.append(df_hist)
@@ -27,7 +28,6 @@ def main():
     df_history2 = pd.read_excel(hist2)
     df_history2['timestamp'] = create_timestamp(df_history2)
     df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'netzlast_kwh'})
-
 
     logging.info(f'Processing data 2021, half of 2022...')
     file_1 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
