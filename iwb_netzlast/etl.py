@@ -29,7 +29,7 @@ def main():
     df_history2['timestamp'] = create_timestamp(df_history2)
     df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'netzlast_kwh'})
 
-    logging.info(f'Processing data 2021, half of 2022...')
+    logging.info(f'Processing data 2021-01-01 until 2022-09-30...')
     file_1 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
     df = pd.read_excel(file_1)
     df['timestamp_2021'] = create_timestamp(df)
@@ -42,8 +42,8 @@ def main():
          ]
     )
 
-    logging.info(f'Processing latest data since 2022-07.01...')
-    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_08112022.xlsx')
+    logging.info(f'Processing latest data since 2022-10-01...')
+    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_16112022.xlsx')
     df2 = pd.read_excel(file_2)
     df2['timestamp'] = create_timestamp(df2)
     df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
