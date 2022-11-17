@@ -22,6 +22,10 @@ def main():
         df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E')
         hist_dfs.append(df_hist)
     df_history = pd.concat(hist_dfs).rename(columns={'Zeitstempel': 'timestamp', 'Werte (kWh)': 'netzlast_kwh'})
+    # In these files, timestamps are at the end of a 15-minute interval. Subtract 15 minutes to match to newer files.
+    # df_history['timestamp_start'] = df_history['timestamp'] + pd.Timedelta(minutes=-15)
+    # Export as string to match newer files
+    df_history['timestamp'] = df_history['timestamp'].dt.strftime('%Y-%m-%dT%H:%M:%S')
 
     logging.info(f'Processing 2nd half of 2020...')
     hist2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_2020.xlsx')
@@ -29,28 +33,26 @@ def main():
     df_history2['timestamp'] = create_timestamp(df_history2)
     df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'netzlast_kwh'})
 
-    logging.info(f'Processing data 2021-01-01 until 2022-09-30...')
-    file_1 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_Update_PD.xlsx')
-    df = pd.read_excel(file_1)
-    df['timestamp_2021'] = create_timestamp(df)
-    df['timestamp_2022'] = df['timestamp_2021'].str.replace('2021', '2022')
+    logging.info(f'Processing 2021, 2022 (until 2022-09-20), and 2022 (starting 2022-10-01)...')
+    files = ['Stadtlast_2021.xlsx', 'Stadtlast_2022.xlsx', 'Stadtlast_16112022.xlsx']
+    new_dfs = []
+    for file in files:
+        logging.info(f'Processing {file}...')
+        file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', file)
+        df2 = pd.read_excel(file_2)
+        df2['timestamp'] = create_timestamp(df2)
+        df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
+        new_dfs.append(df_update)
+    latest_dfs = pd.concat(new_dfs)
 
-    df_export = pd.concat(
-        [
-            df[['timestamp_2021', 'Stadtlast 2021']].rename(columns={'timestamp_2021': 'timestamp', 'Stadtlast 2021': 'netzlast_kwh'}),
-            df[['timestamp_2022', 'Stadtlast 2022']].rename(columns={'timestamp_2022': 'timestamp', 'Stadtlast 2022': 'netzlast_kwh'}),
-         ]
-    )
-
-    logging.info(f'Processing latest data since 2022-10-01...')
-    file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_16112022.xlsx')
-    df2 = pd.read_excel(file_2)
-    df2['timestamp'] = create_timestamp(df2)
-    df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
-    df_export = pd.concat([df_history, df_history2, df_export, df_update]).dropna(subset=['netzlast_kwh']).reset_index(drop=True)
-
+    df_export = (pd.concat([df_history, df_history2, latest_dfs])
+                 .dropna(subset=['netzlast_kwh'])
+                 .reset_index(drop=True)
+                 .rename(columns={'timestamp': 'timestamp_interval_start_raw_text'}))
+    df_export['timestamp_interval_start'] = pd.to_datetime(df_export.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
+    df_export['timestamp_interval_start_text'] = df_export['timestamp_interval_start'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
-    df_export.to_csv(export_filename, index=False, sep=';')
+    df_export[['timestamp_interval_start', 'netzlast_kwh', 'timestamp_interval_start_text']].to_csv(export_filename, index=False, sep=';')
     if ct.has_changed(export_filename):
         common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
         odsp.publish_ods_dataset_by_id('100233')
