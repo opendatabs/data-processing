@@ -64,4 +64,4 @@ SN\Strassennamen;True;;;100189;Der Datensatz beinhaltet die Namen aller Strassen
 BK\Bohrkataster;True;;;100182;;;"Geographie;Raum und Umwelt";"Grundwasser; Erdwärme; Hydrogeologie";;http://publications.europa.eu/resource/authority/frequency/QUARTERLY;True;2022-04-12;
 GZ\Gewaesserachsen;True;;;;;;;;;;;;
 NP\Festlegungen;True;Ueberlagernde_Festlegung;;100234;;;;;;;;;
-US\Unfallschwerpunkte;True;;;100216;;;;;;;;;
+US\Unfallschwerpunkte;True;;;100216;;;"Mobilität und Verkehr;Öffentliche Ordnung und Sicherheit;Raum und Umwelt";"Verkehrsunfall;Fussgänger;Schaden;Gefährdung;Velo;Auto;Motorräder;Unfall;Verkehrsunfälle";;http://publications.europa.eu/resource/authority/frequency/ANNUAL;True;2022-12-09;
