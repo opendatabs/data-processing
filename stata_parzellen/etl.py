@@ -10,7 +10,7 @@ from stata_parzellen import credentials
 
 def main():
     CURR_DIR = os.path.dirname(os.path.realpath(__file__))
-    parzellen_data_file = os.path.join(CURR_DIR, 'data_orig', 'Liegenschaften_Parzellen.csv')
+    parzellen_data_file = os.path.join(CURR_DIR, 'data_orig', '100202_Liegenschaften_Parzellen.csv')
     if ct.has_changed(parzellen_data_file):
         logging.info(f'Reading data from 4 datasets...')
         df = pd.read_csv(parzellen_data_file, dtype={'WOV_ID': 'str', 'BEZ_ID': 'str', 'BLO_ID': 'str'})
