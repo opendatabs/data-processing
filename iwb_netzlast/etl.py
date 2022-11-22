@@ -33,7 +33,7 @@ def main():
     df_history2['timestamp'] = create_timestamp(df_history2)
     df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'netzlast_kwh'})
 
-    logging.info(f'Processing 2021, 2022 (until 2022-09-20), and 2022 (starting 2022-10-01)...')
+    logging.info(f'Processing 2021, 2022 (until 2022-09-30), and 2022 (starting 2022-10-01)...')
     files = ['Stadtlast_2021.xlsx', 'Stadtlast_2022.xlsx', 'Stadtlast_16112022.xlsx']
     new_dfs = []
     for file in files:
