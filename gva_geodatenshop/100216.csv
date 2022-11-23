@@ -1,7 +1,7 @@
 name;label;description
 id_ufsp;Id-Unfallschwerpunkt;Eindeutiger Identifikator
 kategorie;Kategorie;Kategorie des Unfallschwerpunktes 
-kategoriebeschreibung;Beschreibung der Kategorie des Unfallschwerpunktes
+kategoriebeschreibung;Beschreibung der Kategorie des Unfallschwerpunktes;Beschreibung der Kategorie des Unfallschwerpunktes
 jahr;Jahr;Jahr
 strasse;Strasse;Strassenname
 anlagetyp;Anlagetyp;Anlagetyp
