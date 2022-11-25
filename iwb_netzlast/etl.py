@@ -51,8 +51,15 @@ def main():
                  .rename(columns={'timestamp': 'timestamp_interval_start_raw_text'}))
     df_export['timestamp_interval_start'] = pd.to_datetime(df_export.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
     df_export['timestamp_interval_start_text'] = df_export['timestamp_interval_start'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')
+    df_export['year'] = df_export['timestamp_interval_start'].dt.year
+    df_export['month'] = df_export['timestamp_interval_start'].dt.month
+    df_export['day'] = df_export['timestamp_interval_start'].dt.day
+    df_export['weekday'] = df_export['timestamp_interval_start'].dt.weekday
+    df_export['dayofyear'] = df_export['timestamp_interval_start'].dt.dayofyear
+    df_export['quarter'] = df_export['timestamp_interval_start'].dt.quarter
+    df_export['weekofyear'] = df_export['timestamp_interval_start'].dt.isocalendar().week
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
-    df_export[['timestamp_interval_start', 'netzlast_kwh', 'timestamp_interval_start_text']].to_csv(export_filename, index=False, sep=';')
+    df_export[['timestamp_interval_start', 'netzlast_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']].to_csv(export_filename, index=False, sep=';')
     if ct.has_changed(export_filename):
         common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
         odsp.publish_ods_dataset_by_id('100233')
