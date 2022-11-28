@@ -8,6 +8,8 @@ import common
 from iwb_netzlast import credentials
 from common import change_tracking as ct
 
+LATEST_DATA_FILE = 'Stadtlast_22112022.xlsx'
+
 
 def create_timestamp(df):
     return df['Ab-Datum'].dt.to_period('d').astype(str) + 'T' + df['Ab-Zeit'].astype(str)
@@ -19,34 +21,52 @@ def main():
     for year in range(2012, 2021):
         logging.info(f'Processing year {year}...')
         file_hist = os.path.join(pathlib.Path(__file__).parent, 'data_orig', f'Stadtlast_IDS_{year}.xls')
-        df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E')
+        df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E', sheet_name=0)
         hist_dfs.append(df_hist)
-    df_history = pd.concat(hist_dfs).rename(columns={'Zeitstempel': 'timestamp', 'Werte (kWh)': 'netzlast_kwh'})
+    df_history = pd.concat(hist_dfs).rename(columns={'Zeitstempel': 'timestamp', 'Werte (kWh)': 'stromverbrauch_kwh'})
     # In these files, timestamps are at the end of a 15-minute interval. Subtract 15 minutes to match to newer files.
     # df_history['timestamp_start'] = df_history['timestamp'] + pd.Timedelta(minutes=-15)
     # Export as string to match newer files
     df_history['timestamp'] = df_history['timestamp'].dt.strftime('%Y-%m-%dT%H:%M:%S')
 
-    logging.info(f'Processing 2nd half of 2020...')
+    logging.info(f'Processing 2020-07-01 until 2020-08-31...')
     hist2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_2020.xlsx')
-    df_history2 = pd.read_excel(hist2)
+    df_history2 = pd.read_excel(hist2, sheet_name='Tabelle1')
     df_history2['timestamp'] = create_timestamp(df_history2)
-    df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'netzlast_kwh'})
+    df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'stromverbrauch_kwh'})
+    df_history2 = df_history2.query('timestamp < "2020-09-01"')
 
-    logging.info(f'Processing 2021, 2022 (until 2022-09-30), and 2022 (starting 2022-10-01)...')
-    files = ['Stadtlast_2021.xlsx', 'Stadtlast_2022.xlsx', 'Stadtlast_22112022.xlsx']
+    logging.info(f'Processing 2020 (starting 2020-09.01), 2021, 2022 (until 2022-09-30), and 2022 (starting 2022-10-01)...')
+    market_files = ['Stadtlast_2020_market.xlsx', 'Stadtlast_2021_market.xlsx', 'Stadtlast_2022_market.xlsx', LATEST_DATA_FILE]
     new_dfs = []
-    for file in files:
+    for file in market_files:
         logging.info(f'Processing {file}...')
         file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', file)
-        df2 = pd.read_excel(file_2)
+        df2 = pd.read_excel(file_2, sheet_name='Stadtlast')
         df2['timestamp'] = create_timestamp(df2)
-        df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'netzlast_kwh'})
+        df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'stromverbrauch_kwh'})
         new_dfs.append(df_update)
     latest_dfs = pd.concat(new_dfs)
 
+    logging.info(f'Processing "Freie Kunden" and "Grundversorgte Kunden"...')
+    free_dfs = []
+    base_dfs = []
+    for file in market_files:
+        logging.info(f'Processing frei/grundversorgt in file {file}...')
+        market_file = os.path.join(pathlib.Path(__file__).parent, 'data_orig', file)
+        market_sheets = pd.read_excel(market_file, sheet_name=None)
+        if 'Freie Kunden' in market_sheets and 'Grundversorgte Kunden' in market_sheets:
+            free_dfs.append(market_sheets['Freie Kunden'])
+            base_dfs.append(market_sheets['Grundversorgte Kunden'])
+    df_free = pd.concat(free_dfs)
+    df_free['timestamp_interval_start_raw_text'] = create_timestamp(df_free)
+    df_free = df_free.rename(columns={'Freie Kunden': 'freie_kunden_kwh'})[['timestamp_interval_start_raw_text', 'freie_kunden_kwh']]
+    df_private = pd.concat(base_dfs)
+    df_private['timestamp_interval_start_raw_text'] = create_timestamp(df_private)
+    df_private = df_private.rename(columns={'Grundversorgte Kunden': 'grundversorgte_kunden_kwh'})[['timestamp_interval_start_raw_text', 'grundversorgte_kunden_kwh']]
+
     df_export = (pd.concat([df_history, df_history2, latest_dfs])
-                 .dropna(subset=['netzlast_kwh'])
+                 .dropna(subset=['stromverbrauch_kwh'])
                  .reset_index(drop=True)
                  .rename(columns={'timestamp': 'timestamp_interval_start_raw_text'}))
     df_export['timestamp_interval_start'] = pd.to_datetime(df_export.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
@@ -58,8 +78,17 @@ def main():
     df_export['dayofyear'] = df_export['timestamp_interval_start'].dt.dayofyear
     df_export['quarter'] = df_export['timestamp_interval_start'].dt.quarter
     df_export['weekofyear'] = df_export['timestamp_interval_start'].dt.isocalendar().week
+
+    df_export = df_export.merge(df_free, how='left', on='timestamp_interval_start_raw_text')
+    df_export = df_export.merge(df_private, how='left', on='timestamp_interval_start_raw_text')
+
+    df_export['grundversorgte_kunden_kwh'].fillna(0, inplace=True)
+    df_export['freie_kunden_kwh'].fillna(0, inplace=True)
+
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
-    df_export[['timestamp_interval_start', 'netzlast_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']].to_csv(export_filename, index=False, sep=';')
+    # df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'grundversorgte_kunden_kwh', 'freie_kunden_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
+    df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
+    df_export.to_csv(export_filename, index=False, sep=';')
     if ct.has_changed(export_filename):
         common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
         odsp.publish_ods_dataset_by_id('100233')
