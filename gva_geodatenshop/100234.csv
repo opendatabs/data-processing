@@ -1,0 +1,13 @@
+name;label;description
+idueberfes;Id_UeberlagendeFestlegung;Eindeutiger Identifikator
+festueber;Festlegung überlagernd;
+verbindli;Verbindlichkeit;
+schutzzwec;Schutzzweck;
+rekurshaen;rekurshängig
+bezeichnng;Bezeichnung
+idgeschae;Id_Geschaeft
+geschaesta;Geschaeftsstatus
+datumstat;Datum Status
+geolink;Geolink;
+geschaebez;Geschaeftsbezeichnung
+bemerkung;Bemerkung
