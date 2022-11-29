@@ -8,7 +8,7 @@ import common
 from iwb_netzlast import credentials
 from common import change_tracking as ct
 
-LATEST_DATA_FILE = 'Stadtlast_22112022.xlsx'
+LATEST_DATA_FILE = 'Stadtlast_29112022.xlsx'
 
 
 def create_timestamp(df):
