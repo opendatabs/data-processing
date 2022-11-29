@@ -1,0 +1,7 @@
+name;label;description
+id_pumpe;Id_Velopumpe;Eindeutiger Identifikator der Velopumpe
+haendler;Haendler;Händlername
+strasse;Strasse;Strasse und Hausnummer
+plz;Postleitzahl;Postleitzahl
+pumpe;Pumpentyp;Kategorien unterschiedlicher Pumpentypen
+verfuegbar;Verfuegbarkeit;Kategorien unterschiedlicher Verfügbarkeit. Der Wert „7/24“ in den Daten entspricht im Modell dem wert „jederzeit“.
