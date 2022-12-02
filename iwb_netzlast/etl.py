@@ -7,9 +7,21 @@ import ods_publish.etl_id as odsp
 import common
 from iwb_netzlast import credentials
 from common import change_tracking as ct
+import glob
+from datetime import datetime
 
 LATEST_DATA_FILE = 'Stadtlast_29112022.xlsx'
 
+def get_date_latest_file():
+    latest_date = datetime.strptime('27112022', '%d%m%Y')
+    pattern = 'Stadtlast_????????.xlsx'
+    file_list = glob.glob(os.path.join(pathlib.Path(__file__).parent,'data_orig', pattern))
+    for file in file_list:
+        datetime_file = os.path.basename(file).split("_", 1)[1][:8]
+        datetime_file = datetime.strptime(datetime_file, '%d%m%Y')
+        if datetime_file > latest_date:
+            latest_date = datetime_file
+    return latest_date
 
 def create_timestamp(df):
     return df['Ab-Datum'].dt.to_period('d').astype(str) + 'T' + df['Ab-Zeit'].astype(str)
