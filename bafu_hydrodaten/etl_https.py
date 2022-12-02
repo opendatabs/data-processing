@@ -34,7 +34,7 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
     merged_df['pegel'] = merged_df[variable_names['pegel']]
     columns_to_export = ['datum', 'zeit', 'intervall', 'pegel', 'timestamp']
     columns_to_push = ['timestamp_text', 'pegel']
-    if 'temperatur' in variable_names:
+    if 'abfluss' in variable_names:
         merged_df['abfluss'] = merged_df[variable_names['abfluss']]
         columns_to_export.append('abfluss')
         columns_to_push.append('abfluss')
@@ -91,5 +91,6 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    main()
+    #main()
+    process_river(river_files=credentials.rhein_klingenthal_files, river_name='Rhein', river_id='2615', variable_names={'pegel': 'BAFU_2615_PegelPneumatik'}, push_url=credentials.rhein_klingenthal_ods_live_push_api_url)
     print('Job successful!')
