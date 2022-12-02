@@ -86,7 +86,8 @@ def main():
     df_export['freie_kunden_kwh'].fillna(0, inplace=True)
 
     export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
-    df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'grundversorgte_kunden_kwh', 'freie_kunden_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
+    # df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'grundversorgte_kunden_kwh', 'freie_kunden_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
+    df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
     df_export.to_csv(export_filename, index=False, sep=';')
     if ct.has_changed(export_filename):
         common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
