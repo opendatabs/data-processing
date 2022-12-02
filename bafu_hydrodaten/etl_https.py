@@ -34,17 +34,18 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
     merged_df['pegel'] = merged_df[variable_names['pegel']]
     columns_to_export = ['datum', 'zeit', 'intervall', 'pegel', 'timestamp']
     columns_to_push = ['timestamp_text', 'pegel']
-    if 'abfluss' in variable_names:
-        merged_df['abfluss'] = merged_df[variable_names['abfluss']]
-        columns_to_export.append('abfluss')
-        columns_to_push.append('abfluss')
     if 'temperatur' in variable_names:
         merged_df['temperatur'] = merged_df[variable_names['temperatur']]
         columns_to_export.append('temperatur')
         columns_to_push.append('temperatur')
+    if 'abfluss' in variable_names:
+        merged_df['abfluss'] = merged_df[variable_names['abfluss']]
+        columns_to_export.append('abfluss')
+        columns_to_push.append('abfluss')
+        merged_df = merged_df.dropna(subset=['abfluss'], how='all')
     # merged_df = merged_df[['datum', 'zeit', 'abfluss', 'intervall', 'pegel', 'timestamp_dt', 'timestamp']]
     # drop rows if all cells are empty in certain columns
-    merged_df = merged_df.dropna(subset=['abfluss', 'pegel'], how='all')
+    merged_df = merged_df.dropna(subset=['pegel'], how='all')
     local_path = os.path.join(credentials.path, f'bafu_hydrodaten/data/{river_name}')
     merged_filename = os.path.join(local_path, f'{river_id}_pegel_abfluss_{datetime.today().strftime("%Y-%m-%d")}.csv')
     print(f'Exporting data to {merged_filename}...')
