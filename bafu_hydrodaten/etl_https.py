@@ -31,10 +31,13 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
     merged_df['datum'] = merged_df.timestamp.dt.strftime('%d.%m.%Y')
     merged_df['zeit'] = merged_df.timestamp.dt.strftime('%H:%M')
     merged_df['intervall'] = 5
-    merged_df['abfluss'] = merged_df[variable_names['abfluss']]
     merged_df['pegel'] = merged_df[variable_names['pegel']]
-    columns_to_export = ['datum', 'zeit', 'abfluss', 'intervall', 'pegel', 'timestamp']
-    columns_to_push = ['timestamp_text', 'pegel', 'abfluss']
+    columns_to_export = ['datum', 'zeit', 'intervall', 'pegel', 'timestamp']
+    columns_to_push = ['timestamp_text', 'pegel']
+    if 'temperatur' in variable_names:
+        merged_df['abfluss'] = merged_df[variable_names['abfluss']]
+        columns_to_export.append('abfluss')
+        columns_to_push.append('abfluss')
     if 'temperatur' in variable_names:
         merged_df['temperatur'] = merged_df[variable_names['temperatur']]
         columns_to_export.append('temperatur')
@@ -82,6 +85,7 @@ def main():
     process_river(river_files=credentials.rhein_files, river_name='Rhein', river_id='2289', variable_names={'abfluss': 'BAFU_2289_AbflussRadar', 'pegel': 'BAFU_2289_PegelRadar'}, push_url=credentials.rhein_ods_live_push_api_url)
     process_river(river_files=credentials.birs_files, river_name='Birs', river_id='2106', variable_names={'abfluss': 'BAFU_2106_AbflussRadar', 'pegel': 'BAFU_2106_PegelRadar', 'temperatur': 'BAFU_2106_Wassertemperatur'}, push_url=credentials.birs_ods_live_push_api_url)
     process_river(river_files=credentials.wiese_files, river_name='Wiese', river_id='2199', variable_names={'abfluss': 'BAFU_2199_AbflussRadarSchacht', 'pegel': 'BAFU_2199_PegelRadarSchacht'}, push_url=credentials.wiese_ods_live_push_api_url)
+    process_river(river_files=credentials.rhein_klingenthal_files, river_name='Rhein', river_id='2615', variable_names={'pegel': 'BAFU_2615_PegelPneumatik.csv'}, push_url=credentials.rhein_klingenthal_ods_live_push_api_url)
 
 
 if __name__ == "__main__":
