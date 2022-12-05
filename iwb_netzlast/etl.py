@@ -15,7 +15,7 @@ from datetime import datetime
 def get_date_latest_file():
     latest_date = datetime.strptime('27112022', '%d%m%Y')
     pattern = 'Stadtlast_????????.xlsx'
-    file_list = glob.glob(os.path.join(pathlib.Path(__file__).parent,'data_orig', pattern))
+    file_list = glob.glob(os.path.join(pathlib.Path(__file__).parent, 'data/latest_data', pattern))
     for file in file_list:
         datetime_file = os.path.basename(file).split("_", 1)[1][:8]
         datetime_file = datetime.strptime(datetime_file, '%d%m%Y')
@@ -38,7 +38,7 @@ def main():
     hist_dfs = []
     for year in range(2012, 2021):
         logging.info(f'Processing year {year}...')
-        file_hist = os.path.join(pathlib.Path(__file__).parent, 'data_orig', f'Stadtlast_IDS_{year}.xls')
+        file_hist = os.path.join(pathlib.Path(__file__).parent, 'data/historical_data', f'Stadtlast_IDS_{year}.xls')
         df_hist = pd.read_excel(file_hist, skiprows=22, usecols='B,E', sheet_name=0)
         hist_dfs.append(df_hist)
     df_history = pd.concat(hist_dfs).rename(columns={'Zeitstempel': 'timestamp', 'Werte (kWh)': 'stromverbrauch_kwh'})
@@ -48,7 +48,7 @@ def main():
     df_history['timestamp'] = df_history['timestamp'].dt.strftime('%Y-%m-%dT%H:%M:%S')
 
     logging.info(f'Processing 2020-07-01 until 2020-08-31...')
-    hist2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', 'Stadtlast_2020.xlsx')
+    hist2 = os.path.join(pathlib.Path(__file__).parent, 'data/latest_data', 'Stadtlast_2020.xlsx')
     df_history2 = pd.read_excel(hist2, sheet_name='Tabelle1')
     df_history2['timestamp'] = create_timestamp(df_history2)
     df_history2 = df_history2[['timestamp', 'Profilwert']].rename(columns={'Profilwert': 'stromverbrauch_kwh'})
@@ -60,7 +60,7 @@ def main():
     new_dfs = []
     for file in market_files:
         logging.info(f'Processing {file}...')
-        file_2 = os.path.join(pathlib.Path(__file__).parent, 'data_orig', file)
+        file_2 = os.path.join(pathlib.Path(__file__).parent, 'data/latest_data', file)
         df2 = pd.read_excel(file_2, sheet_name='Stadtlast')
         df2['timestamp'] = create_timestamp(df2)
         df_update = df2[['timestamp', 'Stadtlast']].rename(columns={'Stadtlast': 'stromverbrauch_kwh'})
@@ -72,7 +72,7 @@ def main():
     base_dfs = []
     for file in market_files:
         logging.info(f'Processing frei/grundversorgt in file {file}...')
-        market_file = os.path.join(pathlib.Path(__file__).parent, 'data_orig', file)
+        market_file = os.path.join(pathlib.Path(__file__).parent, 'data/latest_data', file)
         market_sheets = pd.read_excel(market_file, sheet_name=None)
         if 'Freie Kunden' in market_sheets and 'Grundversorgte Kunden' in market_sheets:
             free_dfs.append(market_sheets['Freie Kunden'])
@@ -104,7 +104,7 @@ def main():
     df_export['grundversorgte_kunden_kwh'].fillna(0, inplace=True)
     df_export['freie_kunden_kwh'].fillna(0, inplace=True)
 
-    export_filename = os.path.join(os.path.dirname(__file__), 'data', 'netzlast.csv')
+    export_filename = os.path.join(os.path.dirname(__file__), 'data/export', 'netzlast.csv')
     # df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'grundversorgte_kunden_kwh', 'freie_kunden_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
     df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
     df_export.to_csv(export_filename, index=False, sep=';')
@@ -118,6 +118,5 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    #main()
-    print(get_path_latest_file())
+    main()
     logging.info('Job successful!')
