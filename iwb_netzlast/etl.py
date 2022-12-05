@@ -2,7 +2,6 @@ import logging
 import pandas as pd
 import os
 import pathlib
-import openpyxl
 import ods_publish.etl_id as odsp
 import common
 from iwb_netzlast import credentials
