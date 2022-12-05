@@ -10,7 +10,7 @@ from common import change_tracking as ct
 import glob
 from datetime import datetime
 
-LATEST_DATA_FILE = 'Stadtlast_29112022.xlsx'
+#LATEST_DATA_FILE = 'Stadtlast_29112022.xlsx'
 
 def get_date_latest_file():
     latest_date = datetime.strptime('27112022', '%d%m%Y')
@@ -21,7 +21,13 @@ def get_date_latest_file():
         datetime_file = datetime.strptime(datetime_file, '%d%m%Y')
         if datetime_file > latest_date:
             latest_date = datetime_file
-    return latest_date
+    return latest_date.date()
+
+def get_path_latest_file():
+    date = get_date_latest_file()
+    date_str = date.strftime('%d%m%Y')
+    path = 'Stadtlast_' + date_str + '.xlsx'
+    return path
 
 def create_timestamp(df):
     return df['Ab-Datum'].dt.to_period('d').astype(str) + 'T' + df['Ab-Zeit'].astype(str)
@@ -49,6 +55,7 @@ def main():
     df_history2 = df_history2.query('timestamp < "2020-09-01"')
 
     logging.info(f'Processing 2020 (starting 2020-09.01), 2021, 2022 (until 2022-09-30), and 2022 (starting 2022-10-01)...')
+    LATEST_DATA_FILE = get_path_latest_file()
     market_files = ['Stadtlast_2020_market.xlsx', 'Stadtlast_2021_market.xlsx', 'Stadtlast_2022_market.xlsx', LATEST_DATA_FILE]
     new_dfs = []
     for file in market_files:
@@ -111,5 +118,6 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    main()
+    #main()
+    print(get_path_latest_file())
     logging.info('Job successful!')
