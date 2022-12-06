@@ -24,6 +24,7 @@ def main():
                {'file': 'StatA/Leerstand/100010_leerstand.csv', 'dest_dir': 'leerstand', 'ods_id': '100010'},
                {'file': 'StatA/Bevoelkerung/100139_scheidungen_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100139'},
                {'file': 'StatA/Bevoelkerung/100156_trauungen_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100156'},
+               {'file': 'StatA/Bevoelkerung/100238_bevoelkerung_alter_geschl_seit_1945.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100238'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_primarsek1_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100145'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_betriebe_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100146'},
                {'file': 'GD-GS/coronavirus-massentests/manual-entry/massentests_single_sek2_manual_entry.txt', 'dest_dir': 'gd_gs/coronavirus_massenteststs/manual_entry', 'ods_id': '100153'},
