@@ -40,7 +40,8 @@ def main():
                {'file': 'StatA/Bevoelkerung/100197_bevoelkerung_jahr_plz.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100197'},
                {'file': 'MD/upload/faelle_minderjaehrige_3j_klassen.csv', 'dest_dir': 'covid19bs', 'ods_id': '100152'},
                {'file': 'StatA/Bevoelkerung/100225_Schutzsuchende.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100225'},
-               {'file': 'StatA/witterung/100227_Witterungserscheinungen.xlsx', 'dest_dir': 'witterung', 'ods_id': '100227'}
+               {'file': 'StatA/witterung/100227_Witterungserscheinungen.xlsx', 'dest_dir': 'witterung', 'ods_id': '100227'},
+               {'file': 'StatA/Wahlen-Abstimmungen/Zeitreihe_Volksabstimmungen/100229_Abstimmungsvorlagen.xlsx', 'dest_dir': 'wahlen_abstimmungen/zeitreihe_volksabstimmungen', 'ods_id': '100229'}
                ]
     file_not_found_errors = []
     for upload in uploads:
