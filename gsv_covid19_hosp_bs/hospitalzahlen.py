@@ -18,6 +18,9 @@ time_for_email_to_call = now_in_switzerland.replace(hour=12, minute=30, second=0
 time_for_email_final_status = now_in_switzerland.replace(hour=13, minute=0, second=0, microsecond=0)
 starting_time = now_in_switzerland.replace(hour=9, minute=0, second=0, microsecond=0)
 
+# To do the same on all days and ignore the different weekend case define day_of_week = "Other workday"
+day_of_week = "Other workday"
+
 
 def main(date, day_of_week, list_hospitals):
     check_for_log_file(date, day_of_week, list_hospitals)
