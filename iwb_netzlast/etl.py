@@ -78,10 +78,12 @@ def main():
             base_dfs.append(market_sheets['Grundversorgte Kunden'])
     df_free = pd.concat(free_dfs)
     df_free['timestamp_interval_start_raw_text'] = create_timestamp(df_free)
-    df_free = df_free.rename(columns={'Freie Kunden': 'freie_kunden_kwh'})[['timestamp_interval_start_raw_text', 'freie_kunden_kwh']]
+    df_free['timestamp_interval_start'] = pd.to_datetime(df_free.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
+    df_free = df_free.rename(columns={'Freie Kunden': 'freie_kunden_kwh'})[['timestamp_interval_start', 'timestamp_interval_start_raw_text', 'freie_kunden_kwh']]
     df_private = pd.concat(base_dfs)
     df_private['timestamp_interval_start_raw_text'] = create_timestamp(df_private)
-    df_private = df_private.rename(columns={'Grundversorgte Kunden': 'grundversorgte_kunden_kwh'})[['timestamp_interval_start_raw_text', 'grundversorgte_kunden_kwh']]
+    df_private['timestamp_interval_start'] = pd.to_datetime(df_private.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
+    df_private = df_private.rename(columns={'Grundversorgte Kunden': 'grundversorgte_kunden_kwh'})[['timestamp_interval_start', 'timestamp_interval_start_raw_text', 'grundversorgte_kunden_kwh']]
 
     df_export = (pd.concat([df_history, df_history2, latest_dfs])
                  .dropna(subset=['stromverbrauch_kwh'])
@@ -97,8 +99,8 @@ def main():
     df_export['quarter'] = df_export['timestamp_interval_start'].dt.quarter
     df_export['weekofyear'] = df_export['timestamp_interval_start'].dt.isocalendar().week
 
-    df_export = df_export.merge(df_free, how='left', on='timestamp_interval_start_raw_text')
-    df_export = df_export.merge(df_private, how='left', on='timestamp_interval_start_raw_text')
+    df_export = df_export.merge(df_free, how='left', on='timestamp_interval_start')
+    df_export = df_export.merge(df_private, how='left', on='timestamp_interval_start')
 
     df_export['grundversorgte_kunden_kwh'].fillna(0, inplace=True)
     df_export['freie_kunden_kwh'].fillna(0, inplace=True)
