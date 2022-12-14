@@ -3,8 +3,8 @@ import os
 import pathlib
 
 
-path_kennzahlen = os.path.join(pathlib.Path(__file__).parents[1], 'data', 'Abstimmungen_2022-09-25.csv')
-path_details = os.path.join(pathlib.Path(__file__).parents[1], 'data', 'Abstimmungen_Details_2022-09-25.csv')
+path_kennzahlen = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output', 'Abstimmungen_2022-09-25.csv')
+path_details = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output', 'Abstimmungen_Details_2022-09-25.csv')
 
 df_kennzahlen = pd.read_csv(path_kennzahlen)
 df_details = pd.read_csv(path_details)
