@@ -42,7 +42,8 @@ def main():
                {'file': 'StatA/Bevoelkerung/100225_Schutzsuchende.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100225'},
                {'file': 'StatA/witterung/100227_Witterungserscheinungen.xlsx', 'dest_dir': 'witterung', 'ods_id': '100227'},
                {'file': 'StatA/Wahlen-Abstimmungen/Zeitreihe_Volksabstimmungen/100229_Abstimmungsvorlagen.xlsx', 'dest_dir': 'wahlen_abstimmungen/zeitreihe_volksabstimmungen', 'ods_id': '100229'},
-               {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'}
+               {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'},
+               {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247']}
                ]
     file_not_found_errors = []
     for upload in uploads:
@@ -51,7 +52,12 @@ def main():
             if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                 if ct.has_changed(file_path, method='modification_date'):
                     common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-                    odsp.publish_ods_dataset_by_id(upload['ods_id'])
+                    ods_id_property = upload['ods_id']
+                    if type(ods_id_property) == list:
+                        for single_ods_id in ods_id_property:
+                            odsp.publish_ods_dataset_by_id(single_ods_id)
+                    else:
+                        odsp.publish_ods_dataset_by_id(ods_id_property)
                     ct.update_mod_timestamp_file(file_path)
         except FileNotFoundError as e:
             file_not_found_errors.append(e)
