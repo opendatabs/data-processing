@@ -57,9 +57,9 @@ def geofilter_dataset(dataset_id, coords_filter):
     return gdf_filtered
 
 # example
-river = 'Rhein'
-distance = 40
-dataset_id = '100031' #Sanitäre Anlagen
-
-coords_filter = make_buffer(river=river, distance=distance)
-gdf_filtered = geofilter_dataset(dataset_id=dataset_id, coords_filter=coords_filter)
+# river = 'Rhein'
+# distance = 40
+# dataset_id = '100031' #Sanitäre Anlagen
+#
+# coords_filter = make_buffer(river=river, distance=distance)
+# gdf_filtered = geofilter_dataset(dataset_id=dataset_id, coords_filter=coords_filter)
