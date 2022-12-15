@@ -29,7 +29,7 @@ def make_dict_date_laufnr():
             year = date[0:4]
             lauf_nr_termin = 1
             dict[date] = lauf_nr_termin
-        lauf_nr_termin+=1
+        lauf_nr_termin += 1
     return dict
 
 
