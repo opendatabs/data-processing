@@ -1,7 +1,19 @@
 import pandas as pd
 import os
+import glob
 import pathlib
 
+
+path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output')
+
+def get_dates():
+    pattern_kennzahlen = 'Abstimmungen_??????????.csv'
+    file_list = glob.glob(os.path.join(path_files, pattern_kennzahlen))
+    list_dates = []
+    for file in file_list:
+        date_str = os.path.basename(file).split("_", 1)[1][:10]
+        list_dates.append(date_str)
+    return list_dates
 
 path_kennzahlen = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output', 'Abstimmungen_2022-09-25.csv')
 path_details = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output', 'Abstimmungen_Details_2022-09-25.csv')
