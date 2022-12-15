@@ -21,6 +21,7 @@ __pycache__/
 **/*.kml
 **/*.kmz
 /aue_fischereistatistik/**/*.geojson
+/bachapp/**/*.geojson
 /gsv_covid19_hosp/*.html
 **/Pipfile
 **/Pipfile.lock
