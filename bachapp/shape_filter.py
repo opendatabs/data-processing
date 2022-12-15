@@ -16,6 +16,7 @@ transformer_inverse = Transformer.from_crs("epsg:2056", "epsg:4326", always_xy=T
 filename = os.path.join(os.path.dirname(__file__), 'data', 'gewaesser.geojson')
 gdf = gpd.read_file(filename)
 
+
 def make_buffer(river, distance):
     if river == "Rhein":
         width = 100
@@ -36,6 +37,7 @@ def make_buffer(river, distance):
     coordinates = list(surroundings.exterior.coords)
     coordinates = ','.join(str(xy) for xy in coordinates)
     return coordinates
+
 
 def add_buffer_to_gdf(river, distance, gdf=gdf):
     buffer = make_buffer(river=river, distance=distance)
