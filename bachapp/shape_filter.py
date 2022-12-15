@@ -27,9 +27,13 @@ def make_buffer(river, distance):
         width = 0
     # get linestring river
     line = gdf[gdf['gew_name'] == river]['geometry'].iloc[0]
-    # buffer line
+    # transform to LV95
     line = transform(transformer.transform, line)
+    # buffer line
     surroundings = line.buffer(distance + width)
+    # reduce number of coordinates
+    surroundings = surroundings.simplify(10)
+    # transform back to WGS84
     surroundings = transform(transformer_inverse.transform, surroundings)
     # switch x,y coordinates
     surroundings = transform(lambda x, y: (y, x), surroundings)
@@ -63,3 +67,14 @@ def geofilter_dataset(dataset_id, coords_filter):
 #
 # coords_filter = make_buffer(river=river, distance=distance)
 # gdf_filtered = geofilter_dataset(dataset_id=dataset_id, coords_filter=coords_filter)
+
+# # make list url's
+# distances = [15, 50, 75]
+# rivers = ['Rhein', 'Birs', 'Wiese']
+# dataset_id = '100031'
+# url_list = []
+# for river in rivers:
+#     for dist in distances:
+#         coordinates = make_buffer(river, dist)
+#         url = f'https://data.bs.ch/explore/dataset/{dataset_id}/download/?format=geojson&geofilter.polygon={coordinates}'
+#         url_list.append(river + ' ' + str(dist) + ' Meter: ' + url)
