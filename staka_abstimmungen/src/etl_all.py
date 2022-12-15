@@ -13,7 +13,25 @@ def get_dates():
     for file in file_list:
         date_str = os.path.basename(file).split("_", 1)[1][:10]
         list_dates.append(date_str)
+    list_dates.sort()
     return list_dates
+
+
+def make_dict_date_laufnr():
+    dates = get_dates()
+    dict = {}
+    year = '2020'
+    lauf_nr_termin = 2
+    for date in dates:
+        if date[0:4] == year:
+            dict[date] = lauf_nr_termin
+        else:
+            year = date[0:4]
+            lauf_nr_termin = 1
+            dict[date] = lauf_nr_termin
+        lauf_nr_termin+=1
+    return dict
+
 
 path_kennzahlen = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output', 'Abstimmungen_2022-09-25.csv')
 path_details = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output', 'Abstimmungen_Details_2022-09-25.csv')
