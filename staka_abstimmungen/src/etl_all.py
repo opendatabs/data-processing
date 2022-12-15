@@ -18,7 +18,7 @@ df_all['auf_ebene'] = ['Gemeinde' if x else 'Wahllokal' for x in pd.isna(df_all[
 # add BS-ID
 df_all['year'] = (df_all['Abst_Datum'].astype('datetime64[ns]')).dt.year
 lauf_nr_termin = '03'
-df_all['bs_id'] = df_all['year'].astype(str) + lauf_nr_termin + '0' + df_all['Abst_ID'].astype(str)
-
+bs_id = df_all['year'].astype(str) + lauf_nr_termin + '0' + df_all['Abst_ID'].astype(str)
+df_all['bs_id'] = [bs_id[i] if x == "kantonal" else '' for i, x in df_all['Abst_Art'].items()]
 path_export = os.path.join(pathlib.Path(__file__).parents[1], 'data/export', 'abstimmungen.csv')
 df_all.to_csv(path_export, index=False)
