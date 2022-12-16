@@ -70,7 +70,7 @@ VB\Veloabstellplaetze;True;;Veloabstellplätze;100241;;;"Geographie;Mobilität und
 MN\Durchgangsstrassen;True;;Strassen und Wege: Durchgangsstrassen;100242;;;"Geographie;Mobilität und Verkehr";"Weg;Mobilität;Strassennetz;Strasse;Wegnetz";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-23;
 MN\KSRiehenBettingen;True;;Strassen und Wege: Kantonsstrassen Riehen und Bettingen;100249;;;"Geographie;Mobilität und Verkehr";"Weg;Mobilität;Strassennetz;Strasse;Wegnetz";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-23;
 MN\StrassentypenWege;True;;Strassen und Wege: Strassentypen und Wege;100250;;;"Geographie;Mobilität und Verkehr";"Weg;Mobilität;Strassennetz;Strasse;Wegnetz";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-23;
-VR\Begegnungszonen;True;;;100215;;;;;;;;2022-12-30;
-VR\Fussgaengerzonen;True;;;100251;;;;;;;;2022-12-30;
-VR\Tempo30Zonen;True;;;100252;;;;;;;;2022-12-30;
-VR\VKIPerimeter;True;;;100253;;;;;;;;2022-12-30;
+VR\Begegnungszonen;True;;;100215;;;"Geographie;Mobilität und Verkehr";"Geschwindigkeitsbeschränkun;Fussgänger;Fussgängerzonen";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-30;
+VR\Fussgaengerzonen;True;;;100251;;;"Geographie;Mobilität und Verkehr";"Geschwindigkeitsbeschränkun;Fussgänger;Fussgängerzonen";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-30;
+VR\Tempo30Zonen;True;;;100252;;;"Geographie;Mobilität und Verkehr";"Geschwindigkeitsbeschränkun;Fussgänger;Fussgängerzonen";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-30;
+VR\VKIPerimeter;True;;;100253;;;"Geographie;Mobilität und Verkehr";"Geschwindigkeitsbeschränkun;Fussgänger;Fussgängerzonen";;http://publications.europa.eu/resource/authority/frequency/IRREG;True;2022-12-30;
