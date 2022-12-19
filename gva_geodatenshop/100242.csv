@@ -1,0 +1,6 @@
+name;label;description
+id_dgstr;Id_Durchgangsstrasse;Eindeutiger Identifikator der Durchgangsstrassen
+strassennr;Strassennummer;Hauptstrassennummer
+strtyp;Strassentyp;Strassentyp
+strecke;Strecke;Strecke
+bemerkung;Bemerkung;Bemerkung

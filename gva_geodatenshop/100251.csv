@@ -1,0 +1,8 @@
+name;label;description
+objid;Objekt-ID;Identifikationsnummer (für kantonsinterne Zwecke verwendet)
+objectid;Objekt-ID;Identifikationsnummer (für kantonsinterne Zwecke verwendet)
+regime;Regime;Regime
+nr;Nummer;Nummer
+name;Strassenname;Strassenname
+umsetzung;Umsetzung;Umsetzung
+umsetzjahr;Umsetzung im Jahr;Umsetzung im Jahr
