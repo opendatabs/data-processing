@@ -9,7 +9,9 @@ path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processi
 def main():
     df_all = process_files()
     df_all = construct_dataset(df_all)
-    return df_all
+    path_export = os.path.join(pathlib.Path(__file__).parents[1], 'data/export', 'abstimmungen.csv')
+    df_all.to_csv(path_export, index=False)
+
 
 def process_files():
     df = pd.DataFrame()
