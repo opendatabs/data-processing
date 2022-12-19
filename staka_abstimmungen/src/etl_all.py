@@ -13,8 +13,13 @@ def main():
 
 def process_files():
     df = pd.DataFrame()
-    files = get_files_kennzahlen() + get_files_details()
-    for file in files:
+    files_details = get_files_details()
+    files_kennzahlen = get_files_kennzahlen()
+    for file in files_details:
+        df_file = pd.read_csv(file)
+        df = pd.concat([df, df_file])
+    df = join_wahllokale(df)
+    for file in files_kennzahlen:
         df_file = pd.read_csv(file)
         df = pd.concat([df, df_file])
     return df
@@ -43,6 +48,14 @@ def get_files_details():
     pattern_details = 'Abstimmungen_Details_??????????.csv'
     file_list = glob.glob(os.path.join(path_files, pattern_details))
     return file_list
+
+
+def join_wahllokale(df):
+    path_wahllokale = os.path.join(path_files, 'wahllokale.csv')
+    df_wahllokale = pd.read_csv(path_wahllokale, sep=';')
+    df = pd.merge(df_wahllokale, df, left_on='Wahllok_Name', right_on='Wahllok_name')
+    df = df.drop(columns='Wahllok_Name')
+    return df
 
 
 def get_dates():
