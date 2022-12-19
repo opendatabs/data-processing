@@ -73,18 +73,18 @@ def get_dates():
 
 def make_dict_date_laufnr():
     dates = get_dates()
-    dict = {}
+    dict_date_laufnr = {}
     year = '2020'
     lauf_nr_termin = 2
     for date in dates:
         if date[0:4] == year:
-            dict[date] = str(lauf_nr_termin)
+            dict_date_laufnr[date] = str(lauf_nr_termin)
         else:
             year = date[0:4]
             lauf_nr_termin = 1
-            dict[date] = str(lauf_nr_termin)
+            dict_date_laufnr[date] = str(lauf_nr_termin)
         lauf_nr_termin += 1
-    return dict
+    return dict_date_laufnr
 
 
 if __name__ == "__main__":
