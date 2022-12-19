@@ -85,3 +85,6 @@ def make_dict_date_laufnr():
         lauf_nr_termin += 1
     return dict
 
+if __name__ == "__main__":
+    print(f'Executing {__file__}...')
+    main()
