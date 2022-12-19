@@ -63,8 +63,8 @@ def join_wahllokale(df):
 
 
 def harmonize_df(df):
-    df['result_art'] = ['Schlussresultat' if x == 'Schlussresultate' else x for x in df['result_art']]
-    df['gemein_name'] = ['Auslandschweizer/-innen' if x == 'Auslandschweizer' else x for x in df['gemein_name']]
+    df['Result_Art'] = ['Schlussresultat' if x == 'Schlussresultate' else x for x in df['Result_Art']]
+    df['Gemein_Name'] = ['Auslandschweizer/-innen' if x == 'Auslandschweizer' else x for x in df['Gemein_Name']]
     return df
 
 
