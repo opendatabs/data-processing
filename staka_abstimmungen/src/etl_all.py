@@ -6,6 +6,7 @@ import pathlib
 
 path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output')
 
+
 def main():
     df_all = process_files()
     df_all = construct_dataset(df_all)
@@ -34,7 +35,7 @@ def construct_dataset(df):
     dict_laufnr = make_dict_date_laufnr()
     df['lauf_nr_termin'] = [dict_laufnr[datum] for datum in df['Abst_Datum']]
     df['bs_id'] = df['year'].astype(str) + '0' + df['lauf_nr_termin'] + '0' + df['Abst_ID'].astype(str)
-    #df['bs_id'] = [bs_id[i] if x == "kantonal" else '' for i, x in df['Abst_Art'].items()]
+    # df['bs_id'] = [bs_id[i] if x == "kantonal" else '' for i, x in df['Abst_Art'].items()]
     path_export = os.path.join(pathlib.Path(__file__).parents[1], 'data/export', 'abstimmungen.csv')
     df.to_csv(path_export, index=False)
     return df
@@ -84,6 +85,7 @@ def make_dict_date_laufnr():
             dict[date] = str(lauf_nr_termin)
         lauf_nr_termin += 1
     return dict
+
 
 if __name__ == "__main__":
     print(f'Executing {__file__}...')
