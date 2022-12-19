@@ -10,6 +10,7 @@ path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processi
 def main():
     df_all = process_files()
     df_all = construct_dataset(df_all)
+    df_all = harmonize_df(df_all)
     path_export = os.path.join(pathlib.Path(__file__).parents[1], 'data/export', 'abstimmungen.csv')
     df_all.to_csv(path_export, index=False)
 
@@ -58,6 +59,12 @@ def join_wahllokale(df):
     df_wahllokale = pd.read_csv(path_wahllokale, sep=';')
     df = pd.merge(df_wahllokale, df, left_on='Wahllok_Name', right_on='Wahllok_name')
     df = df.drop(columns='Wahllok_Name')
+    return df
+
+
+def harmonize_df(df):
+    df['result_art'] = ['Schlussresultat' if x == 'Schlussresultate' else x for x in df['resultat_art']]
+    df['gemein_name'] = ['Auslandschweizer/-innen' if x == 'Auslandschweizer' else x for x in df['gemein_name']]
     return df
 
 
