@@ -1,4 +1,5 @@
 import ftplib
+from pathlib import Path
 import json
 import logging
 import os
@@ -412,10 +413,23 @@ def handle_tagesordnungen(process_archive=False):
     return df_tagesordnungen
 
 
+def handle_congress_center_polls(df_unique_session_dates):
+    cc_files = [file for file in Path(f'{credentials.local_data_path}/congress_center').rglob('GR-BS_??????-?.xlsx')]
+    all_cc_data_files = []
+    for cc_file in cc_files:
+        logging.info(f'Reading File {cc_file} into df...')
+        df = pd.read_excel(cc_file)
+        df['file_name'] = os.path.basename(cc_file)
+        all_cc_data_files.append(df)
+    all_cc_data = pd.concat(all_cc_data_files)
+    return all_cc_data
+
+
 def main():
     # df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
+    # poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
     # Uncomment to process archived poll data
     # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
 
