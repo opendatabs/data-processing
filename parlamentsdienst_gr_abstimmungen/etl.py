@@ -98,6 +98,7 @@ def find_in_sheet(sheet, text_to_find):
 
 def handle_polls(process_archive=False, df_unique_session_dates=None):
     logging.info(f'Handling polls, value of process_archive: {process_archive}...')
+    df_to_return = None
     if process_archive:
         ftp = {'server': credentials.gr_polls_archive_ftp_server, 'user': credentials.gr_polls_archive_ftp_user, 'password': credentials.gr_polls_archive_ftp_pass}
         dir_ls_file = credentials.ftp_ls_file.replace('.json', f'_archive_dir.json')
@@ -114,11 +115,19 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                     remote_path_subdir = remote_path + '/' + subdir['remote_file']
                     poll_df = handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path_subdir)
                     all_df = pd.concat(objs=[all_df, poll_df], sort=False)
-        return all_df
+        df_to_return = all_df
     else:
         ftp = {'server': credentials.gr_current_polls_ftp_server, 'user': credentials.gr_current_polls_ftp_user, 'password': credentials.gr_current_polls_ftp_pass}
         remote_path = ''
-        return handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path)
+        df_to_return = handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path)
+
+    if len(df_to_return) > 0:
+        file_name_part = 'archiv' if process_archive else 'aktuell'
+        polls_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), f'grosser_rat_abstimmungen_{file_name_part}.csv')
+        logging.info(f'Saving polls as a backup to {polls_filename}...')
+        df_to_return.to_csv(polls_filename, index=False)
+        common.upload_ftp(polls_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
+    return df_to_return
 
 
 def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path):
@@ -161,11 +170,6 @@ def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, re
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
                 all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
                 ct.update_hash_file(local_file)
-        if len(all_df) > 0:
-            file_name_part = 'archiv' if process_archive else 'aktuell'
-            polls_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), f'grosser_rat_abstimmungen_{file_name_part}.csv')
-            logging.info(f'Saving polls as a backup to {polls_filename}...')
-            all_df.to_csv(polls_filename, index=False)
         ct.update_hash_file(xml_ls_file)
     return all_df
 
