@@ -43,7 +43,7 @@ def main():
                {'file': 'StatA/witterung/100227_Witterungserscheinungen.xlsx', 'dest_dir': 'witterung', 'ods_id': '100227'},
                {'file': 'StatA/Wahlen-Abstimmungen/Zeitreihe_Volksabstimmungen/100229_Abstimmungsvorlagen.xlsx', 'dest_dir': 'wahlen_abstimmungen/zeitreihe_volksabstimmungen', 'ods_id': '100229'},
                {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'},
-               {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247']}
+               {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255']}
                ]
     file_not_found_errors = []
     for upload in uploads:
