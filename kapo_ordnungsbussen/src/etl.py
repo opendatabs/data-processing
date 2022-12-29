@@ -26,7 +26,7 @@ def main():
     df_2019['Übertretungsjahr'] = df_2019['Übertretungsdatum'].dt.year
 
     logging.info(f'Reading 2020+ data from xslx...')
-    df_ab_2020 = pd.read_excel(os.path.join(credentials.data_orig_path, '2022_06_30/OGD.xlsx'))
+    df_ab_2020 = pd.read_excel(os.path.join(credentials.data_orig_path, '2022_09_30/OGD.xlsx'))
 
     df_all = pd.concat([df_2017, df_2018, df_2019, df_ab_2020], ignore_index=True)
     logging.info('Calculating weekday, weekday number, and its combination...')
