@@ -22,7 +22,7 @@ if ct.has_changed(filename, method='modification_date'):
 
     df['station_id'] = station_str = df['EDV'].astype(str)
     df['station_name'] = df['Name']
-    df['link'] = 'https://www.hydrodaten.admin.ch/de/' + station_str +'.html'
+    df['link'] = 'https://www.hydrodaten.admin.ch/de/' + station_str + '.html'
 
     df_export = df[['station_id', 'station_name', 'WL1', 'WL2', 'WL3', 'WL4', 'gefahrenstufe_1',
                     'gefahrenstufe_2', 'gefahrenstufe_3', 'gefahrenstufe_4',
