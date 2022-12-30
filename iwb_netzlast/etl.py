@@ -38,7 +38,6 @@ def main():
     file_path_latest = os.path.join(pathlib.Path(__file__).parent, 'data/latest_data', LATEST_DATA_FILE)
     logging.info('Check if latest data file has changed...')
     if ct.has_changed(file_path_latest, method='modification_date'):
-        ct.update_mod_timestamp_file(file_path_latest)
         logging.info(f'Processing historical data 2012-2020...')
         hist_dfs = []
         for year in range(2012, 2021):
@@ -116,6 +115,7 @@ def main():
             common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
             odsp.publish_ods_dataset_by_id('100233')
             ct.update_hash_file(export_filename)
+        ct.update_mod_timestamp_file(file_path_latest)
         pass
 
 
