@@ -2,14 +2,19 @@ import common
 from staka_briefliche_stimmabgaben import credentials
 import json
 import logging
+import requests
 
-data_missing_from = 0
-def main(data_missing_from=data_missing_from):
-    data_test = data_page(date_str=date_str, data_missing_from=data_missing_from)
-    common.requests_put('https://data.bs.ch/api/management/v2/pages/test-hester/',
-                        data=data_test,
-                        auth=(credentials.username, credentials.password)
-                        )
+date_str = "25 September 2022"
+
+
+def main(data_missing_from):
+    data_test = data_page(date=date_str, data_missing_from=data_missing_from)
+    requests.delete('https://data.bs.ch/api/management/v2/pages/test-hester',
+                    auth=(credentials.username, credentials.password))
+    common.requests_post('https://data.bs.ch/api/management/v2/pages/',
+                         data=data_test,
+                         auth=(credentials.username, credentials.password)
+                         )
 
 
 def get_slug():
@@ -20,22 +25,21 @@ def get_slug():
     return slug
 
 
-date_str = "25 September 2022"
-slug = get_slug()
-html_slug = slug["content"]["html"]["de"]
-css_slug = slug["content"]["css"]["de"]
-
-
 def page_html():
+    slug = get_slug()
+    html_slug = slug["content"]["html"]["de"]
     html_str = json.dumps(html_slug)
     return html_str
 
 
 def page_css():
+    slug = get_slug()
+    css_slug = slug["content"]["css"]["de"]
     css_str = json.dumps(css_slug)
     return css_str
 
-def update_css(data_missing_from=data_missing_from):
+
+def update_css(data_missing_from):
     if data_missing_from == -1:
         text = ""
     else:
@@ -50,16 +54,18 @@ def update_css(data_missing_from=data_missing_from):
     css_str = json.dumps(text)
     return css_str
 
-def data_page(date_str, data_missing_from=data_missing_from):
+
+def data_page(data_missing_from, date=date_str):
     html_code = page_html()
     css_code = update_css(data_missing_from=data_missing_from)
-    title = f' "Briefliche Stimmbeteiligung {date_str}" '
-    return (f'{{"title": {{"de":{title}, \n'
+    title = f' "Briefliche Stimmbeteiligung {date}" '
+    return (f'{{"slug": "test-hester", \n'
+            f'"title": {{"de":{title}, \n'
             f'"fr": {title},  \n'
             f'"en": {title} \n'
             f'}}, \n'
             f'"description": "", \n'
-            f'"template": "contact.html", \n'
+            f'"template": "custom.html", \n'
             f'"content": \n'
             f'{{"html": {{"de":{html_code},\n'
             f'"fr": {html_code}, \n'
@@ -75,5 +81,4 @@ def data_page(date_str, data_missing_from=data_missing_from):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    main(data_missing_from=11)
-
+    main(data_missing_from=5)
