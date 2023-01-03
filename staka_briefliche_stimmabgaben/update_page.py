@@ -2,14 +2,13 @@ import common
 from staka_briefliche_stimmabgaben import credentials
 import json
 import logging
-import requests
 
 date_str = "25 September 2022"
 
 
 def main(data_missing_from):
     data_test = data_page(date=date_str, data_missing_from=data_missing_from)
-    requests.delete('https://data.bs.ch/api/management/v2/pages/test-hester',
+    common.requests_delete('https://data.bs.ch/api/management/v2/pages/test-hester',
                     auth=(credentials.username, credentials.password))
     common.requests_post('https://data.bs.ch/api/management/v2/pages/',
                          data=data_test,
