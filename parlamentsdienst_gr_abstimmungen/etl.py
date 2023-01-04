@@ -442,13 +442,13 @@ def handle_congress_center_polls(df_unique_session_dates):
         df_names['Mitglied_Name'] = df_names.Mitglied_Name.str.replace('\\xa0', '', regex=False)
         df['Mitglied_Name'] = df_names.Mitglied_Name
         df['Mitglied_Name_Fraktion'] = df.Mitglied_Name + ' (' + df.Fraktion + ')'
-
         df['Entscheid_Mitglied'] = df['Choice Text'].replace({'Ja': 'J', 'Nein': 'N', '-': 'A', 'Enthaltung': 'E'})
-        # todo: extract Traktandum, Subtraktandum and tagesordnung_link from Geschaeft
-        # all_cc_data['Trakt'] = all_cc_data.Geschaeft.str.rsplit(': ', expand=True)
-        df['Traktandum'] = ''
-        df['Subtraktandum'] = ''
-        df['tagesordnung_link'] = ''
+
+        df_trakt = df.Geschaeft.str.extract(r"Trakt\. (?P<Traktandum>\d+)[\_\:](?P<Subtraktandum>\d+)?")
+        df = pd.concat([df, df_trakt], axis=1)
+        df.Traktandum = df.Traktandum.fillna('')
+        df.Subtraktandum = df.Subtraktandum.fillna('')
+        df['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df.Datum + '&refine.traktand=' + df.Traktandum
 
         df_poll_counts = df.groupby(['Current Voting ID', 'file_name', 'Choice Text'])['Handset ID'].count().reset_index(name='Anzahl')
         df_poll_counts_pivot = df_poll_counts.pivot_table('Anzahl', ['Current Voting ID', 'file_name'], 'Choice Text').reset_index().rename(columns={'-': 'Anz_A', 'Enthaltung': 'Anz_E', 'Ja': 'Anz_J', 'Nein': 'Anz_N'})
