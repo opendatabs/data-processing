@@ -5,9 +5,9 @@ verzeichnr;Verzeichnisnummer;Nummer des Verzeichnis
 bezeichnun;Bezeichnung;Bezeichnung
 bemer_vz;Bemerkung;Bemerkung
 projloesch;Projektierte Löschung;Projektierte Löschung
-idgeschaef;Id_Geschaeft;
+idgeschaef;Id_Geschaeft;Eindeutiger Identifikator des ÖREB Fachsystems
 geschaesta;Geschaeftsstatus;Der Geschäftsstatus gibt den letzten publizierten Status eines Geschäfts wieder (siehe Modellbeschreibung 9.7 Wertebereich)
-datumstat;Datum Status;Datum des Statuswechsels
+datumstat;Datum Rechtskraft;Datum der Rechtskraft
 geolink;Geolink;Eindeutige Verbindung zur Rechtsvorschrift
 geschaebez;Geschaeftsbezeichnung;Bezeichnung des Geschäfts
 bemerkung;Bemerkung;Bemerkung
