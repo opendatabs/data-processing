@@ -1,11 +1,11 @@
 FROM python:3.10.2-bullseye
 WORKDIR /code/data-processing
-ARG HTTPS_PROXY
-ENV HTTPS_PROXY=$HTTPS_PROXY
+#ARG HTTPS_PROXY
+#ENV HTTPS_PROXY=$HTTPS_PROXY
 RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
-CMD ["/bin/bash", "/code/data-processing/gsv_covid19_hosp_bl/etl.sh"]
+CMD ["python3", "-m", "gsv_covid19_hosp_bl.hospitalzahlen"]
 
 
 # Docker commands to create image and run container:
