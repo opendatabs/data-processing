@@ -1,11 +1,12 @@
-FROM python:3.9.0
-WORKDIR /code
-ARG HTTPS_PROXY
-ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
-RUN python3 -m pip install --user --no-cache-dir requests==2.25.1
-RUN python3 -m pip install --user --no-cache-dir xlrd==1.2.0
-CMD ["/bin/bash", "/code/data-processing/euroairport/etl.sh"]
+FROM python:3.10.2-bullseye
+WORKDIR /code/data-processing
+#ARG HTTPS_PROXY
+#ENV HTTPS_PROXY=$HTTPS_PROXY
+RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
+RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
+RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
+RUN python3 -m pip install --user --no-cache-dir xlrd==2.0.1
+CMD ["python3", "-m", "euroairport.etl"]
 
 # docker build -t euroairport .
 # docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name euroairport euroairport
