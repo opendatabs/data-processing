@@ -8,9 +8,6 @@ RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 RUN python3 -m pip install --user --no-cache-dir python-dateutil==2.8.2
 CMD ["python3", "-m", "parkendd.etl"]
 
-# docker build -t meteoblue .
-# docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name meteoblue meteoblue
-
 
 # Docker commands to create image and run container:
 # cd parkendd
