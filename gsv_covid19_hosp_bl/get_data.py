@@ -64,9 +64,9 @@ def get_data(hospital, date):
     payload = {}
     headers = {
         'Authorization': credentials.authorization_live}
-    requests.request("GET", url, headers=headers, data=payload)
+    requests.request("GET", url, headers=headers, data=payload, proxies=credentials.proxies)
     url2 = credentials.url_hosp_adults + get_filter(hospital, date)
-    response = requests.request("GET", url2, headers=headers, data=payload)
+    response = requests.request("GET", url2, headers=headers, data=payload, proxies=credentials.proxies)
     response.raise_for_status()
     results = response.json()["d"]["results"]
     return results
