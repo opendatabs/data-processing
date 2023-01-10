@@ -30,7 +30,7 @@ def extract():
     # extract necessary info from the login form
     login_form_url = credentials.hosp_domain + credentials.hosp_url_path
     logging.info(f'Getting content of login form at {login_form_url}...')
-    resp_loginform = session.get(login_form_url, timeout=10)
+    resp_loginform = session.get(login_form_url, timeout=10, proxies=credentials.proxies)
     resp_loginform.raise_for_status()
     soup_login = BeautifulSoup(resp_loginform.content, 'html.parser')
     # logging.info(soup_login.prettify())
@@ -46,7 +46,7 @@ def extract():
                    password=credentials.hosp_password,
                    csrfmiddlewaretoken=token,
                    next=next_url)
-    req_spital_bs = session.post(login_form_action_url, data=payload, headers=dict(Referer=login_form_url), timeout=10)
+    req_spital_bs = session.post(login_form_action_url, data=payload, headers=dict(Referer=login_form_url), timeout=10, proxies=credentials.proxies)
     req_spital_bs.raise_for_status()
     soup_spital_bs = BeautifulSoup(req_spital_bs.content, 'html.parser')
     # logging.info(soup_spital_bs.prettify())
@@ -91,7 +91,6 @@ def transform():
     df['hospital_count'] = df.count(axis='columns')
     df['date'] = pd.to_datetime(df['Datum'], format='%d/%m/%Y')
 
-
     logging.info(f'Counting sum of cases in hospitals...')
     df0['current_hosp'] = df0.sum(axis=1, skipna=True, numeric_only=True)
     logging.info(f'Determining if all hospitals have reported their data...')
@@ -99,7 +98,6 @@ def transform():
     # Add 1 here: The number of columns with data is one bigger than the number of hospitals because of the date column
     # Entries before a certain date are set to true for simplicity's sake (in the early days of the pandemic, not all hospitals had to report cases)
     df0['data_from_all_hosp'] = (df['hospital_count'] >= credentials.target_hosp_count + 1) | (df['date'] < datetime.strptime(credentials.target_hosp_count_from_date, '%Y-%m-%d'))
-
 
     # Plausibility check
     df_for_checking = df0.copy()
@@ -109,7 +107,7 @@ def transform():
         # column with difference compared to previous day
         df_for_checking[hospital + '_diff'] = series_hosp.diff()
         # column with maximum absolute difference until yesterday
-        df_for_checking[hospital + '_max'] = df_for_checking[hospital + '_diff'][0: -1 ].abs().max()
+        df_for_checking[hospital + '_max'] = df_for_checking[hospital + '_diff'][0: -1].abs().max()
         # check plausibility
         df_for_checking[hospital + '_plaus'] = df_for_checking[hospital + '_diff'].fillna(0) <= df_for_checking[hospital + '_max']
         # check the case where number = 0, say not plausible if difference with previous day is larger than 3
@@ -117,10 +115,9 @@ def transform():
         index_zero = equal_zero[equal_zero].index
         for i in index_zero:
             if abs(df_for_checking[hospital + '_diff'][i]) > 3:
-                df_for_checking.loc[i,hospital + '_plaus'] = False
+                df_for_checking.loc[i, hospital + '_plaus'] = False
     # Add column 'data_plausible', gives false if in one of the columns there is a false, hence also false if 'data_from_all_hosp' = false
     df0['data_plausible'] = df_for_checking.all(axis='columns', bool_only=True)
-
 
     df1 = parse_data_file(1)
     df1['current_hosp_non_resident'] = df1[credentials.hosp_df1_total_non_resident_columns].sum(axis=1, skipna=True, numeric_only=True)
@@ -131,13 +128,13 @@ def transform():
 
     logging.info(f'Merging datasets...')
     dfs = [df0, df1, df2]
-    df_merged = reduce(lambda left,right: pd.merge(left, right, how='outer', on='Datum'), dfs)
+    df_merged = reduce(lambda left, right: pd.merge(left, right, how='outer', on='Datum'), dfs)
     logging.info(f'Reformatting date...')
     df_merged['date'] = pd.to_datetime(df_merged['Datum'], format='%d/%m/%Y')
     logging.info(f'Filtering columns...')
     df_public = df_merged[['date', 'current_hosp', 'current_hosp_resident', 'current_hosp_non_resident', 'current_icu', 'IMCU', 'Normalstation', 'data_from_all_hosp', 'data_plausible']]
 
-    export_filename = os.path.join(credentials.export_path,credentials.export_filename_hosp)
+    export_filename = os.path.join(credentials.export_path, credentials.export_filename_hosp)
     logging.info(f'Exporting merged dataset to file {export_filename}...')
     df_public.to_csv(export_filename, index=False)
     return df_public, export_filename

@@ -1,0 +1,7 @@
+.git
+**/*.csv
+**/*.CSV
+**/*.zip
+**/*.json
+**/credentials.py
+__pycache__
