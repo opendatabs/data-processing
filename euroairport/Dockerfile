@@ -5,6 +5,7 @@ WORKDIR /code/data-processing
 RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
+RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.9
 RUN python3 -m pip install --user --no-cache-dir xlrd==2.0.1
 CMD ["python3", "-m", "euroairport.etl"]
 
