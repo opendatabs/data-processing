@@ -1,10 +1,10 @@
+import io
 import logging
 import os
 from datetime import date
 from common import change_tracking as ct
 import pandas as pd
 import common
-import urllib3
 import numpy as np
 from smarte_strasse_luft import credentials
 
@@ -58,8 +58,7 @@ def main():
 
 def etl(download_url, column_name_replacements, export_file, push_url, push_key):
     logging.info(f'Downloading data from {download_url}...')
-    urllib3.disable_warnings()
-    df = common.pandas_read_csv(download_url, sep=';', encoding='cp1252', header=[0, 1, 2, 3, 4])
+    df = common.pandas_read_csv(io.StringIO(common.requests_get(download_url).text), sep=';', encoding='cp1252', header=[0, 1, 2, 3, 4])
     # Replace the 2-level multi-index column names with a string that concatenates both strings
     df.columns = ["_".join(str(c) for c in col) for col in df.columns.values]
     df = df.reset_index(drop=True)
@@ -84,15 +83,13 @@ def etl(download_url, column_name_replacements, export_file, push_url, push_key)
         # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
         r = common.requests_post(url=push_url, data=payload, params={'pushkey': push_key, 'apikey': credentials.ods_api_key})
-        r.raise_for_status()
-
-    print('Job successful!')
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    print('Job successful!')
 
 # Realtime API bootstrap data:
 # {

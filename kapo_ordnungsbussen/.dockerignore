@@ -1,8 +1,5 @@
-**/*.txt
-**/*.TXT
 .git
 **/*.csv
-**/*.pkl
 **/*.CSV
 **/credentials.py
 __pycache__
