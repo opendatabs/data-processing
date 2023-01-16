@@ -99,3 +99,45 @@ def make_dict_date_laufnr():
 if __name__ == "__main__":
     print(f'Executing {__file__}...')
     main()
+
+
+
+# ODS realtime push bootstrap:
+# {"Wahllok_ID":6.0,
+#  "Gemein_ID":2.0,
+#  "Gemein_Name":"Riehen",
+#  "Wahllok_name":"Riehen brieflich Stimmende",
+#  "Stimmr_Anz":9197.0,
+#  "Eingel_Anz":9188.0,
+#  "Leer_Anz":373.0,
+#  "Unguelt_Anz":5.0,
+#  "Guelt_Anz":8810.0,
+#  "Ja_Anz":2836.0,
+#  "Nein_Anz":5974.0,
+#  "Abst_Titel":"Justiz-Initiative",
+#  "Abst_Art":"national",
+#  "Abst_Datum":"2021-11-28",
+#  "Result_Art":"Schlussresultat",
+#  "Abst_ID":2,
+#  "anteil_ja_stimmen":0.321906924,
+#  "abst_typ":"Text",
+#  "Abst_ID_Titel":"2: «Justiz-Initiative»",
+#  "Gege_Ja_Anz":1.0,
+#  "Gege_Nein_Anz":1.0,
+#  "Sti_Initiative_Anz":1.0,
+#  "Sti_Gegenvorschlag_Anz":1.0,
+#  "gege_anteil_ja_Stimmen":1.0,
+#  "sti_anteil_init_stimmen":1.0,
+#  "Init_OGA_Anz":1.0,
+#  "Gege_OGA_Anz":1.0,
+#  "Sti_OGA_Anz":1.0,
+#  "Durchschn_Stimmbet_pro_Abst_Art":1.0,
+#  "Durchschn_Briefl_Ant_pro_Abst_Art":1.0,
+#  "Stimmber_Anz_M":1.0,
+#  "Stimmber_Anz_F":1.0,
+#  "Stimmber_Anz":1.0,
+#  "auf_ebene":"Wahllokal",
+#  "year":2021,
+#  "lauf_nr_termin":"4",
+#  "bs_id":"20210402"
+#   }
