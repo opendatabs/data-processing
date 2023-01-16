@@ -151,6 +151,7 @@ def calculate_kennzahlen(data_file_names):
         df_stimmber.rename(columns={'Unnamed: 0': 'empty',
                                     'Unnamed: 1': 'Gemein_Name',
                                     '\nStimmberechtigte': 'Stimmber_Anz',
+                                    'Stimmberechtigte': 'Stimmber_Anz',
                                     'davon                                   Männer': 'Stimmber_Anz_M',
                                     'davon                                          Frauen': 'Stimmber_Anz_F',
                                     'Unnamed: 5': 'empty2'}, inplace=True)
@@ -165,25 +166,33 @@ def calculate_kennzahlen(data_file_names):
         skip_rows = 4 if '_KAN' in import_file_name else 7
         print(f'Reading data from {kennz_sheet_name}, skipping first {skip_rows} rows...')
         df_kennz = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, skiprows=skip_rows, index_col=None)
+        print("df_kenz:", df_kennz.columns)
         df_kennz.rename(columns={'Unnamed: 0': 'empty',
                                  'Unnamed: 1': 'Gemein_Name',
                                  '\nStimmberechtigte': 'Stimmber_Anz',
+                                 'Stimmberechtigte': 'Stimmber_Anz',
                                  'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  '\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
+                                 'Stimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Durchschnittlicher Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                 'Anteil der brieflich\nStimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                 'Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'},
                         inplace=True)
+
         print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
         for repl in gemein_replacements:
             df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]
         # print(f'Removing duplicate column stimmber_anz from {kennz_sheet_name}...')
         # df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
         print('Joining all sheets into one...')
-        frames_to_join = [all_df, df_kennz, df_stimmber]
-        df_merged = reduce(lambda left, right: pd.merge(left, right, on=['Gemein_Name'], how='inner'), frames_to_join)
-
+        all_df = make_anz_columns_float(all_df)
+        df_kennz = make_anz_columns_float(df_kennz)
+        df_stimmber = make_anz_columns_float(df_stimmber)
+        df_merged = pd.merge(all_df, df_kennz, on=['Gemein_Name'], how='inner')
+        df_merged = pd.merge(df_merged, df_stimmber, on=['Gemein_Name', 'Stimmber_Anz'])
         print('Keeping only necessary columns...')
         df_merged = df_merged.filter(columns_to_keep)
 
@@ -202,6 +211,12 @@ def calculate_kennzahlen(data_file_names):
     # print(f'Calculating Stimmbeteiligung...')
     # concatenated_df['Stimmbet'] = concatenated_df['Eingel_Anz'] / concatenated_df['Stimmber_Anz']
     return abst_date, concatenated_df
+
+def make_anz_columns_float(df):
+    for x in df.columns:
+        if 'Anz' in x:
+            df[x] = df[x].astype('float64')
+    return df
 
 
 if __name__ == "__main__":
