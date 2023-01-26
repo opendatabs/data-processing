@@ -24,7 +24,6 @@ with open('det_C1E_Rhein_table.txt', mode='wb') as file:
 df1 = pd.read_table('det_C1E_Rhein_table.txt', delim_whitespace=True)
 df1['methode'] = 'COSMO-1E ctrl'
 df1['ausgegeben_an'] = ausgabe
-df1['gemessen'] = ''
 
 url = credentials.url_det_C2E_Rhein
 req = common.requests_get(url, auth=HTTPBasicAuth(credentials.https_user, credentials.https_pass))
@@ -42,7 +41,7 @@ with open('det_C2E_Rhein_table.txt', mode='wb') as file:
 df2 = pd.read_table('det_C2E_Rhein_table.txt', delim_whitespace=True)
 df2['methode'] = 'COSMO-2E ctrl'
 df2['ausgegeben_an'] = ausgabe
-df2['gemessen'] = ''
+
 
 url = credentials.url_det_IFS_Rhein
 req = common.requests_get(url, auth=HTTPBasicAuth(credentials.https_user, credentials.https_pass))
@@ -60,7 +59,6 @@ with open('det_IFS_Rhein_table.txt', mode='wb') as file:
 df3 = pd.read_table('det_IFS_Rhein_table.txt', delim_whitespace=True)
 df3['methode'] = 'IFS'
 df3['ausgegeben_an'] = ausgabe
-df3['gemessen'] = ''
 
 
 df = pd.concat([df1, df2, df3])
