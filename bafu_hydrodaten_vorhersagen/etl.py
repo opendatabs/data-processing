@@ -1,14 +1,33 @@
 import pandas as pd
 import common
+import logging
 from requests.auth import HTTPBasicAuth
 from bafu_hydrodaten_vorhersagen import credentials
 import re
 from datetime import datetime, timedelta
 from pytz import timezone
 
-
 rivers = ['Rhein', 'Birs']
 methods = ['COSMO-1E ctrl', 'COSMO-2E ctrl', 'IFS']
+
+
+def main():
+    for river in rivers:
+        df = pd.DataFrame()
+        for method in methods:
+            df_method = extract_data(river, method)
+            df = pd.concat([df, df_method])
+            df = df.reset_index(drop=True)
+        for column in ['hh', 'dd', 'mm']:
+            df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
+        # Alle Zeitstempel sind immer in Winterzeit (UTC+1)
+        df['timestamp'] = df['dd'].astype(str) + '.' + df['mm'].astype(str) + '.' + df['yyyy'].astype(str) \
+                          + ' ' + df['hh'].astype(str)
+        df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
+        df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
+        print(df.head())
+        df.to_csv(f"{river}_Vorhersagen.csv", index=False)
+
 
 
 def get_date_time(line):
@@ -49,17 +68,8 @@ def extract_data(river, method):
     return df
 
 
-river = 'Rhein'
-df = pd.DataFrame()
-for method in methods:
-    df_method = extract_data(river, method)
-    df = pd.concat([df, df_method])
-    df = df.reset_index(drop=True)
-
-for column in ['hh', 'dd', 'mm']:
-    df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
-# Alle Zeitstempel sind immer in Winterzeit (UTC+1)
-df['timestamp'] = df['dd'].astype(str) + '.' + df['mm'].astype(str) + '.' + df['yyyy'].astype(str) + ' ' + df['hh'].astype(str)
-df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
-df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
-df.to_csv("det_rhein.csv", index=False)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    main()
+    logging.info('Job successful!')
