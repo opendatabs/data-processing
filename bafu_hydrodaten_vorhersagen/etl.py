@@ -1,14 +1,22 @@
 import pandas as pd
 import common
 import logging
-from requests.auth import HTTPBasicAuth
-from bafu_hydrodaten_vorhersagen import credentials
 import re
 from datetime import datetime, timedelta
 from pytz import timezone
+import os
+import ods_publish.etl_id as odsp
+from common import change_tracking as ct
+from requests.auth import HTTPBasicAuth
+from bafu_hydrodaten_vorhersagen import credentials
+
 
 rivers = ['Rhein', 'Birs']
 methods = ['COSMO-1E ctrl', 'COSMO-2E ctrl', 'IFS']
+dict_id = {
+    'Rhein': '100271',
+    'Birs': '100272'
+}
 
 
 def main():
@@ -25,9 +33,13 @@ def main():
                           + ' ' + df['hh'].astype(str)
         df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
         df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
-        print(df.head())
-        df.to_csv(f"{river}_Vorhersagen.csv", index=False)
-
+        export_filename = os.path.join(os.path.dirname(__file__), 'data/vorhersagen/export', f'{river}_Vorhersagen.csv')
+        df.to_csv(export_filename, index=False, sep=';')
+        if ct.has_changed(export_filename):
+            common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                              'hydrodata.ch/data/vorhersagen')
+            odsp.publish_ods_dataset_by_id(dict_id[river])
+            ct.update_hash_file(export_filename)
 
 
 def get_date_time(line):
@@ -56,11 +68,11 @@ def extract_data(river, method):
     meteolauf = get_date_time(meteolauf_info)
     gemessen_info = str(lines[8])
     gemessen = get_date_time(gemessen_info)
-    with open(f'det_{method}_{river}_table.txt', mode='wb') as file:
+    with open(f'data/vorhersagen/latest_data/det_{method}_{river}_table.txt', mode='wb') as file:
         for line in lines[14::]:
             file.write(line)
             file.write(b'\n')
-    df = pd.read_table(f'det_{method}_{river}_table.txt', delim_whitespace=True)
+    df = pd.read_table(f'data/vorhersagen/latest_data/det_{method}_{river}_table.txt', delim_whitespace=True)
     df['methode'] = method
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
