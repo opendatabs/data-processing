@@ -25,7 +25,6 @@ def main():
         for method in methods:
             df_method = extract_data(river, method)
             df = pd.concat([df, df_method])
-            df = take_out_measured_data(df)
             df = df.reset_index(drop=True)
         for column in ['hh', 'dd', 'mm']:
             df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
@@ -34,6 +33,8 @@ def main():
                           + ' ' + df['hh'].astype(str)
         df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
         df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
+        df = take_out_measured_data(df)
+        df = df.reset_index(drop=True)
         export_filename = os.path.join(os.path.dirname(__file__), 'data/vorhersagen/export', f'{river}_Vorhersagen.csv')
         df.to_csv(export_filename, index=False, sep=';')
         if ct.has_changed(export_filename):
