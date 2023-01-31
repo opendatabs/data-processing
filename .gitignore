@@ -28,3 +28,4 @@ __pycache__/
 /parlamentsdienst_gr_abstimmungen/**/*.json
 **/*.pdf
 **/*.sas7bdat
+/bafu_hydrodaten_vorhersagen/**/*table.txt
