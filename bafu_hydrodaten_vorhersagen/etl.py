@@ -25,6 +25,7 @@ def main():
         for method in methods:
             df_method = extract_data(river, method)
             df = pd.concat([df, df_method])
+            df = take_out_measured_data(df)
             df = df.reset_index(drop=True)
         for column in ['hh', 'dd', 'mm']:
             df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
@@ -77,6 +78,14 @@ def extract_data(river, method):
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
     df['gemessene_werten_bis'] = gemessen
+    return df
+
+
+def take_out_measured_data(df):
+    for ix in df.index:
+        if df['timestamp'][ix] <= df['gemessene_werten_bis'][ix]:
+            df.loc[ix, 'methode'] = 'gemessen'
+        df = df.drop_duplicates(subset=['methode', 'timestamp'])
     return df
 
 
