@@ -14,6 +14,7 @@ def main():
     logging.info('get file and date of latest available file')
     latest_file, datetime_abst = get_latest_file_and_date()
     date_abst = str(datetime_abst.date())
+    logging.info(f'date of latest Abstimmung is {date_abst}')
     # to do: check if this is the date of currently active Abstimmung...
     dates = [str(x.date()) for x in df_publ['abstimmungsdatum']]
     logging.info('check if data from latest Abstimmung is already in the df, if not add it')
