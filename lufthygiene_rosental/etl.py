@@ -12,7 +12,8 @@ r = common.requests_get(url)
 r.raise_for_status()
 s = r.text
 df = pd.read_csv(io.StringIO(s), sep=';')
-df.dropna(subset=['Anfangszeit'])
+df.to_csv('rosental_pm25.csv', index=False)
+df = df.dropna(subset=['Anfangszeit'])
 df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
 
 
@@ -22,6 +23,7 @@ else:
     logging.info(f'Melting dataframe...')
     ldf = df.melt(id_vars=['Anfangszeit', 'timestamp'], var_name='station', value_name='pm_2_5')
     logging.info(f'Dropping rows with empty pm25 value...')
+    ldf['pm_2_5'] = pd.to_numeric(ldf['pm_2_5'], errors='coerce')
     ldf = ldf.dropna(subset=['pm_2_5'])
     row_count = ldf.timestamp.count()
     if row_count == 0:
@@ -47,6 +49,4 @@ else:
 # if __name__ == "__main__":
 #     print(f'Executing {__file__}...')
 #     main()
-
-
 
