@@ -54,6 +54,7 @@ def get_data_2020():
         df_all = pd.concat([df_all, df], ignore_index=True)
     return df_all
 
+
 def get_previous_data_from_20210307():
     pattern = '????????_Eingang_Stimmabgaben*morgen.xlsx'
     file_list = glob.glob(os.path.join(credentials.path_stimmabgaben, pattern))
