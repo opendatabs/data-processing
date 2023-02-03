@@ -35,8 +35,9 @@ def main():
         df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
         df = take_out_measured_data(df)
         df = df.reset_index(drop=True)
+        df_export = df[['timestamp', 'Wasserstand', 'Abfluss', 'methode', 'ausgegeben_an', 'meteolauf', 'gemessene_werten_bis']]
         export_filename = os.path.join(os.path.dirname(__file__), 'data/vorhersagen/export', f'{river}_Vorhersagen.csv')
-        df.to_csv(export_filename, index=False, sep=';')
+        df_export.to_csv(export_filename, index=False, sep=';')
         if ct.has_changed(export_filename):
             common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'hydrodata.ch/data/vorhersagen')
