@@ -21,11 +21,14 @@ dict_id = {
 
 def main():
     for river in rivers:
+        logging.info(f'process data for {river}')
         df = pd.DataFrame()
         for method in methods:
+            logging.info(f'process data for {method}')
             df_method = extract_data(river, method)
             df = pd.concat([df, df_method])
             df = df.reset_index(drop=True)
+        logging.info(f'add timestamp with daylight saving time if needed')
         for column in ['hh', 'dd', 'mm']:
             df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
         # Alle Zeitstempel sind immer in Winterzeit (UTC+1)
@@ -33,10 +36,13 @@ def main():
                           + ' ' + df['hh'].astype(str)
         df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
         df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
+        logging.info(f'remove measured data and add once with method "gemessen"')
         df = take_out_measured_data(df)
         df = df.reset_index(drop=True)
+        logging.info('define df_export and uplad to ftp')
+        df_export = df[['timestamp', 'Wasserstand', 'Abfluss', 'methode', 'ausgegeben_an', 'meteolauf', 'gemessene_werten_bis']]
         export_filename = os.path.join(os.path.dirname(__file__), 'data/vorhersagen/export', f'{river}_Vorhersagen.csv')
-        df.to_csv(export_filename, index=False, sep=';')
+        df_export.to_csv(export_filename, index=False, sep=';')
         if ct.has_changed(export_filename):
             common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'hydrodata.ch/data/vorhersagen')
