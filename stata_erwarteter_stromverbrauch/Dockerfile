@@ -39,7 +39,7 @@ RUN install2.r \
     -e prophet
 
 
-CMD ["Rscript", "Stromverbrauch_OGD_server.R"]
+CMD ["Rscript", "Stromverbrauch_OGD.R"]
 
 # Docker commands to create image and run container:
 # cd stromverbrauch
