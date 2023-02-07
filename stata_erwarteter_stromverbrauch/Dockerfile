@@ -4,7 +4,7 @@
 FROM rocker/rstudio:4.1.2
 #FROM rocker/r-base
 ## Using a base image with R4.1.2 and RStudio version 2021.09.1+372
-WORKDIR /Users/hester/RstudioProjects/stromverbrauch
+WORKDIR /code/data-processing
 
 ## Check for updates
 RUN apt-get update && apt-get install -y \
