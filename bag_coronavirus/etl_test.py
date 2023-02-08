@@ -30,12 +30,14 @@ def main():
     pcr_antigen_path = os.path.join(credentials.path, 'covid19_testPcrAntigen.csv')
     print(f'Reading pcr/antigen csv from {pcr_antigen_path} into data frame...')
     df_pcr_antigen = pd.read_csv(pcr_antigen_path)
-    df_type = df_pcr_antigen[['datum', 'entries', 'entries_neg', 'entries_pos', 'nachweismethode', 'geoRegion']]
+    # df_type = df_pcr_antigen[['datum', 'entries', 'entries_neg', 'entries_pos', 'nachweismethode', 'geoRegion']]
+    df_type = df_pcr_antigen[['datum', 'entries', 'geoRegion']]
     df_type_bs = df_type.query("geoRegion == 'BS'").copy(deep=False)
-    #df_type_bs['positivity_rate'] = df_type_bs.entries_pos / df_type_bs.entries
-    #df_type_bs['positivity_rate_percent'] = df_type_bs.positivity_rate * 100
-    df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries', 'entries_neg', 'entries_pos', 'positivity_rate', 'positivity_rate_percent'])
+    # df_type_bs['positivity_rate'] = df_type_bs.entries_pos / df_type_bs.entries
+    # df_type_bs['positivity_rate_percent'] = df_type_bs.positivity_rate * 100
+    # df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries', 'entries_neg', 'entries_pos', 'positivity_rate', 'positivity_rate_percent'])
     # Replace the 2-level column names with a string that concatenates both strings
+    df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries'])
     df_pivot.columns = ["_".join(str(c) for c in col) for col in df_pivot.columns.values]
     df_pivot = df_pivot.reset_index()
     df_pivot = df_pivot.drop(columns=['geoRegion'])
