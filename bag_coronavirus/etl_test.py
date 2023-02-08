@@ -14,8 +14,8 @@ def main():
     print(f'Filtering out BS rows, some columns, and rename them...')
     df_bs = df.query('geoRegion == "BS"')
     df_bs = df_bs.filter(items=['datum', 'entries_neg', 'entries_pos', 'entries'])
-    df_bs['positivity_rate_percent'] = df_bs['entries_pos'] / df_bs['entries'] * 100
-    df_bs['positivity_rate'] = df_bs['entries_pos'] / df_bs['entries']
+    #df_bs['positivity_rate_percent'] = df_bs['entries_pos'] / df_bs['entries'] * 100
+    #df_bs['positivity_rate'] = df_bs['entries_pos'] / df_bs['entries']
     df_bs = df_bs.rename(columns={'entries_neg': 'negative_tests', 'entries_pos': 'positive_tests', 'entries': 'total_tests'})
     print(f'Calculating columns...')
     df_bs['dayofweek'] = pd.to_datetime(df_bs['datum']).dt.dayofweek + 1
@@ -32,8 +32,8 @@ def main():
     df_pcr_antigen = pd.read_csv(pcr_antigen_path)
     df_type = df_pcr_antigen[['datum', 'entries', 'entries_neg', 'entries_pos', 'nachweismethode', 'geoRegion']]
     df_type_bs = df_type.query("geoRegion == 'BS'").copy(deep=False)
-    df_type_bs['positivity_rate'] = df_type_bs.entries_pos / df_type_bs.entries
-    df_type_bs['positivity_rate_percent'] = df_type_bs.positivity_rate * 100
+    #df_type_bs['positivity_rate'] = df_type_bs.entries_pos / df_type_bs.entries
+    #df_type_bs['positivity_rate_percent'] = df_type_bs.positivity_rate * 100
     df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries', 'entries_neg', 'entries_pos', 'positivity_rate', 'positivity_rate_percent'])
     # Replace the 2-level column names with a string that concatenates both strings
     df_pivot.columns = ["_".join(str(c) for c in col) for col in df_pivot.columns.values]
