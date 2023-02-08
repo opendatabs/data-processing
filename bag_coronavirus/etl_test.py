@@ -44,10 +44,10 @@ def main():
     df_bs_merged = df_bs.merge(df_pivot, how='left', on='datum')
     df_bs_merged = df_bs_merged.sort_values(by='datum', ascending=False)
 
-    export_file_name_merged = os.path.join(credentials.path, 'covid19_tests_bs_all_nachweismethode.csv')
-    print(f'Exporting file with data per nachweismethode added to file {export_file_name_merged}...')
-    df_bs_merged.to_csv(export_file_name_merged, index=False)
-    common.upload_ftp(export_file_name_merged, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
+    # export_file_name_merged = os.path.join(credentials.path, 'covid19_tests_bs_all_nachweismethode.csv')
+    # print(f'Exporting file with data per nachweismethode added to file {export_file_name_merged}...')
+    # df_bs_merged.to_csv(export_file_name_merged, index=False)
+    #common.upload_ftp(export_file_name_merged, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'bag')
 
 
 if __name__ == "__main__":
