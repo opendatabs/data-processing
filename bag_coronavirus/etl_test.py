@@ -37,7 +37,7 @@ def main():
     # df_type_bs['positivity_rate_percent'] = df_type_bs.positivity_rate * 100
     # df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries', 'entries_neg', 'entries_pos', 'positivity_rate', 'positivity_rate_percent'])
     # Replace the 2-level column names with a string that concatenates both strings
-    df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], columns=['nachweismethode'], values=['entries'])
+    df_pivot = df_type_bs.pivot_table(index=['datum', 'geoRegion'], values=['entries'])
     df_pivot.columns = ["_".join(str(c) for c in col) for col in df_pivot.columns.values]
     df_pivot = df_pivot.reset_index()
     df_pivot = df_pivot.drop(columns=['geoRegion'])
