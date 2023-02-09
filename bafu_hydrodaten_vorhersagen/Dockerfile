@@ -18,4 +18,4 @@ CMD ["/bin/bash", "/code/data-processing/bafu_hydrodaten_vorhersagen/etl.sh"]
 # cd bafu_hydrodaten_vorhersagen
 # docker build -t bafu_hydrodaten_vorhersagen --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing  -v "//bs.ch/dfs/BS/PD/PD-StatA-FST-OGD-DataExch/BAFU/Hydrodaten/Vorhersagen":/code/data-processing/bafu_hydrodaten_vorhersagen/data --name bafu_hydrodaten_vorhersagen bafu_hydrodaten_vorhersagen
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing  --name bafu_hydrodaten_vorhersagen bafu_hydrodaten_vorhersagen
