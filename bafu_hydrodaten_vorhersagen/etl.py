@@ -81,7 +81,7 @@ def extract_data(river, method):
         for line in lines[14::]:
             file.write(line)
             file.write(b'\n')
-    df = pd.read_table(f'data/vorhersagen/latest_data/det_{method}_{river}_table.txt', delim_whitespace=True)
+    df = pd.read_table(f'{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt', delim_whitespace=True)
     df['methode'] = method
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
