@@ -76,7 +76,8 @@ def extract_data(river, method):
     meteolauf = get_date_time(meteolauf_info)
     gemessen_info = str(lines[8])
     gemessen = get_date_time(gemessen_info)
-    with open(f'data/vorhersagen/latest_data/det_{method}_{river}_table.txt', mode='wb') as file:
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    with open(f'{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt', mode='wb') as file:
         for line in lines[14::]:
             file.write(line)
             file.write(b'\n')
