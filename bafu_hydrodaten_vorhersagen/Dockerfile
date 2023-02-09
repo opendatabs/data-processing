@@ -12,7 +12,7 @@ CMD ["/bin/bash", "/code/data-processing/bafu_hydrodaten_vorhersagen/etl.sh"]
 # cd bafu_hydrodaten_vorhersagen
 # docker build -t bafu_hydrodaten_vorhersagen .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/BAFU/Hydrodaten/Vorhersagen:/code/data-processing/bafu_hydrodaten_vorhersagen/data --name bafu_hydrodaten_vorhersagen bafu_hydrodaten_vorhersagen
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name bafu_hydrodaten_vorhersagen bafu_hydrodaten_vorhersagen
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd bafu_hydrodaten_vorhersagen
