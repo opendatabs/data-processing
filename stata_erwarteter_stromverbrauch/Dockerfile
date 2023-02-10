@@ -39,7 +39,7 @@ RUN install2.r \
     -e prophet
 
 
-CMD ["Rscript", "Stromverbrauch_OGD.R"]
+CMD ["Rscript", "/code/data-processing/stata_erwarteter_stromverbrauch/Stromverbrauch_OGD.R"]
 
 # Docker commands to create image and run container:
 # cd stata_erwateter_stromverbrauch
