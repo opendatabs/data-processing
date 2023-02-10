@@ -10,10 +10,13 @@ from datetime import datetime
 
 def main():
     logging.info('get previous data, starting from 07-03-2021')
+    df_2020 = get_data_2020()
     df_publ = get_previous_data_from_20210307()
+    df_publ = pd.concat([df_publ, df_2020], ignore_index=True)
     logging.info('get file and date of latest available file')
     latest_file, datetime_abst = get_latest_file_and_date()
     date_abst = str(datetime_abst.date())
+    logging.info(f'date of latest Abstimmung is {date_abst}')
     # to do: check if this is the date of currently active Abstimmung...
     dates = [str(x.date()) for x in df_publ['abstimmungsdatum']]
     logging.info('check if data from latest Abstimmung is already in the df, if not add it')
@@ -21,12 +24,15 @@ def main():
         logging.info(f'Add data of currently active Abstimmung of {date_abst}')
         df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
+    # add 'tage_bis_abst'
+    df_publ['tage_bis_abst'] = df_publ['abstimmungsdatum'] - df_publ['datum']
+    df_publ['tage_bis_abst'] = [x.days for x in df_publ['tage_bis_abst']]
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
 
     # upload csv files
-    logging.info('upload csv files of the two dataframes')
+    logging.info(f'upload csv file to {credentials.path_export_file_publ}')
     df_publ.to_csv(credentials.path_export_file_publ, index=False)
 
     # push df_publ
@@ -37,6 +43,19 @@ def main():
         push_url = credentials.ods_live_realtime_push_url_publ
         push_key = credentials.ods_live_realtime_push_key_publ
         common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
+
+
+def get_data_2020():
+    pattern = '2020_Eingang_Stimmabgaben_Basel*_2020.xlsx'
+    file_list = glob.glob(os.path.join(f'{credentials.path_stimmabgaben}/2020', pattern))
+    df_all = pd.DataFrame()
+    for file in file_list:
+        tabs = pd.ExcelFile(file).sheet_names
+        datetime_abst = tabs[0].split("_", 1)[0]
+        datetime_abst = datetime.strptime(datetime_abst, '%d.%m.%Y')
+        df = make_df_for_publ(latest_file=file, datetime_abst=datetime_abst)
+        df_all = pd.concat([df_all, df], ignore_index=True)
+    return df_all
 
 
 def get_previous_data_from_20210307():
@@ -87,6 +106,7 @@ def make_df_for_publ(latest_file, datetime_abst):
 #      "eingang_kumuliert" : 1,
 #     "stimmbeteiligung": 1.0,
 #      "abstimmungsdatum": "2022-05-15"
+#       "tage_bis_abst": 1
 # }
 
 
