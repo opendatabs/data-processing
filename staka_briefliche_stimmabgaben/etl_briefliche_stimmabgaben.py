@@ -24,6 +24,9 @@ def main():
         logging.info(f'Add data of currently active Abstimmung of {date_abst}')
         df_latest = make_df_for_publ(latest_file=latest_file, datetime_abst=datetime_abst)
         df_publ = pd.concat([df_latest, df_publ], ignore_index=True)
+    # add 'tage_bis_abst'
+    df_publ['tage_bis_abst'] = df_publ['abstimmungsdatum'] - df_publ['datum']
+    df_publ['tage_bis_abst'] = [x.days for x in df_publ['tage_bis_abst']]
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
@@ -103,6 +106,7 @@ def make_df_for_publ(latest_file, datetime_abst):
 #      "eingang_kumuliert" : 1,
 #     "stimmbeteiligung": 1.0,
 #      "abstimmungsdatum": "2022-05-15"
+#       "tage_bis_abst": 1
 # }
 
 
