@@ -32,7 +32,7 @@ def main():
     df_publ['abstimmungsdatum'] = [str(x) for x in df_publ['abstimmungsdatum']]
 
     # upload csv files
-    logging.info('upload csv files of the two dataframes')
+    logging.info(f'upload csv file to {credentials.path_export_file_publ}')
     df_publ.to_csv(credentials.path_export_file_publ, index=False)
 
     # push df_publ
