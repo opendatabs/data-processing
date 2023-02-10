@@ -45,4 +45,4 @@ CMD ["Rscript", "Stromverbrauch_OGD.R"]
 # cd stata_erwateter_stromverbrauch
 # docker build -t stromverbrauch .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name stromverbrauch stromverbrauch
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/Stromverbrauch:/code/data-processing/stata_erwarteter_stromverbrauch/data --name stromverbrauch stromverbrauch
