@@ -75,7 +75,7 @@ def main():
         logging.info('Spatially joining points with Bezirk...')
         gdf_wv_bez = gpd.sjoin(gdf_wv, df_bez, how='left', op="within", rsuffix='bez', lsuffix='points')
         logging.info('Dropping unnecessary columns...')
-        gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit'], inplace=True)
+        gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'], inplace=True)
 
         # todo: Find nearest Wohnviertel / Bezirk of points outside of those shapes (Rhein, Outside of BS territory)
         # e.g. see https://gis.stackexchange.com/a/342489
