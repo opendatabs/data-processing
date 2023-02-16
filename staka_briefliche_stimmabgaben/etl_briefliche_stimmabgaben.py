@@ -9,8 +9,9 @@ from datetime import datetime
 
 
 def main():
-    logging.info('get previous data, starting from 07-03-2021')
+    logging.info('get data from 2020')
     df_2020 = get_data_2020()
+    logging.info('get newest data starting from 07-03-2021')
     df_publ = get_previous_data_from_20210307()
     df_publ = pd.concat([df_publ, df_2020], ignore_index=True)
     logging.info('get file and date of latest available file')
