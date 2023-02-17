@@ -1,8 +1,7 @@
 name;label;description
-objid;Objekt-ID;Identifikationsnummer (für kantonsinterne Zwecke verwendet)
-objectid;Objekt-ID;Identifikationsnummer (für kantonsinterne Zwecke verwendet)
-regime;Regime;Regime
-nr;Nummer;Nummer
-name;Strassenname;Strassenname
-umsetzung;Umsetzung;Umsetzung
-umsetzjahr;Umsetzung im Jahr;Umsetzung im Jahr
+id_fussgae;Id_Fussgängerzone;Eindeutiger Identifikator der Fussgängerzonen
+regime;Regime;Regime der Zone
+regimenr;Regimenummer;Nummer des Regimes
+name;Name;Name des Regimes
+umdatum;Umsetzungsdatum;Datum der Umsetzung
+umjahr;Umsetzungsjahr;Jahr der Umsetzung
