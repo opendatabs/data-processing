@@ -30,12 +30,21 @@ def main():
     df_publ['tage_bis_urnengang'] = [x.days for x in df_publ['tage_bis_urnengang']]
     # make date columns of string type
     df_publ['datum'] = df_publ['datum'].dt.strftime('%Y-%m-%d')
-    df_publ['datum_urnengang'] = [str(x) for x in df_publ['datum_urnengang']]
-
+    df_publ['datum_urnengang'] = df_publ['datum_urnengang'].dt.strftime('%Y-%m-%d')
+    # check if Abstimmung/Wahlen
+    df_wahlen = pd.read_csv(os.path.join(f'{credentials.path_stimmabgaben}/Termine/wahlen.csv'))
+    df_abst = pd.read_csv(os.path.join(f'{credentials.path_stimmabgaben}/Termine/abstimmungen.csv'))
+    df_publ['abstimmungen'] = ['Ja' if date in df_abst['Abstimmungstermin'].values else 'Nein' for date in
+                               df_publ['datum_urnengang']]
+    df_publ['wahlen'] = ['Ja' if date in df_wahlen['Datum'].values else 'Nein' for date in
+                         df_publ['datum_urnengang']]
+    df_publ['wahlen_typ'] = [
+        df_wahlen.loc[df_wahlen['Datum'] == row['datum_urnengang'], 'Typ'].item() if row['wahlen'] == 'Ja' else '' for
+        index, row in df_publ.iterrows()]
+    # to do: make sure that datum_urnengang appears in either wahlen.csv or abstimmungen.csv. If not, remove these rows and send an email.
     # upload csv files
     logging.info(f'upload csv file to {credentials.path_export_file_publ}')
     df_publ.to_csv(credentials.path_export_file_publ, index=False)
-
     # push df_publ
     if ct.has_changed(credentials.path_export_file_publ):
         ct.update_hash_file(credentials.path_export_file_publ)
@@ -106,8 +115,11 @@ def make_df_for_publ(latest_file, datetime_urnengang):
 #      "eingang_pro_tag" : 1,
 #      "eingang_kumuliert" : 1,
 #     "stimmbeteiligung": 1.0,
-#      "datum_urnengang": "2022-05-15"
-#       "tage_bis_urnengang": 1
+#      "datum_urnengang": "2022-05-15",
+#       "tage_bis_urnengang": 1,
+#       "abstimmungen": "Ja",
+#       "wahlen": "Ja",
+#       "wahlen_typ": "text"
 # }
 
 
