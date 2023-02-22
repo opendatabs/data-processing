@@ -8,7 +8,7 @@ from staka_briefliche_stimmabgaben import credentials
 datum = "2022-09-24"
 
 # obtain all entries with the wrong date in 100223
-req = common.requests_get(f'https://data.bs.ch/api/v2/catalog/datasets/100223/exports/json?refine=abstimmungsdatum:{datum}&limit=-1&offset=0&timezone=UTC', auth=(credentials.username, credentials.password))
+req = common.requests_get(f'https://data.bs.ch/api/v2/catalog/datasets/100223/exports/json?refine=datum_urnengang:{datum}&limit=-1&offset=0&timezone=UTC', auth=(credentials.username, credentials.password))
 file = req.json()
 df = pd.DataFrame.from_dict(file)
 
