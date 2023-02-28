@@ -56,7 +56,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df['id_standort'] = id_standort
         day_str = os.path.basename(f).split('.')[0]
         df['day_str'] = day_str
-        df['V_Delta'] = df.V_Einfahrt - df.V_Ausfahrt
+        df['V_Delta'] = df.V_Ausfahrt - df.V_Einfahrt
         # Determining Zyklus and Smiley_Nr of measurement
         df_m1 = pd.merge(df_einsatz_days, df, how='right', on=['id_standort', 'day_str']).drop(columns=['datum_aktiv', 'day_str'])
         df_m = pd.merge(df_m1, df_einsatze, how='left', left_on=['id_standort', 'Zyklus', 'Smiley_Nr'], right_on=['id_Standorte', 'Zyklus', 'Smiley-Nr.'])
@@ -66,6 +66,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
                                           np.where(df_m.Messung_Timestamp < df_m.Start_Nachmessung, 'Betrieb',
                                                    np.where(df_m.Messung_Timestamp < df_m.Ende, 'Nachmessung', 'Nach Ende')))
                                  )
+        df_m = df_m[df_m.Phase != 'Vor Vormessung']
         # Calculate statistics for this single data file i.e. single day
         df_all_v = pd.DataFrame(pd.concat([df_m.V_Einfahrt, df_m.V_Ausfahrt], ignore_index=True), columns=['V'])
         df_m['V_max'] = max(df_all_v.V)
@@ -98,7 +99,11 @@ def parse_einsatzplaene(curr_dir):
         for col in ['Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende']:
             logging.info(f'Localizing timestamp in col {col}...')
             df[col] = df[col].dt.tz_localize('Europe/Zurich', ambiguous='infer')
-        df = df[['id_Standorte', 'Strassenname', 'Geschwindigkeit', 'Halterung', 'Energie', 'Ort', 'Smiley-Nr.', 'Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende', 'Zyklus', 'Jahr']]
+        df = df[['id_Standorte', 'Strassenname', 'Geschwindigkeit', 'Halterung', 'Ort', 'Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende', 'Zyklus', 'Jahr']]
+        df = df.rename(columns={'Ort': 'Ort_Abkuerzung', 'Jahr': 'Messung_Jahr'})
+        df['Ort'] = np.where(df.Ort_Abkuerzung == 'BS', 'Basel',
+                             np.where(df.Ort_Abkuerzung == 'Bt', 'Bettingen',
+                                      np.where(df.Ort_Abkuerzung == 'Rh', 'Riehen')))
         einsatzplan_dfs.append(df)
     df_einsaetze = pd.concat(einsatzplan_dfs)
     return df_einsaetze
