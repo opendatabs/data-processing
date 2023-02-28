@@ -103,7 +103,7 @@ def parse_einsatzplaene(curr_dir):
         df = df.rename(columns={'Ort': 'Ort_Abkuerzung', 'Jahr': 'Messung_Jahr'})
         df['Ort'] = np.where(df.Ort_Abkuerzung == 'BS', 'Basel',
                              np.where(df.Ort_Abkuerzung == 'Bt', 'Bettingen',
-                                      np.where(df.Ort_Abkuerzung == 'Rh', 'Riehen')))
+                                      np.where(df.Ort_Abkuerzung == 'Rh', 'Riehen', '')))
         einsatzplan_dfs.append(df)
     df_einsaetze = pd.concat(einsatzplan_dfs)
     return df_einsaetze
