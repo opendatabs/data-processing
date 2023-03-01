@@ -34,7 +34,7 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
     all_df = pd.concat(messdaten_dfs)
     export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
     all_df.to_csv(export_file_all, index=False)
-    if True:  # ct.has_changed(export_file_all):
+    if ct.has_changed(export_file_all):
         common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
         any_changes = True
         ct.update_hash_file(export_file_all)
@@ -42,7 +42,7 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
     stat_df = pd.concat(stat_dfs)
     export_file_stat = os.path.join(curr_dir, 'data', 'all_stat.csv')
     stat_df.to_csv(export_file_stat, index=False)
-    if True:  # ct.has_changed(export_file_stat):
+    if ct.has_changed(export_file_stat):
         common.upload_ftp(export_file_stat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
         any_changes = True
         ct.update_hash_file(export_file_stat)
@@ -83,7 +83,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         messdaten_dfs_pro_standort.append(df_m)
         export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
         df_m.to_csv(export_file_single, index=False)
-        if True:  # ct.has_changed(export_file_single):
+        if ct.has_changed(export_file_single):
             common.upload_ftp(export_file_single, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/data')
             ct.update_hash_file(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
@@ -94,17 +94,27 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         raise RuntimeError(f'More than 1 ({df_all_pro_standort.Zyklus.unique()}) Zyklus found in 1 data folder ({folder}!)')
 
     # Calculate statistics for this data folder
+    min_timestamp = df_all_pro_standort.Messung_Timestamp.min()
+    max_timestamp = df_all_pro_standort.Messung_Timestamp.max()
+    messdauer_h = (max_timestamp - min_timestamp) / pd.Timedelta(hours=1)
+    anz_messungen = len(df_all_pro_standort)
+    dtv = anz_messungen / messdauer_h * 24
     df_all_v = pd.DataFrame(pd.concat([df_all_pro_standort.V_Einfahrt, df_all_pro_standort.V_Ausfahrt], ignore_index=True), columns=['V'])
+    id_standort = int(df_all_pro_standort.id_standort.iloc[0])
+    zyklus = int(df_all_pro_standort.Zyklus.iloc[0])
     stat_pro_standort = {
-        'idstandort': int(df_all_pro_standort.id_standort.iloc[0]),
-        'Zyklus': int(df_all_pro_standort.Zyklus.iloc[0]),
+        'idstandort': id_standort,
+        'Zyklus': zyklus,
         'V_max': max(df_all_v.V),
         'V_min': min(df_all_v.V),
         'V_50': np.mean(df_all_v.V),
         'V_85': np.percentile(df_all_v.V, 85),
         'V_Einfahrt_pct_ueber_limite': (df_all_pro_standort.V_Einfahrt > df_all_pro_standort.Geschwindigkeit).mean() * 100,
         'V_Ausfahrt_pct_ueber_limite': (df_all_pro_standort.V_Ausfahrt > df_all_pro_standort.Geschwindigkeit).mean() * 100,
-        'Anzahl_Messungen': len(df_all_pro_standort)
+        'Anzahl_Messungen': anz_messungen,
+        'Messdauer_h': messdauer_h,
+        'dtv': dtv,
+        'link_einzelmessungen': f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}'
     }
     df_stat_pro_standort = pd.DataFrame([stat_pro_standort])
     return df_all_pro_standort, df_stat_pro_standort
