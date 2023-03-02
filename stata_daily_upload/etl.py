@@ -44,7 +44,7 @@ def main():
                {'file': 'StatA/Wahlen-Abstimmungen/Zeitreihe_Volksabstimmungen/100229_Abstimmungsvorlagen.xlsx', 'dest_dir': 'wahlen_abstimmungen/zeitreihe_volksabstimmungen', 'ods_id': '100229'},
                {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'},
                {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255']},
-               {'file': 'BachApp/Fischereiverbotszonen/Fischereiverbotszonen.geojson', 'dest_dir': 'bachapp/Fischereiverbotszonen', 'ods_id': '100278'},
+               {'file': 'BachApp/Fischereiverbotszonen/Fischereiverbotszonen.geojson', 'dest_dir': 'bachapp/fischereiverbotszonen', 'ods_id': '100278'},
                {'file': 'TBA/Schwimmzonen.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100270'},
                {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'}
                ]
