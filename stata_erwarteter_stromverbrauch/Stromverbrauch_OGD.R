@@ -292,6 +292,6 @@ fullexport[fullexport$time < as.Date("2022-07-01"), "trainorforecast"] <- "t"
 fullexport <- merge(fullexport, rollklein, by=c("time"), all.x=T)
 fullexport$timestamp <- NULL
 wd <- getwd()
-write.csv2(fullexport, paste0(wd, "stata_erwarteter_stromverbrauch/data/export/100245_Strom_Wetter.csv"), row.names=F, na = "")
+write.csv2(fullexport, paste0(wd, "/stata_erwarteter_stromverbrauch/data/export/100245_Strom_Wetter.csv"), row.names=F, na = "")
 
 
