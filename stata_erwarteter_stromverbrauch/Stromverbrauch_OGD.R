@@ -68,7 +68,7 @@ invisible(file.remove("test2.csv"))
 ## Stromverbrauch-Daten
 
 
-fread("/code/data-processing/stata_erwarteter_stromverbrauch/pw.txt") -> pw
+fread("/code/data-processing/stata_erwateter_stromverbrauch/pw.txt") -> pw
 # pw-Datei muss drei Spalten beinhalten: system, login und password. Diese Datei kannst du als ein Tab-getrennte Text Datei erstellen und dein Internet-Passwort eingeben. Achtung, nicht dein Windows Passwort!
 #
 set_config(use_proxy(url="10.3.100.207",port=8080))
@@ -99,7 +99,7 @@ httr::GET("https://data.bs.ch/explore/dataset/100233/download/?format=csv&timezo
 
 
 httr::GET("https://data.bs.ch/explore/dataset/100074/download/?format=csv&timezone=Europe%2FBerlin",
-          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128)
+           use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128)
 )%>%
   content(., "text") %>%
   fread(sep=";") %>%
@@ -292,6 +292,6 @@ fullexport[fullexport$time < as.Date("2022-07-01"), "trainorforecast"] <- "t"
 fullexport <- merge(fullexport, rollklein, by=c("time"), all.x=T)
 fullexport$timestamp <- NULL
 wd <- getwd()
-write.csv2(fullexport, paste0(wd, "/data/export/100245_Strom_Wetter.csv"), row.names=F, na = "")
+write.csv2(fullexport, paste0(wd, "stata_erwarteter_stromverbrauch/data/export/100245_Strom_Wetter.csv"), row.names=F, na = "")
 
 
