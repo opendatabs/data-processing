@@ -68,7 +68,7 @@ invisible(file.remove("test2.csv"))
 ## Stromverbrauch-Daten
 
 
-fread("/code/data-processing/stata_erwateter_stromverbrauch/pw.txt") -> pw
+fread("/code/data-processing/stata_erwarteter_stromverbrauch/pw.txt") -> pw
 # pw-Datei muss drei Spalten beinhalten: system, login und password. Diese Datei kannst du als ein Tab-getrennte Text Datei erstellen und dein Internet-Passwort eingeben. Achtung, nicht dein Windows Passwort!
 #
 set_config(use_proxy(url="10.3.100.207",port=8080))
