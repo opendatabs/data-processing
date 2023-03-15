@@ -46,7 +46,8 @@ def main():
                {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255']},
                {'file': 'BachApp/Fischereiverbotszonen/Fischereiverbotszonen.geojson', 'dest_dir': 'bachapp/fischereiverbotszonen', 'ods_id': '100278'},
                {'file': 'TBA/Schwimmzonen.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100270'},
-               {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'}
+               {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'},
+               {'file': 'KaPo/Strassenverkehrsunfaelle/RoadTrafficAccidentLocations.json', 'dest_dir': 'kapo/strassenverkehrsunfaelle', 'ods_id': '100120'}
                ]
     file_not_found_errors = []
     for upload in uploads:
