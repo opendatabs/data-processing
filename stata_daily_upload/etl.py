@@ -54,22 +54,22 @@ def main():
     for upload in uploads:
         if type(upload['file']) != 'list':
             file_path = os.path.join(credentials.path_work, upload['file'])
-            try:
-                if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
-                    if ct.has_changed(file_path, method='modification_date'):
-                        common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-                        ods_id_property = upload['ods_id']
-                        if type(ods_id_property) == list:
-                            for single_ods_id in ods_id_property:
-                                odsp.publish_ods_dataset_by_id(single_ods_id)
-                        else:
-                            odsp.publish_ods_dataset_by_id(ods_id_property)
-                        ct.update_mod_timestamp_file(file_path)
-            except FileNotFoundError as e:
-                file_not_found_errors.append(e)
         else:
             pass
             # todo: implement
+        try:
+            if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
+                if ct.has_changed(file_path, method='modification_date'):
+                    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+                    ods_id_property = upload['ods_id']
+                    if type(ods_id_property) == list:
+                        for single_ods_id in ods_id_property:
+                            odsp.publish_ods_dataset_by_id(single_ods_id)
+                    else:
+                        odsp.publish_ods_dataset_by_id(ods_id_property)
+                    ct.update_mod_timestamp_file(file_path)
+        except FileNotFoundError as e:
+            file_not_found_errors.append(e)
     error_count = len(file_not_found_errors)
     if error_count > 0:
         for e in file_not_found_errors:
