@@ -34,8 +34,9 @@ def main():
         # Alle Zeitstempel sind immer in Winterzeit (UTC+1)
         df['timestamp'] = df['dd'].astype(str) + '.' + df['mm'].astype(str) + '.' + df['yyyy'].astype(str) \
                           + ' ' + df['hh'].astype(str)
-        df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
-        df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
+        df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich', nonexistent='shift_forward')
+        duplicate_index = [idx for idx, value in enumerate(df.timestamp.duplicated(keep='last')) if value]
+        df['timestamp'] = [correct_dst_timezone(x) if idx != duplicate_index[0] else x for idx, x in enumerate(df['timestamp'])]
         logging.info(f'remove measured data and add once with method "gemessen"')
         df = take_out_measured_data(df)
         df = df.reset_index(drop=True)
