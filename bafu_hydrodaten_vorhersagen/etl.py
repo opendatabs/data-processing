@@ -26,16 +26,23 @@ def main():
         for method in methods:
             logging.info(f'process data for {method}')
             df_method = extract_data(river, method)
+            df_method['timestamp'] = df_method['dd'].astype(str) + '.' + df_method['mm'].astype(str) + '.' + df_method['yyyy'].astype(str) \
+                              + ' ' + df_method['hh'].astype(str)
+            df_method['timestamp'] = pd.to_datetime(df_method.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich',
+                                                                                                nonexistent='shift_forward')
+            duplicate_index = [idx for idx, value in enumerate(df_method.timestamp.duplicated(keep='last')) if value]
+            if duplicate_index:
+                df_method['timestamp'] = [correct_dst_timezone(x) if idx != duplicate_index[0] else x for idx, x in
+                               enumerate(df_method['timestamp'])]
+            else:
+                df_method['timestamp'] = [correct_dst_timezone(x) for x in df_method['timestamp']]
             df = pd.concat([df, df_method])
             df = df.reset_index(drop=True)
         logging.info(f'add timestamp with daylight saving time if needed')
         for column in ['hh', 'dd', 'mm']:
             df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
         # Alle Zeitstempel sind immer in Winterzeit (UTC+1)
-        df['timestamp'] = df['dd'].astype(str) + '.' + df['mm'].astype(str) + '.' + df['yyyy'].astype(str) \
-                          + ' ' + df['hh'].astype(str)
-        df['timestamp'] = pd.to_datetime(df.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich')
-        df['timestamp'] = [correct_dst_timezone(x) for x in df['timestamp']]
+
         logging.info(f'remove measured data and add once with method "gemessen"')
         df = take_out_measured_data(df)
         df = df.reset_index(drop=True)
