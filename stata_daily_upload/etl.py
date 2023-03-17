@@ -46,8 +46,7 @@ def main():
                {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255']},
                {'file': 'BachApp/Fischereiverbotszonen/Fischereiverbotszonen.geojson', 'dest_dir': 'bachapp/fischereiverbotszonen', 'ods_id': '100278'},
                {'file': 'TBA/Rhein-Schwimmzonen/Schwimmzonen.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100270'},
-               {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_area.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
-               {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_point.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
+               {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
                {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'},
                {'file': 'KaPo/Strassenverkehrsunfaelle/RoadTrafficAccidentLocations.json', 'dest_dir': 'kapo/strassenverkehrsunfaelle', 'ods_id': '100120'}
                ]
