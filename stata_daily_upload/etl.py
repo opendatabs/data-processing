@@ -43,7 +43,7 @@ def main():
                {'file': 'StatA/witterung/100227_Witterungserscheinungen.xlsx', 'dest_dir': 'witterung', 'ods_id': '100227'},
                {'file': 'StatA/Wahlen-Abstimmungen/Zeitreihe_Volksabstimmungen/100229_Abstimmungsvorlagen.xlsx', 'dest_dir': 'wahlen_abstimmungen/zeitreihe_volksabstimmungen', 'ods_id': '100229'},
                {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'},
-               {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255', '100287']},
+               {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255', '100283', '100284', '100287']},
                {'file': 'BachApp/Fischereiverbotszonen/Fischereiverbotszonen.geojson', 'dest_dir': 'bachapp/fischereiverbotszonen', 'ods_id': '100278'},
                {'file': 'TBA/Rhein-Schwimmzonen/Schwimmzonen.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100270'},
                {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_area.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
