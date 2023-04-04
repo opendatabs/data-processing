@@ -6,13 +6,13 @@ FROM rocker/rstudio:4.2.1
 ## Using a base image with R4.2.1 and RSTUDIO_VERSION=2022.07.2+576
 WORKDIR /code/data-processing
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
     sudo=1.8.31-1ubuntu1.4 \
     gdebi-core=0.9.5.7+nmu3 \
     libcairo2-dev=1.16.0-4ubuntu1 \
     libxt-dev=1:1.1.5-1 \
-    libcurl4=7.68.0-1ubuntu2 \
-    libcurl4-openssl-dev=7.68.0-1ubuntu2  \
+    libcurl4=7.68.0-1ubuntu2.16 \
+    libcurl4-openssl-dev=7.68.0-1ubuntu2.16  \
     libssl-dev=1.1.1f-1ubuntu2.17 \
     r-cran-rstan=2.19.2-1build1
 
