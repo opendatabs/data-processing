@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     gdebi-core=0.9.5.7+nmu3 \
     libcairo2-dev=1.16.0-4ubuntu1 \
     libxt-dev=1:1.1.5-1 \
+    libcurl4=7.68.0-1ubuntu2 \
     libcurl4-openssl-dev=7.68.0-1ubuntu2  \
     libssl-dev=1.1.1f-1ubuntu2.17 \
     r-cran-rstan=2.19.2-1build1
