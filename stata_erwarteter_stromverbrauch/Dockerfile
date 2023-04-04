@@ -6,20 +6,20 @@ FROM rocker/rstudio:4.2.1
 ## Using a base image with R4.2.1 and RSTUDIO_VERSION=2022.07.2+576
 WORKDIR /code/data-processing
 
-## Check for updates
-RUN apt-get update && apt-get install -y \
-    sudo \
-    gdebi-core \
-    libcairo2-dev \
-    libxt-dev \
-    libcurl4-openssl-dev libssl-dev \
-    r-cran-rstan
+RUN apt-get install -y \
+    sudo=1.8.31-1ubuntu1.4 \
+    gdebi-core=0.9.5.7+nmu3 \
+    libcairo2-dev=1.16.0-4ubuntu1 \
+    libxt-dev=1:1.1.5-1 \
+    libcurl4-openssl-dev=7.68.0-1ubuntu2.15  \
+    libssl-dev=1.1.1f-1ubuntu2.17 \
+    r-cran-rstan=2.19.2-1build1
 
 
 ## Explicitly setting my default RStudio Package Manager Repo
-## Uses packages as at 24/12/2022
+## Uses packages as at 30/06/2022
 RUN echo "r <- getOption('repos'); \
-	  r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2021-12-24'; \
+	  r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2022-06-30'; \
 	  options(repos = r);" > ~/.Rprofile
 
 
