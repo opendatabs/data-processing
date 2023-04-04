@@ -6,7 +6,7 @@ FROM rocker/rstudio:4.2.1
 ## Using a base image with R4.2.1 and RSTUDIO_VERSION=2022.07.2+576
 WORKDIR /code/data-processing
 
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
     sudo=1.8.31-1ubuntu1.4 \
     gdebi-core=0.9.5.7+nmu3 \
     libcairo2-dev=1.16.0-4ubuntu1 \
