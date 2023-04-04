@@ -42,7 +42,7 @@ RUN install2.r \
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_stromverbrauch/Stromverbrauch_OGD.R"]
 
 # Docker commands to create image and run container:
-# cd stata_erwateter_stromverbrauch
+# cd stata_erwarteter_stromverbrauch
 # docker build -t stromverbrauch .
 # cd ..
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/Stromverbrauch:/code/data-processing/stata_erwarteter_stromverbrauch/data/export --name stromverbrauch stromverbrauch
