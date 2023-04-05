@@ -56,7 +56,7 @@ pub_org = open_csv(os.path.join(credentials.path_root, 'Publizierende_organisati
 
 print(f'Left-joining data, metadata and publizierende_organisation...')
 data_meta = pd.merge(data, metadata, on='ordnerpfad', how='left')
-joined_data = pd.merge(data_meta, pub_org, on='kontakt_dienststelle', how='left')
+joined_data = pd.merge(data_meta, pub_org, on='herausgeber', how='left')
 joined_data.to_csv(os.path.join(credentials.path_root, '_alldata.csv'), index=False, sep=';')
 
 metadata_for_ods = []
@@ -230,7 +230,7 @@ for index, row in joined_data.iterrows():
                     # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                     # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                     # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                    'publisher': row['kontakt_dienststelle'] if row['kontakt_dienststelle'] != "Zentrale Dienste" else "Erziehungsdepartement - Zentrale Dienste",
+                    'publisher': row['herausgeber'],
                     'dcat.issued': row['dcat.issued'],
                     # todo: give time in UTC
                     'modified': modified,
