@@ -43,9 +43,6 @@ def main():
  #            "pm_2_5": 8.8
  #        }
 
-# if __name__ == "__main__":
-#     print(f'Executing {__file__}...')
-#     main()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
