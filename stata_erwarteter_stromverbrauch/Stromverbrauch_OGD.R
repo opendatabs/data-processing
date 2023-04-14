@@ -19,8 +19,20 @@ library(tidyr)
 
 set.seed(1234)
 
-download.file("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_previous.csv", "test.csv", overwrite=TRUE)
-download.file("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_current.csv", "test2.csv", overwrite=TRUE)
+
+fread("/code/data-processing/stata_erwarteter_stromverbrauch/pw.txt") -> pw
+# pw-Datei muss drei Spalten beinhalten: system, login und password. Diese Datei kannst du als ein Tab-getrennte Text Datei erstellen und dein Internet-Passwort eingeben.
+
+x <- httr::GET("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_previous.csv",
+          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))
+bin <- content(x, "raw")
+writeBin(bin, "test.csv")
+
+x <- httr::GET("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_current.csv",
+          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))
+bin <- content(x, "raw")
+writeBin(bin, "test2.csv")
+
 
 fread("test.csv", sep = ";", colClasses = c("character", "Date", rep("numeric", 10))) %>%
   mutate(
@@ -66,12 +78,6 @@ invisible(file.remove("test2.csv"))
 
 
 ## Stromverbrauch-Daten
-
-
-fread("/code/data-processing/stata_erwarteter_stromverbrauch/pw.txt") -> pw
-# pw-Datei muss drei Spalten beinhalten: system, login und password. Diese Datei kannst du als ein Tab-getrennte Text Datei erstellen und dein Internet-Passwort eingeben. Achtung, nicht dein Windows Passwort!
-#
-set_config(use_proxy(url="10.3.100.207",port=8080))
 httr::GET(pw[system=="file_stromverbrauch", url],
           use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128)
 )%>%
