@@ -11,7 +11,7 @@ from bvb_fahrgastzahlen import credentials
 
 
 def main():
-    sheets = pd.read_excel(os.path.join(pathlib.Path(__file__), '/data_orig/fahrgast.xlsx')
+    sheets = pd.read_excel(os.path.join(pathlib.Path(__file__).parent, 'data_orig/fahrgast.xlsx')
                            , sheet_name=None , engine='openpyxl',  header=None)
     dat_sheet_names = []
     for key in sheets:
@@ -19,7 +19,7 @@ def main():
              dat_sheet_names.append(key)
     dat_sheets = []
     for sheet_name in dat_sheet_names:
-        zeitreihe_x = pd.read_excel(os.path.join(pathlib.Path(__file__), '/data_orig/fahrgast.xlsx'),
+        zeitreihe_x = pd.read_excel(os.path.join(pathlib.Path(__file__).parent, 'data_orig/fahrgast.xlsx'),
                                     sheet_name=sheet_name , engine='openpyxl', header=None).T
         new_header = zeitreihe_x.iloc[0]
         zeitreihe_x=zeitreihe_x[1:]
