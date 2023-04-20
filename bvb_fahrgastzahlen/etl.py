@@ -4,6 +4,10 @@ from datetime import datetime
 import logging
 import os
 import pathlib
+from common import change_tracking as ct
+import common
+import ods_publish.etl_id as odsp
+from bvb_fahrgastzahlen import credentials
 
 
 def main():
@@ -28,7 +32,15 @@ def main():
         dat_sheets.append(zeitreihe_x)
     fahrgast = pd.concat(dat_sheets)#.reset_index(drop=True) #Dateien werden zusammengeführt und Index (erste Spalte) wird korrigiert
     fahrgast = fahrgast [["Datum", "Fahrgäste (Einsteiger)", "Kalenderwoche"]]
-    fahrgast.to_csv(os.path.join(pathlib.Path(__file__), '/data/bvb_fahrgastzahlen.csv'), index = False)
+    fahrgast = fahrgast.rename(columns={"Datum": 'startdatum_woche'})
+    export_filename = os.path.join(pathlib.Path(__file__).parent, 'data/bvb_fahrgastzahlen.csv')
+    fahrgast.to_csv(export_filename, index = False)
+    if ct.has_changed(export_filename):
+        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          'bvb/fahrgastzahlen')
+        odsp.publish_ods_dataset_by_id('100075')
+        ct.update_hash_file(export_filename)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
