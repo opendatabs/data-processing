@@ -32,16 +32,16 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
     merged_df['zeit'] = merged_df.timestamp.dt.strftime('%H:%M')
     merged_df['intervall'] = 5
     merged_df['pegel'] = merged_df[variable_names['pegel']]
-    columns_to_export = ['datum', 'zeit', 'intervall', 'pegel', 'timestamp']
+    columns_to_export = ['timestamp', 'pegel', 'datum', 'zeit', 'intervall']
     columns_to_push = ['timestamp_text', 'pegel']
     if 'temperatur' in variable_names:
         merged_df['temperatur'] = merged_df[variable_names['temperatur']]
-        columns_to_export.append('temperatur')
-        columns_to_push.append('temperatur')
+        columns_to_export.insert(2, 'temperatur')
+        columns_to_push.insert(2, 'temperatur')
     if 'abfluss' in variable_names:
         merged_df['abfluss'] = merged_df[variable_names['abfluss']]
-        columns_to_export.append('abfluss')
-        columns_to_push.append('abfluss')
+        columns_to_export.insert(2, 'abfluss')
+        columns_to_push.insert(2, 'abfluss')
         merged_df = merged_df.dropna(subset=['abfluss'], how='all')
     # merged_df = merged_df[['datum', 'zeit', 'abfluss', 'intervall', 'pegel', 'timestamp_dt', 'timestamp']]
     # drop rows if all cells are empty in certain columns
@@ -67,7 +67,8 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
         # {
         #   "timestamp": "2020-07-28T01:35:00+02:00",
         #   "pegel": "245.16",
-        #   "abfluss": "591.2"
+        #   "abfluss": "591.2",
+        #   "temperatur": "12.3"
         # }
 
         # only keep columns that need to be pushed, and rename if necessary.
