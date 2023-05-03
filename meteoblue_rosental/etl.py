@@ -2,6 +2,9 @@ import logging
 import common
 import pandas as pd
 from meteoblue_rosental import credentials
+import os
+from datetime import datetime
+import pathlib
 
 fields = 'timestamp,precipitation,relativeHumidityHC,solarRadiation,' \
          'airTemperatureHC,windSpeedUltraSonic,windDirUltraSonic'
@@ -12,6 +15,13 @@ url = f'http://measurement-api.meteoblue.com/v1/rawdata/pesslCityClimateBasel/cC
 
 def main():
     df = get_data()
+    filename = os.path.join(pathlib.Path(__file__).parent, 'data',
+                            f"rosental_wetterstation_{datetime.today().strftime('%Y-%m-%d')}.csv")
+    logging.info(f'Exporting data to {filename}...')
+    df.to_csv(filename, index=False)
+    ftp_dir = 'Rosental-Mitte/backup_wetterstation'
+    logging.info(f'upload data to {ftp_dir}')
+    common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_dir)
     logging.info("push data to ODS realtime API")
     logging.info("push for dataset 100294")
     push_url = credentials.ods_live_realtime_push_url
