@@ -3,6 +3,9 @@ import io
 import common
 import logging
 from lufthygiene_rosental import credentials
+import os
+from datetime import datetime
+import pathlib
 
 
 def main():
@@ -28,8 +31,15 @@ def main():
         if row_count == 0:
             logging.info(f'No rows to push to ODS... ')
         else:
-            logging.info(f'Pushing {row_count} rows to ODS realtime API...')
             ldf.timestamp = ldf.timestamp.dt.strftime('%Y-%m-%d %H:%M:%S%z')
+            filename = os.path.join(pathlib.Path(__file__).parent, 'data',
+                                    f"airmet_bs_rosental_pm25_{datetime.today().strftime('%Y-%m-%d')}.csv")
+            logging.info(f'Exporting data to {filename}...')
+            ldf.to_csv(filename, index=False)
+            ftp_dir = 'Rosental-Mitte/online_backup/'
+            logging.info(f"upload data to {ftp_dir}")
+            common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_dir)
+            logging.info(f'Pushing {row_count} rows to ODS realtime API...')
             payload = ldf.to_json(orient="records")
             r = common.requests_post(url=credentials.ods_live_push_api_url, data=payload, verify=False)
             r.raise_for_status()
