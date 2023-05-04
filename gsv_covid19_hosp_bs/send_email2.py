@@ -14,7 +14,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
             if (df_log['email_status_at_13'] == "").all():
                 df_log['email_status_at_13'] = "Sent"
                 logging.info("Sending email: not all filled after 13...")
-                send_email(hospital=None, email_type="Not all filled at 13", day=day, df_log=df_log)
+                #send_email(hospital=None, email_type="Not all filled at 13", day=day, df_log=df_log)
             else:
                 logging.info('email not all filled after 13 has already been sent')
         else:
@@ -24,7 +24,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
                 if day in ["Saturday", "Sunday"]:
                     if row['email_reminder'] == "":
                         logging.info(f'Sending email reminder for entry {hospital} on {day}...')
-                        send_email(hospital=hospital, day=day, email_type="Reminder")
+                        #send_email(hospital=hospital, day=day, email_type="Reminder")
                         df_log.loc[condition, 'email_reminder'] = f"Sent at {now_in_switzerland}"
                     else:
                         email_send_at = df_log.loc[condition, 'email_reminder']
@@ -34,7 +34,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
                     if now_in_switzerland > time_for_email_to_call:
                         if row['email_for_calling'] == "":
                             logging.info(f'Send email to call for missing entries of {hospital}...')
-                            send_email(hospital=hospital, day=day, email_type="Call")
+                            #send_email(hospital=hospital, day=day, email_type="Call")
                             df_log.loc[condition, 'email_for_calling'] = f"Sent at {now_in_switzerland}"
                         else:
                             email_send_at = df_log.loc[condition, 'email_for_calling']
@@ -43,7 +43,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
                     elif now_in_switzerland > time_for_email:
                         if row['email_reminder'] == "":
                             logging.info(f'sending email reminder for missing entries of {hospital}...')
-                            send_email(hospital=hospital, day=day, email_type="Reminder")
+                            #send_email(hospital=hospital, day=day, email_type="Reminder")
                             df_log.loc[condition, 'email_reminder'] = f"Sent at {now_in_switzerland}"
                         else:
                             email_send_at = df_log.loc[condition, 'email_reminder']
@@ -53,7 +53,7 @@ def check_if_email(df_log, date, day, now_in_switzerland, time_for_email, time_f
         if (df_log['CoReport_filled'] == "Yes").all():
             if df_log['all_filled'].sum() == 0:
                 df_log['all_filled'] = 1
-                send_email(hospital=None, email_type="All filled", day=day, df_log=df_log)
+                #send_email(hospital=None, email_type="All filled", day=day, df_log=df_log)
                 logging.info(f"Send email: everything ok at {now_in_switzerland}")
                 df_log['email_all_filled'] = f"Sent at {now_in_switzerland}"
     return df_log
