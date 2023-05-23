@@ -37,3 +37,10 @@ def make_dataframe_bs():
     df_bs = df_bs.pivot_table(index='Testdatum [Benötigte Angaben]', columns='Serotyp/Subtyp [Erreger]', aggfunc='size', fill_value=0)
     df_bs.columns.name = None
     return df_bs
+
+
+def make_dataframe_abwasser():
+    logging.info("import and transform sewage data")
+    path = '/Users/hester/PycharmProjects/data-processing/gd_abwassermonitoring/data/Abwasserdaten/Probenraster CoroWWmonitoring.xlsx'
+    df_abwasser = pd.read_excel(path, header=2, usecols="A,F:AB")
+    return df_abwasser
