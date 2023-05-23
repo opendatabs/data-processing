@@ -39,6 +39,10 @@ def make_dataframe_bs():
     df_bs.rename(columns=new_names, inplace=True)
     df_bs = df_bs.pivot_table(index='Datum', columns='Type', aggfunc='size', fill_value=0)
     df_bs.columns.name = None
+    df_bs.add_prefix('Anz_pos_')
+    df_bs = df_bs.add_suffix('_BS')
+    df_bs.rename(columns={'Anz_pos_Datum_BS': 'Datum'},
+                 inplace=True)
     return df_bs
 
 
