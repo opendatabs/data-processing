@@ -49,7 +49,7 @@ def make_dataframe_bs():
 def make_dataframe_abwasser():
     logging.info("import and transform sewage data")
     path = '/Users/hester/PycharmProjects/data-processing/gd_abwassermonitoring/data/Abwasserdaten/Probenraster CoroWWmonitoring.xlsx'
-    df_abwasser = pd.read_excel(path, header=2, usecols="A,F:AB,AP")
+    df_abwasser = pd.read_excel(path, header=2, usecols="A,B,F:AB,AP")
     return df_abwasser
 
 
@@ -57,8 +57,8 @@ def merge_dataframes():
     df_bs = make_dataframe_bs()
     df_bl = make_dataframe_bl()
     df_abwasser = make_dataframe_abwasser()
-    merged_df = pd.merge(df_bl, df_bs, on='Datum')
-    merged_df = pd.merge(merged_df, df_abwasser, on='Datum')
+    merged_df = pd.merge(df_abwasser, df_bs, on='Datum', how='outer')
+    merged_df = pd.merge(merged_df, df_bl, on='Datum', how='outer')
     return merged_df
 
 
