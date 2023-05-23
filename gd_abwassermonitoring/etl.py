@@ -34,7 +34,10 @@ def make_dataframe_bs():
     df_bs = pd.read_excel(path)
     # only keep columns Testdatum [Benötigte Angaben], Serotyp/Subtyp [Erreger]
     df_bs = df_bs[['Testdatum [Benötigte Angaben]', 'Serotyp/Subtyp [Erreger]']]
-    df_bs = df_bs.pivot_table(index='Testdatum [Benötigte Angaben]', columns='Serotyp/Subtyp [Erreger]', aggfunc='size', fill_value=0)
+    new_names = {'Testdatum [Benötigte Angaben]': 'Datum',
+                 'Serotyp/Subtyp [Erreger]': 'Type'}
+    df_bs.rename(columns=new_names, inplace=True)
+    df_bs = df_bs.pivot_table(index='Datum', columns='Type', aggfunc='size', fill_value=0)
     df_bs.columns.name = None
     return df_bs
 
@@ -44,3 +47,12 @@ def make_dataframe_abwasser():
     path = '/Users/hester/PycharmProjects/data-processing/gd_abwassermonitoring/data/Abwasserdaten/Probenraster CoroWWmonitoring.xlsx'
     df_abwasser = pd.read_excel(path, header=2, usecols="A,F:AB")
     return df_abwasser
+
+
+def merge_dataframes():
+    df_bs = make_dataframe_bs()
+    df_bl = make_dataframe_bl()
+    df_abwasser = make_dataframe_abwasser()
+    merged_df = pd.merge(df_bl, df_bs, on='Datum')
+    merged_df = pd.merge(merged_df, df_abwasser, on='Datum')
+    return merged_df
