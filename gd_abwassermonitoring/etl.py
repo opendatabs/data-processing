@@ -39,7 +39,7 @@ def make_dataframe_bs():
     df_bs.rename(columns=new_names, inplace=True)
     df_bs = df_bs.pivot_table(index='Datum', columns='Type', aggfunc='size', fill_value=0)
     df_bs.columns.name = None
-    df_bs.add_prefix('Anz_pos_')
+    df_bs = df_bs.add_prefix('Anz_pos_')
     df_bs = df_bs.add_suffix('_BS')
     df_bs.rename(columns={'Anz_pos_Datum_BS': 'Datum'},
                  inplace=True)
@@ -60,3 +60,11 @@ def merge_dataframes():
     merged_df = pd.merge(df_bl, df_bs, on='Datum')
     merged_df = pd.merge(merged_df, df_abwasser, on='Datum')
     return merged_df
+
+
+def calculate_columns(df):
+    df['InfA_BS+BL'] = df['Anz.pos.A_BL'] + df['Anz_pos_A_BS']
+    df['InfB_BS+BL'] = df['Anz.pos.B_BL'] + df['Anz_pos_B_BS']
+    df["7t_median_InfA"] = df['InfA_BS+BL'].rolling(window=7).median()
+    df["7t_median_InfB"] = df['InfB_BS+BL'].rolling(window=7).median()
+    return df
