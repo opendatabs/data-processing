@@ -6,34 +6,67 @@ from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 import openpyxl
 import os
+import datetime as datetime
 
 
 def main():
+    directories = list_directories()
+    list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
+    if ct.has_changed(list_path):
+        ct.update_hash_file(list_path)
+        df_2017 = process_data_2017()
+        df_all = process_data_from_2018(directories, df_2017)
+        df_export = transform_for_export(df_all)
+        big_bussen = os.path.join(credentials.export_path, 'big_bussen.csv')
+        plz = os.path.join(credentials.export_path, 'plz.csv')
+        if ct.has_changed(big_bussen):
+            ct.update_hash_file(big_bussen)
+            # add email
+        elif ct.has_changed(plz):
+            ct.update_hash_file(plz)
+            # add email
+        else:
+            export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
+            logging.info(f'Exporting data to {export_filename_data}...')
+            df_export.to_csv(export_filename_data, index=False)
+
+
+def list_directories():
+    folder_path = credentials.data_orig_path
+    directories = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
+    list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
+    with open(list_path, 'w') as file:
+        for item in directories:
+            file.write(item + '\n')
+    list_directories = [x for x in directories if x not in ['Old', 'export', '2020_07_27']]
+    list_directories.sort()
+    return list_directories
+
+
+def process_data_2017():
     logging.info(f'Reading 2017 data from csv...')
     df_2020_07_27 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_07_27/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
     df_2020_07_27['Übertretungsdatum'] = pd.to_datetime(df_2020_07_27['Übertretungsdatum'], format='%d.%m.%Y')
     df_2017 = df_2020_07_27.query('Übertretungsjahr == 2017')
+    return df_2017
 
-    logging.info(f'Reading 2018 data from csv...')
-    df_2020_10_15 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_10_15/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
-    df_2020_10_15['Übertretungsdatum'] = pd.to_datetime(df_2020_10_15['Übertretungsdatum'], format='%d.%m.%Y')
-    df_2020_10_15['Übertretungsjahr'] = df_2020_10_15['Übertretungsdatum'].dt.year
-    df_2018 = df_2020_10_15.query('Übertretungsjahr == 2018') # .drop(columns=credentials.columns_to_drop)
 
-    logging.info(f'Reading 2019 data from csv...')
-    df_2019 = pd.read_csv(os.path.join(credentials.data_orig_path, '2021_12_31/OGD2019.csv'), sep=';', encoding='cp1252')
-    df_2019['Übertretungsdatum'] = pd.to_datetime(df_2019['Übertretungsdatum'], format='%d.%m.%Y')
-    df_2019['Übertretungsjahr'] = df_2019['Übertretungsdatum'].dt.year
+def process_data_from_2018(list_directories, df_2017):
+    logging.info(f'Reading 2018+ data from xslx...')
+    df_all = df_2017
+    for directory in list_directories:
+        file = os.path.join(credentials.data_orig_path, directory, 'OGD.xlsx')
+        logging.info(f'process data from file {file}')
+        df = pd.read_excel(file)
+        # want to take the data from the latest file, so remove in the df I have up till now all data of datum_min and after
+        datum_min = df['Übertretungsdatum'].min()
+        logging.info(f'Earliest date is {datum_min}, add new data from this date on (and remove data after this date coming from older files)')
+        df_all = df_all[df_all['Übertretungsdatum'] < datum_min]
+        df_all = pd.concat([df_all, df], ignore_index=True)
+    return df_all
 
-    logging.info(f'Reading 2020 data from csv...')
-    df_2020 = pd.read_csv(os.path.join(credentials.data_orig_path, '2022_12_31/OGD2020.csv'), sep=';', encoding='cp1252')
-    df_2020['Übertretungsdatum'] = pd.to_datetime(df_2020['Übertretungsdatum'], format='%d.%m.%Y')
-    df_2020['Übertretungsjahr'] = df_2020['Übertretungsdatum'].dt.year
 
-    logging.info(f'Reading 2021+ data from xslx...')
-    df_ab_2021 = pd.read_excel(os.path.join(credentials.data_orig_path, '2023_03_31/OGD.xlsx'))
-
-    df_all = pd.concat([df_2017, df_2018, df_2019, df_2020, df_ab_2021], ignore_index=True)
+def transform_for_export(df_all):
     logging.info('Calculating weekday, weekday number, and its combination...')
     df_all['Übertretungswochentag'] = df_all['Übertretungsdatum'].dt.weekday.apply(lambda x: common.weekdays_german[x])
     # Translate from Mo=0 to So=1, Mo=2 etc. to be backward.compatible with previously used SAS code
@@ -73,17 +106,26 @@ def main():
 
     df_export = df_export.query('`Bussen-Betrag` > 0')
     df_export = df_export.query('`Bussen-Betrag` <= 300')
-
-    export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
-    logging.info(f'Exporting data to {export_filename_data}...')
-    df_export.to_csv(export_filename_data, index=False)
-    common.upload_ftp(export_filename_data, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
-    odsp.publish_ods_dataset_by_id('100058')
-
     logging.info('Exporting data for high Bussen, and for all found PLZ...')
     df_bussen_big.to_csv(os.path.join(credentials.export_path, 'big_bussen.csv'))
     df_plz = pd.DataFrame(sorted(df_export['Ü-Ort PLZ'].unique()), columns=['Ü-Ort PLZ'])
     df_plz.to_csv(os.path.join(credentials.export_path, 'plz.csv'))
+    return df_export
+
+
+
+
+
+
+
+
+
+    # export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD_old.csv')
+    # logging.info(f'Exporting data to {export_filename_data}...')
+    # df_export.to_csv(export_filename_data, index=False)
+    # common.upload_ftp(export_filename_data, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
+    # odsp.publish_ods_dataset_by_id('100058')
+    #
 
 
 if __name__ == "__main__":
