@@ -48,7 +48,18 @@ def main():
                {'file': 'TBA/Rhein-Schwimmzonen/Schwimmzonen.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100270'},
                {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_area.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
                {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_point.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
-               {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'}
+               {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'},
+               {'file': 'StatA/Wahlen-Abstimmungen/sr/2023/DO012MAKA', 'dest_dir': 'wahlen_abstimmungen/wahlen/sr/2023', 'ods_id': '100282'},
+               {'file': 'StatA/Wahlen-Abstimmungen/sr/2023/TO012MAKA', 'dest_dir': 'wahlen_abstimmungen/wahlen/sr/2023',
+                'ods_id': '100282'},
+               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/DO012HERK', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023',
+                'ods_id': '100281'},
+               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/TO012HERK', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023',
+                'ods_id': '100281'},
+               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/DO012LIST', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
+                'ods_id': '100297'},
+               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/TO012LIST', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
+                'ods_id': '100297'}
                ]
     file_not_found_errors = []
     for upload in uploads:
