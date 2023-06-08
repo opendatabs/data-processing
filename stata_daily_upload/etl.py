@@ -66,7 +66,6 @@ def main():
         if type(file_property) == list:
             for file in file_property:
                 file_path = os.path.join(credentials.path_work, file)
-                logging.info(f"test embargo condition: {(not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path))}")
                 if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                     if ct.has_changed(file_path, method='modification_date'):
                         changed = 1
@@ -75,8 +74,6 @@ def main():
 
         else:
             file_path = os.path.join(credentials.path_work, upload['file'])
-            logging.info(
-                f"test embargo condition: {(not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path))}")
             if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                 if ct.has_changed(file_path, method='modification_date'):
                     changed = 1
