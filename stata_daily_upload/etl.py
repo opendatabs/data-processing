@@ -62,7 +62,7 @@ def main():
     for upload in uploads:
         file_property = upload['file']
     try:
-        if file_property == list:
+        if type(file_property) == list:
             for file in file_property:
                 file_path = os.path.join(credentials.path_work, file)
                 if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
