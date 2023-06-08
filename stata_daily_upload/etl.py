@@ -49,34 +49,43 @@ def main():
                {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_area.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
                {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_point.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
                {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'},
-               {'file': 'StatA/Wahlen-Abstimmungen/sr/2023/D0012MAKA.TXT', 'dest_dir': 'wahlen_abstimmungen/wahlen/sr/2023', 'ods_id': '100282'},
-               {'file': 'StatA/Wahlen-Abstimmungen/sr/2023/T0012MAKA.TXT', 'dest_dir': 'wahlen_abstimmungen/wahlen/sr/2023',
-                'ods_id': '100282'},
-               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/D0012HERK.TXT', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023',
+               {'file': ['StatA/Wahlen-Abstimmungen/sr/2023/D0012MAKA.TXT', 'StatA/Wahlen-Abstimmungen/sr/2023/T0012MAKA.TXT'],
+                'dest_dir': 'wahlen_abstimmungen/wahlen/sr/2023', 'ods_id': '100282'},
+               {'file': ['StatA/Wahlen-Abstimmungen/nr/2023/D0012HERK.TXT', 'StatA/Wahlen-Abstimmungen/nr/2023/T0012HERK.TXT'],
+                'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023',
                 'ods_id': '100281'},
-               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/T0012HERK.TXT', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023',
-                'ods_id': '100281'},
-               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/D0012LIST.TXT', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
-                'ods_id': '100297'},
-               {'file': 'StatA/Wahlen-Abstimmungen/nr/2023/T0012LIST.TXT', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
+               {'file': ['StatA/Wahlen-Abstimmungen/nr/2023/D0012LIST.TXT', 'StatA/Wahlen-Abstimmungen/nr/2023/T0012LIST.TXT'],
+                'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
                 'ods_id': '100297'}
                ]
     file_not_found_errors = []
     for upload in uploads:
-        file_path = os.path.join(credentials.path_work, upload['file'])
-        try:
+        file_property = upload['file']
+    try:
+        if file_property == list:
+            for file in file_property:
+                file_path = os.path.join(credentials.path_work, file)
+                if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
+                    if ct.has_changed(file_path, method='modification_date'):
+                        ct.update_mod_timestamp_file(file_path)
+                        common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+
+        else:
+            file_path = os.path.join(credentials.path_work, upload['file'])
             if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                 if ct.has_changed(file_path, method='modification_date'):
-                    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-                    ods_id_property = upload['ods_id']
-                    if type(ods_id_property) == list:
-                        for single_ods_id in ods_id_property:
-                            odsp.publish_ods_dataset_by_id(single_ods_id)
-                    else:
-                        odsp.publish_ods_dataset_by_id(ods_id_property)
                     ct.update_mod_timestamp_file(file_path)
-        except FileNotFoundError as e:
-            file_not_found_errors.append(e)
+                    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+
+        ods_id_property = upload['ods_id']
+        if type(ods_id_property) == list:
+            for single_ods_id in ods_id_property:
+                odsp.publish_ods_dataset_by_id(single_ods_id)
+        else:
+            odsp.publish_ods_dataset_by_id(ods_id_property)
+
+    except FileNotFoundError as e:
+        file_not_found_errors.append(e)
     error_count = len(file_not_found_errors)
     if error_count > 0:
         for e in file_not_found_errors:
