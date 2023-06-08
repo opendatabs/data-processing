@@ -62,27 +62,33 @@ def main():
     for upload in uploads:
         file_property = upload['file']
     try:
+        changed = 0
         if type(file_property) == list:
             for file in file_property:
                 file_path = os.path.join(credentials.path_work, file)
+                logging.info(f"test embargo condition: {(not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path))}")
                 if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                     if ct.has_changed(file_path, method='modification_date'):
+                        changed = 1
                         ct.update_mod_timestamp_file(file_path)
                         common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
 
         else:
             file_path = os.path.join(credentials.path_work, upload['file'])
+            logging.info(
+                f"test embargo condition: {(not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path))}")
             if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                 if ct.has_changed(file_path, method='modification_date'):
+                    changed = 1
                     ct.update_mod_timestamp_file(file_path)
                     common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-
-        ods_id_property = upload['ods_id']
-        if type(ods_id_property) == list:
-            for single_ods_id in ods_id_property:
-                odsp.publish_ods_dataset_by_id(single_ods_id)
-        else:
-            odsp.publish_ods_dataset_by_id(ods_id_property)
+        if changed == 1:
+            ods_id_property = upload['ods_id']
+            if type(ods_id_property) == list:
+                for single_ods_id in ods_id_property:
+                    odsp.publish_ods_dataset_by_id(single_ods_id)
+            else:
+                odsp.publish_ods_dataset_by_id(ods_id_property)
 
     except FileNotFoundError as e:
         file_not_found_errors.append(e)
