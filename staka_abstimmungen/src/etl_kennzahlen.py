@@ -27,7 +27,7 @@ def calculate_kennzahlen(data_file_names):
                        'Ja_Anz', 'Nein_Anz', 'Abst_Titel', 'Abst_Art', 'Abst_Datum', 'Result_Art',
                        'Abst_ID',
                        'anteil_ja_stimmen', 'Gemein_ID', 'Durchschn_Stimmbet_pro_Abst_Art',
-                       'Durchschn_Briefl_Ant_pro_Abst_Art', 'Stimmber_Anz',
+                       'Durchschn_Briefl_Ant_pro_Abst_Art', 'Anz_Elektr_pro_Abst_Art', 'Stimmber_Anz',
                        'Stimmber_Anz_M', 'Stimmber_Anz_F', 'abst_typ']
     for data_file_name in data_file_names:
         import_file_name = os.path.join(credentials.path, data_file_name)
@@ -108,7 +108,7 @@ def calculate_kennzahlen(data_file_names):
                 df['anteil_ja_stimmen'] = df.Ja_Anz / (df.Ja_Anz + df.Nein_Anz)
                 df['gege_anteil_ja_Stimmen'] = df.Gege_Ja_Anz / (df.Gege_Ja_Anz + df.Gege_Nein_Anz)
                 df['sti_anteil_init_stimmen'] = df.Sti_Initiative_Anz / (
-                            df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz)
+                        df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz)
                 columns_to_keep = columns_to_keep + ['Gege_Ja_Anz', 'Gege_Nein_Anz', 'Sti_Initiative_Anz',
                                                      'Sti_Gegenvorschlag_Anz', 'gege_anteil_ja_Stimmen',
                                                      'sti_anteil_init_stimmen', 'Init_OGA_Anz', 'Gege_OGA_Anz',
@@ -173,13 +173,17 @@ def calculate_kennzahlen(data_file_names):
                                  'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Durchschnittlicher Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
-                                 'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'},
+                                 'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art',
+                                 'Anzahl elektronisch Stimmender': 'Anz_Elektr_pro_Abst_Art'},
                         inplace=True)
         print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
         for repl in gemein_replacements:
             df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]
         # print(f'Removing duplicate column stimmber_anz from {kennz_sheet_name}...')
         # df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
+        print('Remove e-voting for Gemeinde')
+        gemeinde = ['Basel', 'Riehen', 'Bettingen']
+        df_kennz.loc[df_kennz['Gemein_Name'].isin(gemeinde), 'Anz_Elektr_pro_Abst_Art'] = pd.NA
         print('Joining all sheets into one...')
         frames_to_join = [all_df, df_kennz, df_stimmber]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=['Gemein_Name'], how='inner'), frames_to_join)
