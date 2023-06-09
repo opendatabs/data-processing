@@ -163,8 +163,9 @@ def calculate_kennzahlen(data_file_names):
         kennz_sheet_name = 'Abstimmungs-Kennzahlen'
         # number of empty rows may be different for KAN and EID files
         # skip_rows = 4 if '_KAN' in import_file_name else 7
+        df_kennz_sheet = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, index_col=None)
         skip_rows = None
-        for index, row in df_kennz.iterrows():
+        for index, row in df_kennz_sheet.iterrows():
             # Check if the row contains table headers
             if '\nStimmberechtigte' in row.values:
                 skip_rows = index + 1  # Set the table start index
