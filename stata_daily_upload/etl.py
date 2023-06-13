@@ -56,7 +56,13 @@ def main():
                 'ods_id': '100281'},
                {'file': ['StatA/Wahlen-Abstimmungen/nr/2023/D0012LIST.TXT', 'StatA/Wahlen-Abstimmungen/nr/2023/T0012LIST.TXT'],
                 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
-                'ods_id': '100297'}
+                'ods_id': '100297'},
+               {'file': 'StatA/Wahlen-Abstimmungen/bgr/2023/D2701HERK.TXT',
+                'dest_dir': 'wahlen_abstimmungen/wahlen/bgr/2023',
+                'ods_id': '100300'},
+               {'file': 'StatA/Wahlen-Abstimmungen/bgr/2023/D2701LIST.TXT',
+                'dest_dir': 'wahlen_abstimmungen/wahlen/bgr/2023',
+                'ods_id': '100301'}
                ]
     file_not_found_errors = []
     for upload in uploads:
