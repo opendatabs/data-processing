@@ -113,21 +113,6 @@ def transform_for_export(df_all):
     return df_export
 
 
-
-
-
-
-
-
-
-    # export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD_old.csv')
-    # logging.info(f'Exporting data to {export_filename_data}...')
-    # df_export.to_csv(export_filename_data, index=False)
-    # common.upload_ftp(export_filename_data, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
-    # odsp.publish_ods_dataset_by_id('100058')
-    #
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
