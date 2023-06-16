@@ -7,6 +7,12 @@ import logging
 from common import change_tracking as ct
 
 
+def main():
+    df = merge_dataframes()
+    df = calculate_columns(df)
+    df.to_csv('100302.csv', index=False)
+    return df
+
 def make_column_dt(df, column):
     df[column] = pd.to_datetime(df[column])
 
@@ -50,6 +56,20 @@ def make_dataframe_abwasser():
     logging.info("import and transform sewage data")
     path = '/Users/hester/PycharmProjects/data-processing/gd_abwassermonitoring/data/Abwasserdaten/Probenraster CoroWWmonitoring.xlsx'
     df_abwasser = pd.read_excel(path, header=2, usecols="A,B,F:AB,AP")
+    logging.info(f'Remove text from numerical columns')
+    numerical_columns = ['InfA (gc/PCR)', 'InfB (gc/PCR)',
+       'InfA (gc/PCR)2', 'InfB (gc/PCR)2', 'RSV (gc/PCR)', 'InfA (gc/L)',
+       'InfB (gc/L)', 'RSV (gc/L)', 'InfA (gc/L) 7-d median',
+       'InfB (gc/L) 7-d median', 'RSV (gc/L) 7-d median',
+       "InfA (gc /100'000 P)", "InfB (gc/100'000 P)", "RSV (gc /100'000 P)",
+       "InfA (gc/100'000 P) 7-d median", "InfB (gc/100'000 P) 7-d median",
+       "RSV (gc/100'000 P) 7-d median", "InfA (gc/PMMoV)", "InfB (gc/PMMoV)",
+       'RSV (gc /PMMoV)', 'InfA (gc/PMMoV) 7-d median',
+       'InfB (gc/PMMoV) 7-d median', 'RSV (gc/PMMoV) 7-d median',
+       'monthly RSV cases (USB/UKBB, in- & outpatients) ']  # Add your column names here
+    for column in numerical_columns:
+        df_abwasser[column] = pd.to_numeric(df_abwasser[column], errors='coerce')
+
     return df_abwasser
 
 
@@ -68,3 +88,9 @@ def calculate_columns(df):
     df["7t_median_InfA"] = df['InfA_BS+BL'].rolling(window=7).median()
     df["7t_median_InfB"] = df['InfB_BS+BL'].rolling(window=7).median()
     return df
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
+    df = main()
