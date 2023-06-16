@@ -22,13 +22,12 @@ def main():
         if ct.has_changed(big_bussen):
             ct.update_hash_file(big_bussen)
             # add email
-        elif ct.has_changed(plz):
+        if ct.has_changed(plz):
             ct.update_hash_file(plz)
             # add email
-        else:
-            export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
-            logging.info(f'Exporting data to {export_filename_data}...')
-            df_export.to_csv(export_filename_data, index=False)
+        export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
+        logging.info(f'Exporting data to {export_filename_data}...')
+        df_export.to_csv(export_filename_data, index=False)
 
 
 def list_directories():
