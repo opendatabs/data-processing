@@ -10,15 +10,15 @@ def main():
     df = calculate_columns(df)
     df['Datum'] = df['Datum'].dt.strftime('%Y-%m-%d')
     df.to_csv(credentials.path_export_file, index=False)
-    # if ct.has_changed(credentials.path_export_file):
-    #     common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
-    #                       credentials.ftp_pass, 'gd_kantonslabor/abwassermonitoring')
-    #     ct.update_hash_file(credentials.path_export_file)
-    #     logging.info("push data to ODS realtime API")
-    #     logging.info("push for dataset 100302")
-    #     push_url = credentials.ods_live_realtime_push_url
-    #     push_key = credentials.ods_live_realtime_push_key
-    #     common.ods_realtime_push_df(df, url=push_url, push_key=push_key)
+    if ct.has_changed(credentials.path_export_file):
+        common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'gd_kantonslabor/abwassermonitoring')
+        ct.update_hash_file(credentials.path_export_file)
+        logging.info("push data to ODS realtime API")
+        logging.info("push for dataset 100302")
+        push_url = credentials.ods_live_realtime_push_url
+        push_key = credentials.ods_live_realtime_push_key
+        common.ods_realtime_push_df(df, url=push_url, push_key=push_key)
     return df
 
 def make_column_dt(df, column):
