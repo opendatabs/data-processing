@@ -91,8 +91,8 @@ def merge_dataframes():
 
 
 def calculate_columns(df):
-    df['InfA_BS+BL'] = df['Anz.pos.A_BL'] + df['Anz_pos_A_BS']
-    df['InfB_BS+BL'] = df['Anz.pos.B_BL'] + df['Anz_pos_B_BS']
+    df['InfA_BS+BL'] = df['Anz.pos.A_BL'].fillna(0) + df['Anz_pos_A_BS'].fillna(0)
+    df['InfB_BS+BL'] = df['Anz.pos.B_BL'].fillna(0) + df['Anz_pos_B_BS'].fillna(0)
     df["7t_median_InfA"] = df['InfA_BS+BL'].rolling(window=7).median()
     df["7t_median_InfB"] = df['InfB_BS+BL'].rolling(window=7).median()
     return df
@@ -100,42 +100,42 @@ def calculate_columns(df):
 
 # Realtime API bootstrap data for dataset 100302:
 #
-{"Datum": "2021-08-12",
-"Sample Ba-Nr.": "dito wie 15.4.",
-"InfA (gc/PCR)": "1.0",
-"InfB (gc/PCR)": "1.0",
-"InfA (gc/PCR)2": "43.5",
-"InfB (gc/PCR)2": "233.0",
-"RSV (gc/PCR)": "287.0",
-"InfA (gc/L)": "17400.0",
-"InfB (gc/L)": "93200.0",
-"RSV (gc/L)": "114800.0",
-"InfA (gc/L) 7-d median": "33000.0",
-"InfB (gc/L) 7-d median": "143600.0",
-"RSV (gc/L) 7-d median": "114800.0",
-"InfA (gc /100'000 P)": "528021378465.64966",
-"InfB (gc/100'000 P)": "2828252440976.928",
-"RSV (gc /100'000 P)": "3483727255623.9414",
-"InfA (gc/100'000 P) 7-d median": "608804679610.9795",
-"InfB (gc/100'000 P) 7-d median": "3739980264850.316",
-"RSV (gc/100'000 P) 7-d median": "4243964845324.804",
-"InfA (gc/PMMoV)": "7.357293868921777",
-"InfB (gc/PMMoV)": "0.0003940803382663848",
-"RSV (gc /PMMoV)": "0.0004854122621564482",
-"InfA (gc/PMMoV) 7-d median": "7.357293868921777",
-"InfB (gc/PMMoV) 7-d median":" 0.0004042848141146818",
-"RSV (gc/PMMoV) 7-d median": "0.0004516698172652804",
-"monthly RSV cases (USB/UKBB, in- & outpatients) ": "1",
-"Anz_pos_A_BS": "1",
-"Anz_pos_B_BS": "1",
-"Anz_pos_H1_BS": "1",
-"Anz.pos.A_BL": "1",
-"Anz.pos.B_BL": "1",
-"Anz.pos.all_BL": "1",
-"InfA_BS+BL": "1",
-"InfB_BS+BL": "1",
-"7t_median_InfA": "1",
-"7t_median_InfB": "1"}
+# {"Datum": "2021-08-12",
+# "Sample Ba-Nr.": "dito wie 15.4.",
+# "InfA (gc/PCR)": "1.0",
+# "InfB (gc/PCR)": "1.0",
+# "InfA (gc/PCR)2": "43.5",
+# "InfB (gc/PCR)2": "233.0",
+# "RSV (gc/PCR)": "287.0",
+# "InfA (gc/L)": "17400.0",
+# "InfB (gc/L)": "93200.0",
+# "RSV (gc/L)": "114800.0",
+# "InfA (gc/L) 7-d median": "33000.0",
+# "InfB (gc/L) 7-d median": "143600.0",
+# "RSV (gc/L) 7-d median": "114800.0",
+# "InfA (gc /100'000 P)": "528021378465.64966",
+# "InfB (gc/100'000 P)": "2828252440976.928",
+# "RSV (gc /100'000 P)": "3483727255623.9414",
+# "InfA (gc/100'000 P) 7-d median": "608804679610.9795",
+# "InfB (gc/100'000 P) 7-d median": "3739980264850.316",
+# "RSV (gc/100'000 P) 7-d median": "4243964845324.804",
+# "InfA (gc/PMMoV)": "7.357293868921777",
+# "InfB (gc/PMMoV)": "0.0003940803382663848",
+# "RSV (gc /PMMoV)": "0.0004854122621564482",
+# "InfA (gc/PMMoV) 7-d median": "7.357293868921777",
+# "InfB (gc/PMMoV) 7-d median":" 0.0004042848141146818",
+# "RSV (gc/PMMoV) 7-d median": "0.0004516698172652804",
+# "monthly RSV cases (USB/UKBB, in- & outpatients) ": "1",
+# "Anz_pos_A_BS": "1",
+# "Anz_pos_B_BS": "1",
+# "Anz_pos_H1_BS": "1",
+# "Anz.pos.A_BL": "1",
+# "Anz.pos.B_BL": "1",
+# "Anz.pos.all_BL": "1",
+# "InfA_BS+BL": "1",
+# "InfB_BS+BL": "1",
+# "7t_median_InfA": "1",
+# "7t_median_InfB": "1"}
 
 
 
