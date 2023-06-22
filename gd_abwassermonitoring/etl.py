@@ -8,9 +8,9 @@ from datetime import datetime
 
 
 def main():
-    df = merge_dataframes()
-    df['Datum'] = df['Datum'].dt.strftime('%Y-%m-%d')
-    df.to_csv(credentials.path_export_file, index=False)
+    df_all = merge_dataframes()
+    df_all['Datum'] = df_all['Datum'].dt.strftime('%Y-%m-%d')
+    df_all.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
                           credentials.ftp_pass, 'gd_kantonslabor/abwassermonitoring')
@@ -19,8 +19,8 @@ def main():
         logging.info("push for dataset 100302")
         push_url = credentials.ods_live_realtime_push_url
         push_key = credentials.ods_live_realtime_push_key
-        common.ods_realtime_push_df(df, url=push_url, push_key=push_key)
-    return df
+        common.ods_realtime_push_df(df_all, url=push_url, push_key=push_key)
+
 
 def make_column_dt(df, column):
     df[column] = pd.to_datetime(df[column])
@@ -71,15 +71,15 @@ def make_dataframe_abwasser():
     df_abwasser = pd.read_excel(path, header=2, usecols="A,B,F:AB,AP")
     logging.info(f'Remove text from numerical columns')
     numerical_columns = ['InfA (gc/PCR)', 'InfB (gc/PCR)',
-       'InfA (gc/PCR)2', 'InfB (gc/PCR)2', 'RSV (gc/PCR)', 'InfA (gc/L)',
-       'InfB (gc/L)', 'RSV (gc/L)', 'InfA (gc/L) 7-d median',
-       'InfB (gc/L) 7-d median', 'RSV (gc/L) 7-d median',
-       "InfA (gc /100'000 P)", "InfB (gc/100'000 P)", "RSV (gc /100'000 P)",
-       "InfA (gc/100'000 P) 7-d median", "InfB (gc/100'000 P) 7-d median",
-       "RSV (gc/100'000 P) 7-d median", "InfA (gc/PMMoV)", "InfB (gc/PMMoV)",
-       'RSV (gc /PMMoV)', 'InfA (gc/PMMoV) 7-d median',
-       'InfB (gc/PMMoV) 7-d median', 'RSV (gc/PMMoV) 7-d median',
-       'monthly RSV cases (USB/UKBB, in- & outpatients) ']
+                         'InfA (gc/PCR)2', 'InfB (gc/PCR)2', 'RSV (gc/PCR)', 'InfA (gc/L)',
+                         'InfB (gc/L)', 'RSV (gc/L)', 'InfA (gc/L) 7-d median',
+                         'InfB (gc/L) 7-d median', 'RSV (gc/L) 7-d median',
+                         "InfA (gc /100'000 P)", "InfB (gc/100'000 P)", "RSV (gc /100'000 P)",
+                         "InfA (gc/100'000 P) 7-d median", "InfB (gc/100'000 P) 7-d median",
+                         "RSV (gc/100'000 P) 7-d median", "InfA (gc/PMMoV)", "InfB (gc/PMMoV)",
+                         'RSV (gc /PMMoV)', 'InfA (gc/PMMoV) 7-d median',
+                         'InfB (gc/PMMoV) 7-d median', 'RSV (gc/PMMoV) 7-d median',
+                         'monthly RSV cases (USB/UKBB, in- & outpatients) ']
     for column in numerical_columns:
         df_abwasser[column] = pd.to_numeric(df_abwasser[column], errors='coerce')
     return df_abwasser
@@ -98,6 +98,7 @@ def add_all_dates(df_bs, date_bs, df_bl, date_bl):
     df_infl = df_infl.reset_index()
     df_infl = df_infl.rename(columns={'index': 'Datum'})
     return df_infl
+
 
 def make_df_infl_bs_bl():
     df_bs, date_bs = make_dataframe_bs()
@@ -165,4 +166,4 @@ def calculate_columns(df):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
-    df = main()
+    main()
