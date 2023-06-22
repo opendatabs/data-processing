@@ -65,7 +65,13 @@ def main():
                 'ods_id': '100301'},
                {'file': 'StatA/Steuern/100140_Reineinkommen.csv', 'dest_dir': 'steuern', 'ods_id': '100140'},
                {'file': 'StatA/Steuern/100157_Reinvermoegen.csv', 'dest_dir': 'steuern', 'ods_id': '100157'},
-               {'file': 'StatA/Steuern/100165_Kennzahlen.csv', 'dest_dir': 'steuern', 'ods_id': '100165'}
+               {'file': 'StatA/Steuern/100165_Kennzahlen.csv', 'dest_dir': 'steuern', 'ods_id': '100165'},
+               {'file': 'StatA/Personalbestand/100123_Lohntabelle_Basel_Stadt.csv', 'dest_dir': 'personalbestand', 'ods_id': '100123'},
+               {'file': 'StatA/Personalbestand/100263_Personalbestand_Lohnklasse.csv', 'dest_dir': 'personalbestand', 'ods_id': '100263'},
+               {'file': 'StatA/Personalbestand/100264_Personalbestand_Dep_Buchung_Geschl.csv', 'dest_dir': 'personalbestand', 'ods_id': '100264'},
+               {'file': 'StatA/Personalbestand/100265_Personalbestand_Dep_Dienst_Geschl_Alter.csv', 'dest_dir': 'personalbestand', 'ods_id': '100265'},
+               {'file': 'StatA/Personalbestand/100266_Personalbestand_Dep_Buchung_Staat.csv', 'dest_dir': 'personalbestand', 'ods_id': '100266'},
+               {'file': 'StatA/Personalbestand/100267_Personalbestand_Dep_Buchung_Kanton.csv', 'dest_dir': 'personalbestand', 'ods_id': '100267'},
                ]
     file_not_found_errors = []
     for upload in uploads:
