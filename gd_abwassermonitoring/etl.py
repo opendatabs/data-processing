@@ -3,11 +3,12 @@ from gd_abwassermonitoring import credentials
 import common
 import logging
 from common import change_tracking as ct
+import os
+from datetime import datetime
 
 
 def main():
     df = merge_dataframes()
-    df = calculate_columns(df)
     df['Datum'] = df['Datum'].dt.strftime('%Y-%m-%d')
     df.to_csv(credentials.path_export_file, index=False)
     if ct.has_changed(credentials.path_export_file):
@@ -28,6 +29,8 @@ def make_column_dt(df, column):
 def make_dataframe_bl():
     logging.info(f"import and transform BL data")
     path = credentials.path_BL
+    last_changed = os.path.getmtime(path)
+    last_changed = str(datetime.fromtimestamp(last_changed).date())
     df_bl = pd.read_csv(path, encoding="ISO-8859-1")
     # remove Gemeinde
     df_bl.drop(columns=["Gemeinde"], inplace=True)
@@ -39,13 +42,15 @@ def make_dataframe_bl():
     make_column_dt(df_bl, "Datum")
     # sum over date to get total of all together per date
     df_bl = df_bl.groupby(by=["Datum"], as_index=False).sum()
-    return df_bl
+    return df_bl, last_changed
 
 
 def make_dataframe_bs():
     logging.info(f"import and transform BS data")
     path = credentials.path_BS
     df_bs = pd.read_excel(path)
+    last_changed = os.path.getmtime(path)
+    last_changed = str(datetime.fromtimestamp(last_changed).date())
     # only keep columns Testdatum [Benötigte Angaben], Serotyp/Subtyp [Erreger]
     df_bs = df_bs[['Testdatum [Benötigte Angaben]', 'Serotyp/Subtyp [Erreger]']]
     new_names = {'Testdatum [Benötigte Angaben]': 'Datum',
@@ -57,7 +62,7 @@ def make_dataframe_bs():
     df_bs = df_bs.add_suffix('_BS')
     df_bs.rename(columns={'Anz_pos_Datum_BS': 'Datum'},
                  inplace=True)
-    return df_bs
+    return df_bs, last_changed
 
 
 def make_dataframe_abwasser():
@@ -74,19 +79,38 @@ def make_dataframe_abwasser():
        "RSV (gc/100'000 P) 7-d median", "InfA (gc/PMMoV)", "InfB (gc/PMMoV)",
        'RSV (gc /PMMoV)', 'InfA (gc/PMMoV) 7-d median',
        'InfB (gc/PMMoV) 7-d median', 'RSV (gc/PMMoV) 7-d median',
-       'monthly RSV cases (USB/UKBB, in- & outpatients) ']  # Add your column names here
+       'monthly RSV cases (USB/UKBB, in- & outpatients) ']
     for column in numerical_columns:
         df_abwasser[column] = pd.to_numeric(df_abwasser[column], errors='coerce')
-
     return df_abwasser
 
 
+def add_all_dates(df_bs, date_bs, df_bl, date_bl):
+    logging.info('add all dates so that 7d median will be calculated for all')
+    updated_until = min(date_bl, date_bs)
+    df_bs = df_bs[df_bs.index <= updated_until]
+    df_bl = df_bl[df_bl['Datum'] <= updated_until]
+    df_infl = pd.merge(df_bs, df_bl, on='Datum', how='outer')
+    date_start = str(df_infl['Datum'].min().date())
+    date_range = pd.date_range(start=date_start, end=updated_until, freq='D')
+    df_infl = df_infl.set_index('Datum')
+    df_infl = df_infl.reindex(date_range)
+    df_infl = df_infl.reset_index()
+    df_infl = df_infl.rename(columns={'index': 'Datum'})
+    return df_infl
+
+def make_df_infl_bs_bl():
+    df_bs, date_bs = make_dataframe_bs()
+    df_bl, date_bl = make_dataframe_bl()
+    df_infl = add_all_dates(df_bs, date_bs, df_bl, date_bl)
+    df_infl = calculate_columns(df_infl)
+    return df_infl
+
+
 def merge_dataframes():
-    df_bs = make_dataframe_bs()
-    df_bl = make_dataframe_bl()
+    df_infl = make_df_infl_bs_bl()
     df_abwasser = make_dataframe_abwasser()
-    merged_df = pd.merge(df_abwasser, df_bs, on='Datum', how='outer')
-    merged_df = pd.merge(merged_df, df_bl, on='Datum', how='outer')
+    merged_df = pd.merge(df_abwasser, df_infl, on='Datum', how='outer')
     return merged_df
 
 
@@ -136,7 +160,6 @@ def calculate_columns(df):
 # "InfB_BS+BL": "1",
 # "7t_median_InfA": "1",
 # "7t_median_InfB": "1"}
-
 
 
 if __name__ == "__main__":
