@@ -62,7 +62,10 @@ def main():
                 'ods_id': '100300'},
                {'file': 'StatA/Wahlen-Abstimmungen/bgr/2023/D2701LIST.TXT',
                 'dest_dir': 'wahlen_abstimmungen/wahlen/bgr/2023',
-                'ods_id': '100301'}
+                'ods_id': '100301'},
+               {'file': 'StatA/Steuern/100140_Reineinkommen.csv', 'dest_dir': 'steuern', 'ods_id': '100140'},
+               {'file': 'StatA/Steuern/100157_Reinvermoegen.csv', 'dest_dir': 'steuern', 'ods_id': '100157'},
+               {'file': 'StatA/Steuern/100165_Kennzahlen.csv', 'dest_dir': 'steuern', 'ods_id': '100165'}
                ]
     file_not_found_errors = []
     for upload in uploads:
