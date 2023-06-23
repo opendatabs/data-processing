@@ -108,6 +108,8 @@ def retrieve_1416_x_coordinates():
 def main():
     x_coord_1416 = 0
     files_to_process = list_files()
+    # do not process file BS_Grundwasser_odExp_20210818_000000.csv (modified or added on 2023-06-20) with different date format for now
+    files_to_process = [item for item in files_to_process if '20210818' not in item['remote_file'] or '2023-06-20' not in item['modified_remote']]
     if len(files_to_process) > 0:
         x_coord_1416 = retrieve_1416_x_coordinates()
     files = []
