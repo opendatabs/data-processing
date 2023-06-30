@@ -3,10 +3,12 @@ import pandas as pd
 from kapo_ordnungsbussen import credentials
 import common
 from common import change_tracking as ct
+from common import email_message
 import ods_publish.etl_id as odsp
 import openpyxl
 import os
 import datetime as datetime
+import smtplib
 
 
 def main():
@@ -21,13 +23,29 @@ def main():
         plz = os.path.join(credentials.export_path, 'plz.csv')
         if ct.has_changed(big_bussen):
             ct.update_hash_file(big_bussen)
-            # add email
+            text = f"The exported file {big_bussen} has changed, please check."
+            msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
+            send_email(msg)
         if ct.has_changed(plz):
             ct.update_hash_file(plz)
-            # add email
+            text = text = f"The exported file {plz} has changed, please check."
+            msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
+            send_email(msg)
         export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
         logging.info(f'Exporting data to {export_filename_data}...')
         df_export.to_csv(export_filename_data, index=False)
+
+
+def send_email(msg):
+    # initialize connection to email server
+    host = credentials.email_server
+    smtp = smtplib.SMTP(host)
+
+    # send email
+    smtp.sendmail(from_addr=credentials.email,
+                  to_addrs=credentials.email_receivers,
+                  msg=msg.as_string())
+    smtp.quit()
 
 
 def list_directories():
