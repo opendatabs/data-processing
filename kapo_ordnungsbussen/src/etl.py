@@ -28,12 +28,15 @@ def main():
             send_email(msg)
         if ct.has_changed(plz):
             ct.update_hash_file(plz)
-            text = text = f"The exported file {plz} has changed, please check."
+            text = f"The exported file {plz} has changed, please check."
             msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
             send_email(msg)
-        export_filename_data = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
-        logging.info(f'Exporting data to {export_filename_data}...')
-        df_export.to_csv(export_filename_data, index=False)
+        export_path = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
+        logging.info(f'Exporting data to {export_path}...')
+        df_export.to_csv(export_path, index=False)
+        common.upload_ftp(export_path, credentials.ftp_server,
+                          credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
+        odsp.publish_ods_dataset_by_id('100058')
 
 
 def send_email(msg):
@@ -134,3 +137,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    logging.info('Job successful!')
