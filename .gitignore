@@ -31,3 +31,4 @@ __pycache__/
 **/*.sas7bdat
 /stata_erwarteter_stromverbrauch/pw.txt
 /bafu_hydrodaten_vorhersagen/**/*table.txt
+/kapo_ordnungsbussen/**/list_directories.txt
