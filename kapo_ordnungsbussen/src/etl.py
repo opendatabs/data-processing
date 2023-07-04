@@ -1,14 +1,14 @@
 import logging
+import os
+import smtplib
+
 import pandas as pd
-from kapo_ordnungsbussen import credentials
+
 import common
+import ods_publish.etl_id as odsp
 from common import change_tracking as ct
 from common import email_message
-import ods_publish.etl_id as odsp
-import openpyxl
-import os
-import datetime as datetime
-import smtplib
+from kapo_ordnungsbussen import credentials
 
 
 def main():
