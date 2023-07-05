@@ -2,6 +2,10 @@ import pandas as pd
 import os
 import glob
 import pathlib
+import common
+from common import change_tracking as ct
+from staka_abstimmungen import credentials
+import ods_publish.etl_id as odsp
 
 
 path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output')
@@ -13,6 +17,11 @@ def main():
     df_all = harmonize_df(df_all)
     path_export = os.path.join(pathlib.Path(__file__).parents[1], 'data/export', 'abstimmungen.csv')
     df_all.to_csv(path_export, index=False)
+    if ct.has_changed(path_export):
+        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen_merged')
+        ct.update_hash_file(path_export)
+        odsp.publish_ods_dataset_by_id('100303')
 
 
 def process_files():
