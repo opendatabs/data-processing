@@ -6,6 +6,7 @@ import common
 from common import change_tracking as ct
 from staka_abstimmungen import credentials
 import ods_publish.etl_id as odsp
+import logging
 
 
 path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output')
@@ -25,6 +26,7 @@ def main():
 
 
 def process_files():
+    logging.info('process all files')
     df = pd.DataFrame()
     files_details = get_files_details()
     files_kennzahlen = get_files_kennzahlen()
@@ -39,8 +41,10 @@ def process_files():
 
 
 def construct_dataset(df):
+    logging.info('add column "auf_ebene"')
     df['auf_ebene'] = ['Gemeinde' if x else 'Wahllokal' for x in pd.isna(df['Wahllok_name'])]
     # add BS-ID
+    logging.info('add BS-ID')
     df['year'] = (df['Abst_Datum'].astype('datetime64[ns]')).dt.year
     dict_laufnr = make_dict_date_laufnr()
     df['lauf_nr_termin'] = [dict_laufnr[datum] for datum in df['Abst_Datum']]
@@ -52,18 +56,22 @@ def construct_dataset(df):
 
 
 def get_files_kennzahlen():
+    logging.info('list all files of the Kennzahlen datasets')
     pattern_kennzahlen = 'Abstimmungen_??????????.csv'
     file_list = glob.glob(os.path.join(path_files, pattern_kennzahlen))
     return file_list
 
 
 def get_files_details():
+    logging.info('list all files of the Details datasets')
     pattern_details = 'Abstimmungen_Details_??????????.csv'
     file_list = glob.glob(os.path.join(path_files, pattern_details))
     return file_list
 
 
 def join_wahllokale(df):
+    # To do: remove or extend with wahllokale for electronic voting..
+    logging.info('add wahllokale')
     path_wahllokale = os.path.join(path_files, 'wahllokale.csv')
     df_wahllokale = pd.read_csv(path_wahllokale, sep=';')
     df = pd.merge(df_wahllokale, df, left_on='Wahllok_Name', right_on='Wahllok_name')
@@ -72,6 +80,7 @@ def join_wahllokale(df):
 
 
 def harmonize_df(df):
+    logging.info('harmonize some colums')
     df['Result_Art'] = ['Schlussresultat' if x == 'Schlussresultate' else x for x in df['Result_Art']]
     df['Gemein_Name'] = ['Auslandschweizer/-innen' if x == 'Auslandschweizer' else x for x in df['Gemein_Name']]
     # fill column 'Abst_ID_Titel' (for some it is empty)
@@ -80,6 +89,7 @@ def harmonize_df(df):
 
 
 def get_dates():
+    logging.info('list dates of all available Abstimmungen')
     file_list = get_files_kennzahlen()
     list_dates = []
     for file in file_list:
@@ -90,6 +100,7 @@ def get_dates():
 
 
 def make_dict_date_laufnr():
+    logging.info('determine laufnr for all dates')
     dates = get_dates()
     dict_date_laufnr = {}
     year = '2020'
@@ -106,8 +117,10 @@ def make_dict_date_laufnr():
 
 
 if __name__ == "__main__":
-    print(f'Executing {__file__}...')
+    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f'Executing {__file__}...')
     main()
+    logging.info(f'Job successfully completed!')
 
 
 
