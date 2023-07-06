@@ -2,10 +2,12 @@ import pandas as pd
 from staka_briefliche_stimmabgaben import credentials
 import common
 from common import change_tracking as ct
+from common import email_message
 import logging
 import os
 import glob
 from datetime import datetime
+import smtplib
 
 
 def main():
@@ -41,7 +43,18 @@ def main():
     df_publ['wahlen_typ'] = [
         df_wahlen.loc[df_wahlen['Datum'] == row['datum_urnengang'], 'Typ'].item() if row['wahlen'] == 'Ja' else '' for
         index, row in df_publ.iterrows()]
-    # to do: make sure that datum_urnengang appears in either wahlen.csv or abstimmungen.csv. If not, remove these rows and send an email.
+    # remove rows for which datum_urnengang is not listed, send email
+    logging.info(f'check if all values in the column datum_urnengang are found')
+    dates_not_listed = df_publ[df_publ['abstimmungen'] == 'Nein'][df_publ['wahlen'] == 'Nein']['datum_urnengang']
+    dates_not_listed = list(dates_not_listed.unique())
+    df_publ = df_publ[(df_publ['abstimmungen'] != 'Nein') | (df_publ['wahlen'] != 'Nein')]
+    if dates_not_listed != []:
+        logging.info(f'The dates {dates_not_listed} are not listed, send email.')
+        text = f"The following dates were not found in either wahlen.csv or abstimmungen.csv:{dates_not_listed}.\n" \
+               f"Rows with datum_urnengang in {dates_not_listed} have therefore not been pushed. \n\n" \
+               f"Kind regards, \nYour automated Open Data Basel-Stadt Python Job"
+        msg = email_message(subject="Warning Briefliche Stimmabgaben", text=text, img=None, attachment=None)
+        send_email(msg)
     # upload csv files
     logging.info(f'upload csv file to {credentials.path_export_file_publ}')
     df_publ.to_csv(credentials.path_export_file_publ, index=False)
@@ -53,6 +66,16 @@ def main():
         push_url = credentials.ods_live_realtime_push_url_publ
         push_key = credentials.ods_live_realtime_push_key_publ
         common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
+
+def send_email(msg):
+    # initialize connection to email server
+    host = credentials.email_server
+    smtp = smtplib.SMTP(host)
+    # send email
+    smtp.sendmail(from_addr=credentials.email,
+                  to_addrs=credentials.email_receivers,
+                  msg=msg.as_string())
+    smtp.quit()
 
 
 def get_data_2020():
