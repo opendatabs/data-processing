@@ -19,6 +19,7 @@ def main():
         df_file = pd.read_csv(path, skiprows=5, sep=';')
         df = pd.concat([df, df_file], ignore_index=True)
     df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y')
+    # to do: fix timezone
     df['Timestamp'] = df['Date'].astype(str) + ' ' + df['Time'].astype(str)
     df['year'] = df['Date'].dt.year
     df['month'] = df['Date'] .dt.month
