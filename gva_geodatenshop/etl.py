@@ -56,7 +56,7 @@ pub_org = open_csv(os.path.join(credentials.path_root, 'Publizierende_organisati
 
 print(f'Left-joining data, metadata and publizierende_organisation...')
 data_meta = pd.merge(data, metadata, on='ordnerpfad', how='left')
-joined_data = pd.merge(data_meta, pub_org, on='kontakt_dienststelle', how='left')
+joined_data = pd.merge(data_meta, pub_org, on='herausgeber', how='left')
 joined_data.to_csv(os.path.join(credentials.path_root, '_alldata.csv'), index=False, sep=';')
 
 metadata_for_ods = []
@@ -126,15 +126,15 @@ for index, row in joined_data.iterrows():
                 # Load metadata from geocat.ch
                 # See documentation at https://www.geocat.admin.ch/de/dokumentation/csw.html
                 # For unknown reasons (probably proxy-related), requests always returns http error 404, so we have to revert to launching curl in a subprocess
-                # curl -X GET "https://www.geocat.ch/geonetwork/srv/api/0.1/records/289b9c0c-a1bb-4ffc-ba09-c1e41dc7138a" -H "accept: application/json" -H "Accept: application/xml" -H "X-XSRF-TOKEN: a1284e46-b378-42a4-ac6a-d48069e05494"
-                # resp = requests.get('https://www.geocat.ch/geonetwork/srv/api/0.1/records/2899c0c-a1bb-4ffc-ba09-c1e41dc7138a', params={'accept': 'application/json'}, proxies={'https': credentials.proxy})
-                # resp = requests.get('https://www.geocat.ch/geonetwork/srv/api/0.1/records/2899c0c-a1bb-4ffc-ba09-c1e41dc7138a', headers={'accept': 'application/xml, application/json'}, proxies={'https': credentials.proxy})
-                # cmd = 'curl -X GET "https://www.geocat.ch/geonetwork/srv/api/0.1/records/289b9c0c-a1bb-4ffc-ba09-c1e41dc7138a" -H "accept: application/json" -H "accept: application/json" -k'
+                # curl -X GET "https://www.geocat.ch/geonetwork/srv/api/records/289b9c0c-a1bb-4ffc-ba09-c1e41dc7138a" -H "accept: application/json" -H "Accept: application/xml" -H "X-XSRF-TOKEN: a1284e46-b378-42a4-ac6a-d48069e05494"
+                # resp = requests.get('https://www.geocat.ch/geonetwork/srv/api/records/2899c0c-a1bb-4ffc-ba09-c1e41dc7138a', params={'accept': 'application/json'}, proxies={'https': credentials.proxy})
+                # resp = requests.get('https://www.geocat.ch/geonetwork/srv/api/records/2899c0c-a1bb-4ffc-ba09-c1e41dc7138a', headers={'accept': 'application/xml, application/json'}, proxies={'https': credentials.proxy})
+                # cmd = 'curl -X GET "https://www.geocat.ch/geonetwork/srv/api/records/289b9c0c-a1bb-4ffc-ba09-c1e41dc7138a" -H "accept: application/json" -H "accept: application/json" -k'
                 # args = shlex.split(cmd)
 
                 # In some geocat URLs there's a tab character, remove it.
                 geocat_uid = row['geocat'].rsplit('/', 1)[-1].replace('\t', '')
-                geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/0.1/records/{geocat_uid}'
+                geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}'
                 print(f'Getting metadata from {geocat_url}...')
                 # todo: Locally save geocat metadata file and use this if the https request fails (which seems to happen often)
                 r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'})
@@ -142,7 +142,7 @@ for index, row in joined_data.iterrows():
                 metadata = r.json()
 
                 # metadata_file = os.path.join(credentials.path_root, 'metadata', geocat_uid + '.json')
-                # cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/0.1/records/' + geocat_uid + '" -H "accept: application/json" -s -k > ' + metadata_file
+                # cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/records/' + geocat_uid + '" -H "accept: application/json" -s -k > ' + metadata_file
                 # print('Running curl to get geocat.ch metadata: ')
                 # resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
                 # print('Processing geocat.ch metadata file ' + metadata_file + '...')
@@ -230,7 +230,7 @@ for index, row in joined_data.iterrows():
                     # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
                     # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
                     # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                    'publisher': row['kontakt_dienststelle'] if row['kontakt_dienststelle'] != "Zentrale Dienste" else "Erziehungsdepartement - Zentrale Dienste",
+                    'publisher': row['herausgeber'],
                     'dcat.issued': row['dcat.issued'],
                     # todo: give time in UTC
                     'modified': modified,

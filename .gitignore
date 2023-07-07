@@ -1,6 +1,7 @@
 .idea
 __pycache__/
 **/credentials.py
+**/pw.txt
 **/secrets/*
 **/venv/*
 **/.pytest_cache/*
@@ -21,9 +22,13 @@ __pycache__/
 **/*.kml
 **/*.kmz
 /aue_fischereistatistik/**/*.geojson
+/bachapp/**/*.geojson
 /gsv_covid19_hosp/*.html
 **/Pipfile
 **/Pipfile.lock
 /parlamentsdienst_gr_abstimmungen/**/*.json
 **/*.pdf
 **/*.sas7bdat
+/stata_erwarteter_stromverbrauch/pw.txt
+/bafu_hydrodaten_vorhersagen/**/*table.txt
+/kapo_ordnungsbussen/**/list_directories.txt

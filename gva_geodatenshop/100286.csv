@@ -1,0 +1,12 @@
+name;label;description
+id_smiley;Id_Smiley;Eindeutiger Identifikator (ID)
+idstandort;Id_Standort;Identifikator des Standorts
+strname;Strassennamen;Strassenname des Standorts, an dem Smiley-Geschwindigkeitsanzeige platziert wird
+hausnr;Hausnummer;Hausnummer des Standorts, an dem Smiley-Geschwindigkeitsanzeige aufgestellt wird, falls keine vorhanden Detailangabe zu Standort in Attribut «Hinweis»
+geschwind;Geschwindigkeit;Signalisierte Geschwindigkeit (20 km/h, 30 km/h, 40 km/h, 50 km/h, 60 km/h, 80 km/h)
+richtung;Richtung;Fahrtrichtung in Form des Strassenamens der anzufahrenden Strasse
+hinweis;Hinweis;Detailangaben zum Standort
+messbegin;Messbeginn;Datum des Beginn Smiley-Geschwindigkeitsanzeigen-Betriebs
+messende;Messende;Datum des Ende Smiley-Geschwindigkeitsanzeigen-Betriebs
+ogdeinzel;OGD-Link-Einzelmessung;Link zur Einzelmessung auf OGD
+odganalyse;OGD-Link-Analyse;Link zur Analyse auf OGD

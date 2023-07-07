@@ -1,4 +1,5 @@
 import ftplib
+from pathlib import Path
 import json
 import logging
 import os
@@ -98,6 +99,7 @@ def find_in_sheet(sheet, text_to_find):
 
 def handle_polls(process_archive=False, df_unique_session_dates=None):
     logging.info(f'Handling polls, value of process_archive: {process_archive}...')
+    df_to_return = None
     if process_archive:
         ftp = {'server': credentials.gr_polls_archive_ftp_server, 'user': credentials.gr_polls_archive_ftp_user, 'password': credentials.gr_polls_archive_ftp_pass}
         dir_ls_file = credentials.ftp_ls_file.replace('.json', f'_archive_dir.json')
@@ -114,11 +116,19 @@ def handle_polls(process_archive=False, df_unique_session_dates=None):
                     remote_path_subdir = remote_path + '/' + subdir['remote_file']
                     poll_df = handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path_subdir)
                     all_df = pd.concat(objs=[all_df, poll_df], sort=False)
-        return all_df
+        df_to_return = all_df
     else:
         ftp = {'server': credentials.gr_current_polls_ftp_server, 'user': credentials.gr_current_polls_ftp_user, 'password': credentials.gr_current_polls_ftp_pass}
         remote_path = ''
-        return handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path)
+        df_to_return = handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path)
+
+    if len(df_to_return) > 0:
+        file_name_part = 'archiv' if process_archive else 'aktuell'
+        polls_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), f'grosser_rat_abstimmungen_{file_name_part}.csv')
+        logging.info(f'Saving polls as a backup to {polls_filename}...')
+        df_to_return.to_csv(polls_filename, index=False)
+        common.upload_ftp(polls_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
+    return df_to_return
 
 
 def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, remote_path):
@@ -127,7 +137,7 @@ def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, re
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(ftp, remote_path)
     all_df = pd.DataFrame()
     # todo: Parse every poll pdf file name to check for the new type "un" (ungültig) and set those polls' type correctly.
-    # todo: Check for changes in PDF files, only those change if a poll is invalid (xml file doe snot change)
+    # todo: Check for changes in PDF files, only those change if a poll is invalid (xml file does not change)
     # Renaming of a pdf file to type "un" can happen after session, so we have to check for changes in the poll pdf files even if no change to the poll xml file has happened.
     if process_archive or ct.has_changed(xml_ls_file):
         # todo: handle xlsx files of polls during time at congress center
@@ -161,11 +171,6 @@ def handle_single_polls_folder(df_unique_session_dates, ftp, process_archive, re
                 common.upload_ftp(export_filename_csv, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
                 all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
                 ct.update_hash_file(local_file)
-        if len(all_df) > 0:
-            file_name_part = 'archiv' if process_archive else 'aktuell'
-            polls_filename = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), f'grosser_rat_abstimmungen_{file_name_part}.csv')
-            logging.info(f'Saving polls as a backup to {polls_filename}...')
-            all_df.to_csv(polls_filename, index=False)
         ct.update_hash_file(xml_ls_file)
     return all_df
 
@@ -408,10 +413,68 @@ def handle_tagesordnungen(process_archive=False):
     return df_tagesordnungen
 
 
+def handle_congress_center_polls(df_unique_session_dates):
+    cc_files = [file for file in Path(f'{credentials.local_data_path}/congress_center').rglob('GR-BS_??????-?.xlsx')]
+    all_cc_data_files = []
+    for cc_file in cc_files:
+        logging.info(f'Reading File {cc_file} into df...')
+        df = pd.read_excel(cc_file, usecols='B:I,K')
+        cc_data_file_name = os.path.basename(cc_file)
+        df['file_name'] = cc_data_file_name
+        logging.info(f'Calculating columns to fit target scheme...')
+        df['session_date'] = df['Creation Date'].dt.strftime('%Y%m%d')
+        df['Abst_Nr'] = df['Current Voting ID']
+        df['Datum'] = df['Creation Date'].dt.strftime('%Y-%m-%d')
+        df['Zeit'] = df['Creation Date'].dt.strftime('%H:%M:%S.%f')
+        df['Typ'] = 'Abstimmung'
+        df['Geschaeft'] = df['Headline Text']
+        df['Zeitstempel'] = df['Creation Date'].dt.tz_localize('Europe/Zurich')
+        df['Zeitstempel_text'] = df.Zeitstempel.dt.strftime(date_format='%Y-%m-%dT%H:%M:%S.%f%z')
+        df['Sitz_Nr'] = df['Handset ID'] - 300
+        df['Fraktion'] = df['Vote Group']
+        df['Datenstand'] = df.Zeitstempel
+        df['Datenstand_text'] = df.Zeitstempel_text
+
+        df_names = df.Name.str.replace('von ', 'von_').str.split(' ', n=1, expand=True)
+        df_names.columns = ['Nachname', 'Vorname']
+        df_names.Nachname = df_names.Nachname.str.replace('von_', 'von ')
+        df_names['Mitglied_Name'] = df_names.Vorname + ' ' + df_names.Nachname
+        df_names['Mitglied_Name'] = df_names.Mitglied_Name.str.replace('\\xa0', '', regex=False)
+        df['Mitglied_Name'] = df_names.Mitglied_Name
+        df['Mitglied_Name_Fraktion'] = df.Mitglied_Name + ' (' + df.Fraktion + ')'
+        df['Entscheid_Mitglied'] = df['Choice Text'].replace({'Ja': 'J', 'Nein': 'N', '-': 'A', 'Enthaltung': 'E'})
+
+        df_trakt = df.Geschaeft.str.extract(r"Trakt\. (?P<Traktandum>\d+)[\_\:](?P<Subtraktandum>\d+)?")
+        df = pd.concat([df, df_trakt], axis=1)
+        df.Traktandum = df.Traktandum.fillna('')
+        df.Subtraktandum = df.Subtraktandum.fillna('')
+        df['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df.Datum + '&refine.traktand=' + df.Traktandum
+
+        df_poll_counts = df.groupby(['Current Voting ID', 'file_name', 'Choice Text'])['Handset ID'].count().reset_index(name='Anzahl')
+        df_poll_counts_pivot = df_poll_counts.pivot_table('Anzahl', ['Current Voting ID', 'file_name'], 'Choice Text').reset_index().rename(columns={'-': 'Anz_A', 'Enthaltung': 'Anz_E', 'Ja': 'Anz_J', 'Nein': 'Anz_N'})
+        df = df.merge(df_poll_counts_pivot, how='left', on=['file_name', 'Current Voting ID'])
+
+        # {"session_date": "20141119", "Abst_Nr": "745", "Datum": "2014-11-19", "Zeit": "09:24:56.000", "Anz_J": "39", "Anz_N": "47", "Anz_E": "6", "Anz_A": "7", "Anz_P": "1", "Typ": "Abstimmung", "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises", "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100", "Sitz_Nr": "1", "Mitglied_Name": "Beatriz Greuter", "Fraktion": "SP", "Mitglied_Name_Fraktion": "Beatriz Greuter (SP)", "Datenstand_text": "2022-03-17T12:19:35+01:00", "Entscheid_Mitglied": "J", "Traktandum": 16, "Subtraktandum": 3, "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
+        # We don't have column 'Anz_P' in Congress Center data, so we don't push it
+        columns_to_export = ["session_date", "Abst_Nr", "Datum", "Zeit", "Anz_J", "Anz_N", "Anz_E", "Anz_A", "Typ", "Geschaeft", "Zeitstempel_text", "Sitz_Nr", "Mitglied_Name", "Fraktion", "Mitglied_Name_Fraktion", "Datenstand_text", "Entscheid_Mitglied", "Traktandum", "Subtraktandum", "tagesordnung_link"]
+        df_export = df[columns_to_export]
+        cc_export_file = os.path.join(credentials.local_data_path.replace('data_orig', 'data'), cc_data_file_name.replace('.xlsx', '.csv'))
+        df_export.to_csv(cc_export_file, index=False)
+        common.ods_realtime_push_df(df_export, credentials.push_url)
+        logging.info(f'Saving data files to FTP server as backup: {cc_export_file}...')
+        common.upload_ftp(cc_export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'parlamentsdienst/gr_abstimmungsergebnisse')
+
+        all_cc_data_files.append(df)
+    all_cc_data = pd.concat(all_cc_data_files)
+    return all_cc_data
+
+
 def main():
     # df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
+    # Uncomment to process Congress Center data
+    # poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
     # Uncomment to process archived poll data
     # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
 

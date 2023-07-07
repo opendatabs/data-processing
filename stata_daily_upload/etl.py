@@ -42,23 +42,66 @@ def main():
                {'file': 'StatA/Bevoelkerung/100225_Schutzsuchende.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100225'},
                {'file': 'StatA/witterung/100227_Witterungserscheinungen.xlsx', 'dest_dir': 'witterung', 'ods_id': '100227'},
                {'file': 'StatA/Wahlen-Abstimmungen/Zeitreihe_Volksabstimmungen/100229_Abstimmungsvorlagen.xlsx', 'dest_dir': 'wahlen_abstimmungen/zeitreihe_volksabstimmungen', 'ods_id': '100229'},
-               {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'}
-               # {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247']}
+               {'file': 'StatA/Stromverbrauch/100245_Strom_Wetter.csv', 'dest_dir': 'stromverbrauch', 'ods_id': '100245'},
+               {'file': 'BachApp/BachApp-CMS.xlsx', 'dest_dir': 'bachapp', 'ods_id': ['100246', '100247', '100255', '100283', '100284', '100287', '100290']},
+               {'file': 'AUE-FA/Fischereiverbotszonen/fischereiverbotszonen_rhein.zip', 'dest_dir': 'aue/fischereiverbotszonen', 'ods_id': '100278'},
+               {'file': 'TBA/Rhein-Schwimmzonen/Schwimmzonen.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100270'},
+               {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_area.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
+               {'file': 'TBA/Bachapp-Rhein-Ausstiegmoeglichkeiten/Treppen_und_Ausstiegsleitern_point.zip', 'dest_dir': 'tba/shapes', 'ods_id': '100285'},
+               {'file': 'BVD-Stadtgaertnerei/bachapp_grillstellen/grillstellen_stg.gpkg', 'dest_dir': 'stadtgaertnerei/bachapp_grillstellen', 'ods_id': '100276'},
+               {'file': ['StatA/Wahlen-Abstimmungen/sr/2023/D0012MAKA.TXT', 'StatA/Wahlen-Abstimmungen/sr/2023/T0012MAKA.TXT'],
+                'dest_dir': 'wahlen_abstimmungen/wahlen/sr/2023', 'ods_id': '100282'},
+               {'file': ['StatA/Wahlen-Abstimmungen/nr/2023/D0012HERK.TXT', 'StatA/Wahlen-Abstimmungen/nr/2023/T0012HERK.TXT'],
+                'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023',
+                'ods_id': '100281'},
+               {'file': ['StatA/Wahlen-Abstimmungen/nr/2023/D0012LIST.TXT', 'StatA/Wahlen-Abstimmungen/nr/2023/T0012LIST.TXT'],
+                'dest_dir': 'wahlen_abstimmungen/wahlen/nr/2023/aggregiert',
+                'ods_id': '100297'},
+               {'file': 'StatA/Wahlen-Abstimmungen/bgr/2023/D2701HERK.TXT',
+                'dest_dir': 'wahlen_abstimmungen/wahlen/bgr/2023',
+                'ods_id': '100300'},
+               {'file': 'StatA/Wahlen-Abstimmungen/bgr/2023/D2701LIST.TXT',
+                'dest_dir': 'wahlen_abstimmungen/wahlen/bgr/2023',
+                'ods_id': '100301'},
+               {'file': 'StatA/Steuern/100140_Reineinkommen.csv', 'dest_dir': 'steuern', 'ods_id': '100140'},
+               {'file': 'StatA/Steuern/100157_Reinvermoegen.csv', 'dest_dir': 'steuern', 'ods_id': '100157'},
+               {'file': 'StatA/Steuern/100165_Kennzahlen.csv', 'dest_dir': 'steuern', 'ods_id': '100165'},
+               {'file': 'StatA/Personalbestand/100123_Lohntabelle_Basel_Stadt.csv', 'dest_dir': 'personalbestand', 'ods_id': '100123'},
+               {'file': 'StatA/Personalbestand/100263_Personalbestand_Lohnklasse.csv', 'dest_dir': 'personalbestand', 'ods_id': '100263'},
+               {'file': 'StatA/Personalbestand/100264_Personalbestand_Dep_Buchung_Geschl.csv', 'dest_dir': 'personalbestand', 'ods_id': '100264'},
+               {'file': 'StatA/Personalbestand/100265_Personalbestand_Dep_Dienst_Geschl_Alter.csv', 'dest_dir': 'personalbestand', 'ods_id': '100265'},
+               {'file': 'StatA/Personalbestand/100266_Personalbestand_Dep_Buchung_Staat.csv', 'dest_dir': 'personalbestand', 'ods_id': '100266'},
+               {'file': 'StatA/Personalbestand/100267_Personalbestand_Dep_Buchung_Kanton.csv', 'dest_dir': 'personalbestand', 'ods_id': '100267'},
                ]
     file_not_found_errors = []
     for upload in uploads:
-        file_path = os.path.join(credentials.path_work, upload['file'])
+        file_property = upload['file']
         try:
-            if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
-                if ct.has_changed(file_path, method='modification_date'):
-                    common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-                    ods_id_property = upload['ods_id']
-                    if type(ods_id_property) == list:
-                        for single_ods_id in ods_id_property:
-                            odsp.publish_ods_dataset_by_id(single_ods_id)
-                    else:
-                        odsp.publish_ods_dataset_by_id(ods_id_property)
-                    ct.update_mod_timestamp_file(file_path)
+            changed = 0
+            if type(file_property) == list:
+                for file in file_property:
+                    file_path = os.path.join(credentials.path_work, file)
+                    if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
+                        if ct.has_changed(file_path, method='modification_date'):
+                            changed = 1
+                            ct.update_mod_timestamp_file(file_path)
+                            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+
+            else:
+                file_path = os.path.join(credentials.path_work, upload['file'])
+                if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
+                    if ct.has_changed(file_path, method='modification_date'):
+                        changed = 1
+                        ct.update_mod_timestamp_file(file_path)
+                        common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+            if changed == 1:
+                ods_id_property = upload['ods_id']
+                if type(ods_id_property) == list:
+                    for single_ods_id in ods_id_property:
+                        odsp.publish_ods_dataset_by_id(single_ods_id)
+                else:
+                    odsp.publish_ods_dataset_by_id(ods_id_property)
+
         except FileNotFoundError as e:
             file_not_found_errors.append(e)
     error_count = len(file_not_found_errors)

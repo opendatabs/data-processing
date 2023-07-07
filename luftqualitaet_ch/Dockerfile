@@ -1,13 +1,13 @@
-FROM python:3.9.2
+FROM python:3.10.2-bullseye
 WORKDIR /code/data-processing
-ARG HTTPS_PROXY
-ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==1.2.2
-RUN python3 -m pip install --user --no-cache-dir requests==2.25.1
+#ARG HTTPS_PROXY
+#ENV HTTPS_PROXY=$HTTPS_PROXY
+RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
+RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 RUN python3 -m pip install --user --no-cache-dir pytest==6.2.4
 RUN python3 -m pip install --user --no-cache-dir more_itertools==8.10.0
-CMD ["/bin/bash", "/code/data-processing/luftqualitaet_ch/etl.sh"]
+CMD ["python3", "-m", "luftqualitaet_ch.src.etl"]
 
 
 # Docker commands to create image and run container:

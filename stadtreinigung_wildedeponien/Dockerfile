@@ -7,17 +7,17 @@ RUN python3 -m pip install --user --no-cache-dir geopandas==0.10.2
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 RUN python3 -m pip install --user --no-cache-dir pygeos==0.12.0
-CMD ["python3", "-m", "tba_wildedeponien.etl"]
+CMD ["python3", "-m", "stadtreinigung_wildedeponien.etl"]
 
 
 # Docker commands to create image and run container:
-# cd tba_wildedeponien
-# docker build -t tba-wildedeponien .
+# cd stadtreinigung_wildedeponien
+# docker build -t stadtreinigung_wildedeponien .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing  --name tba-wildedeponien tba-wildedeponien
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing  --name stadtreinigung_wildedeponien stadtreinigung_wildedeponien
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd tba_wildedeponien
-# docker build -t tba-wildedeponien --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
+# cd stadtreinigung_wildedeponien
+# docker build -t stadtreinigung_wildedeponien --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name tba-wildedeponien tba-wildedeponien
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name stadtreinigung_wildedeponien stadtreinigung_wildedeponien

@@ -42,6 +42,11 @@ def calculate_details(data_file_names):
                             'Riehen brieflich Stimmende', 'Bettingen Gemeindehaus', 'Bettingen brieflich Stimmende',
                             'Persönlich an der Urne Stimmende AS', 'Brieflich Stimmende AS']
 
+        valid_wahllokale_ab_20230618 = ['Bahnhof SBB', 'Rathaus', 'Polizeiwache Clara', 'Basel briefl. & elektr. Stimmende (Total)',
+                            'Riehen Gemeindehaus',
+                            'Riehen briefl. & elektr. Stimmende (Total)', 'Bettingen Gemeindehaus', 'Bettingen briefl. & elektr. Stimmende (Total)',
+                            'Persönlich an der Urne Stimmende AS', 'Brieflich Stimmende AS', 'Elektronisch Stimmende AS']
+
         dat_sheets = []
         for sheet_name in dat_sheet_names:
             is_gegenvorschlag = False  # Is this a sheet that contains a Gegenvorschlag?
@@ -66,6 +71,10 @@ def calculate_details(data_file_names):
             df.reset_index(inplace=True)
 
             print('Filtering out Wahllokale...')
+            if abst_date < '2023-06-18':
+                valid_wahllokale = valid_wahllokale
+            else:
+                valid_wahllokale = valid_wahllokale_ab_20230618
             df = df[df['Wahllokale'].isin(valid_wahllokale)]
 
             print('Renaming columns...')

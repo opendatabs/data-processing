@@ -101,6 +101,13 @@ def requests_put(*args, **kwargs):
     return r
 
 
+@retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
+def requests_delete(*args, **kwargs):
+    r = requests.delete(*args, proxies=credentials.proxies, **kwargs)
+    r.raise_for_status()
+    return r
+
+
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)

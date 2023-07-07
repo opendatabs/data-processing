@@ -5,7 +5,7 @@ ftp_pass = 'DUMMYPASSWORD'
 api_user = 'TESTUSER'
 api_password = 'SUPERSECRET'
 
-path = '/code/data-processing/tba-wildedeponien/data/'
+path = '/code/data-processing/stadtreinigung_wildedeponien/data/'
 filename = 'FILENAME.CSV'
 
 proxy = 'https://USER:PASSWORD@PROXYSERVER:PORT/'
