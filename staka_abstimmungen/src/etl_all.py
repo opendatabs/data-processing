@@ -9,8 +9,11 @@ import ods_publish.etl_id as odsp
 import logging
 
 
-path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output')
+"""
+script to create a new dataset from all published datasets 
+"""
 
+path_files = os.path.join(pathlib.Path(__file__).parents[1], 'data/data-processing-output')
 
 def main():
     df_all = process_files()

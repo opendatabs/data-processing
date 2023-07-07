@@ -5,6 +5,9 @@ import pathlib
 import pandas as pd
 import numpy as np
 
+"""
+script to compare the output of etl_all.py with the result of newly processing the data 
+"""
 
 def bring_in_right_form_to_compare(df):
     df.sort_values(by=['Abst_Datum', 'Abst_Titel', 'Gemein_ID', 'Wahllok_ID', 'Abst_ID'], inplace=True)
