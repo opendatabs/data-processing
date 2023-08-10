@@ -151,6 +151,7 @@ def calculate_kennzahlen(data_file_names):
         df_stimmber.rename(columns={'Unnamed: 0': 'empty',
                                     'Unnamed: 1': 'Gemein_Name',
                                     '\nStimmberechtigte': 'Stimmber_Anz',
+                                    'Stimmberechtigte': 'Stimmber_Anz',
                                     'davon                                   Männer': 'Stimmber_Anz_M',
                                     'davon                                          Frauen': 'Stimmber_Anz_F',
                                     'Unnamed: 5': 'empty2'}, inplace=True)
@@ -174,14 +175,20 @@ def calculate_kennzahlen(data_file_names):
         df_kennz.rename(columns={'Unnamed: 0': 'empty',
                                  'Unnamed: 1': 'Gemein_Name',
                                  '\nStimmberechtigte': 'Stimmber_Anz',
+                                 'Stimmberechtigte': 'Stimmber_Anz',
                                  'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  '\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
+                                 'Stimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Durchschnittlicher Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Anteil\nder brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art',
-                                 'Anzahl elektronisch Stimmender': 'Anz_Elektr_pro_Abst_Art'},
+                                 'Anzahl elektronisch Stimmender': 'Anz_Elektr_pro_Abst_Art',
+                                 'Anteil der brieflich\nStimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                 'Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
+                                 'Durchschnittlicher Anteil der elektronisch Stimmenden': 'Durchschn_Elektr_Ant_pro_Abst_Art'},
                         inplace=True)
+
         print(f'Cleaning up Gemeinde names in {kennz_sheet_name}...')
         for repl in gemein_replacements:
             df_kennz.loc[(df_kennz['Gemein_Name'] == repl), 'Gemein_Name'] = gemein_replacements[repl]

@@ -35,12 +35,14 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['Month'] = data['DateTimeFrom'].dt.month
     data['Day'] = data['DateTimeFrom'].dt.day
     data['Weekday'] = data['DateTimeFrom'].dt.weekday
-    data['HourFrom'] = data['DateTimeFrom'].dt.hour
     data['DayOfYear'] = data['DateTimeFrom'].dt.dayofyear
     # Convert Datetime to GMT / UTC to simplify opendatasoft import
     # todo: Fix - does still not work for all dates
     data['DateTimeFrom'] = (data['DateTimeFrom'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
     data['DateTimeTo'] = (data['DateTimeTo'] - pd.Timedelta(hours=1)).dt.tz_localize('UTC')
+    data['HourFrom'] = data['DateTimeFrom'].dt.hour
+    data['TimeFrom'] = data['DateTimeFrom'].dt.strftime('%H:%M')
+    data['TimeTo'] = data['DateTimeTo'].dt.strftime('%H:%M')
     print(f'Retrieving Zst_id as the first word in SiteName...')
     data['Zst_id'] = data['SiteName'].str.split().str[0]
     current_filename = os.path.join(dest_path, 'converted_' + filename)

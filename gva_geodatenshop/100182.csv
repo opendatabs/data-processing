@@ -9,7 +9,7 @@ ykoord;Y-Koordinate;Y-Koordinate der Bohrung
 schraeg;Schrägbohrung (0/1);0 = Nein, 1 = Ja
 erstellung;Bohrjahr;Erstellungsjahr der Bohrung
 strasse;Strasse;Strasse
-hausnummer;Hausummer;Hausummer
+hausnummer;Hausnummer;Hausnummer
 hoehestart;Bohransatz-Kote;Kote Ansatz der Bohrung m.ü.M
 hoehefels;Oberkante Fels-Kote;Kote Felsoberfläche der Bohrung m.ü.M
 artfels;Oberkante Fels-Stratigraphie;Beschreibung Felsoberfläche (z.B. Cyrenenmergel)
