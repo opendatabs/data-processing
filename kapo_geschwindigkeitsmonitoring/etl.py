@@ -37,7 +37,7 @@ def main():
     logging.info(f'Connecting to DB...')
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
-    df_meta_raw = psql.read_sql('SELECT *, ST_AsGeoJSON(the_geom) as the_geom_json, ST_AsEWKT(the_geom) as the_geom_EWKT, ST_AsText(the_geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
+    df_meta_raw = psql.read_sql('SELECT *, ST_AsGeoJSON(geom) as the_geom_json, ST_AsEWKT(geom) as the_geom_EWKT, ST_AsText(geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
     con.close()
 
     logging.info(f'Calculating in dataset to put single measurements in...')
