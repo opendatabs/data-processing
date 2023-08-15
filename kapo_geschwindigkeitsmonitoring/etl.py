@@ -42,7 +42,7 @@ def main():
 
     logging.info(f'Calculating in dataset to put single measurements in...')
     # Ignoring the few NaN values the column "Messbeginn" has
-    df_meta_raw = df_meta_raw[df_meta_raw['messbeginn_jahr'].notna()]
+    df_meta_raw = df_meta_raw[df_meta_raw['Messbeginn'].notna()]
     df_meta_raw['messbeginn_jahr'] = df_meta_raw.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100097')
     df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw['dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
