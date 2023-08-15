@@ -15,8 +15,8 @@ path_dok = '/path/to/data/'
 path_vor = '/path/to/data/'
 path_siz = '/path/to/data/'
 
-unix_ts_max = 253402300799
-uni_ts_min = -30610224000
+unix_ts_max = '253402300799'
+uni_ts_min = '-30610224000'
 
 path_personen = '/path/to/homepage/'
 path_gremien = '/path/to/homepage/'
