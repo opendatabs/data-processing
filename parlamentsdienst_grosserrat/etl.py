@@ -6,8 +6,8 @@ from datetime import datetime
 
 from parlamentsdienst_grosserrat import credentials
 import common
-
-pd.set_option('display.max_rows', None)
+import common.change_tracking as ct
+import ods_publish.etl_id as odsp
 
 
 def main():
@@ -60,7 +60,7 @@ def main():
     df_siz = common.pandas_read_csv(credentials.path_siz, dtype=str)
 
     # Perform data processing and CSV file creation functions
-    create_personen_csv(df_adr, df_mit)
+    create_mitglieder_csv(df_adr, df_mit)
     create_mitgliedschaften_csv(df_adr, df_mit, df_gre)
     create_interessensbindungen_csv(df_adr, df_intr)
     create_gremien_csv(df_gre, df_mit)
@@ -70,7 +70,7 @@ def main():
     create_vorgaenge_csv(df_ges, df_vor, df_siz)
 
 
-def create_personen_csv(df_adr, df_mit):
+def create_mitglieder_csv(df_adr, df_mit):
     """
     Create a CSV file containing information about members of the Grosser Rat (Parliament).
 
@@ -109,8 +109,9 @@ def create_personen_csv(df_adr, df_mit):
 
     logging.info(f'Creating dataset "Personen im Grossen Rat"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100307.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_mitglieder.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'mitglieder', '100307')
 
 
 def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
@@ -150,8 +151,9 @@ def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
 
     logging.info(f'Creating dataset "Mitgliedschaften in Gremien"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100308.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'mitgliedschaften', '100308')
 
 
 def create_interessensbindungen_csv(df_adr, df_intr):
@@ -183,8 +185,9 @@ def create_interessensbindungen_csv(df_adr, df_intr):
 
     logging.info(f'Creating dataset "Mitgliedschaften in Interessensbindungen"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100309.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_interessensbindungen.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'interessensbindungen', '100309')
 
 
 def create_gremien_csv(df_gre, df_mit):
@@ -219,13 +222,15 @@ def create_gremien_csv(df_gre, df_mit):
     df = df[cols_of_interest]
 
     logging.info(f'Creating Datensatz "Gremien im Grossen Rat"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1], 'parlamentsdienst_grosserrat/data/export/100310.csv')
+    path_export = os.path.join(pathlib.Path(__file__).parents[1],
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_gremien.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'gremien', '100310')
 
 
 def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
     """
-    Creates a CSV file containing information about matters (Geschäfte) in the parliament
+    Creates a CSV file containing information about matters (Geschäfte) in the parliament.
 
     Args:
         df_adr (pd.DataFrame): DataFrame containing person information.
@@ -290,8 +295,9 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
 
     logging.info(f'Creating dataset "Geschäfte im Grossen Rat"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100311.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_geschaefte.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'geschaefte', '100311')
 
 
 def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
@@ -360,14 +366,15 @@ def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
 
     logging.info(f'Creating Datensatz "Zuweisungen Geschäfte"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100312.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_zuweisungen.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'zuweisungen', '100312')
 
 
 # TODO: Nochmals upzudaten wenn OGD-Export geändert wird
 def create_dokumente_csv(df_adr, df_ges, df_dok):
     """
-    Creates a CSV file containing information about documents related to matters
+    Creates a CSV file containing information about documents related to matters.
 
     Args:
         df_adr (pd.DataFrame): DataFrame containing person information.
@@ -409,8 +416,9 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
 
     logging.info(f'Creating Datensatz "Dokumente Geschäfte"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100313.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_dokumente.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'dokumente', '100313')
 
 
 def create_vorgaenge_csv(df_ges, df_vor, df_siz):
@@ -452,8 +460,9 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
 
     logging.info(f'Creating Datensatz "Vorgänge Geschäfte"...')
     path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/100314.csv')
+                               'parlamentsdienst_grosserrat/data/export/grosser_rat_vorgaenge.csv')
     df.to_csv(path_export, index=False)
+    update_ftp_and_odsp(path_export, 'vorgaenge', '100314')
 
 
 def unix_to_datetime(df, column_names):
@@ -474,6 +483,28 @@ def unix_to_datetime(df, column_names):
     for column_name in column_names:
         df[column_name] = pd.to_datetime(df[column_name], unit='s', errors='coerce').dt.strftime('%d.%m.%Y')
     return df
+
+
+def update_ftp_and_odsp(path_export, dataset_name, dataset_id):
+    """
+    Updates a dataset by uploading it to an FTP server and publishing it into data.bs.ch.
+
+    This function performs the following steps:
+    1. Checks if the content of the dataset at the specified path has changed.
+    2. If changes are detected, uploads the dataset to an FTP server using provided credentials.
+    3. Publishes the dataset into data.bs.ch using the provided dataset ID.
+    4. Updates the hash file to reflect the current state of the dataset.
+
+    Args:
+        path_export (str): The file path to the dataset that needs to be updated.
+        dataset_name (str): The name of the dataset, used for the FTP destination path.
+        dataset_id (str): The ID of the dataset to be published on data.bs.ch.
+    """
+    if ct.has_changed(path_export):
+        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          f'parlamentsdienst/gr_{dataset_name}')
+        odsp.publish_ods_dataset_by_id(dataset_id)
+        ct.update_hash_file(path_export)
 
 
 if __name__ == '__main__':
