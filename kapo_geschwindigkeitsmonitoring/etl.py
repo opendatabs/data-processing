@@ -37,11 +37,25 @@ def main():
     logging.info(f'Connecting to DB...')
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
-    df_meta_raw = psql.read_sql('SELECT *, ST_AsGeoJSON(geom) as the_geom_json, ST_AsEWKT(geom) as the_geom_EWKT, ST_AsText(geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring', con)
+    # Before 24.07.2023 geom saves location in postgis geometry format (hexadecimal number) anymore.
+    # After 24.07.2023 geom saves the location in latitude and longitude (seperated by a comma)
+    df_meta_raw_old = psql.read_sql(
+        """SELECT *, ST_AsGeoJSON(geom) as the_geom_json, ST_AsEWKT(geom) as the_geom_EWKT,
+        ST_AsText(geom) as the_geom_WKT FROM projekte.geschwindigkeitsmonitoring WHERE geom not like '%,%'""",
+        con)
+    df_meta_raw_new = psql.read_sql(
+        """SELECT *, ST_AsGeoJSON(ST_GeomFromText('POINT(' || Replace(geom,',',' ') || ')')) as the_geom_json,
+        ST_AsEWKT(ST_GeomFromText('POINT(' || Replace(geom,',',' ') || ')')) as the_geom_EWKT,
+        ST_AsText(ST_GeomFromText('POINT(' || Replace(geom,',',' ') || ')')) as the_geom_WKT
+        FROM projekte.geschwindigkeitsmonitoring WHERE geom like '%,%'""",
+        con)
     con.close()
-
+    df_meta_raw = pd.concat([df_meta_raw_new, df_meta_raw_old])
+    
     logging.info(f'Calculating in dataset to put single measurements in...')
     # Ignoring the few NaN values the column "Messbeginn" has
+    num_ignored = df_meta_raw[df_meta_raw['Messbeginn'].isna()].shape[0]
+    logging.info(f'{num_ignored} entries ignored due to missing date!')
     df_meta_raw = df_meta_raw[df_meta_raw['Messbeginn'].notna()]
     df_meta_raw['messbeginn_jahr'] = df_meta_raw.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100097')
@@ -58,7 +72,7 @@ def create_metadata_per_location_df(df):
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
-    df_metadata = df[['ID', 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
+    df_metadata = df[['ID', 'the_geom_wkt', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
