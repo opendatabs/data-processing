@@ -22,27 +22,27 @@ def main():
     3. Create CSV files for data.bs.ch
     """
     logging.info(f'Reading Personen.csv...')
-    df_adr = common.pandas_read_csv(credentials.path_adr, dtype=str)
+    df_adr = common.pandas_read_csv(credentials.path_adr, encoding='utf-8', dtype=str)
     logging.info(f'Reading Mitgliedschaften.csv...')
-    df_mit = common.pandas_read_csv(credentials.path_mit, dtype=str)
+    df_mit = common.pandas_read_csv(credentials.path_mit, encoding='utf-8', dtype=str)
     logging.info(f'Reading Gremien.csv...')
-    df_gre = common.pandas_read_csv(credentials.path_gre, dtype=str)
+    df_gre = common.pandas_read_csv(credentials.path_gre, encoding='utf-8', dtype=str)
     logging.info(f'Reading Interessensbindungen.csv...')
-    df_intr = common.pandas_read_csv(credentials.path_intr, dtype=str)
+    df_intr = common.pandas_read_csv(credentials.path_intr, encoding='utf-8', dtype=str)
 
     logging.info(f'Reading Geschäfte.csv...')
-    df_ges = common.pandas_read_csv(credentials.path_ges, dtype=str)
+    df_ges = common.pandas_read_csv(credentials.path_ges, encoding='utf-8', dtype=str)
     # Replace identifiers to match with values in the committee list (gremium.csv)
     df_ges['gr_urheber'] = df_ges['gr_urheber'].replace({'1934': '3', '4276': '2910', '4278': '3164',
                                                          '4279': '3196', '4280': '3331'})
 
     logging.info(f'Reading Konsorten.csv...')
-    df_kon = common.pandas_read_csv(credentials.path_kon, dtype=str)
+    df_kon = common.pandas_read_csv(credentials.path_kon, encoding='utf-8', dtype=str)
     df_kon['uni_nr_adr'] = df_kon['uni_nr_adr'].replace({'1934': '3', '4276': '2910', '4278': '3164',
                                                          '4279': '3196', '4280': '3331'})
 
     logging.info(f'Reading Zuweisungen.csv...')
-    df_zuw = common.pandas_read_csv(credentials.path_zuw, dtype=str)
+    df_zuw = common.pandas_read_csv(credentials.path_zuw, encoding='utf-8', dtype=str)
     # Temporarily replace 'Parlamentsdienst' (1934) with 'Grosser Rat' (3)
     df_zuw = df_zuw.replace({'uni_nr_von': '1934', 'uni_nr_an': '1934'}, '3')
 
@@ -53,11 +53,11 @@ def main():
     df_zuw = df_zuw.replace({'uni_nr_von': '4280', 'uni_nr_an': '4280'}, '3331')  # IGPK-Ha
 
     logging.info(f'Reading Dokumente.csv...')
-    df_dok = common.pandas_read_csv(credentials.path_dok, dtype=str)
+    df_dok = common.pandas_read_csv(credentials.path_dok, encoding='utf-8', dtype=str)
     logging.info(f'Reading Vorgänge.csv...')
-    df_vor = common.pandas_read_csv(credentials.path_vor, dtype=str)
+    df_vor = common.pandas_read_csv(credentials.path_vor, encoding='utf-8', dtype=str)
     logging.info(f'Reading Sitzungen.csv...')
-    df_siz = common.pandas_read_csv(credentials.path_siz, dtype=str)
+    df_siz = common.pandas_read_csv(credentials.path_siz, encoding='utf-8', dtype=str)
 
     # Perform data processing and CSV file creation functions
     create_mitglieder_csv(df_adr, df_mit)
