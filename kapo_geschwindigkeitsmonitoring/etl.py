@@ -38,7 +38,7 @@ def main():
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
     df_meta_raw = psql.read_sql("""SELECT *, ST_AsGeoJSON('Point(' || x_coord || ' ' || y_coord || ')') as geom_json,
-        ST_AsText('Point(' || x_coord || ' ' || y_coord || ')') as geom_WKT
+        ST_AsText('Point(' || x_coord || ' ' || y_coord || ')') as geom_wkt
         FROM projekte.geschwindigkeitsmonitoring""", con)
     con.close()
 
@@ -62,7 +62,7 @@ def create_metadata_per_location_df(df):
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
-    df_metadata = df[['ID', 'geom_WKT', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
+    df_metadata = df[['ID', 'geom_wkt', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
