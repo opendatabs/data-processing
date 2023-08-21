@@ -37,10 +37,14 @@ def main():
     logging.info(f'Connecting to DB...')
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
-    df_meta_raw = psql.read_sql("""SELECT *, ST_AsGeoJSON('Point(' || x_coord || ' ' || y_coord || ')') as geom_json,
-        ST_AsText('Point(' || x_coord || ' ' || y_coord || ')') as geom_wkt
+    df_meta_raw = psql.read_sql("""SELECT *, ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056) as the_geom_temp,
+        ST_AsGeoJSON(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056)) as the_geom_json,
+        ST_AsEWKT(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056)) as the_geom_EWKT,
+        ST_AsText('Point(' || x_coord || ' ' || y_coord || ')') as the_geom_WKT
         FROM projekte.geschwindigkeitsmonitoring""", con)
     con.close()
+    df_meta_raw = df_meta_raw.drop(columns=['the_geom'])
+    df_meta_raw = df_meta_raw.rename(columns={"the_geom_temp": "the_geom"})
 
     logging.info(f'Calculating in dataset to put single measurements in...')
     # Ignoring the few NaN values the column "Messbeginn" has
@@ -62,7 +66,7 @@ def create_metadata_per_location_df(df):
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
-    df_metadata = df[['ID', 'geom_wkt', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
+    df_metadata = df[['ID', 'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
