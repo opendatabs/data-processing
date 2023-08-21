@@ -205,7 +205,7 @@ def create_gremien_csv(df_gre, df_mit):
     # To check which committees are currently active, we look at committees with current memberships
     # (with a 3-month buffer due to commissions sometimes lacking members for a while after a legislative period)
     unix_ts = (datetime.now() - datetime(1970, 4, 1)).total_seconds()
-    df_mit['ist_aktuelles_gremium'] = df_mit['ende'].astype('Int64').apply(lambda x: x > unix_ts)
+    df_mit['ist_aktuelles_gremium'] = df_mit['ende'].astype(int) > unix_ts
 
     df_mit = df_mit.groupby('uni_nr_gre').any('ist_aktuelles_gremium')
 
