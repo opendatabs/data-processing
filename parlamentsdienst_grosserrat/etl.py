@@ -481,7 +481,7 @@ def unix_to_datetime(df, column_names):
 
     # Loop through each specified column and convert Unix timestamps to formatted datetime strings
     for column_name in column_names:
-        df[column_name] = pd.to_datetime(df[column_name], unit='s', errors='coerce').dt.strftime('%Y-%m-%d')
+        df[column_name] = pd.to_datetime(df[column_name].astype(float), unit='s', errors='coerce').dt.strftime('%Y-%m-%d')
     return df
 
 
