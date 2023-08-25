@@ -258,35 +258,44 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
 
     df['url_urheber'] = credentials.path_personen + df['nr_urheber'][df['nr_urheber'].notna()]
+    df['url_urheber_ratsmitgl'] = ('https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' +
+                                   df['nr_urheber'][df['nr_urheber'].notna()])
     # If the "Urheber" is a committee (gremium), no link should be created
     df.loc[df['vorname_urheber'].isna(), 'url_urheber'] = float('nan')
+    df.loc[df['vorname_urheber'].isna(), 'url_urheber_ratsmitgl'] = float('nan')
     # Fields for names of person can be used for the committee as follows
-    df.loc[df['vorname_urheber'].isna(), 'anrede_urheber'] = 'Kommission'
+    df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = 'Kommission'
     df.loc[df['vorname_urheber'].isna(), 'name_urheber'] = df['nr_urheber'].map(
         df_gre.set_index('uni_nr')['name'])
     df.loc[df['vorname_urheber'].isna(), 'vorname_urheber'] = df['nr_urheber'].map(
         df_gre.set_index('uni_nr')['kurzname'])
-    # If 'first_name_originator' is still empty, it's "Regierungsrat"
-    df.loc[df['vorname_urheber'].isna(), 'anrede_urheber'] = 'Regierungsrat'
+    # If 'vorname_urheber' is still empty, it's "Regierungsrat"
+    df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = 'Regierungsrat'
 
     # Similar approach for Miturheber
     df['url_miturheber'] = credentials.path_personen + df['nr_miturheber'][df['nr_miturheber'].notna()]
+    df['url_miturheber_ratsmitgl'] = ('https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' +
+                                   df['nr_miturheber'][df['nr_miturheber'].notna()])
     df.loc[df['vorname_miturheber'].isna(), 'url_miturheber'] = float('nan')
-    df.loc[df['vorname_miturheber'].isna(), 'anrede_miturheber'] = 'Kommission'
+    df.loc[df['vorname_miturheber'].isna(), 'url_miturheber_ratsmitgl'] = float('nan')
+    df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = 'Kommission'
     df.loc[df['vorname_miturheber'].isna(), 'name_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['name'])
     df.loc[df['vorname_miturheber'].isna(), 'vorname_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['kurzname'])
-    df.loc[df['vorname_miturheber'].isna(), 'anrede_miturheber'] = 'Regierungsrat'
+    # If 'vorname_miturheber' is still empty, there is none
+    df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = float('nan')
+    # but if 'vorname_miturheber' is empty and there is a 'nr_miturheber' it should be 'Regierungsrat'
+    df.loc[(df['vorname_miturheber'].isna()) & (df['nr_miturheber'].notna()), 'gremientyp_miturheber'] = 'Regierungsrat'
 
     # Select relevant columns for publication
     cols_of_interest = [
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
         'titel_ges', 'departement_ges', 'ga_rr_gr', 'url_ges',
-        'anrede_urheber', 'name_urheber', 'vorname_urheber',
-        'partei_kname_urheber', 'url_urheber', 'nr_urheber',
-        'anrede_miturheber', 'name_miturheber', 'vorname_miturheber',
-        'partei_kname_miturheber', 'url_miturheber', 'nr_miturheber'
+        'anrede_urheber', 'gremientyp_urheber','name_urheber', 'vorname_urheber',
+        'partei_kname_urheber', 'url_urheber', 'nr_urheber', 'url_urheber_ratsmitgl',
+        'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber',
+        'partei_kname_miturheber', 'url_miturheber', 'nr_miturheber', 'url_miturheber_ratsmitgl'
     ]
     df = df[cols_of_interest]
 
