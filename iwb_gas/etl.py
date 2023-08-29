@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import datetime
 import os
 import pathlib
 import ods_publish.etl_id as odsp
@@ -9,10 +10,19 @@ from common import change_tracking as ct
 
 
 def main():
-    # To do: add data from the "raw files" for the dates which are not yet in a monthly file
     path_def = os.path.join(pathlib.Path(__file__).parents[1], 'iwb_gas/data/gas/def')
     list_files = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                                      'gas', path_def, '*_DEF_????????.csv')
+    # Add data from the "raw files" for the dates which are not yet in a monthly file
+    # Take every RAW file from the current and the last month and drop duplicate lines later
+    today = datetime.date.today()
+    this_month = today.strftime("%Y%m")
+    list_files += common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                          'gas', path_def, f'*_RAW_{this_month}??.csv')
+    first = today.replace(day=1)
+    last_month = (first - datetime.timedelta(days=1)).strftime("%Y%m")
+    list_files += common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                          'gas', path_def, f'*_RAW_{last_month}??.csv')
     df = pd.DataFrame()
     for file in list_files:
         path = file['local_file']
@@ -21,6 +31,7 @@ def main():
     df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y')
     # to do: fix timezone
     df['Timestamp'] = df['Date'].astype(str) + ' ' + df['Time'].astype(str)
+    df = df.drop_duplicates(subset=['Timestamp'])
     df['year'] = df['Date'].dt.year
     df['month'] = df['Date'] .dt.month
     df['day'] = df['Date'].dt.day
