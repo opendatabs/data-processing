@@ -193,10 +193,16 @@ def create_interessensbindungen_csv(df_adr, df_intr):
     # URL erstellen
     df['url_adr'] = credentials.path_personen + df['uni_nr']
 
+    # Create url's
+    df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr']
+
+    # append "name" and "vorname"
+    df['name_vorname'] = df['name'] + ', ' + df['vorname']
+
     # Select relevant columns for publication
     cols_of_interest = [
-        'rubrik', 'intr-bind', 'funktion', 'text',
-        'anrede', 'name', 'vorname', 'partei_kname', 'url_adr', 'uni_nr'
+        'rubrik', 'intr-bind', 'funktion', 'text', 'anrede', 'name', 'vorname', 'name_vorname',
+        'partei_kname', 'url_adr', 'uni_nr', 'url_ratsmitgliedschaften'
     ]
     df = df[cols_of_interest]
 
