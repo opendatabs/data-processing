@@ -91,20 +91,28 @@ def create_mitglieder_csv(df_adr, df_mit):
     df = df.rename(columns={'beginn': 'gr_beginn', 'ende': 'gr_ende'})
 
     # Check if the membership is currently active in Grosser Rat
-    df['ist_aktuell_grossrat'] = df['gr_ende'] == credentials.unix_ts_max
+    df['ist_aktuell_grossrat'] = "Ja" if df['gr_ende'] == credentials.unix_ts_max else "Nein"
 
-    df['url'] = credentials.path_personen + df['uni_nr']
+    # Create url's
+    df['url'] = f"{credentials.path_personen}{df['uni_nr']}"
+    df['url_gremiumsmitgliedschaften'] = f"{credentials.path_dataset}100308/?refine.uni_nr_adr={df['uni_nr']}"
+    df['url_interessensbindungen'] = f"{credentials.path_dataset}100309/?refine.uni_nr={df['uni_nr']}"
+    df['url_urheber'] = f"{credentials.path_dataset}100311/?refine.nr_urheber={df['uni_nr']}"
+
+    # append "name" and "vorname"
+    df['name_vorname'] = f"{df['name']}, {df['vorname']}"
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'gebdatum', 'gr_sitzplatz',
-        'gr_wahlkreis', 'partei', 'partei_kname', 'gr_beginn', 'gr_ende', 'url', 'uni_nr',
+        'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'name_vorname','gebdatum',
+        'gr_sitzplatz', 'gr_wahlkreis', 'partei', 'partei_kname', 'gr_beginn', 'gr_ende', 'url', 'uni_nr',
         'strasse', 'plz', 'ort', 'gr_beruf', 'gr_arbeitgeber', 'telefong', 'telefonm', 'telefonp',
-        'emailg', 'emailp', 'homepage'
+        'emailg', 'emailp', 'homepage', 'url_gremiumsmitgliedschaften', 'url_interessensbindungen', 'url_urheber'
     ]
     df = df[cols_of_interest]
 
-    # Convert Unix Timestamp to Datetime for date columns
+    # Convert dates in string or unix timestamp to Datetime
+    df['geb_datum'] = pd.to_datetime(df['geb_datum'], format='%d.%m.%Y')
     df = unix_to_datetime(df, ['gr_beginn', 'gr_ende'])
 
     logging.info(f'Creating dataset "Personen im Grossen Rat"...')
@@ -490,7 +498,7 @@ def unix_to_datetime(df, column_names):
 
     # Loop through each specified column and convert Unix timestamps to formatted datetime strings
     for column_name in column_names:
-        df[column_name] = pd.to_datetime(df[column_name].astype(float), unit='s', errors='coerce').dt.strftime('%Y-%m-%d')
+        df[column_name] = pd.to_datetime(df[column_name].astype(float), unit='s', errors='coerce')
     return df
 
 
