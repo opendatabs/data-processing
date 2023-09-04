@@ -140,6 +140,9 @@ def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
     df = pd.merge(df_gre, df_mit, left_on='uni_nr', right_on='uni_nr_gre')
     df = pd.merge(df, df_adr, left_on='uni_nr_adr', right_on='uni_nr')
 
+    # Drop every member of a Gremium which was never in the Grossrat (Parlamentsdienst)
+    df = df.groupby('uni_nr_adr').filter(lambda x: (x['uni_nr_gre'] == '3').any())
+
     # Rename columns for clarity
     df = df.rename(columns={'name_x': 'name_gre', 'name_y': 'name_adr',
                             'beginn': 'beginn_mit', 'ende': 'ende_mit',
