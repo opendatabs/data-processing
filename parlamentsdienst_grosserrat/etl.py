@@ -493,7 +493,9 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
                             'signatur': 'signatur_ges', 'departement': 'departement_ges',
                             'titel': 'titel_ges', 'datum': 'siz_datum'})
 
+    # Create url's
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
@@ -502,7 +504,7 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
     cols_of_interest = [
         'beschlnr', 'nummer', 'Vermerk', 'siz_nr', 'siz_datum',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
     ]
     df = df[cols_of_interest]
 
