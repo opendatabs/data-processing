@@ -91,16 +91,16 @@ def create_mitglieder_csv(df_adr, df_mit):
     df = df.rename(columns={'beginn': 'gr_beginn', 'ende': 'gr_ende'})
 
     # Check if the membership is currently active in Grosser Rat
-    df['ist_aktuell_grossrat'] = "Ja" if df['gr_ende'] == credentials.unix_ts_max else "Nein"
+    df['ist_aktuell_grossrat'] = df['gr_ende'].apply(lambda end: 'Ja' if end == credentials.unix_ts_max else 'Nein')
 
     # Create url's
-    df['url'] = f"{credentials.path_personen}{df['uni_nr']}"
-    df['url_gremiumsmitgliedschaften'] = f"{credentials.path_dataset}100308/?refine.uni_nr_adr={df['uni_nr']}"
-    df['url_interessensbindungen'] = f"{credentials.path_dataset}100309/?refine.uni_nr={df['uni_nr']}"
-    df['url_urheber'] = f"{credentials.path_dataset}100311/?refine.nr_urheber={df['uni_nr']}"
+    df['url'] = credentials.path_personen + df['uni_nr']
+    df['url_gremiumsmitgliedschaften'] = credentials.path_dataset + '100308/?refine.uni_nr_adr=' + df['uni_nr']
+    df['url_interessensbindungen'] = credentials.path_dataset + '100309/?refine.uni_nr=' + df['uni_nr']
+    df['url_urheber'] = credentials.path_dataset + '100311/?refine.nr_urheber=' + df['uni_nr']
 
     # append "name" and "vorname"
-    df['name_vorname'] = f"{df['name']}, {df['vorname']}"
+    df['name_vorname'] = df['name'] + ', ' + df['vorname']
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -112,7 +112,7 @@ def create_mitglieder_csv(df_adr, df_mit):
     df = df[cols_of_interest]
 
     # Convert dates in string or unix timestamp to Datetime
-    df['geb_datum'] = pd.to_datetime(df['geb_datum'], format='%d.%m.%Y')
+    df['gebdatum'] = pd.to_datetime(df['gebdatum'], format='%d.%m.%Y')
     df = unix_to_datetime(df, ['gr_beginn', 'gr_ende'])
 
     logging.info(f'Creating dataset "Personen im Grossen Rat"...')
