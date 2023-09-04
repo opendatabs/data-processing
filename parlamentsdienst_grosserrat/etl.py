@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 import logging
 import pathlib
 from datetime import datetime
@@ -382,24 +383,30 @@ def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
     df = df.fillna(value=values)
     df.loc[df['name_an'] == 'Regierungsrat', 'uni_nr_an'] = float('nan')
     df.loc[df['name_von'] == 'Regierungsrat', 'uni_nr_von'] = float('nan')
-    # Replacing status codes with their meanings# Stati überall mit dessen Bedeutung ersetzen
+    # Replacing status codes with their meanings
     df['status_zuw'] = df['status_zuw'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung',
                                                  'X': 'Abgebrochen', 'F': 'Fertig'})
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
 
+    # Create url's
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
     ''' URL for committee's page (currently removed)
     df['url_gre_an'] = credentials.path_gremien + df['uni_nr_an']
     df['url_gre_von'] = credentials.path_gremien + df['uni_nr_von']
     '''
+    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_gremium_an'] = np.where(df['uni_nr_an'].notna(),
+                                    credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_an'])
+    df['url_gremium_von'] = np.where(df['uni_nr_von'].notna(),
+                                     credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_von'])
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'kurzname_an', 'name_an', 'uni_nr_an', 'erledigt',
+        'kurzname_an', 'name_an', 'uni_nr_an', 'url_gremium_an', 'erledigt',
         'status_zuw', 'termin', 'titel_zuw', 'bem',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges',
-        'kurzname_von', 'name_von', 'uni_nr_von'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
+        'kurzname_von', 'name_von', 'uni_nr_von', 'url_gremium_von'
     ]
     df = df[cols_of_interest]
 
