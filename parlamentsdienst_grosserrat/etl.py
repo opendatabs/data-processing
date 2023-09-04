@@ -229,9 +229,10 @@ def create_gremien_csv(df_gre, df_mit):
     # To check which committees are currently active, we look at committees with current memberships
     # (with a 3-month buffer due to commissions sometimes lacking members for a while after a legislative period)
     unix_ts = (datetime.now() - datetime(1970, 4, 1)).total_seconds()
-    df_mit['ist_aktuelles_gremium'] = df_mit['ende'].apply(lambda end: "Ja" if end.astype(int) > unix_ts else "Nein")
+    df_mit['ist_aktuelles_gremium'] = df_mit['ende'].astype(int) > unix_ts
 
     df_mit = df_mit.groupby('uni_nr_gre').any('ist_aktuelles_gremium')
+    df_mit['ist_aktuelles_gremium'] = np.where(df_mit['ist_aktuelles_gremium'], 'Ja', 'Nein')
 
     df = pd.merge(df_gre, df_mit, left_on='uni_nr', right_on='uni_nr_gre')
 
@@ -396,16 +397,18 @@ def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
     '''
     df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
     df['url_gremium_an'] = np.where(df['uni_nr_an'].notna(),
-                                    credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_an'])
+                                    credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_an'],
+                                    float('NaN'))
     df['url_gremium_von'] = np.where(df['uni_nr_von'].notna(),
-                                     credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_von'])
+                                     credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_von'],
+                                     float('NaN'))
 
     # Select relevant columns for publication
     cols_of_interest = [
         'kurzname_an', 'name_an', 'uni_nr_an', 'url_gremium_an', 'erledigt',
         'status_zuw', 'termin', 'titel_zuw', 'bem',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods',
         'kurzname_von', 'name_von', 'uni_nr_von', 'url_gremium_von'
     ]
     df = df[cols_of_interest]
