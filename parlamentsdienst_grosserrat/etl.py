@@ -441,10 +441,12 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
                             'laufnr': 'laufnr_ges', 'status': 'status_ges',
                             'signatur': 'signatur_ges', 'departement': 'departement_ges'})
 
+    # Create url's
     df['url_dok'] = df['url']
     # Wait for Permalink
     # df['url_dok'] = credentials.path_dokument + df['dok_nr']
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
@@ -453,7 +455,7 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
     cols_of_interest = [
         'dokudatum', 'dok_nr', 'titel_dok', 'url_dok',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
     ]
     df = df[cols_of_interest]
 
