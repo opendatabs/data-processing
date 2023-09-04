@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 import logging
 import pathlib
 from datetime import datetime
@@ -102,9 +103,11 @@ def create_mitglieder_csv(df_adr, df_mit):
     # append "name" and "vorname"
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
 
+    # TODO: Extract Sitzplatznummer from Live-Abstimmungen (100186)
+
     # Select relevant columns for publication
     cols_of_interest = [
-        'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'name_vorname','gebdatum',
+        'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'name_vorname', 'gebdatum',
         'gr_sitzplatz', 'gr_wahlkreis', 'partei', 'partei_kname', 'gr_beginn', 'gr_ende', 'url', 'uni_nr',
         'strasse', 'plz', 'ort', 'gr_beruf', 'gr_arbeitgeber', 'telefong', 'telefonm', 'telefonp',
         'emailg', 'emailp', 'homepage', 'url_gremiumsmitgliedschaften', 'url_interessensbindungen', 'url_urheber'
@@ -143,14 +146,21 @@ def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
                             'kurzname': 'kurzname_gre', 'vorname': 'vorname_adr',
                             'funktion': 'funktion_adr'})
 
+    # Create url's
     df['url_adr'] = credentials.path_personen + df['uni_nr_adr']
     # URL for committee page (currently removed)
     # df['url_gre'] = credentials.path_gremien + df['uni_nr_gre']
+    df['url_gremium'] = credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_gre']
+    df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr_adr']
+
+    # append "name" and "vorname"
+    df['name_vorname'] = df['name_adr'] + ', ' + df['vorname_adr']
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'kurzname_gre', 'name_gre', 'gremientyp', 'uni_nr_gre', 'beginn_mit', 'ende_mit',
-        'funktion_adr', 'anrede', 'name_adr', 'vorname_adr', 'partei_kname', 'url_adr', 'uni_nr_adr'
+        'kurzname_gre', 'name_gre', 'gremientyp', 'uni_nr_gre', 'url_gremium', 'beginn_mit', 'ende_mit',
+        'funktion_adr', 'anrede', 'name_adr', 'vorname_adr', 'name_vorname', 'partei_kname', 'url_adr', 'uni_nr_adr',
+        'url_ratsmitgliedschaften'
     ]
     df = df[cols_of_interest]
 
@@ -184,10 +194,16 @@ def create_interessensbindungen_csv(df_adr, df_intr):
     # URL erstellen
     df['url_adr'] = credentials.path_personen + df['uni_nr']
 
+    # Create url
+    df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr']
+
+    # append "name" and "vorname"
+    df['name_vorname'] = df['name'] + ', ' + df['vorname']
+
     # Select relevant columns for publication
     cols_of_interest = [
-        'rubrik', 'intr-bind', 'funktion', 'text',
-        'anrede', 'name', 'vorname', 'partei_kname', 'url_adr', 'uni_nr'
+        'rubrik', 'intr-bind', 'funktion', 'text', 'anrede', 'name', 'vorname', 'name_vorname',
+        'partei_kname', 'url_adr', 'uni_nr', 'url_ratsmitgliedschaften'
     ]
     df = df[cols_of_interest]
 
@@ -216,16 +232,22 @@ def create_gremien_csv(df_gre, df_mit):
     df_mit['ist_aktuelles_gremium'] = df_mit['ende'].astype(int) > unix_ts
 
     df_mit = df_mit.groupby('uni_nr_gre').any('ist_aktuelles_gremium')
+    df_mit['ist_aktuelles_gremium'] = np.where(df_mit['ist_aktuelles_gremium'], 'Ja', 'Nein')
 
     df = pd.merge(df_gre, df_mit, left_on='uni_nr', right_on='uni_nr_gre')
 
+    # Create url's
     # URL for the committee's page (currently removed)
     # TODO: Add using Sitemap XML for current committees.
     # df['url_gre'] = credentials.path_gremium + df['uni_nr']
+    df['url_mitgliedschaften'] = credentials.path_dataset + '100308/?refine.uni_nr_gre=' + df['uni_nr']
+    df['url_urheber'] = credentials.path_dataset + '100311/?refine.uni_nr_urheber=' + df['uni_nr']
+    df['url_zugew_geschaefte'] = credentials.path_dataset + '100312/?refine.uni_nr_an=' + df['uni_nr']
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'ist_aktuelles_gremium', 'kurzname', 'name', 'gremientyp', 'uni_nr'
+        'ist_aktuelles_gremium', 'kurzname', 'name', 'gremientyp', 'uni_nr',
+        'url_mitgliedschaften', 'url_urheber', 'url_zugew_geschaefte'
     ]
     df = df[cols_of_interest]
 
@@ -261,13 +283,18 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
                             'signatur': 'signatur_ges', 'departement': 'departement_ges',
                             'gr_urheber': 'nr_urheber', 'uni_nr_adr': 'nr_miturheber'})
 
+    # Create url's
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_zuweisungen'] = credentials.path_dataset + '100312/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_dokumente'] = credentials.path_dataset + '100313/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_vorgaenge'] = credentials.path_dataset + '100314/?refine.signatur_ges=' + df['signatur_ges']
+
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
 
     df['url_urheber'] = credentials.path_personen + df['nr_urheber'][df['nr_urheber'].notna()]
-    df['url_urheber_ratsmitgl'] = ('https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' +
-                                   df['nr_urheber'][df['nr_urheber'].notna()])
+    df['url_urheber_ratsmitgl'] = (credentials.path_dataset + '100307/?refine.uni_nr='
+                                   + df['nr_urheber'][df['nr_urheber'].notna()])
     # If the "Urheber" is a committee (gremium), no link should be created
     df.loc[df['vorname_urheber'].isna(), 'url_urheber'] = float('nan')
     df.loc[df['vorname_urheber'].isna(), 'url_urheber_ratsmitgl'] = float('nan')
@@ -282,7 +309,7 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
 
     # Similar approach for Miturheber
     df['url_miturheber'] = credentials.path_personen + df['nr_miturheber'][df['nr_miturheber'].notna()]
-    df['url_miturheber_ratsmitgl'] = ('https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' +
+    df['url_miturheber_ratsmitgl'] = (credentials.path_dataset + '100307/?refine.uni_nr=' +
                                    df['nr_miturheber'][df['nr_miturheber'].notna()])
     df.loc[df['vorname_miturheber'].isna(), 'url_miturheber'] = float('nan')
     df.loc[df['vorname_miturheber'].isna(), 'url_miturheber_ratsmitgl'] = float('nan')
@@ -357,24 +384,32 @@ def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
     df = df.fillna(value=values)
     df.loc[df['name_an'] == 'Regierungsrat', 'uni_nr_an'] = float('nan')
     df.loc[df['name_von'] == 'Regierungsrat', 'uni_nr_von'] = float('nan')
-    # Replacing status codes with their meanings# Stati überall mit dessen Bedeutung ersetzen
+    # Replacing status codes with their meanings
     df['status_zuw'] = df['status_zuw'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung',
                                                  'X': 'Abgebrochen', 'F': 'Fertig'})
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
 
+    # Create url's
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
     ''' URL for committee's page (currently removed)
     df['url_gre_an'] = credentials.path_gremien + df['uni_nr_an']
     df['url_gre_von'] = credentials.path_gremien + df['uni_nr_von']
     '''
+    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_gremium_an'] = np.where(df['uni_nr_an'].notna(),
+                                    credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_an'],
+                                    float('NaN'))
+    df['url_gremium_von'] = np.where(df['uni_nr_von'].notna(),
+                                     credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_von'],
+                                     float('NaN'))
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'kurzname_an', 'name_an', 'uni_nr_an', 'erledigt',
+        'kurzname_an', 'name_an', 'uni_nr_an', 'url_gremium_an', 'erledigt',
         'status_zuw', 'termin', 'titel_zuw', 'bem',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges',
-        'kurzname_von', 'name_von', 'uni_nr_von'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods',
+        'kurzname_von', 'name_von', 'uni_nr_von', 'url_gremium_von'
     ]
     df = df[cols_of_interest]
 
@@ -409,10 +444,12 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
                             'laufnr': 'laufnr_ges', 'status': 'status_ges',
                             'signatur': 'signatur_ges', 'departement': 'departement_ges'})
 
+    # Create url's
     df['url_dok'] = df['url']
     # Wait for Permalink
     # df['url_dok'] = credentials.path_dokument + df['dok_nr']
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
@@ -421,7 +458,7 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
     cols_of_interest = [
         'dokudatum', 'dok_nr', 'titel_dok', 'url_dok',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
     ]
     df = df[cols_of_interest]
 
@@ -459,7 +496,9 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
                             'signatur': 'signatur_ges', 'departement': 'departement_ges',
                             'titel': 'titel_ges', 'datum': 'siz_datum'})
 
+    # Create url's
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
@@ -468,7 +507,7 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
     cols_of_interest = [
         'beschlnr', 'nummer', 'Vermerk', 'siz_nr', 'siz_datum',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
-        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges'
+        'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
     ]
     df = df[cols_of_interest]
 
