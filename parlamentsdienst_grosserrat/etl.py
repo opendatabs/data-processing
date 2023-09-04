@@ -281,13 +281,18 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
                             'signatur': 'signatur_ges', 'departement': 'departement_ges',
                             'gr_urheber': 'nr_urheber', 'uni_nr_adr': 'nr_miturheber'})
 
+    # Create url's
     df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_zuweisungen'] = credentials.path_dataset + '100312/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_dokumente'] = credentials.path_dataset + '100313/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_vorgaenge'] = credentials.path_dataset + '100314/?refine.signatur_ges=' + df['signatur_ges']
+
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
 
     df['url_urheber'] = credentials.path_personen + df['nr_urheber'][df['nr_urheber'].notna()]
-    df['url_urheber_ratsmitgl'] = ('https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' +
-                                   df['nr_urheber'][df['nr_urheber'].notna()])
+    df['url_urheber_ratsmitgl'] = (credentials.path_dataset + '100307/?refine.uni_nr='
+                                   + df['nr_urheber'][df['nr_urheber'].notna()])
     # If the "Urheber" is a committee (gremium), no link should be created
     df.loc[df['vorname_urheber'].isna(), 'url_urheber'] = float('nan')
     df.loc[df['vorname_urheber'].isna(), 'url_urheber_ratsmitgl'] = float('nan')
@@ -302,7 +307,7 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
 
     # Similar approach for Miturheber
     df['url_miturheber'] = credentials.path_personen + df['nr_miturheber'][df['nr_miturheber'].notna()]
-    df['url_miturheber_ratsmitgl'] = ('https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' +
+    df['url_miturheber_ratsmitgl'] = (credentials.path_dataset + '100307/?refine.uni_nr=' +
                                    df['nr_miturheber'][df['nr_miturheber'].notna()])
     df.loc[df['vorname_miturheber'].isna(), 'url_miturheber'] = float('nan')
     df.loc[df['vorname_miturheber'].isna(), 'url_miturheber_ratsmitgl'] = float('nan')
