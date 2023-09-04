@@ -102,9 +102,11 @@ def create_mitglieder_csv(df_adr, df_mit):
     # append "name" and "vorname"
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
 
+    # TODO: Extract Sitzplatznummer from Live-Abstimmungen (100186)
+
     # Select relevant columns for publication
     cols_of_interest = [
-        'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'name_vorname','gebdatum',
+        'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'name_vorname', 'gebdatum',
         'gr_sitzplatz', 'gr_wahlkreis', 'partei', 'partei_kname', 'gr_beginn', 'gr_ende', 'url', 'uni_nr',
         'strasse', 'plz', 'ort', 'gr_beruf', 'gr_arbeitgeber', 'telefong', 'telefonm', 'telefonp',
         'emailg', 'emailp', 'homepage', 'url_gremiumsmitgliedschaften', 'url_interessensbindungen', 'url_urheber'
@@ -143,14 +145,21 @@ def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
                             'kurzname': 'kurzname_gre', 'vorname': 'vorname_adr',
                             'funktion': 'funktion_adr'})
 
+    # Create url's
     df['url_adr'] = credentials.path_personen + df['uni_nr_adr']
     # URL for committee page (currently removed)
     # df['url_gre'] = credentials.path_gremien + df['uni_nr_gre']
+    df['url_gremium'] = credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_gre']
+    df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr_adr']
+
+    # append "name" and "vorname"
+    df['name_vorname'] = df['name_adr'] + ', ' + df['vorname_adr']
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'kurzname_gre', 'name_gre', 'gremientyp', 'uni_nr_gre', 'beginn_mit', 'ende_mit',
-        'funktion_adr', 'anrede', 'name_adr', 'vorname_adr', 'partei_kname', 'url_adr', 'uni_nr_adr'
+        'kurzname_gre', 'name_gre', 'gremientyp', 'uni_nr_gre', 'url_gremium', 'beginn_mit', 'ende_mit',
+        'funktion_adr', 'anrede', 'name_adr', 'vorname_adr', 'name_vorname', 'partei_kname', 'url_adr', 'uni_nr_adr',
+        'url_ratsmitgliedschaften'
     ]
     df = df[cols_of_interest]
 
