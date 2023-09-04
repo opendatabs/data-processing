@@ -193,7 +193,7 @@ def create_interessensbindungen_csv(df_adr, df_intr):
     # URL erstellen
     df['url_adr'] = credentials.path_personen + df['uni_nr']
 
-    # Create url's
+    # Create url
     df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr']
 
     # append "name" and "vorname"
@@ -228,19 +228,24 @@ def create_gremien_csv(df_gre, df_mit):
     # To check which committees are currently active, we look at committees with current memberships
     # (with a 3-month buffer due to commissions sometimes lacking members for a while after a legislative period)
     unix_ts = (datetime.now() - datetime(1970, 4, 1)).total_seconds()
-    df_mit['ist_aktuelles_gremium'] = df_mit['ende'].astype(int) > unix_ts
+    df_mit['ist_aktuelles_gremium'] = df_mit['ende'].apply(lambda end: "Ja" if end.astype(int) > unix_ts else "Nein")
 
     df_mit = df_mit.groupby('uni_nr_gre').any('ist_aktuelles_gremium')
 
     df = pd.merge(df_gre, df_mit, left_on='uni_nr', right_on='uni_nr_gre')
 
+    # Create url's
     # URL for the committee's page (currently removed)
     # TODO: Add using Sitemap XML for current committees.
     # df['url_gre'] = credentials.path_gremium + df['uni_nr']
+    df['url_mitgliedschaften'] = credentials.path_dataset + '100308/?refine.uni_nr_gre=' + df['uni_nr']
+    df['url_urheber'] = credentials.path_dataset + '100311/?refine.uni_nr_urheber=' + df['uni_nr']
+    df['url_zugew_geschaefte'] = credentials.path_dataset + '100312/?refine.uni_nr_an=' + df['uni_nr']
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'ist_aktuelles_gremium', 'kurzname', 'name', 'gremientyp', 'uni_nr'
+        'ist_aktuelles_gremium', 'kurzname', 'name', 'gremientyp', 'uni_nr',
+        'url_mitgliedschaften', 'url_urheber', 'url_zugew_geschaefte'
     ]
     df = df[cols_of_interest]
 
