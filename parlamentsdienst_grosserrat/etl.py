@@ -4,84 +4,101 @@ import numpy as np
 import logging
 import pathlib
 from datetime import datetime
+from io import StringIO
 
 from parlamentsdienst_grosserrat import credentials
 import common
 import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 
+# TODO: Good Practice: use inplace=True parameter
+# TODO: Ask Jonas: Best Practice for calculating paths (absolute or relative)
+# TODO: Check if update_ftp_odsp into common into Planner (Ideas)
+
+# All paths
+PATH_GR = 'https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable='
+PATH_ADR = StringIO(common.requests_get(f'{PATH_GR}adr').text)
+PATH_MIT = StringIO(common.requests_get(f'{PATH_GR}mit').text)
+PATH_GRE = StringIO(common.requests_get(f'{PATH_GR}gre').text)
+PATH_INTR = StringIO(common.requests_get(f'{PATH_GR}intr').text)
+PATH_GES = StringIO(common.requests_get(f'{PATH_GR}ges').text)
+PATH_KON = StringIO(common.requests_get(f'{PATH_GR}kon').text)
+PATH_ZUW = StringIO(common.requests_get(f'{PATH_GR}zuw').text)
+PATH_DOK = StringIO(common.requests_get(f'{PATH_GR}dok').text)
+PATH_VOR = StringIO(common.requests_get(f'{PATH_GR}vor').text)
+PATH_SIZ = StringIO(common.requests_get(f'{PATH_GR}siz').text)
+PATH_PERSONEN = 'https://grosserrat.bs.ch/?mnr='
+PATH_GESCHAEFT = 'https://grosserrat.bs.ch/?gnr='
+PATH_DOKUMENT = 'https://grosserrat.bs.ch/?dnr='
+PATH_DATASET = 'https://data.bs.ch/explore/dataset/'
+
+# Unix timestamps that mark the maximum and minimum possible timestamp
+UNIX_TS_MAX = '253402300799'
+UNIX_TS_MIN = '-30610224000'
+
+# Dictionary to handle the comittees which need their ID to be replaced
+REPLACE_UNI_NR_GRE_DICT = {'1934': '3', '4276': '2910', '4278': '3164', '4279': '3196', '4280': '3331'}
+REPLACE_STATUS_CODES_GES = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung'}
+REPLACE_STATUS_CODES_ZUW = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung', 'X': 'Abgebrochen', 'F': 'Fertig'}
+
 
 def main():
     """
-    This python-file reads various CSV files containing different types of data, processes them, and creates
-    corresponding CSV files for each type of data.
+    Reads various CSV files with diff. types of data, processes them, and creates
+    corresponding CSV files to publish them.
 
-    It performs the following steps:
     1. Read CSV files containing data about addresses, memberships, committees, interests, businesses,
        associates, assignments, documents, processes, and meetings.
     2. Process and modify the data
     3. Create CSV files for data.bs.ch
     """
     logging.info(f'Reading Personen.csv...')
-    df_adr = common.pandas_read_csv(credentials.path_adr, encoding='utf-8', dtype=str)
+    df_adr = common.pandas_read_csv(PATH_ADR, encoding='utf-8', dtype=str)
     logging.info(f'Reading Mitgliedschaften.csv...')
-    df_mit = common.pandas_read_csv(credentials.path_mit, encoding='utf-8', dtype=str)
+    df_mit = common.pandas_read_csv(PATH_MIT, encoding='utf-8', dtype=str)
     logging.info(f'Reading Gremien.csv...')
-    df_gre = common.pandas_read_csv(credentials.path_gre, encoding='utf-8', dtype=str)
+    df_gre = common.pandas_read_csv(PATH_GRE, encoding='utf-8', dtype=str)
     logging.info(f'Reading Interessensbindungen.csv...')
-    df_intr = common.pandas_read_csv(credentials.path_intr, encoding='utf-8', dtype=str)
+    df_intr = common.pandas_read_csv(PATH_INTR, encoding='utf-8', dtype=str)
 
     logging.info(f'Reading Geschäfte.csv...')
-    df_ges = common.pandas_read_csv(credentials.path_ges, encoding='utf-8', dtype=str)
+    df_ges = common.pandas_read_csv(PATH_GES, encoding='utf-8', dtype=str)
     # Replace identifiers to match with values in the committee list (gremium.csv)
-    df_ges['gr_urheber'] = df_ges['gr_urheber'].replace({'1934': '3', '4276': '2910', '4278': '3164',
-                                                         '4279': '3196', '4280': '3331'})
+    df_ges['gr_urheber'] = df_ges['gr_urheber'].replace(REPLACE_UNI_NR_GRE_DICT)
 
     logging.info(f'Reading Konsorten.csv...')
-    df_kon = common.pandas_read_csv(credentials.path_kon, encoding='utf-8', dtype=str)
-    df_kon['uni_nr_adr'] = df_kon['uni_nr_adr'].replace({'1934': '3', '4276': '2910', '4278': '3164',
-                                                         '4279': '3196', '4280': '3331'})
+    df_kon = common.pandas_read_csv(PATH_KON, encoding='utf-8', dtype=str)
+    df_kon['uni_nr_adr'] = df_kon['uni_nr_adr'].replace(REPLACE_UNI_NR_GRE_DICT)
 
     logging.info(f'Reading Zuweisungen.csv...')
-    df_zuw = common.pandas_read_csv(credentials.path_zuw, encoding='utf-8', dtype=str)
-    # Temporarily replace 'Parlamentsdienst' (1934) with 'Grosser Rat' (3)
-    df_zuw = df_zuw.replace({'uni_nr_von': '1934', 'uni_nr_an': '1934'}, '3')
-
-    # Replace other committee identifiers for consistency with committee list (gremium.csv)
-    df_zuw = df_zuw.replace({'uni_nr_von': '4276', 'uni_nr_an': '4276'}, '2910')  # IPK-FHN
-    df_zuw = df_zuw.replace({'uni_nr_von': '4278', 'uni_nr_an': '4276'}, '3164')  # IGPK-UK
-    df_zuw = df_zuw.replace({'uni_nr_von': '4279', 'uni_nr_an': '4279'}, '3196')  # IGPK-Un
-    df_zuw = df_zuw.replace({'uni_nr_von': '4280', 'uni_nr_an': '4280'}, '3331')  # IGPK-Ha
+    df_zuw = common.pandas_read_csv(PATH_ZUW, encoding='utf-8', dtype=str)
+    # Replace identifiers to match with values in the committee list (gremium.csv)
+    df_zuw['uni_nr_an'] = df_zuw['uni_nr_an'].replace(REPLACE_UNI_NR_GRE_DICT)
+    df_zuw['uni_nr_von'] = df_zuw['uni_nr_von'].replace(REPLACE_UNI_NR_GRE_DICT)
 
     logging.info(f'Reading Dokumente.csv...')
-    df_dok = common.pandas_read_csv(credentials.path_dok, encoding='utf-8', dtype=str)
+    df_dok = common.pandas_read_csv(PATH_DOK, encoding='utf-8', dtype=str)
     logging.info(f'Reading Vorgänge.csv...')
-    df_vor = common.pandas_read_csv(credentials.path_vor, encoding='utf-8', dtype=str)
+    df_vor = common.pandas_read_csv(PATH_VOR, encoding='utf-8', dtype=str)
     logging.info(f'Reading Sitzungen.csv...')
-    df_siz = common.pandas_read_csv(credentials.path_siz, encoding='utf-8', dtype=str)
+    df_siz = common.pandas_read_csv(PATH_SIZ, encoding='utf-8', dtype=str)
 
     # Perform data processing and CSV file creation functions
-    create_mitglieder_csv(df_adr, df_mit)
-    create_mitgliedschaften_csv(df_adr, df_mit, df_gre)
-    create_interessensbindungen_csv(df_adr, df_intr)
-    create_gremien_csv(df_gre, df_mit)
-    create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre)
-    create_zuweisungen_csv(df_gre, df_ges, df_zuw)
-    create_dokumente_csv(df_adr, df_ges, df_dok)
-    create_vorgaenge_csv(df_ges, df_vor, df_siz)
+    args_for_uploads = [create_mitglieder_csv(df_adr, df_mit),
+                        create_mitgliedschaften_csv(df_adr, df_mit, df_gre),
+                        create_interessensbindungen_csv(df_adr, df_intr),
+                        create_gremien_csv(df_gre, df_mit),
+                        create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre),
+                        create_zuweisungen_csv(df_gre, df_ges, df_zuw),
+                        create_dokumente_csv(df_adr, df_ges, df_dok),
+                        create_vorgaenge_csv(df_ges, df_vor, df_siz)]
+
+    # Upload everything into FTP-Server and update the dataset on data.bs.ch
+    for args_for_upload in args_for_uploads:
+        update_ftp_and_odsp(*args_for_upload)
 
 
-def create_mitglieder_csv(df_adr, df_mit):
-    """
-    Create a CSV file containing information about members of the Grosser Rat (Parliament).
-
-    Args:
-        df_adr (pd.DataFrame): DataFrame containing person information.
-        df_mit (pd.DataFrame): DataFrame containing membership information.
-
-    Returns:
-        None
-    """
+def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     # Select members of Grosser Rat without specific functions
     # since functions are always recorded as part of an entire membership
     # Not ignoring it would lead to duplicated memberships
@@ -92,13 +109,13 @@ def create_mitglieder_csv(df_adr, df_mit):
     df = df.rename(columns={'beginn': 'gr_beginn', 'ende': 'gr_ende'})
 
     # Check if the membership is currently active in Grosser Rat
-    df['ist_aktuell_grossrat'] = df['gr_ende'].apply(lambda end: 'Ja' if end == credentials.unix_ts_max else 'Nein')
+    df['ist_aktuell_grossrat'] = df['gr_ende'].apply(lambda end: 'Ja' if end == UNIX_TS_MAX else 'Nein')
 
     # Create url's
-    df['url'] = credentials.path_personen + df['uni_nr']
-    df['url_gremiumsmitgliedschaften'] = credentials.path_dataset + '100308/?refine.uni_nr_adr=' + df['uni_nr']
-    df['url_interessensbindungen'] = credentials.path_dataset + '100309/?refine.uni_nr=' + df['uni_nr']
-    df['url_urheber'] = credentials.path_dataset + '100311/?refine.nr_urheber=' + df['uni_nr']
+    df['url'] = PATH_PERSONEN + df['uni_nr']
+    df['url_gremiumsmitgliedschaften'] = PATH_DATASET + '100308/?refine.uni_nr_adr=' + df['uni_nr']
+    df['url_interessensbindungen'] = PATH_DATASET + '100309/?refine.uni_nr=' + df['uni_nr']
+    df['url_urheber'] = PATH_DATASET + '100311/?refine.nr_urheber=' + df['uni_nr']
 
     # append "name" and "vorname"
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
@@ -118,25 +135,15 @@ def create_mitglieder_csv(df_adr, df_mit):
     df['gebdatum'] = pd.to_datetime(df['gebdatum'], format='%d.%m.%Y')
     df = unix_to_datetime(df, ['gr_beginn', 'gr_ende'])
 
-    logging.info(f'Creating dataset "Personen im Grossen Rat"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_mitglieder.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Ratsmitgliedschaften"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data/export/grosser_rat_mitglieder.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'mitglieder', '100307')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'mitglieder', '100307'
 
 
-def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
-    """
-        Creates a CSV file containing membership information in committees.
-
-        Args:
-        df_adr (pd.DataFrame): DataFrame containing person information.
-        df_mit (pd.DataFrame): DataFrame containing membership information.
-        df_gre (pd.DataFrame): DataFrame containing committee information.
-
-    Returns:
-        None
-    """
+def create_mitgliedschaften_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame, df_gre: pd.DataFrame) -> tuple:
     df = pd.merge(df_gre, df_mit, left_on='uni_nr', right_on='uni_nr_gre')
     df = pd.merge(df, df_adr, left_on='uni_nr_adr', right_on='uni_nr')
 
@@ -150,11 +157,11 @@ def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
                             'funktion': 'funktion_adr'})
 
     # Create url's
-    df['url_adr'] = credentials.path_personen + df['uni_nr_adr']
+    df['url_adr'] = PATH_PERSONEN + df['uni_nr_adr']
     # URL for committee page (currently removed)
     # df['url_gre'] = credentials.path_gremien + df['uni_nr_gre']
-    df['url_gremium'] = credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_gre']
-    df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr_adr']
+    df['url_gremium'] = PATH_DATASET + '100310/?refine.uni_nr=' + df['uni_nr_gre']
+    df['url_ratsmitgliedschaften'] = PATH_DATASET + '100307/?refine.uni_nr=' + df['uni_nr_adr']
 
     # append "name" and "vorname"
     df['name_vorname'] = df['name_adr'] + ', ' + df['vorname_adr']
@@ -170,35 +177,26 @@ def create_mitgliedschaften_csv(df_adr, df_mit, df_gre):
     # Convert Unix Timestamp to Datetime for date columns
     df = unix_to_datetime(df, ['beginn_mit', 'ende_mit'])
 
-    logging.info(f'Creating dataset "Mitgliedschaften in Gremien"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_mitgliedschaften.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Mitgliedschaften in Gremien"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'mitgliedschaften', '100308')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'mitgliedschaften', '100308'
 
 
-def create_interessensbindungen_csv(df_adr, df_intr):
-    """
-    Creates a CSV file containing information about interest bindings.
-
-    Args:
-        df_adr (pd.DataFrame): DataFrame containing person information.
-        df_intr (pd.DataFrame): DataFrame containing stakeholder information.
-
-    Returns:
-        None
-    """
+def create_interessensbindungen_csv(df_adr: pd.DataFrame, df_intr: pd.DataFrame) -> tuple:
     df = pd.merge(df_intr, df_adr, left_on='idnr_adr', right_on='idnr')
 
     # Splitting 'text' column to separate 'intr-bind' and 'funktion'
-    df['pos_of_('] = df['text'].str.rfind('(')
-    df['intr-bind'] = df.apply(lambda x: x['text'][:x['pos_of_('] - 1], axis=1)
-    df['funktion'] = df.apply(lambda x: x['text'][x['pos_of_('] + 1:-1], axis=1)
+    df[['intr-bind', 'funktion']] = df['text'].str.rsplit(n=1, pat='(', expand=True)
+    df['funktion'] = df['funktion'].str[:-1]
     # URL erstellen
-    df['url_adr'] = credentials.path_personen + df['uni_nr']
+    df['url_adr'] = PATH_PERSONEN + df['uni_nr']
 
     # Create url
-    df['url_ratsmitgliedschaften'] = credentials.path_dataset + '100307/?refine.uni_nr=' + df['uni_nr']
+    df['url_ratsmitgliedschaften'] = PATH_DATASET + '100307/?refine.uni_nr=' + df['uni_nr']
 
     # append "name" and "vorname"
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
@@ -210,25 +208,16 @@ def create_interessensbindungen_csv(df_adr, df_intr):
     ]
     df = df[cols_of_interest]
 
-    logging.info(f'Creating dataset "Mitgliedschaften in Interessensbindungen"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_interessensbindungen.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Interessensbindungen"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_interessensbindungen.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'interessensbindungen', '100309')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'interessensbindungen', '100309'
 
 
-def create_gremien_csv(df_gre, df_mit):
-    """
-    Creates a CSV file containing information about committees in the "Grosser Rat".
-
-    Args:
-        df_gre (pd.DataFrame): DataFrame containing committee information.
-        df_mit (pd.DataFrame): DataFrame containing membership information.
-
-    Returns:
-        None
-    """
-
+def create_gremien_csv(df_gre: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     # To check which committees are currently active, we look at committees with current memberships
     # (with a 3-month buffer due to commissions sometimes lacking members for a while after a legislative period)
     unix_ts = (datetime.now() - datetime(1970, 4, 1)).total_seconds()
@@ -243,9 +232,9 @@ def create_gremien_csv(df_gre, df_mit):
     # URL for the committee's page (currently removed)
     # TODO: Add using Sitemap XML for current committees.
     # df['url_gre'] = credentials.path_gremium + df['uni_nr']
-    df['url_mitgliedschaften'] = credentials.path_dataset + '100308/?refine.uni_nr_gre=' + df['uni_nr']
-    df['url_urheber'] = credentials.path_dataset + '100311/?refine.uni_nr_urheber=' + df['uni_nr']
-    df['url_zugew_geschaefte'] = credentials.path_dataset + '100312/?refine.uni_nr_an=' + df['uni_nr']
+    df['url_mitgliedschaften'] = PATH_DATASET + '100308/?refine.uni_nr_gre=' + df['uni_nr']
+    df['url_urheber'] = PATH_DATASET + '100311/?refine.uni_nr_urheber=' + df['uni_nr']
+    df['url_zugew_geschaefte'] = PATH_DATASET + '100312/?refine.uni_nr_an=' + df['uni_nr']
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -254,27 +243,17 @@ def create_gremien_csv(df_gre, df_mit):
     ]
     df = df[cols_of_interest]
 
-    logging.info(f'Creating Datensatz "Gremien im Grossen Rat"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_gremien.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Gremien"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_gremien.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'gremien', '100310')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'gremien', '100310'
 
 
-def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
-    """
-    Creates a CSV file containing information about matters (Geschäfte) in the parliament.
-
-    Args:
-        df_adr (pd.DataFrame): DataFrame containing person information.
-        df_ges (pd.DataFrame): DataFrame containing matters information.
-        df_kon (pd.DataFrame): DataFrame containing consortium information.
-        df_gre (pd.DataFrame): DataFrame containing committee information.
-
-    Returns:
-        None
-    """
-
+def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd.DataFrame,
+                          df_gre: pd.DataFrame) -> tuple:
     df = pd.merge(df_ges, df_adr, how='left', left_on='gr_urheber', right_on='uni_nr', suffixes=('_ges', '_adr'))
     # Konsorten hinzufügen
     df = pd.merge(df, df_kon, how='left', left_on='laufnr', right_on='ges_laufnr')
@@ -287,20 +266,18 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
                             'gr_urheber': 'nr_urheber', 'uni_nr_adr': 'nr_miturheber'})
 
     # Create url's
-    df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
-    df['url_zuweisungen'] = credentials.path_dataset + '100312/?refine.signatur_ges=' + df['signatur_ges']
-    df['url_dokumente'] = credentials.path_dataset + '100313/?refine.signatur_ges=' + df['signatur_ges']
-    df['url_vorgaenge'] = credentials.path_dataset + '100314/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
+    df['url_zuweisungen'] = PATH_DATASET + '100312/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_dokumente'] = PATH_DATASET + '100313/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_vorgaenge'] = PATH_DATASET + '100314/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
-    df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
+    df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
-    df['url_urheber'] = credentials.path_personen + df['nr_urheber'][df['nr_urheber'].notna()]
-    df['url_urheber_ratsmitgl'] = (credentials.path_dataset + '100307/?refine.uni_nr='
-                                   + df['nr_urheber'][df['nr_urheber'].notna()])
-    # If the "Urheber" is a committee (gremium), no link should be created
-    df.loc[df['vorname_urheber'].isna(), 'url_urheber'] = float('nan')
-    df.loc[df['vorname_urheber'].isna(), 'url_urheber_ratsmitgl'] = float('nan')
+    # Create url's for the urheber numbers, which are people (can also be gremium/commitee)
+    df['url_urheber'] = np.where(df['vorname_urheber'].notna(), PATH_PERSONEN + df['nr_urheber'], float('NaN'))
+    df['url_urheber_ratsmitgl'] = np.where(df['vorname_urheber'].notna(),
+                                           PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_urheber'], float('NaN'))
     # Fields for names of person can be used for the committee as follows
     df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = 'Kommission'
     df.loc[df['vorname_urheber'].isna(), 'name_urheber'] = df['nr_urheber'].map(
@@ -309,13 +286,14 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
         df_gre.set_index('uni_nr')['kurzname'])
     # If 'vorname_urheber' is still empty, it's "Regierungsrat"
     df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = 'Regierungsrat'
+    df.loc[df['gremientyp_urheber'] == 'Regierungsrat', 'name_urheber'] = 'Regierungsrat'
+    df.loc[df['gremientyp_urheber'] == 'Regierungsrat', 'vorname_urheber'] = 'RR'
 
     # Similar approach for Miturheber
-    df['url_miturheber'] = credentials.path_personen + df['nr_miturheber'][df['nr_miturheber'].notna()]
-    df['url_miturheber_ratsmitgl'] = (credentials.path_dataset + '100307/?refine.uni_nr=' +
-                                   df['nr_miturheber'][df['nr_miturheber'].notna()])
-    df.loc[df['vorname_miturheber'].isna(), 'url_miturheber'] = float('nan')
-    df.loc[df['vorname_miturheber'].isna(), 'url_miturheber_ratsmitgl'] = float('nan')
+    df['url_miturheber'] = np.where(df['vorname_miturheber'].notna(), PATH_PERSONEN + df['nr_miturheber'], float('NaN'))
+    df['url_miturheber_ratsmitgl'] = np.where(df['vorname_miturheber'].notna(),
+                                              PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_miturheber'],
+                                              float('NaN'))
     df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = 'Kommission'
     df.loc[df['vorname_miturheber'].isna(), 'name_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['name'])
@@ -325,12 +303,14 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
     df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = float('nan')
     # but if 'vorname_miturheber' is empty and there is a 'nr_miturheber' it should be 'Regierungsrat'
     df.loc[(df['vorname_miturheber'].isna()) & (df['nr_miturheber'].notna()), 'gremientyp_miturheber'] = 'Regierungsrat'
+    df.loc[df['gremientyp_miturheber'] == 'Regierungsrat', 'name_miturheber'] = 'Regierungsrat'
+    df.loc[df['gremientyp_miturheber'] == 'Regierungsrat', 'vorname_miturheber'] = 'RR'
 
     # Select relevant columns for publication
     cols_of_interest = [
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
         'titel_ges', 'departement_ges', 'ga_rr_gr', 'url_ges',
-        'anrede_urheber', 'gremientyp_urheber','name_urheber', 'vorname_urheber',
+        'anrede_urheber', 'gremientyp_urheber', 'name_urheber', 'vorname_urheber',
         'partei_kname_urheber', 'url_urheber', 'nr_urheber', 'url_urheber_ratsmitgl',
         'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber',
         'partei_kname_miturheber', 'url_miturheber', 'nr_miturheber', 'url_miturheber_ratsmitgl'
@@ -340,36 +320,16 @@ def create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre):
     # Convert Unix Timestamp to Datetime for date columns
     df = unix_to_datetime(df, ['beginn_ges', 'ende_ges'])
 
-    logging.info(f'Creating dataset "Geschäfte im Grossen Rat"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_geschaefte.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Geschäfte"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_geschaefte.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'geschaefte', '100311')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'geschaefte', '100311'
 
 
-def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
-    """
-    Creates a CSV file containing information about assignments of matters to committees.
-
-    Args:
-        df_gre (pd.DataFrame): DataFrame containing committee information.
-        df_ges (pd.DataFrame): DataFrame containing matters information.
-        df_zuw (pd.DataFrame): DataFrame containing assignment information.
-
-    Returns:
-        None
-    """
-
-    """ Temporary alternative solution for now
-    # The following entries need to be added manually
-    df_to_add = pd.DataFrame([[4276, 'GR-IPK-FHN', 'Delegation IPK Fachhochschule Nordwestschweiz'],
-                              [4278, 'GR-IGPK-UK', 'Delegation IGPK Uni-Kinderspital beider Basel'],
-                              [4279, 'GR-IGPK-Un', 'Delegation IGPK Universität Basel'],
-                              [4280, 'GR-IGPK-Ha', 'Delegation IGPK Schweizer Rheinhäfen']],
-                             columns=['uni_nr', 'kurzname', 'name'])
-    df_gre = pd.concat([df_gre, df_to_add])
-    """
-
+def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: pd.DataFrame) -> tuple:
     # All entries not present in gremium.csv are still inserted and treated as "Regierungsrat"
     df = pd.merge(df_gre, df_zuw, how='right', left_on='uni_nr', right_on='uni_nr_an')
     # Removing the column due to the following merging to avoid duplicate columns
@@ -388,22 +348,21 @@ def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
     df.loc[df['name_an'] == 'Regierungsrat', 'uni_nr_an'] = float('nan')
     df.loc[df['name_von'] == 'Regierungsrat', 'uni_nr_von'] = float('nan')
     # Replacing status codes with their meanings
-    df['status_zuw'] = df['status_zuw'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung',
-                                                 'X': 'Abgebrochen', 'F': 'Fertig'})
-    df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
+    df['status_zuw'] = df['status_zuw'].replace(REPLACE_STATUS_CODES_ZUW)
+    df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
     # Create url's
-    df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
+    df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
     ''' URL for committee's page (currently removed)
     df['url_gre_an'] = credentials.path_gremien + df['uni_nr_an']
     df['url_gre_von'] = credentials.path_gremien + df['uni_nr_von']
     '''
-    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_ges']
     df['url_gremium_an'] = np.where(df['uni_nr_an'].notna(),
-                                    credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_an'],
+                                    PATH_DATASET + '100310/?refine.uni_nr=' + df['uni_nr_an'],
                                     float('NaN'))
     df['url_gremium_von'] = np.where(df['uni_nr_von'].notna(),
-                                     credentials.path_dataset + '100310/?refine.uni_nr=' + df['uni_nr_von'],
+                                     PATH_DATASET + '100310/?refine.uni_nr=' + df['uni_nr_von'],
                                      float('NaN'))
 
     # Select relevant columns for publication
@@ -419,26 +378,17 @@ def create_zuweisungen_csv(df_gre, df_ges, df_zuw):
     # Convert Unix Timestamp to Datetime for date columns
     df = unix_to_datetime(df, ['erledigt', 'termin', 'beginn_ges', 'ende_ges'])
 
-    logging.info(f'Creating Datensatz "Zuweisungen Geschäfte"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_zuweisungen.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Zuweisungen von Geschäften"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_zuweisungen.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'zuweisungen', '100312')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'zuweisungen', '100312'
 
 
 # TODO: Nochmals upzudaten wenn OGD-Export geändert wird
-def create_dokumente_csv(df_adr, df_ges, df_dok):
-    """
-    Creates a CSV file containing information about documents related to matters.
-
-    Args:
-        df_adr (pd.DataFrame): DataFrame containing person information.
-        df_ges (pd.DataFrame): DataFrame containing matters information.
-        df_dok (pd.DataFrame): DataFrame containing document information.
-
-    Returns:
-        None
-    """
+def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
     df = pd.merge(df_dok, df_ges, left_on='ges_laufnr', right_on='laufnr', suffixes=('_dok', '_ges'))
     df = pd.merge(df, df_adr, how='left', left_on='gr_urheber', right_on='uni_nr')
 
@@ -451,11 +401,11 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
     df['url_dok'] = df['url']
     # Wait for Permalink
     # df['url_dok'] = credentials.path_dokument + df['dok_nr']
-    df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
-    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
+    df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
-    df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
+    df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -471,25 +421,16 @@ def create_dokumente_csv(df_adr, df_ges, df_dok):
     # Temporarily
     df = df.rename(columns={'dok_nr': 'dok_laufnr'})
 
-    logging.info(f'Creating Datensatz "Dokumente Geschäfte"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_dokumente.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Dokumente"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_dokumente.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'dokumente', '100313')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'dokumente', '100313'
 
 
-def create_vorgaenge_csv(df_ges, df_vor, df_siz):
-    """
-    Creates a CSV file containing information about processes associated with matters.
-
-    Args:
-        df_ges (pd.DataFrame): DataFrame containing matters information.
-        df_vor (pd.DataFrame): DataFrame containing process information.
-        df_siz (pd.DataFrame): DataFrame containing session information.
-
-    Returns:
-        None
-    """
+def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.DataFrame) -> tuple:
     df = pd.merge(df_vor, df_ges, left_on='ges_laufnr', right_on='laufnr')
     df = pd.merge(df, df_siz, on='siz_nr')
 
@@ -500,11 +441,11 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
                             'titel': 'titel_ges', 'datum': 'siz_datum'})
 
     # Create url's
-    df['url_ges'] = credentials.path_geschaeft + df['signatur_ges']
-    df['url_geschaeft_ods'] = credentials.path_dataset + '100311/?refine.signatur_ges=' + df['signatur_ges']
+    df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
+    df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_ges']
 
     # Replacing status codes with their meanings
-    df['status_ges'] = df['status_ges'].replace({'A': 'Abgeschlossen', 'B': 'In Bearbeitung'})
+    df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -517,14 +458,16 @@ def create_vorgaenge_csv(df_ges, df_vor, df_siz):
     # Convert Unix Timestamp to Datetime for date columns
     df = unix_to_datetime(df, ['siz_datum', 'beginn_ges', 'ende_ges'])
 
-    logging.info(f'Creating Datensatz "Vorgänge Geschäfte"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[1],
-                               'parlamentsdienst_grosserrat/data/export/grosser_rat_vorgaenge.csv')
+    logging.info(f'Creating dataset "Grosser Rat: Vorgänge von Geschäften"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_vorgaenge.csv')
     df.to_csv(path_export, index=False)
-    update_ftp_and_odsp(path_export, 'vorgaenge', '100314')
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'vorgaenge', '100314'
 
 
-def unix_to_datetime(df, column_names):
+def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
     """
     Converts Unix timestamps in specified columns of a DataFrame to datetime format.
 
@@ -544,7 +487,7 @@ def unix_to_datetime(df, column_names):
     return df
 
 
-def update_ftp_and_odsp(path_export, dataset_name, dataset_id):
+def update_ftp_and_odsp(path_export: str, dataset_name: str, dataset_id: str) -> None:
     """
     Updates a dataset by uploading it to an FTP server and publishing it into data.bs.ch.
 
