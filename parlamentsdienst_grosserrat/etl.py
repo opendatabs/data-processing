@@ -11,10 +11,6 @@ import common
 import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 
-# TODO: Good Practice: use inplace=True parameter
-# TODO: Ask Jonas: Best Practice for calculating paths (absolute or relative)
-# TODO: Check if update_ftp_odsp into common into Planner (Ideas)
-
 # All paths
 PATH_GR = 'https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable='
 PATH_ADR = StringIO(common.requests_get(f'{PATH_GR}adr').text)
