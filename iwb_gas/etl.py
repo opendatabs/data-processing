@@ -35,6 +35,10 @@ def main():
     df['year'] = df['Date'].dt.year
     df['month'] = df['Date'] .dt.month
     df['day'] = df['Date'].dt.day
+    df['weekday'] = df['Date'].dt.weekday
+    df['dayofyear'] = df['Date'].dt.dayofyear
+    df['quarter'] = df['Date'].dt.quarter
+    df['weekofyear'] = df['Date'].dt.isocalendar().week
     path_export = os.path.join(pathlib.Path(__file__).parents[1], 'iwb_gas/data/export/100304.csv')
     df.to_csv(path_export, index=False)
     if ct.has_changed(path_export):
