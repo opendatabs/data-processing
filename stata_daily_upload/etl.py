@@ -72,6 +72,7 @@ def main():
                {'file': 'StatA/Personalbestand/100265_Personalbestand_Dep_Dienst_Geschl_Alter.csv', 'dest_dir': 'personalbestand', 'ods_id': '100265'},
                {'file': 'StatA/Personalbestand/100266_Personalbestand_Dep_Buchung_Staat.csv', 'dest_dir': 'personalbestand', 'ods_id': '100266'},
                {'file': 'StatA/Personalbestand/100267_Personalbestand_Dep_Buchung_Kanton.csv', 'dest_dir': 'personalbestand', 'ods_id': '100267'},
+               {'file': 'StatA/Personalbestand/100315_Personalbestand_Dep_Buchung.csv', 'dest_dir': 'personalbestand', 'ods_id': '100315'},
                ]
     file_not_found_errors = []
     for upload in uploads:
