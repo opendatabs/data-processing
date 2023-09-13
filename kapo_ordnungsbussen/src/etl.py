@@ -15,7 +15,6 @@ def main():
     directories = list_directories()
     list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
     if ct.has_changed(list_path):
-        ct.update_hash_file(list_path)
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
         df_export = transform_for_export(df_all)
@@ -37,6 +36,7 @@ def main():
         common.upload_ftp(export_path, credentials.ftp_server,
                           credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
         odsp.publish_ods_dataset_by_id('100058')
+        ct.update_hash_file(list_path)
 
 
 def send_email(msg):
