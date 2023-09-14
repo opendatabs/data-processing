@@ -60,7 +60,7 @@ for station in stations:
                                              errors='coerce').dt.tz_localize('Europe/Zurich', ambiguous='infer')
             # Handle bad cases 14.09.2023
             is_invalid_hour = df['timestamp'].dt.hour == 24
-            df.loc[is_invalid_hour, 'timestamp'] -= pd.DateOffset(days=1, hours=24)
+            df.loc[is_invalid_hour, 'timestamp'] -= pd.DateOffset(hours=24)
 
             df.set_index('timestamp', drop=False, inplace=True)
             df['station_id'] = station
