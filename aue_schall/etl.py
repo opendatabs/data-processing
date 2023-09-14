@@ -56,7 +56,12 @@ for station in stations:
             print(f"Reading {local_files[(station, date_string)]}...")
             df = pd.read_csv(local_files[(station, date_string)], sep=';', na_filter=False)
             print(f'Calculating ISO8601 time string...')
-            df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich', ambiguous='infer')
+            df['timestamp'] = pd.to_datetime(df.LocalDateTime, format='%d.%m.%Y %H:%M',
+                                             errors='coerce').dt.tz_localize('Europe/Zurich', ambiguous='infer')
+            # Handle bad cases 14.09.2023
+            is_invalid_hour = df['timestamp'].dt.hour == 24
+            df.loc[is_invalid_hour, 'timestamp'] -= pd.DateOffset(days=1, hours=24)
+
             df.set_index('timestamp', drop=False, inplace=True)
             df['station_id'] = station
             all_data = all_data.append(df, sort=True)
