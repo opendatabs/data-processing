@@ -107,7 +107,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         'Zyklus': zyklus,
         'V_max': max(df_all_v.V),
         'V_min': min(df_all_v.V),
-        'V_50': np.mean(df_all_v.V),
+        'V_50': np.median(df_all_v.V),
         'V_85': np.percentile(df_all_v.V, 85),
         'V_Einfahrt_pct_ueber_limite': (df_all_pro_standort.V_Einfahrt > df_all_pro_standort.Geschwindigkeit).mean() * 100,
         'V_Ausfahrt_pct_ueber_limite': (df_all_pro_standort.V_Ausfahrt > df_all_pro_standort.Geschwindigkeit).mean() * 100,
