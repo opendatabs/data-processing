@@ -7,6 +7,7 @@ import ods_publish.etl_id as odsp
 
 
 def main():
+    # TODO: Move this into a excel or csv
     uploads = [{'file': 'StatA/Bevoelkerung/100079_sterbefaelle.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100079'},
                {'file': 'StatA/Bevoelkerung/100092_geburten_nach_datum.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100092'},
                {'file': 'StatA/Bevoelkerung/100099_geburten_nach_herkunft_monat.csv', 'dest_dir': 'bevoelkerung', 'ods_id': '100099'},
@@ -73,31 +74,48 @@ def main():
                {'file': 'StatA/Personalbestand/100266_Personalbestand_Dep_Buchung_Staat.csv', 'dest_dir': 'personalbestand', 'ods_id': '100266'},
                {'file': 'StatA/Personalbestand/100267_Personalbestand_Dep_Buchung_Kanton.csv', 'dest_dir': 'personalbestand', 'ods_id': '100267'},
                {'file': 'StatA/Personalbestand/100315_Personalbestand_Dep_Buchung.csv', 'dest_dir': 'personalbestand', 'ods_id': '100315'},
+               {'file': 'StatA/Wahlen-Abstimmungen/nr/Kandidaturen_2023/100316_kandidaturen_nationalrat.csv', 'dest_dir': 'wahlen_abstimmungen/wahlen/nr/kandidaturen_2023', 'ods_id': '100316', 'make_public_embargo': True},
+               {'file': 'StatA/Wahlen-Abstimmungen/sr/Kandidaturen_2023/100317_kandidaturen_staenderat.csv', 'dest_dir': 'wahlen_abstimmungen/wahlen/sr/kandidaturen_2023', 'ods_id': '100317', 'make_public_embargo': True},
                ]
+    # TODO: Refactor
     file_not_found_errors = []
     for upload in uploads:
         file_property = upload['file']
         try:
-            changed = 0
-            if type(file_property) == list:
+            changed = False
+            if isinstance(file_property, list):
                 for file in file_property:
                     file_path = os.path.join(credentials.path_work, file)
                     if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                         if ct.has_changed(file_path, method='modification_date'):
-                            changed = 1
+                            changed = True
                             ct.update_mod_timestamp_file(file_path)
                             common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+                    if upload.get('make_public_embargo') and common.is_embargo_over(file_path):
+                        ods_id_property = upload['ods_id']
+                        if isinstance(ods_id_property, list):
+                            for single_ods_id in ods_id_property:
+                                odsp.ods_set_general_access_policy(single_ods_id, 'domain', True)
+                        else:
+                            odsp.ods_set_general_access_policy(ods_id_property, 'domain', True)
 
             else:
                 file_path = os.path.join(credentials.path_work, upload['file'])
                 if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
                     if ct.has_changed(file_path, method='modification_date'):
-                        changed = 1
+                        changed = True
                         ct.update_mod_timestamp_file(file_path)
                         common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
-            if changed == 1:
+                if upload.get('make_public_embargo') and common.is_embargo_over(file_path):
+                    ods_id_property = upload['ods_id']
+                    if isinstance(ods_id_property, list):
+                        for single_ods_id in ods_id_property:
+                            odsp.ods_set_general_access_policy(single_ods_id, 'domain', True)
+                    else:
+                        odsp.ods_set_general_access_policy(ods_id_property, 'domain', True)
+            if changed:
                 ods_id_property = upload['ods_id']
-                if type(ods_id_property) == list:
+                if isinstance(ods_id_property, list):
                     for single_ods_id in ods_id_property:
                         odsp.publish_ods_dataset_by_id(single_ods_id)
                 else:

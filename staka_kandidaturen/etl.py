@@ -6,11 +6,11 @@ from staka_kandidaturen import credentials
 
 def main():
     df_nr = process_nationalrat()
-    path_export = os.path.join(credentials.path_dest, 'export/kandidaturen_nationalrat.csv')
+    path_export = os.path.join(credentials.path_dest_nr, '100316_kandidaturen_nationalrat.csv')
     df_nr.to_csv(path_export, index=False)
 
     df_sr = process_staenderat()
-    path_export = os.path.join(credentials.path_dest, 'export/kandidaturen_staenderat.csv')
+    path_export = os.path.join(credentials.path_dest_sr, '100317_kandidaturen_staenderat.csv')
     df_sr.to_csv(path_export, index=False)
 
 
