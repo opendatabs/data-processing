@@ -15,7 +15,7 @@ def main():
 
 
 def process_nationalrat() -> pd.DataFrame:
-    file_kb = os.path.join(credentials.path_orig, "NR_für_KB.xlsx")
+    file_kb = os.path.join(credentials.path_orig, "NR_für_KB_ergänzt.xlsx")
     file_mm = os.path.join(credentials.path_orig, "NR_Kandidaturen_für_Medienmitteilung.xlsx")
 
     xlsx_kb = pd.ExcelFile(file_kb)
@@ -24,7 +24,7 @@ def process_nationalrat() -> pd.DataFrame:
     df_all_kand = pd.DataFrame(index=None)
     for list_party in xlsx_kb.sheet_names:
         df_list = pd.read_excel(xlsx_kb, sheet_name=list_party, skiprows=3, dtype=str)
-        df_list.columns = ['kand_nr', 'vorname', 'name', 'bisher', 'jahrgang', 'kurzbeschrieb']
+        df_list.columns = ['kand_nr', 'vorname', 'name', 'bisher', 'jahrgang', 'kurzbeschrieb', 'wh. in', 'wh_in']
         df_with_header = pd.read_excel(xlsx_kb, sheet_name=list_party, dtype=str)
         hlvs = float('NaN') if isinstance(df_with_header.iloc[(1, 1)], float) \
             else ', '.join(x.strip().zfill(2) for x in df_with_header.iloc[(1, 1)].split(','))
@@ -43,7 +43,8 @@ def process_nationalrat() -> pd.DataFrame:
                 'name': row['name'],
                 'vorname': row.vorname,
                 'jahrgang': row.jahrgang,
-                'kurzbeschrieb': row.kurzbeschrieb
+                'kurzbeschrieb': row.kurzbeschrieb,
+                'wh_in': row.wh_in
             }
             df_all_kand = pd.concat([df_all_kand, pd.DataFrame([entries_per_kand])])
 
