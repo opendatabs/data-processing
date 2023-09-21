@@ -116,6 +116,10 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     # append "name" and "vorname"
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
 
+    # Make sure there are no duplicates in the "Titel"
+    df['titel'] = df['titel'].str.replace('. ', '.')
+    df['titel'] = df['titel'].str.replace('.', '. ')
+
     # TODO: Extract Sitzplatznummer from Live-Abstimmungen (100186)
 
     # Select relevant columns for publication
@@ -306,6 +310,7 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
     cols_of_interest = [
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
         'titel_ges', 'departement_ges', 'ga_rr_gr', 'url_ges',
+        'url_zuweisungen', 'url_dokumente', 'url_vorgaenge',
         'anrede_urheber', 'gremientyp_urheber', 'name_urheber', 'vorname_urheber',
         'partei_kname_urheber', 'url_urheber', 'nr_urheber', 'url_urheber_ratsmitgl',
         'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber',
