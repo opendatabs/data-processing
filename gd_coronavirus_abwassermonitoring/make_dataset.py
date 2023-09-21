@@ -25,7 +25,7 @@ def main():
     df_abwasser = make_dataframe_abwasserdaten()
     df_all = df_abwasser.merge(df_bl, how='outer')
     df_bs = make_dataframe_bs()
-    df_all = df_all.merge(df_bs, how='left')
+    df_all = df_all.merge(df_bs, how='outer')
     df_all = calculate_columns(df_all)
     # change date format for json file
     df_all['Datum'] = df_all['Datum'].dt.strftime('%Y-%m-%d')
