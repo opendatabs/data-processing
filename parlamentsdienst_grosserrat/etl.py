@@ -393,11 +393,12 @@ def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.
                             'signatur': 'signatur_ges', 'departement': 'departement_ges'})
 
     # Create url's
-    df['url_dok'] = df['url']
-    # Wait for Permalink
-    # df['url_dok'] = credentials.path_dokument + df['dok_nr']
     df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
     df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_ges']
+    # Define the regular expression pattern
+    dok_nr_pattern = r'(\d{2}\.\d{4}\.\d{2})'
+    df['url_dok'] = np.where(df['titel_dok'].str.contains(dok_nr_pattern),
+                             PATH_DOKUMENT + df['titel_dok'].str.extract(dok_nr_pattern, expand=False), df['url'])
 
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
