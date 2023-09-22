@@ -33,7 +33,11 @@ UNIX_TS_MAX = '253402300799'
 UNIX_TS_MIN = '-30610224000'
 
 # Dictionary to handle the comittees which need their ID to be replaced
-REPLACE_UNI_NR_GRE_DICT = {'1934': '3', '4276': '2910', '4278': '3164', '4279': '3196', '4280': '3331'}
+REPLACE_UNI_NR_GRE_DICT = {'1934': '3', '4276': '2910', '4278': '3164', '4279': '3196', '4280': '3331',
+                           '4252': np.nan, '4274': np.nan, '4283': np.nan,}
+                           # TODO: Check if the following ID's should be mapped to NaN
+                           # '4016': np.nan, '4018': np.nan, '4019': np.nan, '4021': np.nan, '4024': np.nan,
+                           # '4025': np.nan, '4031': np.nan, '4044': np.nan, '4045': np.nan, '4179': np.nan}
 REPLACE_STATUS_CODES_GES = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung'}
 REPLACE_STATUS_CODES_ZUW = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung', 'X': 'Abgebrochen', 'F': 'Fertig'}
 
@@ -117,10 +121,10 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
 
     # Make sure there are no duplicates in the "Titel"
-    df['titel'] = df['titel'].str.replace('. ', '.')
-    df['titel'] = df['titel'].str.replace('.', '. ')
-
-    # TODO: Extract Sitzplatznummer from Live-Abstimmungen (100186)
+    df['titel'] = df['titel'].str.replace('. ', '.', regex=False).str.replace('.', '. ', regex=False)
+    df['titel'] = df['titel'].str.replace(' ,', ',', regex=False)
+    df['titel'] = df['titel'].str.replace('pol.', 'pol', regex=False).str.replace('pol', 'pol.', regex=False)
+    df['titel'] = df['titel'].str.rstrip()
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -275,36 +279,28 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
     df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
     # Create url's for the urheber numbers, which are people (can also be gremium/commitee)
-    df['url_urheber'] = np.where(df['vorname_urheber'].notna(), PATH_PERSONEN + df['nr_urheber'], float('NaN'))
+    df['url_urheber'] = np.where(df['vorname_urheber'].notna(), PATH_PERSONEN + df['nr_urheber'], np.nan)
     df['url_urheber_ratsmitgl'] = np.where(df['vorname_urheber'].notna(),
-                                           PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_urheber'], float('NaN'))
+                                           PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_urheber'], np.nan)
     # Fields for names of person can be used for the committee as follows
-    df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = 'Kommission'
+    df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = df['nr_urheber'].map(
+        df_gre.set_index('uni_nr')['gremientyp'])
     df.loc[df['vorname_urheber'].isna(), 'name_urheber'] = df['nr_urheber'].map(
         df_gre.set_index('uni_nr')['name'])
     df.loc[df['vorname_urheber'].isna(), 'vorname_urheber'] = df['nr_urheber'].map(
         df_gre.set_index('uni_nr')['kurzname'])
-    # If 'vorname_urheber' is still empty, it's "Regierungsrat"
-    df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = 'Regierungsrat'
-    df.loc[df['gremientyp_urheber'] == 'Regierungsrat', 'name_urheber'] = 'Regierungsrat'
-    df.loc[df['gremientyp_urheber'] == 'Regierungsrat', 'vorname_urheber'] = 'RR'
 
     # Similar approach for Miturheber
-    df['url_miturheber'] = np.where(df['vorname_miturheber'].notna(), PATH_PERSONEN + df['nr_miturheber'], float('NaN'))
+    df['url_miturheber'] = np.where(df['vorname_miturheber'].notna(), PATH_PERSONEN + df['nr_miturheber'], np.nan)
     df['url_miturheber_ratsmitgl'] = np.where(df['vorname_miturheber'].notna(),
                                               PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_miturheber'],
-                                              float('NaN'))
-    df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = 'Kommission'
+                                              np.nan)
+    df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = df['nr_miturheber'].map(
+        df_gre.set_index('uni_nr')['gremientyp'])
     df.loc[df['vorname_miturheber'].isna(), 'name_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['name'])
     df.loc[df['vorname_miturheber'].isna(), 'vorname_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['kurzname'])
-    # If 'vorname_miturheber' is still empty, there is none
-    df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = float('nan')
-    # but if 'vorname_miturheber' is empty and there is a 'nr_miturheber' it should be 'Regierungsrat'
-    df.loc[(df['vorname_miturheber'].isna()) & (df['nr_miturheber'].notna()), 'gremientyp_miturheber'] = 'Regierungsrat'
-    df.loc[df['gremientyp_miturheber'] == 'Regierungsrat', 'name_miturheber'] = 'Regierungsrat'
-    df.loc[df['gremientyp_miturheber'] == 'Regierungsrat', 'vorname_miturheber'] = 'RR'
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -343,15 +339,6 @@ def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: p
                             'laufnr': 'laufnr_ges', 'status': 'status_ges',
                             'signatur': 'signatur_ges', 'departement': 'departement_ges'})
 
-    # Temporarily replacing remaining committees not in committee list with "Regierungsrat" (without number)
-    values = {'kurzname_an': 'RR', 'kurzname_von': 'RR', 'name_an': 'Regierungsrat', 'name_von': 'Regierungsrat'}
-    df = df.fillna(value=values)
-    df.loc[df['name_an'] == 'Regierungsrat', 'uni_nr_an'] = float('nan')
-    df.loc[df['name_von'] == 'Regierungsrat', 'uni_nr_von'] = float('nan')
-    # Replacing status codes with their meanings
-    df['status_zuw'] = df['status_zuw'].replace(REPLACE_STATUS_CODES_ZUW)
-    df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
-
     # Create url's
     df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
     ''' URL for committee's page (currently removed)
@@ -359,12 +346,19 @@ def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: p
     df['url_gre_von'] = credentials.path_gremien + df['uni_nr_von']
     '''
     df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_ges']
-    df['url_gremium_an'] = np.where(df['uni_nr_an'].notna(),
+    df['url_gremium_an'] = np.where(df['name_an'].notna(),
                                     PATH_DATASET + '100310/?refine.uni_nr=' + df['uni_nr_an'],
-                                    float('NaN'))
-    df['url_gremium_von'] = np.where(df['uni_nr_von'].notna(),
+                                    np.nan)
+    df['url_gremium_von'] = np.where(df['name_von'].notna(),
                                      PATH_DATASET + '100310/?refine.uni_nr=' + df['uni_nr_von'],
-                                     float('NaN'))
+                                     np.nan)
+
+    # Temporarily replacing remaining committees not in committee list with "Regierungsrat" (without number)
+    values = {'kurzname_an': 'RR', 'kurzname_von': 'RR', 'name_an': 'Regierungsrat', 'name_von': 'Regierungsrat'}
+    df = df.fillna(value=values)
+    # Replacing status codes with their meanings
+    df['status_zuw'] = df['status_zuw'].replace(REPLACE_STATUS_CODES_ZUW)
+    df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -480,7 +474,7 @@ def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
         pd.DataFrame: DataFrame with converted datetime values.
     """
     # Replace '0' values with NaN to handle missing timestamps
-    df[column_names] = df[column_names].replace('0', float('NaN'))
+    df[column_names] = df[column_names].replace('0', np.nan)
 
     # Loop through each specified column and convert Unix timestamps to formatted datetime strings
     for column_name in column_names:
