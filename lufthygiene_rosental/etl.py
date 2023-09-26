@@ -18,7 +18,7 @@ def main():
     df = df.dropna(subset=['Anfangszeit'])
     df['timestamp'] = pd.to_datetime(df.Anfangszeit, format='%d.%m.%Y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
 
-
+    # TODO: Is not reached. We get an empty csv error in line 17
     if len(df) == 0:
         logging.info('No rows to push to ODS... ')
     else:
