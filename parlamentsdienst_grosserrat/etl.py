@@ -35,9 +35,64 @@ UNIX_TS_MIN = '-30610224000'
 # Dictionary to handle the comittees which need their ID to be replaced
 REPLACE_UNI_NR_GRE_DICT = {'1934': '3', '4276': '2910', '4278': '3164', '4279': '3196', '4280': '3331',
                            '4252': np.nan, '4274': np.nan, '4283': np.nan,}
-                           # TODO: Check if the following ID's should be mapped to NaN
-                           # '4016': np.nan, '4018': np.nan, '4019': np.nan, '4021': np.nan, '4024': np.nan,
-                           # '4025': np.nan, '4031': np.nan, '4044': np.nan, '4045': np.nan, '4179': np.nan}
+MEMBERS_MISSING = [
+    {
+        "uni_nr": "4016",
+        "vorname": "Annemarie",
+        "name": "Burckhardt",
+        "anrede": "Frau"
+    },
+    {
+        "uni_nr": "4018",
+        "vorname": "Hans Rudolf",
+        "name": "Bachmann",
+        "anrede": "Herr"
+    },
+    {
+        "uni_nr": "4019",
+        "vorname": "Christoph",
+        "name": "Eymann",
+        "anrede": "Herr"
+    },
+    {
+        "uni_nr": "4021",
+        "vorname": "Markus",
+        "name": "Ritter",
+        "anrede": "Herr"
+    },
+    {
+        "uni_nr": "4024",
+        "vorname": "Umberto",
+        "name": "Stücklin",
+        "anrede": "Herr"
+    },
+    {
+        "uni_nr": "4025",
+        "vorname": "Martin H.",
+        "name": "Burckhardt",
+        "anrede": "Herr"
+    },
+    {
+        "uni_nr": "4031",
+        "vorname": "Christoph",
+        "name": "Stutz",
+        "anrede": "Herr"
+    },
+    {
+        "uni_nr": "4044",
+        "vorname": "Eleonore",
+        "name": "Schaub",
+        "anrede": "Frau"
+    },
+    {
+        "uni_nr": "4045",
+        "vorname": "Alice",
+        "name": "Schaub",
+        "anrede": "Frau"
+    }
+]
+DF_MEMBERS_MISSING = pd.DataFrame(MEMBERS_MISSING)
+
 REPLACE_STATUS_CODES_GES = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung'}
 REPLACE_STATUS_CODES_ZUW = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung', 'X': 'Abgebrochen', 'F': 'Fertig'}
 
@@ -289,6 +344,13 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
         df_gre.set_index('uni_nr')['name'])
     df.loc[df['vorname_urheber'].isna(), 'vorname_urheber'] = df['nr_urheber'].map(
         df_gre.set_index('uni_nr')['kurzname'])
+    # If name is still empty, add members from the json dict above
+    df.loc[df['vorname_urheber'].isna(), 'anrede_urheber'] = df['nr_urheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['anrede'])
+    df.loc[df['vorname_urheber'].isna(), 'name_urheber'] = df['nr_urheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['name'])
+    df.loc[df['vorname_urheber'].isna(), 'vorname_urheber'] = df['nr_urheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['vorname'])
 
     # Similar approach for Miturheber
     df['url_miturheber'] = np.where(df['vorname_miturheber'].notna(), PATH_PERSONEN + df['nr_miturheber'], np.nan)
@@ -301,6 +363,13 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
         df_gre.set_index('uni_nr')['name'])
     df.loc[df['vorname_miturheber'].isna(), 'vorname_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['kurzname'])
+    # If name is still empty, add members from the json dict above
+    df.loc[df['vorname_miturheber'].isna(), 'anrede_miturheber'] = df['nr_miturheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['anrede'])
+    df.loc[df['vorname_miturheber'].isna(), 'name_miturheber'] = df['nr_miturheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['name'])
+    df.loc[df['vorname_miturheber'].isna(), 'vorname_miturheber'] = df['nr_miturheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['vorname'])
 
     # Select relevant columns for publication
     cols_of_interest = [
