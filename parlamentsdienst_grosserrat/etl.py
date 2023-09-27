@@ -185,8 +185,8 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     cols_of_interest = [
         'ist_aktuell_grossrat', 'anrede', 'titel', 'name', 'vorname', 'name_vorname', 'gebdatum',
         'gr_sitzplatz', 'gr_wahlkreis', 'partei', 'partei_kname', 'gr_beginn', 'gr_ende', 'url', 'uni_nr',
-        'strasse', 'plz', 'ort', 'gr_beruf', 'gr_arbeitgeber', 'telefong', 'telefonm', 'telefonp',
-        'emailg', 'emailp', 'homepage', 'url_gremiumsmitgliedschaften', 'url_interessensbindungen', 'url_urheber'
+        'strasse', 'plz', 'ort', 'gr_beruf', 'gr_arbeitgeber', 'homepage',
+        'url_gremiumsmitgliedschaften', 'url_interessensbindungen', 'url_urheber'
     ]
     df = df[cols_of_interest]
 
