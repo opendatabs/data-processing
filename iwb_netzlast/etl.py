@@ -29,13 +29,68 @@ def get_path_latest_file():
     return path
 
 
+def get_path_realtime_push_file():
+    raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'realtime_push_data.csv')
+    logging.info(f'Downloading raw realtime push data from ods to file {raw_data_file}...')
+    r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100237&apikey={credentials.api_key}')
+    with open(raw_data_file, 'wb') as f:
+        f.write(r.content)
+    return raw_data_file
+
+
 def create_timestamp(df):
     return df['Ab-Datum'].dt.to_period('d').astype(str) + 'T' + df['Ab-Zeit'].astype(str)
 
 
-def main():
+def create_timestamp_realtime_push(df):
+    return df['0calday'].str[:4] + '-' + df['0calday'].str[4:6] + '-' + df['0calday'].str[6:] + 'T' + \
+                                df['0time'].str[:2] + ':' + df['0time'].str[2:4] + ':' + df['0time'].str[4:]
+
+
+def create_time_fields(df):
+    df['timestamp_interval_start'] = pd.to_datetime(df['timestamp_interval_start_raw_text'], format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous="infer")
+    df['timestamp_interval_start_text'] = df['timestamp_interval_start'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')
+    df['year'] = df['timestamp_interval_start'].dt.year
+    df['month'] = df['timestamp_interval_start'].dt.month
+    df['day'] = df['timestamp_interval_start'].dt.day
+    df['weekday'] = df['timestamp_interval_start'].dt.weekday
+    df['dayofyear'] = df['timestamp_interval_start'].dt.dayofyear
+    df['quarter'] = df['timestamp_interval_start'].dt.quarter
+    df['weekofyear'] = df['timestamp_interval_start'].dt.isocalendar().week
+    return df
+
+
+def create_export_df_from_realtime_push():
+    # TODO: Change change tracking from file has changed to date of the publishment has changed?
+    realtime_push_file = get_path_realtime_push_file()
+    export_filename = os.path.join(os.path.dirname(__file__), 'data/export', 'netzlast_realtime_push.csv')
+    if ct.has_changed(realtime_push_file):
+        logging.info(f'Processing realtime push file...')
+        df_push = pd.read_csv(realtime_push_file, sep=';', dtype = {'0calday': str, '0time': str, '0uc_profval': float, '0uc_profile_t': str})
+        df_push['timestamp_interval_start_raw_text'] = create_timestamp_realtime_push(df_push)
+        df_push.drop(columns=['0calday', '0time'], inplace=True)
+        df_push = df_push.pivot(index='timestamp_interval_start_raw_text', columns='0uc_profile_t', values='0uc_profval')
+        df_push = df_push.rename(columns={'Stadtlast': 'stromverbrauch_kwh', 'Grundversorgung': 'grundversorgte_kunden_kwh', 'Freie Kunden': 'freie_kunden_kwh'})
+        # Reset index and remove the index column name
+        df_push = df_push.reset_index()
+        df_push.columns.name = None
+        df_push = create_time_fields(df_push)
+        df_export = df_push[['timestamp_interval_start', 'stromverbrauch_kwh', 'grundversorgte_kunden_kwh', 'freie_kunden_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
+        df_export.to_csv(export_filename, index=False, sep=';')
+        if ct.has_changed(export_filename):
+            common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
+            ct.update_hash_file(export_filename)
+        ct.update_hash_file(realtime_push_file)
+        return df_export
+    else:
+        logging.info(f'Getting realtime push file from memory...')
+        return pd.read_csv(export_filename, sep=';')
+
+
+def create_export_df_from_ftp():
     LATEST_DATA_FILE = get_path_latest_file()
     file_path_latest = os.path.join(pathlib.Path(__file__).parent, 'data/latest_data', LATEST_DATA_FILE)
+    export_filename = os.path.join(os.path.dirname(__file__), 'data/export', 'netzlast_ftp.csv')
     logging.info('Check if latest data file has changed...')
     if ct.has_changed(file_path_latest, method='modification_date'):
         logging.info(f'Processing historical data 2012-2020...')
@@ -81,42 +136,44 @@ def main():
                 base_dfs.append(market_sheets['Grundversorgte Kunden'])
         df_free = pd.concat(free_dfs)
         df_free['timestamp_interval_start_raw_text'] = create_timestamp(df_free)
-        df_free['timestamp_interval_start'] = pd.to_datetime(df_free.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
+        df_free['timestamp_interval_start'] = pd.to_datetime(df_free.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')
         df_free = df_free.rename(columns={'Freie Kunden': 'freie_kunden_kwh'})[['timestamp_interval_start', 'timestamp_interval_start_raw_text', 'freie_kunden_kwh']]
         df_private = pd.concat(base_dfs)
         df_private['timestamp_interval_start_raw_text'] = create_timestamp(df_private)
-        df_private['timestamp_interval_start'] = pd.to_datetime(df_private.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
+        df_private['timestamp_interval_start'] = pd.to_datetime(df_private.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')
         df_private = df_private.rename(columns={'Grundversorgte Kunden': 'grundversorgte_kunden_kwh'})[['timestamp_interval_start', 'timestamp_interval_start_raw_text', 'grundversorgte_kunden_kwh']]
 
         df_export = (pd.concat([df_history, df_history2, latest_dfs])
                      .dropna(subset=['stromverbrauch_kwh'])
                      .reset_index(drop=True)
                      .rename(columns={'timestamp': 'timestamp_interval_start_raw_text'}))
-        df_export['timestamp_interval_start'] = pd.to_datetime(df_export.timestamp_interval_start_raw_text, format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous='infer')  # , nonexistent='shift_forward')
-        df_export['timestamp_interval_start_text'] = df_export['timestamp_interval_start'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')
-        df_export['year'] = df_export['timestamp_interval_start'].dt.year
-        df_export['month'] = df_export['timestamp_interval_start'].dt.month
-        df_export['day'] = df_export['timestamp_interval_start'].dt.day
-        df_export['weekday'] = df_export['timestamp_interval_start'].dt.weekday
-        df_export['dayofyear'] = df_export['timestamp_interval_start'].dt.dayofyear
-        df_export['quarter'] = df_export['timestamp_interval_start'].dt.quarter
-        df_export['weekofyear'] = df_export['timestamp_interval_start'].dt.isocalendar().week
+        df_export = create_time_fields(df_export)
 
         df_export = df_export.merge(df_free, how='left', on='timestamp_interval_start')
         df_export = df_export.merge(df_private, how='left', on='timestamp_interval_start')
 
-        df_export['grundversorgte_kunden_kwh'].fillna(0, inplace=True)
-        df_export['freie_kunden_kwh'].fillna(0, inplace=True)
-
-        export_filename = os.path.join(os.path.dirname(__file__), 'data/export', 'netzlast.csv')
         df_export = df_export[['timestamp_interval_start', 'stromverbrauch_kwh', 'grundversorgte_kunden_kwh', 'freie_kunden_kwh', 'timestamp_interval_start_text', 'year', 'month', 'day', 'weekday', 'dayofyear', 'quarter', 'weekofyear']]
         df_export.to_csv(export_filename, index=False, sep=';')
         if ct.has_changed(export_filename):
             common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
-            odsp.publish_ods_dataset_by_id('100233')
             ct.update_hash_file(export_filename)
         ct.update_mod_timestamp_file(file_path_latest)
-        pass
+        return df_export
+    else:
+        logging.info(f'Getting ftp files from memory...')
+        return pd.read_csv(export_filename, sep=';')
+
+
+def main():
+    df_export_rp = create_export_df_from_realtime_push()
+    df_export_ftp = create_export_df_from_ftp()
+    df_export = pd.concat([df_export_rp, df_export_ftp], ignore_index=True).drop_duplicates('timestamp_interval_start', keep='first')
+    export_filename = os.path.join(os.path.dirname(__file__), 'data/export', 'netzlast.csv')
+    df_export.to_csv(export_filename, index=False, sep=';')
+    if ct.has_changed(export_filename):
+        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'iwb/netzlast')
+        odsp.publish_ods_dataset_by_id('100233')
+        ct.update_hash_file(export_filename)
 
 
 if __name__ == "__main__":
