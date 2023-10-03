@@ -7,6 +7,7 @@ sources:
 - Abwasserdaten: credentials.path_proben
 """
 
+import os
 import pandas as pd
 from datetime import datetime
 from gd_coronavirus_abwassermonitoring import credentials
@@ -24,7 +25,9 @@ def main():
     df_bl = make_dataframe_bl()
     df_abwasser = make_dataframe_abwasserdaten()
     df_all = df_abwasser.merge(df_bl, how='outer')
-    df_bs = make_dataframe_bs()
+    df_bs_2021 = make_dataframe_bs_2021_to_2023()
+    df_bs_2023 = make_dataframe_bs_from_2023()
+    df_bs = pd.concat([df_bs_2021, df_bs_2023])
     df_all = df_all.merge(df_bs, how='outer')
     df_all = calculate_columns(df_all)
     # change date format for json file
@@ -36,7 +39,6 @@ def main():
     df_datum = df_all[["Datum"]]
     df_public = df_datum.join(df_public, how='right')
     df_public.to_csv(credentials.path_export_file_public, index=False)
-
 
     if ct.has_changed(credentials.path_export_file):
         common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
@@ -136,7 +138,28 @@ def make_dataframe_abwasserdaten():
     return df_abwasser
 
 
-def make_dataframe_bs():
+def make_dataframe_bs_from_2023():
+    logging.info(f"import and transform BS data")
+    path = credentials.path_BS
+    df_bs = pd.read_excel(path)
+    # only keep columns Testdatum [Benötigte Angaben], Serotyp/Subtyp [Erreger]
+    df_bs = df_bs[['Fall ID [Fall]', 'Testdatum [Benötigte Angaben]', 'Laborresultat [Testresultat]']]
+    new_names = {'Fall ID [Fall]': 'ID',
+                 'Testdatum [Benötigte Angaben]': 'Datum',
+                 'Laborresultat [Testresultat]': 'Resultat'}
+    df_bs.rename(columns=new_names, inplace=True)
+    make_column_dt(df_bs, "Datum")
+    df_bs = df_bs.sort_values(by='Datum').drop_duplicates(subset=['ID'], keep='first').drop(columns=['ID'])
+    df_bs = df_bs[df_bs['Datum'] >= datetime(2023, 1, 1)]
+    df_bs = df_bs.pivot_table(index='Datum', columns='Resultat', aggfunc='size', fill_value=0).resample('D').asfreq().fillna(0)
+    df_bs = df_bs.reset_index()
+    df_bs.columns.name = None
+    df_bs = df_bs.drop(columns=['nicht bestimmbar']).rename(columns={'positiv': 'faelle_bs'})
+    df_bs['inzidenz07_bs'] = df_bs["faelle_bs"].rolling(window=7).sum()/pop_BS * 100000
+    return df_bs
+
+
+def make_dataframe_bs_2021_to_2023():
     logging.info(f"import, transform and merge BS data")
     # get number of cases and 7d inz.
     req = common.requests_get("https://data.bs.ch/api/v2/catalog/datasets/100108/exports/"
@@ -171,15 +194,19 @@ def make_dataframe_bs():
     make_column_dt(df_repr, "Datum")
     # join the datasets
     dfs = [df_zahlen_bs, df_hosp, df_pos_rate, df_repr]
-    df_bs = reduce(lambda left, right: pd.merge(left, right, on=['Datum'],
-                                                    how='outer'), dfs)
-    # take date from 1 July 2021
-    df_bs = df_bs[df_bs['Datum'] >= datetime(2021, 7, 1)]
+    df_bs = reduce(lambda left, right: pd.merge(left, right, on=['Datum'], how='outer'), dfs)
+    # take date from 1 July 2021 and before 1 January 2023
+    df_bs = df_bs[(df_bs['Datum'] >= datetime(2021, 7, 1)) & (df_bs['Datum'] < datetime(2023, 1, 1))]
     return df_bs
 
 
 def calculate_columns(df):
     logging.info(f"calculate and add columns")
+    df = df.loc[df['Datum'].notnull()]
+    df = df.drop_duplicates(subset=['Datum'], keep='first')
+    df = df.set_index('Datum').resample('D').asfreq()
+    df.fillna({'Anz_pos_BL': 0, 'faelle_bs': 0})
+    df = df.reset_index()
     df["pos_rate_BL"] = df["Anz_pos_BL"]/(df["Anz_pos_BL"]+df["Anz_neg_BL"]) * 100
     df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"]/pop_BL * 100000
