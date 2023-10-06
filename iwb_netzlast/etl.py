@@ -50,7 +50,7 @@ def create_timestamp_realtime_push(df):
 def create_time_fields(df):
     df['timestamp_interval_start'] = pd.to_datetime(df['timestamp_interval_start_raw_text'],
                                                     format='%Y-%m-%dT%H:%M:%S').dt.tz_localize('Europe/Zurich',
-                                                                                               ambiguous="infer")
+                                                                                               ambiguous=True)
     df['timestamp_interval_start_text'] = df['timestamp_interval_start'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')
     df['year'] = df['timestamp_interval_start'].dt.year
     df['month'] = df['timestamp_interval_start'].dt.month
@@ -72,16 +72,19 @@ def create_export_df_from_realtime_push():
                               dtype={'0calday': str, '0time': str, '0uc_profval': float, '0uc_profile_t': str})
         df_push['timestamp_interval_start_raw_text'] = create_timestamp_realtime_push(df_push)
         df_push.drop(columns=['0calday', '0time'], inplace=True)
-        df_push = df_push.pivot(index='timestamp_interval_start_raw_text',
-                                columns='0uc_profile_t',
-                                values='0uc_profval')
-        df_push = df_push.rename(columns={'Stadtlast': 'stromverbrauch_kwh',
-                                          'Grundversorgung': 'grundversorgte_kunden_kwh',
-                                          'Freie Kunden': 'freie_kunden_kwh'})
-        # Reset index and remove the index column name
-        df_push = df_push.reset_index()
-        df_push.columns.name = None
-        df_push = create_time_fields(df_push)
+        
+        grouped = df_push.groupby('0uc_profile_t')
+        dfs = {}
+        for group_name, group_df in grouped:
+            dfs[group_name] = create_time_fields(group_df.sort_values(by=['timestamp_interval_start_raw_text']))
+        df_stadtlast = dfs['Stadtlast'].drop(columns=['0uc_profile_t']).rename(columns={'0uc_profval': 'stromverbrauch_kwh'})
+        df_private = dfs['Grundversorgung'].drop(columns=['0uc_profile_t']).rename(columns={'0uc_profval': 'grundversorgte_kunden_kwh'})
+        df_free = dfs['Freie Kunden'].drop(columns=['0uc_profile_t']).rename(columns={'0uc_profval': 'freie_kunden_kwh'})
+
+        df_push = df_stadtlast.merge(df_private[['timestamp_interval_start', 'grundversorgte_kunden_kwh']], 
+                                                how='left', on='timestamp_interval_start')
+        df_push = df_push.merge(df_free[['timestamp_interval_start', 'freie_kunden_kwh']],
+                                        how='left', on='timestamp_interval_start')
         df_export = df_push[['timestamp_interval_start', 'stromverbrauch_kwh',
                              'grundversorgte_kunden_kwh', 'freie_kunden_kwh',
                              'timestamp_interval_start_text', 'year', 'month', 'day',
