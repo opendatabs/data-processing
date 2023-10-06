@@ -451,37 +451,35 @@ def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: p
     return path_export, 'zuweisungen', '100312'
 
 
-# TODO: Nochmals upzudaten wenn OGD-Export geändert wird
 def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
-    df = pd.merge(df_dok, df_ges, left_on='ges_laufnr', right_on='laufnr', suffixes=('_dok', '_ges'))
-    df = pd.merge(df, df_adr, how='left', left_on='gr_urheber', right_on='uni_nr')
+    df = pd.merge(df_dok, df_ges, left_on='Laufnummer', right_on='laufnr', suffixes=('_dok', '_ges'))
 
     # Rename columns for clarity
-    df = df.rename(columns={'beginn': 'beginn_ges', 'ende': 'ende_ges',
-                            'laufnr': 'laufnr_ges', 'status': 'status_ges',
-                            'signatur': 'signatur_ges', 'departement': 'departement_ges'})
+    df = df.rename(columns={'beginn': 'beginn_ges', 'ende': 'ende_ges', 'titel': 'titel_ges',
+                            'laufnr': 'laufnr_ges', 'status': 'status_ges', 'titel': 'titel_ges',
+                            'signatur': 'signatur_ges', 'departement': 'departement_ges',
+                            'Datum': 'dokudatum', 'Dokument Nr.': 'dok_nr',
+                            'Url': 'url', 'Titel': 'titel_dok', 'Signatur': 'signatur_dok'})
 
     # Create url's
     df['url_ges'] = PATH_GESCHAEFT + df['signatur_ges']
     df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_ges']
-    # Define the regular expression pattern
-    dok_nr_pattern = r'(\d{2}\.\d{4}\.\d{2})'
-    df['url_dok'] = np.where(df['titel_dok'].str.contains(dok_nr_pattern),
-                             PATH_DOKUMENT + df['titel_dok'].str.extract(dok_nr_pattern, expand=False), df['url'])
+    df['url_dok'] = np.where(df['signatur_dok'].notna(), PATH_DOKUMENT + df['signatur_dok'], df['url'])
 
     # Replacing status codes with their meanings
     df['status_ges'] = df['status_ges'].replace(REPLACE_STATUS_CODES_GES)
 
     # Select relevant columns for publication
     cols_of_interest = [
-        'dokudatum', 'dok_nr', 'titel_dok', 'url_dok',
+        'dokudatum', 'dok_nr', 'titel_dok', 'url_dok', 'signatur_dok',
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
         'titel_ges', 'ga_rr_gr', 'departement_ges', 'url_ges', 'url_geschaeft_ods'
     ]
     df = df[cols_of_interest]
 
     # Convert Unix Timestamp to Datetime for date columns
-    df = unix_to_datetime(df, ['dokudatum', 'beginn_ges', 'ende_ges'])
+    df['dokudatum'] = pd.to_datetime(df['dokudatum'], format='%d.%m.%Y', errors='coerce')
+    df = unix_to_datetime(df, ['beginn_ges', 'ende_ges'])
 
     # Temporarily
     df = df.rename(columns={'dok_nr': 'dok_laufnr'})
