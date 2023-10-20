@@ -32,3 +32,4 @@ __pycache__/
 /stata_erwarteter_stromverbrauch/pw.txt
 /bafu_hydrodaten_vorhersagen/**/*table.txt
 /kapo_ordnungsbussen/**/list_directories.txt
+/stata_daily_upload/data/StatA/stata_daily_uploads.json
