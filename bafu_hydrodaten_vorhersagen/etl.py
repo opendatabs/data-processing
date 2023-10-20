@@ -31,7 +31,7 @@ def main():
                               + ' ' + df_method['hh'].astype(str)
             #  manually specify which datetime objects must be considered DT 
             # (https://stackoverflow.com/questions/36757981/python-pandas-tz-localize-ambiguoustimeerror-cannot-infer-dst-time-with-non-d)
-            infer_dst = np.array([False] * df.shape[0]) # all False -> every row considered DT
+            infer_dst = np.array([False] * df_method.shape[0]) # all False -> every row considered DT
             df_method['timestamp'] = pd.to_datetime(df_method.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich',
                                                                                                 nonexistent='shift_forward', ambiguous=infer_dst)
             duplicate_index = [idx for idx, value in enumerate(df_method.timestamp.duplicated(keep='last')) if value]
