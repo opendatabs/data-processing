@@ -1,0 +1,23 @@
+[
+    {
+        "file": "dummy_file.csv",
+        "dest_dir": "dummy_directory",
+        "ods_id": "dummy_id"
+    },
+    {
+        "file": [
+            "dummy_file_2a.txt",
+            "dummy_file_2b.txt"
+        ],
+        "dest_dir": "dummy_directory_2",
+        "ods_id": "dummy_id_2"
+    },
+    {
+        "file": "dummy_file_3.xlsx",
+        "dest_dir": "dummy_directory_3",
+        "ods_id": [
+            "dummy_id_3a",
+            "dummy_id_3b"
+        ]
+    }
+]
