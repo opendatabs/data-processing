@@ -6,23 +6,26 @@ import common
 from aue_rues import credentials
 
 
-def download_latest_data():
+def download_latest_data(truebung=False):
     local_path = os.path.join(os.path.dirname(__file__), 'data_orig')
+    if truebung:
+        return common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'onlinedaten/truebung', local_path,  '*_RUES_Online_Truebung.csv', list_only=False)
     return common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'onlinedaten', local_path,  '*_RUES_Online_S3.csv', list_only=False)
 
 
-def push_data_files(csv_files):
+def push_data_files(csv_files, truebung=False):
     for file in csv_files:
         df = pd.read_csv(file['local_file'], sep=';')
         # {"Startzeitpunkt": "01.01.2020 00:00:00", "Endezeitpunkt": "01.01.2020 00:15:00", "RUS.W.O.S3.LF": 384.1, "RUS.W.O.S3.O2": 12.31, "RUS.W.O.S3.PH": 8.03, "RUS.W.O.S3.TE": 6.58}
-        r = common.ods_realtime_push_df(df, url=credentials.ods_push_url)
+        # Trübung: {"Startzeitpunkt": "20.10.2020 09:00:00", "Endezeitpunkt": "20.10.2020 10:00:00", "RUS.W.O.MS.TR": 1.9}
+        r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
 
-def archive_data_files(csv_files):
+def archive_data_files(csv_files, truebung=False):
     archive_folder = 'archiv_ods'
     for file in csv_files:
         from_name = f"{file['remote_path']}/{file['remote_file']}"
-        to_name = f"roh/{archive_folder}/{file['remote_file']}"
+        to_name = f"{archive_folder}/{file['remote_file']}" if truebung else f"roh/{archive_folder}/{file['remote_file']}"
         logging.info(f'Renaming file on FTP server from {from_name} to {to_name}...')
         common.rename_ftp(from_name, to_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass)
 
@@ -68,6 +71,10 @@ def main():
     csv_files = download_latest_data()
     push_data_files(csv_files)
     archive_data_files(csv_files)
+
+    csv_files_trueb = download_latest_data(truebung=True)
+    push_data_files(csv_files_trueb, truebung=True)
+    archive_data_files(csv_files_trueb, truebung=True)
 
     pass
 
