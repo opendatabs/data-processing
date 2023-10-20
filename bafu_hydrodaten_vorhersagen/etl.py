@@ -29,7 +29,7 @@ def main():
             df_method['timestamp'] = df_method['dd'].astype(str) + '.' + df_method['mm'].astype(str) + '.' + df_method['yyyy'].astype(str) \
                               + ' ' + df_method['hh'].astype(str)
             df_method['timestamp'] = pd.to_datetime(df_method.timestamp, format='%d.%m.%Y %H').dt.tz_localize('Europe/Zurich',
-                                                                                                nonexistent='shift_forward')
+                                                                                                nonexistent='shift_forward', ambiguous='infer')
             duplicate_index = [idx for idx, value in enumerate(df_method.timestamp.duplicated(keep='last')) if value]
             if duplicate_index:
                 df_method['timestamp'] = [correct_dst_timezone(x) if idx != duplicate_index[0] else x for idx, x in
