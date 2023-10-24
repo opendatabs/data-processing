@@ -5,12 +5,25 @@ import json
 from stata_daily_upload import credentials
 import common.change_tracking as ct
 import ods_publish.etl_id as odsp
+import datetime
 
 
 def main():
     # Open the JSON file where the uploads are saved
-    with open(os.path.join(credentials.path_work, 'StatA', 'stata_daily_uploads.json'), 'r') as jsonfile:
+    path_uploads = os.path.join(credentials.path_work, 'StatA', 'stata_daily_uploads.json')
+    with open(path_uploads, 'r') as jsonfile:
         uploads = json.load(jsonfile)
+
+    if ct.has_changed(path_uploads):
+        logging.info('Uploads have changed. Upload to FTP...')
+        remote_path = 'FST-OGD/archive_stata_daily_uploads'
+        common.upload_ftp(path_uploads, credentials.ftp_server, credentials.ftp_user,
+                          credentials.ftp_pass, remote_path)
+        # Rename the file on the FTP server
+        from_name = f"{remote_path}/stata_daily_uploads.json"
+        to_name = f"stata_daily_uploads_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        common.rename_ftp(from_name, to_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass)
+        ct.update_hash_file(path_uploads)
 
     # TODO: Refactor
     file_not_found_errors = []
