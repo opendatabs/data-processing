@@ -9,9 +9,11 @@ import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 from zefix_handelsregister import credentials
 from SPARQLWrapper import SPARQLWrapper, JSON
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
+import urllib.request
 
+proxy_support = urllib.request.ProxyHandler(common.credentials.proxies)
+opener = urllib.request.build_opener(proxy_support)
+urllib.request.install_opener(opener)
 
 def main():
     get_data_of_all_cantons()
