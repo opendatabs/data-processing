@@ -1,6 +1,6 @@
 # stata_daily_upload Overview
 
-`stata_daily_upload` is a critical component in the data management and uploading pipeline. It is designed to streamline the process of uploading datasets to an FTP server while integrating seamlessly with ODS (Open Data Service) for dataset management and publishing.
+`stata_daily_upload` is a critical component in the data management and uploading pipeline. It is designed to streamline the process of uploading datasets to an FTP server while integrating seamlessly with ODS (Open Data Soft) for dataset management and publishing.
 
 ## Key Features:
 
