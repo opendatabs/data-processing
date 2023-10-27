@@ -50,6 +50,7 @@ Setting up and managing the `stata_daily_uploads.json` is a critical part of ens
          "000124"
      ]
      ```
+**Note**: The dataset has to exist in ODS with the specified **ods_id** before making the entry or it will generate an error.
 
 4. **Optional Fields**:
    - **embargo**: For setting an embargo on the dataset, refer to the [Embargo Feature](#embargo-feature) section below.
