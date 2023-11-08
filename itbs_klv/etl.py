@@ -38,6 +38,7 @@ def get_leistungen():
     df_leist = pd.read_excel(all_leistungen_path, engine='openpyxl')
     columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Dienststelle',
                            'Weitere Gliederung OE', 'Identifikations Nr.', 'Kantonaler Name',
+                           'Ergebnis', 'Kurze Beschreibung', 'DienststelleAdresse',
                            'Empfänger der Leistung', 'Aktivität Leistungserbringer',
                            'Aktivität Leistungsempfänger', 'Vorbedingungen',
                            'Rechtliche Grundlagen', 'Digitalisierungsgrad', 'Kurzbeschrieb Ablauf',
