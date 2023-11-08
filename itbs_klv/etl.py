@@ -36,12 +36,16 @@ def get_leistungen():
     open(all_leistungen_path, 'wb').write(req.content)
 
     df_leist = pd.read_excel(all_leistungen_path)
-    to_remove = ['Freizugeben durch', 'Freizugeben durch AD', 'Freigegeben am', 'Freigegeben durch',
-                 'OE', 'Weitere Gliederung', 'Verantwortlicher Vorname', 'Verantwortlicher Name', 'Strasse',
-                 'Hausnummer', 'Postleitzahl', 'Ort', 'Web Adresse', 'Email', 'Telefon', 'AKV', 'Grafische Darstellung',
-                 'Zuordnung Prozesslandkarte', 'Anwendungen', 'Vorhaben', 'Weiterführende Infos', 'Weitere Angaben',
-                 'Katastrophenbewältigung', 'Personendaten', 'AenderungDurch', 'AenderungAm']
-    return df_leist.drop(columns=to_remove)
+    columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Dienststelle',
+                           'Weitere Gliederung OE', 'Identifikations Nr.', 'Kantonaler Name',
+                           'Empfänger der Leistung', 'Aktivität Leistungserbringer',
+                           'Aktivität Leistungsempfänger', 'Vorbedingungen',
+                           'Rechtliche Grundlagen', 'Digitalisierungsgrad', 'Kurzbeschrieb Ablauf',
+                           'ArtDerDienstleistungserbringung', 'Frist', 'Dauer',
+                           'Erforderliche Dokumente', 'Formulare', 'E-Rechnung',
+                           'Weitere beteiligte Stellen', 'Gebühr', 'DepartementId',
+                           'DienststelleId', 'Webseite', 'Schlagworte']
+    return df_leist[columns_of_interest]
 
 
 def get_gebuehren():
@@ -50,9 +54,9 @@ def get_gebuehren():
     open(all_gebuehren_path, 'wb').write(req.content)
 
     df_geb = pd.read_excel(all_gebuehren_path)
-    to_remove = ['Kalkulationsgrundlage', 'Gesamteinkommen CHF/Jahr', 'SAP Konto 1', 
-                 'SAP Konto 2', 'SAP Konto 3', 'Weitere Angaben zur Gebühr']
-    return df_geb.drop(columns=to_remove)
+    columns_of_interest = ['Diensstelle', 'Gegenstand der Gebühr', 'Rechtliche Grundlage', 
+                           'Höhe der Gebühr(en) CHF', 'Benchmark', 'Leistung', 'Departement', 'WeitereGliederungOE']
+    return df_geb[columns_of_interest]
 
 
 if __name__ == "__main__":
