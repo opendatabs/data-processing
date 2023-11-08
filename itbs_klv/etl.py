@@ -12,12 +12,10 @@ from itbs_klv import credentials
 
 def main():
     df_leist = get_leistungen()
-    print(df_leist.columns)
     path_leist = os.path.join(credentials.data_path, 'export', 'leistungen.csv')
     df_leist.to_csv(path_leist, index=False)
 
     df_geb = get_gebuehren()
-    print(df_geb.columns)
     path_geb = os.path.join(credentials.data_path, 'export', 'gebuehren.csv')
     df_geb.to_csv(path_geb, index=False)
 
