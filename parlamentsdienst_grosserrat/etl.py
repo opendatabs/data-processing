@@ -40,54 +40,63 @@ MEMBERS_MISSING = [
         "uni_nr": "4016",
         "vorname": "Annemarie",
         "name": "Burckhardt",
+        "name_vorname": "Burckhardt, Annemarie",
         "anrede": "Frau"
     },
     {
         "uni_nr": "4018",
         "vorname": "Hans Rudolf",
         "name": "Bachmann",
+        "name_vorname": "Bachmann, Hans Rudolf",
         "anrede": "Herr"
     },
     {
         "uni_nr": "4019",
         "vorname": "Christoph",
         "name": "Eymann",
+        "name_vorname": "Eymann, Christoph",
         "anrede": "Herr"
     },
     {
         "uni_nr": "4021",
         "vorname": "Markus",
         "name": "Ritter",
+        "name_vorname": "Ritter, Markus",
         "anrede": "Herr"
     },
     {
         "uni_nr": "4024",
         "vorname": "Umberto",
         "name": "Stücklin",
+        "name_vorname": "Stücklin, Umberto",
         "anrede": "Herr"
     },
     {
         "uni_nr": "4025",
         "vorname": "Martin H.",
         "name": "Burckhardt",
+        "name_vorname": "Burckhardt, Martin H.",
         "anrede": "Herr"
     },
     {
         "uni_nr": "4031",
         "vorname": "Christoph",
         "name": "Stutz",
+        "name_vorname": "Stutz, Christoph",
         "anrede": "Herr"
     },
     {
         "uni_nr": "4044",
         "vorname": "Eleonore",
         "name": "Schaub",
+        "name_vorname": "Schaub, Eleonore",
         "anrede": "Frau"
     },
     {
         "uni_nr": "4045",
         "vorname": "Alice",
         "name": "Schaub",
+        "name_vorname": "Schaub, Alice",
         "anrede": "Frau"
     }
 ]
@@ -337,6 +346,8 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
     df['url_urheber'] = np.where(df['vorname_urheber'].notna(), PATH_PERSONEN + df['nr_urheber'], np.nan)
     df['url_urheber_ratsmitgl'] = np.where(df['vorname_urheber'].notna(),
                                            PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_urheber'], np.nan)
+    df['name_vorname_urheber'] = np.where(df['vorname_urheber'].notna(),
+                                          df['name_urheber'] + ', ' + df['vorname_urheber'], np.nan)
     # Fields for names of person can be used for the committee as follows
     df.loc[df['vorname_urheber'].isna(), 'gremientyp_urheber'] = df['nr_urheber'].map(
         df_gre.set_index('uni_nr')['gremientyp'])
@@ -349,6 +360,8 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
         DF_MEMBERS_MISSING.set_index('uni_nr')['anrede'])
     df.loc[df['vorname_urheber'].isna(), 'name_urheber'] = df['nr_urheber'].map(
         DF_MEMBERS_MISSING.set_index('uni_nr')['name'])
+    df.loc[df['vorname_urheber'].isna(), 'name_vorname_urheber'] = df['nr_urheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['name_vorname'])
     df.loc[df['vorname_urheber'].isna(), 'vorname_urheber'] = df['nr_urheber'].map(
         DF_MEMBERS_MISSING.set_index('uni_nr')['vorname'])
 
@@ -357,6 +370,8 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
     df['url_miturheber_ratsmitgl'] = np.where(df['vorname_miturheber'].notna(),
                                               PATH_DATASET + '100307/?refine.uni_nr=' + df['nr_miturheber'],
                                               np.nan)
+    df['name_vorname_miturheber'] = np.where(df['vorname_miturheber'].notna(),
+                                             df['name_miturheber'] + ', ' + df['vorname_miturheber'], np.nan)
     df.loc[df['vorname_miturheber'].isna(), 'gremientyp_miturheber'] = df['nr_miturheber'].map(
         df_gre.set_index('uni_nr')['gremientyp'])
     df.loc[df['vorname_miturheber'].isna(), 'name_miturheber'] = df['nr_miturheber'].map(
@@ -368,6 +383,8 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
         DF_MEMBERS_MISSING.set_index('uni_nr')['anrede'])
     df.loc[df['vorname_miturheber'].isna(), 'name_miturheber'] = df['nr_miturheber'].map(
         DF_MEMBERS_MISSING.set_index('uni_nr')['name'])
+    df.loc[df['vorname_miturheber'].isna(), 'name_vorname_miturheber'] = df['nr_miturheber'].map(
+        DF_MEMBERS_MISSING.set_index('uni_nr')['name_vorname'])
     df.loc[df['vorname_miturheber'].isna(), 'vorname_miturheber'] = df['nr_miturheber'].map(
         DF_MEMBERS_MISSING.set_index('uni_nr')['vorname'])
 
@@ -376,9 +393,9 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
         'beginn_ges', 'ende_ges', 'laufnr_ges', 'signatur_ges', 'status_ges',
         'titel_ges', 'departement_ges', 'ga_rr_gr', 'url_ges',
         'url_zuweisungen', 'url_dokumente', 'url_vorgaenge',
-        'anrede_urheber', 'gremientyp_urheber', 'name_urheber', 'vorname_urheber',
+        'anrede_urheber', 'gremientyp_urheber', 'name_urheber', 'vorname_urheber', 'name_vorname_urheber',
         'partei_kname_urheber', 'url_urheber', 'nr_urheber', 'url_urheber_ratsmitgl',
-        'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber',
+        'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber', 'name_vorname_miturheber',
         'partei_kname_miturheber', 'url_miturheber', 'nr_miturheber', 'url_miturheber_ratsmitgl'
     ]
     df = df[cols_of_interest]
