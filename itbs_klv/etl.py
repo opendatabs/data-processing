@@ -36,6 +36,7 @@ def get_leistungen():
     open(all_leistungen_path, 'wb').write(req.content)
 
     df_leist = pd.read_excel(all_leistungen_path, engine='openpyxl')
+    df_leist = df_leist[df_leist['Aktiv'] == 'Aktiv']
     columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Dienststelle',
                            'Weitere Gliederung OE', 'Identifikations Nr.', 'Kantonaler Name',
                            'Ergebnis', 'Kurze Beschreibung', 'DienststelleAdresse',
