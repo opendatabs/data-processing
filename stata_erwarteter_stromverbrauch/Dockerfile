@@ -29,9 +29,8 @@ RUN apt-get update && apt-get install -y \
 
 ## Explicitly setting my default RStudio Package Manager Repo
 ## Uses packages as at 30/06/2022
-RUN echo "r <- getOption('repos'); \
-	  r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2022-06-30'; \
-	  options(repos = r);" > ~/.Rprofile
+RUN echo " source('renv/activate.R'); \
+      renv::restore();" > ~/.Rprofile
 
 
 
