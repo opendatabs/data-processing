@@ -31,12 +31,14 @@ def main():
 
 
 def get_leistungen():
-    req = requests.get(credentials.url_leistungen, auth=HttpNtlmAuth(credentials.api_user, credentials.api_pass), verify=False)
+    req = requests.get(credentials.url_leistungen, auth=HttpNtlmAuth(credentials.api_user, credentials.api_pass),
+                       headers={"host": credentials.host}, verify=False)
     all_leistungen_path = os.path.join(credentials.data_orig_path, 'alle_Leistungen.xlsx')
     open(all_leistungen_path, 'wb').write(req.content)
 
     df_leist = pd.read_excel(all_leistungen_path, engine='openpyxl')
     df_leist = df_leist[df_leist['Aktiv'] == 'Aktiv']
+    # TODO: keine == Keine == NaN alles zu Keine machen
     columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Dienststelle',
                            'Weitere Gliederung OE', 'Identifikations Nr.', 'Kantonaler Name',
                            'Ergebnis', 'Kurze Beschreibung', 'DienststelleAdresse',
@@ -51,7 +53,8 @@ def get_leistungen():
 
 
 def get_gebuehren():
-    req = requests.get(credentials.url_gebuehren, auth=HttpNtlmAuth(credentials.api_user, credentials.api_pass), verify=False)
+    req = requests.get(credentials.url_gebuehren, auth=HttpNtlmAuth(credentials.api_user, credentials.api_pass),
+                       headers={"host": credentials.host}, verify=False)
     all_gebuehren_path = os.path.join(credentials.data_orig_path, 'alle_aktiven_Gebuehren.xlsx')
     open(all_gebuehren_path, 'wb').write(req.content)
 
