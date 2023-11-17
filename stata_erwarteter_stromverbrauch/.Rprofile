@@ -1,2 +1,1 @@
-source("renv/activate.R");
-renv::restore();
+source("renv/activate.R")
