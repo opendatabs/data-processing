@@ -36,10 +36,9 @@ new_line <- 'httr::GET("https://data.bs.ch/explore/dataset/100074/download/?form
 
 modified_script <- gsub(old_line, new_line, modified_script, fixed = TRUE)
 
+modified_script <- gsub("100245_Strom_Wetter.csv", "stata_erwarteter_stromverbrauch/data/export/100245_Strom_Wetter.csv", modified_script, fixed=TRUE)
 modified_script <- gsub("renv::snapshot()", "", modified_script, fixed=TRUE)
 
 writeLines(modified_script, "stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R")
 
 source("stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R")
-
-file.rename(from="stata_erwarteter_stromverbrauch/100245_Strom_Wetter.csv", to="stata_erwarteter_stromverbrauch/data/export/100245_Strom_Wetter.csv")
