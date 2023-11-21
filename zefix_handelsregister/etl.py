@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import numpy as np
 import logging
 import pathlib
 
@@ -17,7 +16,33 @@ urllib.request.install_opener(opener)
 
 def main():
     get_data_of_all_cantons()
-    # TODO: Add funtion to extract the data from BS
+    df_BS = work_with_BS_data()
+
+def get_gebaeudeeingaenge():
+    raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'gebaeudeeingaenge.csv')
+    logging.info(f'Downloading Gebäudeeingänge from ods to file {raw_data_file}...')
+    r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100231')
+    with open(raw_data_file, 'wb') as f:
+        f.write(r.content)
+    return raw_data_file
+
+
+def work_with_BS_data():
+    path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'export', 'companies_BS.csv')
+    df_BS = pd.read_csv(path_BS)
+    # Replace *Str.* with *Strasse* and *str.* with *strasse*
+    df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse')
+    df_BS['street'] = df_BS['street'].str.replace('str.', 'strasse')
+    path_geb_eing = get_gebaeudeeingaenge()
+    df_geb_eing = pd.read_csv(path_geb_eing, sep=';')
+    df_geb_eing['street'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
+    # Merge on street
+    df_merged = pd.merge(df_BS, df_geb_eing, on='street', how='left')
+    print(df_merged.columns)
+    return df_merged[['company_type', 'type_id', 'municipality', 'locality', 'canton_id',
+                      'company_legal_name', 'short_name_canton', 'district', 'company_uid',
+                      'canton', 'muni_id', 'district_id', 'company_uri', 'plz', 'zusatz',
+                      'street', 'egid', 'eingang_koordinaten']]
 
 
 def get_data_of_all_cantons():
