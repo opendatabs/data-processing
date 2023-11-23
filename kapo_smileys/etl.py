@@ -131,7 +131,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             'Phase': 'Gesamt' if len(phase) > 1 else phase[0],
             'idstandort': id_standort,
             'Strassenname': strassenname,
-            'Messbeginn_Phase': df_phase['Start Vormessung'] if len(phase) > 1 else df_phase[f'Start {phase[0]}'],
+            'Messbeginn_Phase': df_phase['Start_Vormessung'] if len(phase) > 1 else df_phase[f'Start_{phase[0]}'],
             'V_max': max(df_all_v.V),
             'V_min': min(df_all_v.V),
             'V_50': np.median(df_all_v.V),
