@@ -26,7 +26,7 @@ def push_data_files_old(csv_files, truebung=False):
         # Trübung: {"Startzeitpunkt": "20.10.2020 09:00:00", "Endezeitpunkt": "20.10.2020 10:00:00", "RUS.W.O.MS.TR": 1.9}
         r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
-# Trübung: {"Startzeitpunkt": "2023-11-22T22:00:00+0100", "Endezeitpunkt": "2023-11-22T23:00:00+0100",
+# Trübung: {"Startzeitpunkt": "2023-11-22 22:00:00+0100", "Endezeitpunkt": "2023-11-22 23:00:00+0100",
 # "RUS.W.O.MS.TR": 1.9}
 def push_data_files(csv_files, truebung=False):
     # Dictionary to hold the files grouped by date
@@ -41,18 +41,11 @@ def push_data_files(csv_files, truebung=False):
         logging.info(f'Processing files for date {date}...')
         df = df.drop_duplicates()
         df = df.sort_values(by=['Startzeitpunkt']).reset_index(drop=True)
-        # If two enries with 03:00:00 in Endzeitpunkt (dst to dt time change) change first to 02:00:00
-        mask = df['Endezeitpunkt'].str.endswith('03:00:00')
-        if mask.sum() > 1:
-            first_occurrence_idx = df[mask].index[0]
-            df.at[first_occurrence_idx, 'Endezeitpunkt'] = df.at[first_occurrence_idx, 'Endezeitpunkt'].replace('03:00:00', '02:00:00')
 
         df['Startzeitpunkt'] = (pd.to_datetime(df['Startzeitpunkt'], format='%d.%m.%Y %H:%M:%S')
-                                .dt.tz_localize('Europe/Zurich', ambiguous='infer')
-                                .dt.strftime('%Y-%m-%dT%H:%M:%S%z'))
-        df['Endezeitpunkt'] = (pd.to_datetime(df['Endezeitpunkt'], format='%d.%m.%Y %H:%M:%S')
-                               .dt.tz_localize('Europe/Zurich', ambiguous='infer')
-                               .dt.strftime('%Y-%m-%dT%H:%M:%S%z'))
+                                .dt.tz_localize('Europe/Zurich', ambiguous='infer'))
+        # df['Startzeitpunkt'] plus one hour
+        df['Endezeitpunkt'] = df['Startzeitpunkt'] + datetime.timedelta(hours=1)
         r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
 
