@@ -167,7 +167,7 @@ def parse_einsatzplaene(curr_dir):
             logging.info(f'Localizing timestamp in col {col}...')
             df[col] = pd.to_datetime(df[col], format='%Y-%m-%d 00:00:00 %H:%M:%S')
             df['is_dt'] = df[col].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
-            df.loc[df['is_dt'], col] =  df[col] - pd.Timedelta(hours=1)
+            df.loc[df['is_dt'], col] = df[col] - pd.Timedelta(hours=1)
             df[col] = df[col].dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent='NaT').drop(columns=['is_dt'])
         df = df[['id_Standort', 'Strassenname', 'Geschwindigkeit', 'Halterung', 'Ort', 'Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende', 'Zyklus', 'Jahr']]
         df = df.rename(columns={'Ort': 'Ort_Abkuerzung', 'Jahr': 'Messung_Jahr'})
