@@ -46,6 +46,8 @@ def push_data_files(csv_files, truebung=False):
                                 .dt.tz_localize('Europe/Zurich', ambiguous='infer'))
         # df['Startzeitpunkt'] plus one hour
         df['Endezeitpunkt'] = df['Startzeitpunkt'] + datetime.timedelta(hours=1)
+        df['Startzeitpunkt'] = df['Startzeitpunkt'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
+        df['Endezeitpunkt'] = df['Endezeitpunkt'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
         r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
 
