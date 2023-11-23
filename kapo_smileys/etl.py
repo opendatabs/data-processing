@@ -131,6 +131,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             'Phase': 'Gesamt' if len(phase) > 1 else phase[0],
             'idstandort': id_standort,
             'Strassenname': strassenname,
+            'Messbeginn_Phase': df_phase['Start Vormessung'] if len(phase) > 1 else df_phase[f'Start {phase[0]}'],
             'V_max': max(df_all_v.V),
             'V_min': min(df_all_v.V),
             'V_50': np.median(df_all_v.V),
@@ -140,8 +141,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             'Anzahl_Messungen': anz_messungen,
             'Messdauer_h': messdauer_h,
             'dtv': dtv,
-            'link_einzelmessungen': f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}' if len(phase) > 1 else f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}&refine.phase={phase[0]}'
-        }
+            'link_einzelmessungen': f'https://data..ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}' if len(phase) > 1 else f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}&refine.phase={phase[0]}'
+        }bs
         df_stat_pro_standort = pd.DataFrame([stat_pro_standort])
         dfs_stat_pro_standort.append(df_stat_pro_standort)
     df_stats_pro_standort = pd.concat(dfs_stat_pro_standort)
