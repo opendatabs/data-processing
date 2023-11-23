@@ -35,8 +35,7 @@ def push_data_files(csv_files, truebung=False):
     for file in csv_files:
         date_str = file['remote_file'][:10]  # Files are named like YYYY-MM-DD*.csv
         date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        dfs_by_date[date_obj.date()] = pd.concat(
-            [dfs_by_date[date_obj.date()], pd.read_csv(file['local_file'], sep=';')])
+        dfs_by_date[date_obj.date()] = pd.concat([dfs_by_date[date_obj.date()], pd.read_csv(file['local_file'], sep=';')])
 
     for date, df in dfs_by_date.items():
         logging.info(f'Processing files for date {date}...')
