@@ -50,6 +50,7 @@ library(modelr)
 ## Meteorologische Daten
 
 ```{r message=FALSE, warning=FALSE}
+fread("pw.txt") -> pw
 
 fread("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_previous.csv", sep = ";", colClasses = c("character", "Date", rep("numeric", 10))) %>%
   mutate(

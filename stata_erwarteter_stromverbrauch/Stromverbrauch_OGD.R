@@ -27,13 +27,8 @@ modified_script <- gsub("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-ta
                         "data",
                         original_script, fixed = TRUE)
 
-old_line <- 'httr::GET("https://data.bs.ch/explore/dataset/100233/download/?format=csv&timezone=Europe%2FBerlin")'
-new_line <- 'httr::GET("https://data.bs.ch/explore/dataset/100233/download/?format=csv&timezone=Europe%2FBerlin", use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))'
-
-modified_script <- gsub(old_line, new_line, modified_script, fixed = TRUE)
-
-old_line <- 'httr::GET("https://data.bs.ch/explore/dataset/100074/download/?format=csv&timezone=Europe%2FBerlin")'
-new_line <- 'httr::GET("https://data.bs.ch/explore/dataset/100074/download/?format=csv&timezone=Europe%2FBerlin", use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))'
+old_line <- 'Europe%2FBerlin")'
+new_line <- 'Europe%2FBerlin", use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))'
 
 modified_script <- gsub(old_line, new_line, modified_script, fixed = TRUE)
 
