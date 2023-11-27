@@ -243,8 +243,8 @@ meteo %>%
               select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
   full_join(strom_daily %>%
               select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
-  mutate(weekday = lubridate::wday(timestamp, label = TRUE, abbr = TRUE, locale="German_Germany"),
-         daytype = if_else(weekday %in% c("So", "Sa"), "Wochenende", "Werktage")) %>%
+  mutate(weekday = lubridate::wday(timestamp, label = TRUE, abbr = TRUE),
+         daytype = if_else(weekday %in% c("Sun", "Sat"), "Wochenende", "Werktage")) %>%
   mutate(Covid19_Lockdown = if_else(timestamp < as.POSIXct("2020-03-15", format="%Y-%m-%d"), 0, 
                                     if_else(timestamp > as.POSIXct("2020-05-10", format="%Y-%m-%d"), 0, 1))
   ) %>%
