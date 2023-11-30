@@ -367,7 +367,19 @@ Data_selec %>%
   mutate(resid = netzlast_kwh - fit) %>%
   assign("Pred_lm", ., inherits = TRUE)
 
-write.csv2(Pred_lm, "100245_Strom_Wetter.csv", row.names=F, na = "") 
+
+write.csv2(Pred_lm %>%
+             mutate(vgl_real_minus_forecast = netzlast_kwh - fit) %>%
+             select(
+               time,
+               stromverbrauch = netzlast_kwh,
+               forecast = fit,
+               vgl_real_minus_forecast,
+               forecast_lowFI = lwr,
+               forecast_highFI = upr,
+               trainorforecast = Ettape
+               ), 
+           "100245_Strom_Wetter.csv", row.names=F, na = "") 
   
 Pred_lm %>%
   mutate(time_num = as.numeric(time)) %>%
