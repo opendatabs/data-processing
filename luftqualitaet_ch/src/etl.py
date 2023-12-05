@@ -13,7 +13,7 @@ import os
 def main():
     today_string = datetime.today().strftime('%d.%m.%Y')
     decades = ['01.01.2000', '01.01.2010', '01.01.2020', today_string]
-    for i in range(len(centuries) - 1):
+    for i in range(len(decades) - 1):
         logging.info(f'Processing data for the period {decades[i]} - {decades[i + 1]}...')
 
         base_payload = {
