@@ -56,7 +56,7 @@ def main():
             r = common.requests_post(url='https://luftqualitaet.ch/messdaten/datenarchiv/abfrage', data=payload, verify=False)
             warnings.resetwarnings()
 
-            raw_file = os.path.join(credentials.data_path, f'Luftqualitaet_ch-{station_abbrev}-raw.csv')
+            raw_file = os.path.join(credentials.data_path, f'Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}-raw.csv')
             logging.info(f'Writing data into file {raw_file}...')
             with open(raw_file, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=128):
@@ -78,7 +78,7 @@ def main():
                                         'NO2 (Stundenmittelwerte  [µg/m³])': 'no2_stundenmittelwerte_ug_m3',
                                         'PM2.5 (Stundenmittelwerte  [µg/m³])': 'pm2_5_stundenmittelwerte_ug_m3'
                                         })
-                export_file = os.path.join(credentials.data_path, f'Luftqualitaet_ch-{station_abbrev}.csv')
+                export_file = os.path.join(credentials.data_path, f'Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}.csv')
                 df.to_csv(export_file, index=False)
                 common.upload_ftp(export_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'luftqualitaet_ch')
                 if ct.has_changed(export_file):
