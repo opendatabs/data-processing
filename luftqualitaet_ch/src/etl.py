@@ -12,9 +12,9 @@ import os
 
 def main():
     today_string = datetime.today().strftime('%d.%m.%Y')
-    centuries = ['01.01.2000', '01.01.2010', '01.01.2020', today_string]
+    decades = ['01.01.2000', '01.01.2010', '01.01.2020', today_string]
     for i in range(len(centuries) - 1):
-        logging.info(f'Processing data for the period {centuries[i]} - {centuries[i + 1]}...')
+        logging.info(f'Processing data for the period {decades[i]} - {decades[i + 1]}...')
 
         base_payload = {
             'jsform': 'true',
@@ -24,8 +24,8 @@ def main():
             'pollutant_interval': 'hour',
             'pollutant_output': 'interactive',
             'timerange': 'custom',
-            'startdate': centuries[i],
-            'stopdate': centuries[i + 1],
+            'startdate': decades[i],
+            'stopdate': decades[i + 1],
             'submit': 'Abfrage',
         }
         station_payload = [
