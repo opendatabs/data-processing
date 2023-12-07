@@ -67,6 +67,9 @@ def is_dt(datetime, timezone):
 def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze):
     logging.info(f'Working through folder {folder}...')
     tagesdaten_files = glob.glob(os.path.join(folder, '*.TXT'), recursive=True)
+    if not tagesdaten_files:
+        logging.info(f'No TXT files found in folder {folder}...')
+        tagesdaten_files = glob.glob(os.path.join(folder, 'DATA', '*.TXT'), recursive=True)
     id_standort = int(os.path.basename(folder).split('_')[0])
     messdaten_dfs_pro_standort = []
     for f in tagesdaten_files:
@@ -76,8 +79,6 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
               .rename(columns={'Datum': 'Messung_Datum', 'Zeit': 'Messung_Zeit'})
               .drop(columns=['dummy']))
         df['Messung_Timestamp'] = pd.to_datetime(df.Messung_Datum + 'T' + df.Messung_Zeit, format='%d.%m.%yT%H:%M:%S')
-        # TODO: There are non-existent times. 
-        # Assumption: Does not switch to DT. Have to ask, but until than, subtract one hour if DT or non-existent time
         df['is_dt'] = df['Messung_Timestamp'].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
         df.loc[df['is_dt'], 'Messung_Timestamp'] = df['Messung_Timestamp'] - pd.Timedelta(hours=1)
         df.Messung_Timestamp = df.Messung_Timestamp.dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent=timedelta(hours=-1))
@@ -97,8 +98,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
                                                    np.where(df_m.Messung_Timestamp < df_m.Ende, 'Nachmessung', 'Nach Ende')))
                                  )
         logging.info(f'Removing measurements with phase "Vor Vormessung"...')
-        df_m = df_m[df_m.Phase != 'Vor Vormessung']
-        # TODO: Why do we not remove the measurements with phase "Nach Ende"
+        # df_m = df_m[df_m.Phase != 'Vor Vormessung']
 
         messdaten_dfs_pro_standort.append(df_m)
         export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
@@ -188,8 +188,6 @@ def main():
     shp_coords_df = pd.DataFrame.from_dict(file)
     df_einsaetze = pd.merge(df_einsaetze, shp_coords_df[['idstandort', 'geo_point_2d', 'geo_shape']], how='left', left_on='id_Standort', right_on='idstandort').drop(columns=['idstandort'])
     logging.info(f'Creating df_einsatz_days with one row per day and standort_id...')
-    # TODO: concatenate entries over Zyklen which belong together.
-    # For now delete anything which has a 'np.nan' value in a date.
     df_einsaetze = df_einsaetze.dropna(subset=['Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende'])
     df_einsatz_days = pd.concat([pd.DataFrame({'id_standort': row.id_Standort, 'Zyklus': row.Zyklus, 'datum_aktiv': pd.date_range(row.Start_Vormessung, row.Ende, freq='D', normalize=True)})  # , 'Start_Vormessung': row.Start_Vormessung, 'Start_Betrieb': row.Start_Betrieb, 'Start_Nachmessung': row.Start_Nachmessung, 'Ende': row.Ende})
                                  for i, row in df_einsaetze.iterrows()], ignore_index=True)
