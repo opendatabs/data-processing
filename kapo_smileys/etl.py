@@ -158,7 +158,7 @@ def parse_einsatzplaene(curr_dir):
     einsatzplan_dfs = []
     for f in einsatzplan_files:
         # Throws error with openpyxl versions bigger than 3.0.10 since files are filtered
-        df = pd.read_excel(f, skiprows=1, parse_dates=[['Datum_VM', 'Uhrzeit_VM'], ['Datum_SB', 'Uhrzeit_SB'], ['Datum_NM', 'Uhrzeit_NM'], ['Datum_Ende', 'Uhrzeit_Ende']])
+        df = pd.read_excel(f, skiprows=1)
         df.replace(['', ' ', 'nan nan'], np.nan, inplace=True)
         df = df.dropna(subset=['Smiley-Nr.'])
         filename = os.path.basename(f)
@@ -166,11 +166,14 @@ def parse_einsatzplaene(curr_dir):
         jahr = int(filename.split('_')[2].split('.')[0])
         df['Zyklus'] = zyklus
         df['Jahr'] = jahr
-        df = df.rename(columns={'Datum_VM_Uhrzeit_VM': 'Start_Vormessung', 'Datum_SB_Uhrzeit_SB': 'Start_Betrieb', 'Datum_NM_Uhrzeit_NM': 'Start_Nachmessung', 'Datum_Ende_Uhrzeit_Ende': 'Ende'})
-        for col in ['Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende']:
+        # Iterate over Phase and new column names
+        for ph, col in [('VM', 'Start_Vormessung'), ('SB', 'Start_Betrieb'), ('NM', 'Start_Nachmessung'), ('Ende', 'Ende')]:
             logging.info(f'Localizing timestamp in col {col}...')
-            df[col] = df[col].astype(str).str.replace(' 00:00:00 ', ' ', regex=False)
-            df[col] = pd.to_datetime(df[col], format='%Y-%m-%d %H:%M:%S')
+            # Remove time from date
+            df[f'Datum_{ph}'] = df[f'Datum_{ph}'].dt.date
+            # Join date and time columns and assign to col
+            df[col] = pd.to_datetime(df[f'Datum_{ph}'].astype(str) + ' ' + df[f'Uhrzeit_{ph}'].astype(str), format='%Y-%m-%d %H:%M:%S')
+            df.drop(columns=[f'Datum_{ph}', f'Uhrzeit_{ph}'], inplace=True)
             df['is_dt'] = df[col].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
             df.loc[df['is_dt'], col] = df[col] - pd.Timedelta(hours=1)
             df[col] = df[col].dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent='NaT').drop(columns=['is_dt'])
