@@ -169,6 +169,7 @@ def parse_einsatzplaene(curr_dir):
         df = df.rename(columns={'Datum_VM_Uhrzeit_VM': 'Start_Vormessung', 'Datum_SB_Uhrzeit_SB': 'Start_Betrieb', 'Datum_NM_Uhrzeit_NM': 'Start_Nachmessung', 'Datum_Ende_Uhrzeit_Ende': 'Ende'})
         for col in ['Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende']:
             logging.info(f'Localizing timestamp in col {col}...')
+            df[col] = df[col].str.replace(' 00:00:00 ', ' ', regex=False)
             df[col] = pd.to_datetime(df[col], format='%Y-%m-%d %H:%M:%S')
             df['is_dt'] = df[col].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
             df.loc[df['is_dt'], col] = df[col] - pd.Timedelta(hours=1)
