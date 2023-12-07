@@ -108,8 +108,9 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             ct.update_hash_file(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
-    if df_all_pro_standort.Start_Vormessung.isna().any():
-        logging.warning(f'No Start_Vormessung found for id_standort {id_standort}! Returning empty dataframes...')
+    if (df_all_pro_standort.Start_Vormessung.isna().any() or df_all_pro_standort.Start_Betrieb.isna().any()
+            or df_all_pro_standort.Start_Nachmessung.isna().any() or df_all_pro_standort.Ende.isna().any()):
+        logging.warning(f'No complete Einsatzplan for id_standort {id_standort}! Returning empty dataframes...')
         return pd.DataFrame(), pd.DataFrame()
     if len(df_all_pro_standort.id_standort.unique()) > 1:
         raise RuntimeError(f'More than 1 ({df_all_pro_standort.id_standort.unique()}) idstandort found in 1 data folder ({folder}!)')
