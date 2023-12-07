@@ -16,8 +16,6 @@ import common
 import common.change_tracking as ct
 from parlamentsdienst_gr_abstimmungen import credentials
 
-pd.options.display.max_columns = 500
-
 # see https://stackoverflow.com/a/33504236
 class ExcelHandler(ContentHandler):
     def __init__(self):
@@ -327,7 +325,7 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     with open(local_file, "r", encoding="utf-8") as json_file:
         data = json.load(json_file)
         df_json = pd.json_normalize(data, record_path=['voting_data', 'individual_votes'], meta=[
-            'voting_number', 'voting_date', 'voting_time', 'yes_votes', 'no_votes', 'abstained_votes', 
+            'voting_number', 'voting_date', 'voting_time', 'yes_votes', 'no_votes', 'abstained_votes',
             'started', 'created', 'protocol', 'voting_type', 'agenda_item_uid', 'agenda_number'
             ])
     df_json = df_json.rename(columns={'yes_votes': 'Anz_J', 'no_votes': 'Anz_N', 'abstained_votes': 'Anz_E',
@@ -386,6 +384,11 @@ def calc_details_from_single_xml_file(local_file):
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
+    # Mistake in Sitz_Nr in original data due to same family name
+    details.loc[(details['Mitglied_Name'] == 'Beatrice Messerli') & (details['Sitz_Nr'] == '18'), 'Sitz_Nr'] = '42'
+    details.loc[(details['Mitglied_Name'] == 'Claudia Baumgartner') & (details['Sitz_Nr'] == '69'), 'Sitz_Nr'] = '21'
+    details.loc[(details['Mitglied_Name'] == 'Christian von Wartburg') & (details['Sitz_Nr'] == '77'), 'Sitz_Nr'] = '33'
+
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
     # See usage of Document id e.g. here: http://abstimmungen.grosserrat-basel.ch/index_archiv3_v2.php?path=archiv/Amtsjahr_2022-2023/2022.03.23
@@ -397,8 +400,8 @@ def calc_details_from_single_xml_file(local_file):
 
 # Maybe not needed
 def calc_traktanden_from_json_filenames(json_files):
-    # TODO: This format will change soon from 
-    # Abst_{Abstimmungsnummer}_{Datum}_{Zeit}_{Traktandum}_{Subtraktandum}_{Abstimmungstyp}.json" 
+    # TODO: This format will change soon from
+    # Abst_{Abstimmungsnummer}_{Datum}_{Zeit}_{Traktandum}_{Subtraktandum}_{Abstimmungstyp}.json"
     # to GRBS-Abst-{Datum}-{Zeit}-T{Traktandum}-{Subtraktandum}-{Abstimmungsnummer}.json
     logging.info(f'Calculating traktanden from json filenames...')
     df_trakt = pd.DataFrame(columns=['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ'])
@@ -554,6 +557,14 @@ def handle_congress_center_polls(df_unique_session_dates):
         df['Mitglied_Name'] = df_names.Mitglied_Name
         df['Mitglied_Name_Fraktion'] = df.Mitglied_Name + ' (' + df.Fraktion + ')'
         df['Entscheid_Mitglied'] = df['Choice Text'].replace({'Ja': 'J', 'Nein': 'N', '-': 'A', 'Enthaltung': 'E'})
+        # Data from Congress Center does not contain the Entscheid_Mitglie-value P (Präsident),
+        # so we add it here after checking it with the data provider
+        df.loc[(df.Mitglied_Name == 'Salome Hofer') & (df['Creation Date'] >= datetime(2020, 2, 1)) &
+               (df['Creation Date'] <= datetime(2021, 2, 1)) & (df['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
+        df.loc[(df.Mitglied_Name == 'David Jenny') & (df['Creation Date'] >= datetime(2021, 2, 1)) &
+               (df['Creation Date'] <= datetime(2022, 2, 1)) & (df['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
+        df.loc[(df.Mitglied_Name == 'Jo Vergeat') & (df['Creation Date'] >= datetime(2022, 2, 1)) &
+               (df['Creation Date'] <= datetime(2023, 2, 1)) & (['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
 
         df_trakt = df.Geschaeft.str.extract(r"Trakt\. (?P<Traktandum>\d+)[\_\:](?P<Subtraktandum>\d+)?")
         df = pd.concat([df, df_trakt], axis=1)
