@@ -211,6 +211,8 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, process_archive
                 df_merge1 = df_poll_details.merge(df_trakt, how='left', on=['session_date', 'Abst_Nr'])
                 # Overriding invalid polls: Their pdf file name contains 'un' in column 'Abst_Typ'
                 df_merge1['Typ'] = np.where(df_merge1['Abst_Typ'] == 'un', 'ungültig', df_merge1['Typ'])
+                # Unify "offene Wahl"
+                df_merge1.loc[df_merge1['Typ'] == 'Offene Wahl', 'Typ'] = 'offene Wahl'
                 df_merge1 = df_merge1.drop(columns=['Abst_Typ'])
                 df_merge1['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(str)
                 # todo: Add link to pdf file (if possible)
@@ -578,12 +580,10 @@ def main():
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     # Uncomment to process Congress Center data
-    # poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
+    poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
     # Uncomment to process archived poll data
-    # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
-
-    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
-        poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
+    poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
+    poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
 
 
 if __name__ == "__main__":
