@@ -81,7 +81,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df['Messung_Timestamp'] = pd.to_datetime(df.Messung_Datum + 'T' + df.Messung_Zeit, format='%d.%m.%yT%H:%M:%S')
         df['is_dt'] = df['Messung_Timestamp'].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
         df.loc[df['is_dt'], 'Messung_Timestamp'] = df['Messung_Timestamp'] - pd.Timedelta(hours=1)
-        df.Messung_Timestamp = df.Messung_Timestamp.dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent=timedelta(hours=-1))
+        df.Messung_Timestamp = df.Messung_Timestamp.dt.tz_localize('Europe/Zurich', ambiguous=np.array(~df['is_dt']), nonexistent=timedelta(hours=-1))
         df.Messung_Datum = df.Messung_Timestamp.dt.date
         df.Messung_Zeit = df.Messung_Timestamp.dt.time
         df['id_standort'] = id_standort
