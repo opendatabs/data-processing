@@ -578,10 +578,12 @@ def main():
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     # Uncomment to process Congress Center data
-    poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
+    # poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
     # Uncomment to process archived poll data
-    poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
-    poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
+    # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
+
+    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+        poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
 
 
 if __name__ == "__main__":
