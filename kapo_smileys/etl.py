@@ -158,7 +158,8 @@ def parse_einsatzplaene(curr_dir):
     einsatzplan_dfs = []
     for f in einsatzplan_files:
         # Throws error with openpyxl versions bigger than 3.0.10 since files are filtered
-        df = pd.read_excel(f, skiprows=1)
+        # Parse Datum as date and no 00:00:00
+        df = pd.read_excel(f, parse_dates=['Datum_VM', 'Datum_SB', 'Datum_NM', 'Datum_Ende'], engine='openpyxl', skiprows=1)
         df.replace(['', ' ', 'nan nan'], np.nan, inplace=True)
         df = df.dropna(subset=['Smiley-Nr.'])
         filename = os.path.basename(f)
@@ -169,10 +170,8 @@ def parse_einsatzplaene(curr_dir):
         # Iterate over Phase and new column names
         for ph, col in [('VM', 'Start_Vormessung'), ('SB', 'Start_Betrieb'), ('NM', 'Start_Nachmessung'), ('Ende', 'Ende')]:
             logging.info(f'Localizing timestamp in col {col}...')
-            # Remove time from date after converting to datetime
-            df[f'Datum_{ph}'] = pd.to_datetime(df[f'Datum_{ph}'], format='%d.%m.%Y %H:%M:%S').dt.date
-            # Join date and actual time and assign to col
-            df[col] = pd.to_datetime(df[f'Datum_{ph}'].astype(str) + ' ' + df[f'Uhrzeit_{ph}'].astype(str), format='%Y-%m-%d %H:%M:%S')
+            # Add time to date
+            df[col] = df[f'Datum_{ph}'] + pd.to_timedelta(pd.to_datetime(df[f'Uhrzeit_{ph}'], format='%H:%M:%S').dt.time.astype(str))
             df.drop(columns=[f'Datum_{ph}', f'Uhrzeit_{ph}'], inplace=True)
             df['is_dt'] = df[col].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
             df.loc[df['is_dt'], col] = df[col] - pd.Timedelta(hours=1)
