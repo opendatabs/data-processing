@@ -115,6 +115,8 @@ def get_trakt_names(session_day):
     logging.info(f'Found closest session date {closest_session_path} for date {session_day}')
     # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
     csv_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path, credentials.local_data_path, 'BSGR_Agenda.csv')
+    if csv_file[0] is None:
+        raise ValueError(f'No BSGR_Agenda.csv found for date {session_day}')
     return pd.read_csv(csv_file[0]['local_file'], delimiter=';')
 
 
@@ -190,6 +192,7 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
             all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
             ct.update_hash_file(json_ls_file)
     return all_df
+
 
 def handle_single_polls_folder_xml(df_unique_session_dates, ftp, process_archive, remote_path):
     xml_ls_file = credentials.ftp_ls_file.replace('.json', f'_xml_{remote_path.replace("/", "_")}.json')
@@ -351,8 +354,9 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json[['Traktandum', 'Subtraktandum']] = df_json['agenda_number'].str.replace('T', '', regex=False).str.split('-', expand=True)
     df_json['tagesordnung_link'] = 'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_json.Datum + '&refine.traktand=' + df_json.Traktandum.astype(int).astype(str)
     return df_json[['session_date', 'Abst_Nr', 'Datum', 'Zeit', 'Anz_J', 'Anz_N', 'Anz_E', 'Anz_A', 'Anz_P', 'Typ', 'Geschaeft',
-    'Zeitstempel', 'Zeitstempel_text', 'Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datenstand', 'Datenstand_text',
-    'Entscheid_Mitglied', 'Traktandum', 'Subtraktandum', 'tagesordnung_link']]
+                    'Zeitstempel', 'Zeitstempel_text', 'Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datenstand', 'Datenstand_text',
+                    'Entscheid_Mitglied', 'Traktandum', 'Subtraktandum', 'tagesordnung_link']]
+
 
 def calc_details_from_single_xml_file(local_file):
     session_date = os.path.basename(local_file).split('_')[0]
@@ -580,10 +584,12 @@ def main():
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
     # Uncomment to process Congress Center data
-    poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
+    # poll_congress_center_archive = handle_congress_center_polls(df_unique_session_dates=None)
     # Uncomment to process archived poll data
-    poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
-    poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
+    # poll_archive_df = handle_polls(process_archive=True, df_unique_session_dates=df_unique_session_dates)
+
+    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+        poll_current_df = handle_polls(process_archive=False, df_unique_session_dates=df_unique_session_dates)
 
 
 if __name__ == "__main__":
