@@ -398,24 +398,6 @@ def calc_details_from_single_xml_file(local_file):
     df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
     return df_merge1
 
-# Maybe not needed
-def calc_traktanden_from_json_filenames(json_files):
-    # TODO: This format will change soon from
-    # Abst_{Abstimmungsnummer}_{Datum}_{Zeit}_{Traktandum}_{Subtraktandum}_{Abstimmungstyp}.json"
-    # to GRBS-Abst-{Datum}-{Zeit}-T{Traktandum}-{Subtraktandum}-{Abstimmungsnummer}.json
-    logging.info(f'Calculating traktanden from json filenames...')
-    df_trakt = pd.DataFrame(columns=['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum', '_Abst_Typ'])
-    for json_file in json_files:
-        df_trakt.loc[len(df_trakt)] = json_file['remote_file'].split('_')
-    df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
-    # Remove spaces in filename, get rid of leading zeros.
-    df_trakt.Abst_Nr = df_trakt.Abst_Nr.str.replace(' ', '').astype(int).astype(str)
-    df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
-    # Get rid of some rogue text and leading zeros
-    # todo: Keep this as text in order not to fail on live imports?
-    df_trakt.Subtraktandum = df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0', regex=False).astype(int)
-    df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
-    return df_trakt
 
 def calc_traktanden_from_pdf_filenames(df_trakt):
     if len(df_trakt) > 0:
