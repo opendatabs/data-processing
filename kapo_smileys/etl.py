@@ -169,9 +169,9 @@ def parse_einsatzplaene(curr_dir):
         # Iterate over Phase and new column names
         for ph, col in [('VM', 'Start_Vormessung'), ('SB', 'Start_Betrieb'), ('NM', 'Start_Nachmessung'), ('Ende', 'Ende')]:
             logging.info(f'Localizing timestamp in col {col}...')
-            # Remove time from date
-            df[f'Datum_{ph}'] = df[f'Datum_{ph}'].dt.date
-            # Join date and time columns and assign to col
+            # Remove time from date after converting to datetime
+            df[f'Datum_{ph}'] = pd.to_datetime(df[f'Datum_{ph}'], format='%d.%m.%Y %H:%M:%S').dt.date
+            # Join date and actual time and assign to col
             df[col] = pd.to_datetime(df[f'Datum_{ph}'].astype(str) + ' ' + df[f'Uhrzeit_{ph}'].astype(str), format='%Y-%m-%d %H:%M:%S')
             df.drop(columns=[f'Datum_{ph}', f'Uhrzeit_{ph}'], inplace=True)
             df['is_dt'] = df[col].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
