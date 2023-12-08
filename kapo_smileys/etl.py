@@ -108,8 +108,6 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
 
     if len(df_all_pro_standort.id_standort.unique()) > 1:
         raise RuntimeError(f'More than 1 ({df_all_pro_standort.id_standort.unique()}) idstandort found in 1 data folder ({folder}!)')
-    if len(df_all_pro_standort.Zyklus.unique()) > 1:
-        raise RuntimeError(f'More than 1 ({df_all_pro_standort.Zyklus.unique()}) Zyklus found in 1 data folder ({folder}!)')
 
     # Calculate statistics for this data folder
     dfs_stat_pro_standort = []
