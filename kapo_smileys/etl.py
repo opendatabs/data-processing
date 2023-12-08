@@ -117,6 +117,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
     dfs_stat_pro_standort = []
     for phase in [['Vormessung'], ['Betrieb'], ['Nachmessung'], ['Vormessung', 'Betrieb', 'Nachmessung']]:
         df_phase = df_all_pro_standort[df_all_pro_standort['Phase'].isin(phase)]
+        if df_phase.empty:
+            continue
         min_timestamp = df_phase.Messung_Timestamp.min()
         max_timestamp = df_phase.Messung_Timestamp.max()
         messdauer_h = (max_timestamp - min_timestamp) / pd.Timedelta(hours=1)
