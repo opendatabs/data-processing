@@ -28,18 +28,6 @@ def main():
         df_export.to_csv(export_path, index=False)
 
 
-def list_directories():
-    folder_path = credentials.data_orig_path
-    directories = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
-    list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
-    with open(list_path, 'w') as file:
-        for item in directories:
-            file.write(item + '\n')
-    list_directories = [x for x in directories if x not in ['Old', 'export', '2020_07_27']]
-    list_directories.sort()
-    return list_directories
-
-
 def process_data_2017():
     logging.info(f'Reading 2017 data from csv...')
     df_2020_07_27 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_07_27/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
