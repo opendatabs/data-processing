@@ -12,18 +12,6 @@ from mobilitaet_parkflaechen import credentials
 from common import change_tracking as ct
 
 
-# Copied from ../kapo_ordnungsbussen/src/etl.py
-def list_directories(list_path):
-    folder_path = credentials.data_orig_path
-    directories = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
-    with open(list_path, 'w') as file:
-        for item in directories:
-            file.write(item + '\n')
-    list_directories = [x for x in directories if x not in []] # List folders that should be ignored here
-    list_directories.sort()
-    return list_directories
-
-
 def download_spatial_descriptors(ods_id):
     url_to_shp = f'https://data.bs.ch/explore/dataset/{ods_id}/download/?format=shp&timezone=Europe/Berlin&lang=de'
     r = common.requests_get(url_to_shp)
@@ -37,9 +25,9 @@ def download_spatial_descriptors(ods_id):
 
 
 def main():
-    list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
-    directories = list_directories(list_path)
-    if True or ct.has_changed(list_path):
+    list_path = os.path.join(credentials.data_path, 'list_directories.txt')
+    directories = common.list_directories(credentials.data_orig_path, list_path)
+    if ct.has_changed(list_path):
         newest_folder = max(directories, key=lambda d: datetime.datetime.strptime(d, '%Y-%m-%d'))
         logging.info(f'Newest folder is {newest_folder}')
         path_to_shp = os.path.join(credentials.data_orig_path, newest_folder, 'Parkflaechen_vollstaendig.shp')

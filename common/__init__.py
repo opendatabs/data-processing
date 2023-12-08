@@ -326,6 +326,18 @@ def rename_ftp(from_name, to_name, server, user, password):
         raise FileNotFoundError(file)
 
 
+def list_directories(folder_path, list_txt_path, ignore_list=None):
+    if ignore_list is None:
+        ignore_list = []
+    directories = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
+    with open(list_txt_path, 'w') as file:
+        for item in directories:
+            file.write(item + '\n')
+    directories_list = [x for x in directories if x not in ignore_list]  # List folders that should be ignored here
+    directories_list.sort()
+    return directories_list
+
+
 def get_text_from_url(url):
     req = requests_get(url)
     req.raise_for_status()

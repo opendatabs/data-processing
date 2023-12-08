@@ -15,8 +15,9 @@ from kapo_ordnungsbussen import credentials
 
 
 def main():
-    directories = list_directories()
     list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
+    directories = common.list_directories(credentials.data_orig_path, list_path,
+                                          ['Old', 'export', '2020_07_27'])
     if ct.has_changed(list_path):
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
@@ -25,18 +26,6 @@ def main():
         logging.info(f'Exporting data to {export_path}...')
         df_export = df_export.loc[df_export['randomly_shifted_lat'].notna()]
         df_export.to_csv(export_path, index=False)
-
-
-def list_directories():
-    folder_path = credentials.data_orig_path
-    directories = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
-    list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
-    with open(list_path, 'w') as file:
-        for item in directories:
-            file.write(item + '\n')
-    list_directories = [x for x in directories if x not in ['Old', 'export', '2020_07_27']]
-    list_directories.sort()
-    return list_directories
 
 
 def process_data_2017():
