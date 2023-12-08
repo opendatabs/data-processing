@@ -52,8 +52,8 @@ def main():
 
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
         logging.info(f'Exporting data to {path_export}...')
+        gdf.to_csv(path_export, index=False)
         if ct.has_changed(path_export):
-            gdf.to_csv(path_export, index=False)
             common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'mobilitaet/parkflaechen')
             odsp.publish_ods_dataset_by_id('100329')
