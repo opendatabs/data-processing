@@ -11,7 +11,7 @@ CMD ["python3", "-m", "mobilitaet_parkflaechen.etl"]
 
 
 # Docker commands to create image and run container:
-# cd stadtreinigung_wildedeponien
-# docker build -t stadtreinigung_wildedeponien .
+# cd mobilitaet_parkflaechen
+# docker build -t mobilitaet_parkflaechen .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing  --name stadtreinigung_wildedeponien stadtreinigung_wildedeponien
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/BVD-mobilitaet/Parkplatzkataster/Shape:/code/data-processing/mobilitaet_parkflaechen/data_orig  --name stadtreinigung_wildedeponien stadtreinigung_wildedeponien
