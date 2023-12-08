@@ -92,7 +92,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df_m1 = pd.merge(df_einsatz_days, df, how='right', on=['id_standort', 'day_str']).drop(columns=['datum_aktiv', 'day_str'])
         df_m = pd.merge(df_m1, df_einsatze, how='left', left_on=['id_standort', 'Zyklus'], right_on=['id_Standort', 'Zyklus'])
         df_m = df_m.drop(columns=['id_Standort', 'is_dt'])
-        df_m['Phase'] = np.where(df_m.Messung_Timestamp < df_m.Start_Vormessung, 'Vor Vormessung',
+        df_m['Phase'] = np.where((df_m.Messung_Timestamp < df_m.Start_Vormessung) | (df_m.Start_Vormessung.isna()), 'Vor Vormessung',
                                  np.where(df_m.Messung_Timestamp < df_m.Start_Betrieb, 'Vormessung',
                                           np.where(df_m.Messung_Timestamp < df_m.Start_Nachmessung, 'Betrieb',
                                                    np.where(df_m.Messung_Timestamp < df_m.Ende, 'Nachmessung', 'Nach Ende')))
@@ -108,10 +108,6 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             ct.update_hash_file(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
-    if (df_all_pro_standort.Start_Vormessung.isna().any() or df_all_pro_standort.Start_Betrieb.isna().any()
-            or df_all_pro_standort.Start_Nachmessung.isna().any() or df_all_pro_standort.Ende.isna().any()):
-        logging.warning(f'No complete Einsatzplan for id_standort {id_standort}! Returning empty dataframes...')
-        return pd.DataFrame(), pd.DataFrame()
     if len(df_all_pro_standort.id_standort.unique()) > 1:
         raise RuntimeError(f'More than 1 ({df_all_pro_standort.id_standort.unique()}) idstandort found in 1 data folder ({folder}!)')
     if len(df_all_pro_standort.Zyklus.unique()) > 1:
@@ -158,7 +154,6 @@ def parse_einsatzplaene(curr_dir):
     einsatzplan_dfs = []
     for f in einsatzplan_files:
         # Throws error with openpyxl versions bigger than 3.0.10 since files are filtered
-        # Parse Datum as date and no 00:00:00
         df = pd.read_excel(f, parse_dates=['Datum_VM', 'Datum_SB', 'Datum_NM', 'Datum_Ende'], engine='openpyxl', skiprows=1)
         df.replace(['', ' ', 'nan nan'], np.nan, inplace=True)
         df = df.dropna(subset=['Smiley-Nr.'])
