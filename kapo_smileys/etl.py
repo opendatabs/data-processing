@@ -66,10 +66,8 @@ def is_dt(datetime, timezone):
 
 def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze):
     logging.info(f'Working through folder {folder}...')
-    tagesdaten_files = glob.glob(os.path.join(folder, '*.TXT'), recursive=True)
-    if not tagesdaten_files:
-        logging.info(f'No TXT files found in folder {folder}...')
-        tagesdaten_files = glob.glob(os.path.join(folder, 'DATA', '*.TXT'), recursive=True)
+    # Go recursively into folders until TXT files are found
+    tagesdaten_files = glob.glob(os.path.join(folder, '**', '*.TXT'), recursive=True)
     id_standort = int(os.path.basename(folder).split('_')[0])
     messdaten_dfs_pro_standort = []
     for f in tagesdaten_files:
