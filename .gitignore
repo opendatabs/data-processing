@@ -21,6 +21,10 @@ __pycache__/
 **/*.ics
 **/*.kml
 **/*.kmz
+**/*.dbf
+**/*.shp
+**/*.shx
+**/*.prj
 /aue_fischereistatistik/**/*.geojson
 /bachapp/**/*.geojson
 /gsv_covid19_hosp/*.html
