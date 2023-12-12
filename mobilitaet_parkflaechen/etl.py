@@ -50,6 +50,11 @@ def main():
         gdf['GEO_SHAPE'] = gdf['geometry'].to_crs('EPSG:4326')
         gdf['CENTROID'] = gdf['centroid'].to_crs('EPSG:4326')
 
+        columns_of_interest = ['GID', 'GILT_VON', 'GILT_BIS', 'SOBJ_KZ', 'ANZAHL', 'SOPFT_TYP', 'STST_STR', 'TARIF_C1',
+                               'SOPFG_GEB', 'GEBPFLICHT', 'MAXPARKZ', 'KEINL', 'AKTUELL', 'PLZ', 'WOV_ID', 'WOV_NAME',
+                               'BEZ_ID', 'BEZ_NAME', 'GEO_SHAPE', 'CENTROID']
+        gdf = gdf[columns_of_interest]
+
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
         logging.info(f'Exporting data to {path_export}...')
         gdf.to_csv(path_export, index=False)
