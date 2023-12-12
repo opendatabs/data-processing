@@ -25,34 +25,39 @@ def read_shapefile(shp_path):
 
 def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
     any_changes = False
-    messdaten_folders = glob.glob(os.path.join(curr_dir, 'data_orig', 'Datenablage', '*'))
-    messdaten_dfs = []
-    stat_dfs = []
-    for folder in messdaten_folders:
-        if any(os.listdir(folder)):
-            df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsaetze)
-            messdaten_dfs.append(df_all_pro_standort)
-            stat_dfs.append(df_stat_pro_standort)
-        else:
-            logging.info(f'No data in folder {folder}...')
+    messdaten_path = os.path.join(curr_dir, 'data_orig', 'Datenablage')
+    list_path = os.path.join(curr_dir, 'data', 'list_files.txt')
+    common.list_files(messdaten_path, list_path, recursive=True)
+    if ct.has_changed(list_path):
+        messdaten_folders = glob.glob(os.path.join(messdaten_path, '*'))
+        messdaten_dfs = []
+        stat_dfs = []
+        for folder in messdaten_folders:
+            if any(os.listdir(folder)):
+                df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsaetze)
+                messdaten_dfs.append(df_all_pro_standort)
+                stat_dfs.append(df_stat_pro_standort)
+            else:
+                logging.info(f'No data in folder {folder}...')
 
-    all_df = pd.concat(messdaten_dfs)
-    export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
-    all_df.to_csv(export_file_all, index=False)
-    if ct.has_changed(export_file_all):
-        common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
-        any_changes = True
-        ct.update_hash_file(export_file_all)
+        all_df = pd.concat(messdaten_dfs)
+        export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
+        all_df.to_csv(export_file_all, index=False)
+        if ct.has_changed(export_file_all):
+            common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
+            any_changes = True
+            ct.update_hash_file(export_file_all)
 
-    stat_df = pd.concat(stat_dfs)
-    export_file_stat = os.path.join(curr_dir, 'data', 'all_stat.csv')
-    stat_df.to_csv(export_file_stat, index=False)
-    if ct.has_changed(export_file_stat):
-        common.upload_ftp(export_file_stat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
-        any_changes = True
-        ct.update_hash_file(export_file_stat)
-
-    return all_df, stat_df, any_changes
+        stat_df = pd.concat(stat_dfs)
+        export_file_stat = os.path.join(curr_dir, 'data', 'all_stat.csv')
+        stat_df.to_csv(export_file_stat, index=False)
+        if ct.has_changed(export_file_stat):
+            common.upload_ftp(export_file_stat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
+            any_changes = True
+            ct.update_hash_file(export_file_stat)
+        ct.update_hash_file(list_path)
+        return any_changes
+    return False
 
 
 def is_dt(datetime, timezone):
@@ -193,7 +198,7 @@ def main():
                                  for i, row in df_einsaetze.iterrows()], ignore_index=True)
     df_einsatz_days['day_str'] = df_einsatz_days.datum_aktiv.dt.strftime('%y%m%d')
     logging.info(f'Parsing Messdaten...')
-    df_all, stat_df, any_changes = parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze)
+    any_changes = parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze)
     if any_changes:
         odsp.publish_ods_dataset_by_id('100268')
         odsp.publish_ods_dataset_by_id('100277')

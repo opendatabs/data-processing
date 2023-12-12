@@ -338,6 +338,24 @@ def list_directories(folder_path, list_txt_path, ignore_list=None):
     return directories_list
 
 
+def list_files(folder_path, list_txt_path, ignore_list=None, recursive=False):
+    if ignore_list is None:
+        ignore_list = []
+    files = []
+    if recursive:
+        for root, directories, filenames in os.walk(folder_path):
+            for filename in filenames:
+                files.append(os.path.join(root, filename))
+    else:
+        files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+    with open(list_txt_path, 'w') as file:
+        for item in files:
+            file.write(item + '\n')
+    files_list = [x for x in files if x not in ignore_list]  # List files that should be ignored here
+    files_list.sort()
+    return files_list
+
+
 def get_text_from_url(url):
     req = requests_get(url)
     req.raise_for_status()
