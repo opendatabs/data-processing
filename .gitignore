@@ -42,3 +42,5 @@ __pycache__/
 /kapo_smileys/plots/*
 /stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R
 /stata_erwarteter_stromverbrauch/.Rhistory
+/mobilitaet_parkflaechen/data/list_directories.txt
+/kapo_smileys/plot_smileys.py
