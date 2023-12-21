@@ -11,6 +11,8 @@ import numpy as np
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 from kapo_smileys import credentials
+import zipfile
+import io
 
 
 def csv_to_sqlite(curr_dir, export_file_all):
@@ -185,6 +187,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         id_standort = int(df_phase.id_standort.iloc[0])
         zyklus = int(df_phase.Zyklus.iloc[0])
         strassenname = df_phase.Strassenname.iloc[0]
+        geschw = df_phase.Geschwindigkeit.iloc[0]
+        coord = df_phase.geo_point_2d.iloc[0]
         stat_pro_standort = {
             'Zyklus': zyklus,
             'Phase': 'Gesamt' if len(phase) > 1 else phase[0],
@@ -195,12 +199,14 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             'V_min': min(df_all_v.V),
             'V_50': np.median(df_all_v.V),
             'V_85': np.percentile(df_all_v.V, 85),
+            'Geschwindigkeit': geschw,
             'V_Einfahrt_pct_ueber_limite': (df_phase.V_Einfahrt > df_phase.Geschwindigkeit).mean() * 100,
             'V_Ausfahrt_pct_ueber_limite': (df_phase.V_Ausfahrt > df_phase.Geschwindigkeit).mean() * 100,
             'Anzahl_Messungen': anz_messungen,
             'Messdauer_h': messdauer_h,
             'dtv': dtv,
-            'link_einzelmessungen': f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}' if len(phase) > 1 else f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}&refine.phase={phase[0]}'
+            'link_einzelmessungen': f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}' if len(phase) > 1 else f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}&refine.phase={phase[0]}',
+            'geo_point_2d': coord
         }
         df_stat_pro_standort = pd.DataFrame([stat_pro_standort])
         dfs_stat_pro_standort.append(df_stat_pro_standort)
@@ -244,11 +250,19 @@ def main():
     curr_dir = os.path.dirname(os.path.realpath(__file__))
     logging.info(f'Parsing Einsatzplaene...')
     df_einsaetze = parse_einsatzplaene(curr_dir)
-    req = common.requests_get('https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/json?lang=de&timezone=Europe%2FBerlin')
-    file = req.json()
-    shp_coords_df = pd.DataFrame.from_dict(file)
-    df_einsaetze = pd.merge(df_einsaetze, shp_coords_df[['idstandort', 'geo_point_2d', 'geo_shape']], how='left', left_on='id_Standort', right_on='idstandort').drop(columns=['idstandort'])
+    req = common.requests_get('https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp?lang=de&timezone=Europe%2FBerlin')
+    shp_path = os.path.join(curr_dir, 'data', 'Smiley-Standorte')
+    zip_file = io.BytesIO(req.content)
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        zip_ref.extractall(shp_path)
+    shp_coords_df = read_shapefile(os.path.join(shp_path, '100286.shp'))
+    # Concert idstandort to int
+    shp_coords_df['idstandort'] = shp_coords_df.idstandort.astype(int)
+    df_einsaetze = pd.merge(df_einsaetze, shp_coords_df[['idstandort', 'coords']],
+                            how='left', left_on='id_Standort', right_on='idstandort').drop(columns=['idstandort'])
     logging.info(f'Creating df_einsatz_days with one row per day and standort_id...')
+    df_einsaetze['geo_point_2d'] = df_einsaetze.coords.apply(lambda x: f'{x[0][1]}, {x[0][0]}')
+    df_einsaetze = df_einsaetze.drop(columns=['coords'])
     df_einsaetze = df_einsaetze.dropna(subset=['Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende'])
     df_einsatz_days = pd.concat([pd.DataFrame({'id_standort': row.id_Standort, 'Zyklus': row.Zyklus, 'datum_aktiv': pd.date_range(row.Start_Vormessung, row.Ende, freq='D', normalize=True)})  # , 'Start_Vormessung': row.Start_Vormessung, 'Start_Betrieb': row.Start_Betrieb, 'Start_Nachmessung': row.Start_Nachmessung, 'Ende': row.Ende})
                                  for i, row in df_einsaetze.iterrows()], ignore_index=True)

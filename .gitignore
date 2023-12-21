@@ -25,6 +25,7 @@ __pycache__/
 **/*.shp
 **/*.shx
 **/*.prj
+**/*.cpg
 /aue_fischereistatistik/**/*.geojson
 /bachapp/**/*.geojson
 /gsv_covid19_hosp/*.html
@@ -43,4 +44,4 @@ __pycache__/
 /stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R
 /stata_erwarteter_stromverbrauch/.Rhistory
 /mobilitaet_parkflaechen/data/list_directories.txt
-/kapo_smileys/plot_smileys.py
+/kapo_smileys/data/list_files.txt
