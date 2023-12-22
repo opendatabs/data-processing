@@ -217,7 +217,7 @@ def publish_ods_dataset(dataset_uid, creds):
 
 def get_ods_uid_by_id(ods_id, creds):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
-    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', auth=(creds.user_name, creds.password))
+    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"', params={'apikey': creds.api_key})
     return response.json()['datasets'][0]['dataset_uid']
 
 
