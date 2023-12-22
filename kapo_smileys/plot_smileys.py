@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
+import os
 
 
 def remove_extreme_outliers(data, percentile=0.05):
@@ -11,7 +12,7 @@ def remove_extreme_outliers(data, percentile=0.05):
     return filtered_data
 
 
-def create_histogram_plot(id_standort, street_data, phase_order, phase_colors, street_name, zyklus, geschw):
+def create_histogram_plot(curr_dir, id_standort, street_data, phase_order, phase_colors, street_name, zyklus, geschw):
     plt.figure(figsize=(12, 6))
     plt.title(f'Zyklus: {zyklus} - {street_name} Histogram ({geschw}km/h)')
     base_bins = np.arange(np.max([geschw - 50, 0]), geschw + 50, 10)
@@ -55,12 +56,11 @@ def create_histogram_plot(id_standort, street_data, phase_order, phase_colors, s
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.20)
     plt.legend()
-    plt.savefig('C:\\Users\\U3AUXE\PyCharmProjects\data-processing\kapo_smileys\plots\\hist_Zyk' +
-                zyklus + '_ID' + str(id_standort) + '_' + str(street_name) + '.png')
+    plt.savefig(os.path.join(curr_dir, 'plots\\hist_Zyk' + zyklus + '_ID' + str(id_standort) + '_' + str(street_name) + '.png'))
     plt.close()
 
 
-def create_box_violin_plot(id_standort, street_data, phase_order, einfahrt_color, ausfahrt_color, street_name, zyklus, geschw):
+def create_box_violin_plot(curr_dir, id_standort, street_data, phase_order, einfahrt_color, ausfahrt_color, street_name, zyklus, geschw):
     plt.figure(figsize=(15, 6))
     plt.title(f'Zyklus: {zyklus} - {street_name} Boxplot and Violin Plot ({geschw}km/h)')
     box_data = []
@@ -115,12 +115,12 @@ def create_box_violin_plot(id_standort, street_data, phase_order, einfahrt_color
     plt.legend([box["boxes"][0], box["boxes"][1]], ['Einfahrt', 'Ausfahrt'], loc='upper right')
 
     plt.tight_layout()
-    plt.savefig('C:\\Users\\U3AUXE\PyCharmProjects\data-processing\kapo_smileys\plots\\box_violin_Zyk' +
-                zyklus + '_ID' + str(id_standort) + '_' + str(street_name) + '.png')
+    plt.savefig(os.path.join(curr_dir, 'plots\\box_violin_Zyk' + zyklus + '_ID' + str(id_standort) + '_' + str(street_name) + '.png'))
     plt.close()
 
 def main():
-    dataset = pd.read_csv('C:\\Users\\U3AUXE\PyCharmProjects\data-processing\kapo_smileys\data\\all_data.csv')
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    dataset = pd.read_csv(os.path.join(curr_dir, 'data\\all_data.csv'))
     streets = dataset[['Zyklus', 'Strassenname', 'id_standort', 'Geschwindigkeit']].drop_duplicates()
     phase_order = ['Vormessung', 'Betrieb', 'Nachmessung']
     phase_colors = {'Vormessung': 'blue', 'Betrieb': 'green', 'Nachmessung': 'red'}
@@ -135,8 +135,8 @@ def main():
         geschw = int(streets.iloc[i]['Geschwindigkeit'])
         street_data = dataset[(dataset['Strassenname'] == street_name) & (dataset['Phase'].isin(phase_order))]
 
-        create_histogram_plot(id_standort, street_data, phase_order, phase_colors, street_name, zyklus, geschw)
-        create_box_violin_plot(id_standort, street_data, phase_order, einfahrt_color, ausfahrt_color, street_name, zyklus, geschw)
+        create_histogram_plot(curr_dir, id_standort, street_data, phase_order, phase_colors, street_name, zyklus, geschw)
+        create_box_violin_plot(curr_dir, id_standort, street_data, phase_order, einfahrt_color, ausfahrt_color, street_name, zyklus, geschw)
 
 if __name__ == '__main__':
     main()
