@@ -9,7 +9,7 @@ ods_harvester_ids = sys.argv[1].split(',')
 def wait_for_idle(harvester_id):
     while True:
         print(f'Checking status of harvester "{harvester_id}"...')
-        resp = common.requests_get(url=f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harvester_id}/', auth=(credentials.ods_user, credentials.ods_password))
+        resp = common.requests_get(url=f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harvester_id}/', params={'apikey': credentials.api_key})
         handle_http_errors(resp)
         status = resp.json()['status']
         print(f'Harvester "{harvester_id}" is "{status}".')
