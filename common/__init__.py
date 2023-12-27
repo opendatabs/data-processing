@@ -190,7 +190,8 @@ def ensure_ftp_dir(server, user, password, folder):
 @retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
 def publish_ods_dataset(dataset_uid, creds):
     logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
-    response = requests.put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish', params={'apikey': creds.api_key}, proxies=credentials.proxies)
+    response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish',
+                            headers={'Authorization': f'apikey {creds.api_key}'})
     if not response.ok:
         logging.info(f'Received http error {response.status_code}:')
         logging.info(f'Error message: {response.text}')
