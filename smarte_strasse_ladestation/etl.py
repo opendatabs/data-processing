@@ -41,8 +41,10 @@ def load_data(df_export):
     #     "station.location": "47.54177,7.5880887"
     # }
 
+    df_export_json = df_export.to_json(orient="records")
     logging.info(f'Pushing {df_export.shape[0]} rows to ods realtime API...')
-    r = common.ods_realtime_push_df(df_export, credentials.ods_push_url, credentials.ods_push_api_key)
+    r = common.requests_post(url=credentials.ods_push_api_url, data=df_export_json,
+                             headers={'Authorization': f'apikey {credentials.api_key}'})
 
     r.raise_for_status()
 
