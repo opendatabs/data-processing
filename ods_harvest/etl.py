@@ -32,12 +32,12 @@ def handle_http_errors(resp):
 for harv_id in ods_harvester_ids:
     wait_for_idle(harv_id)
     print(f'Sending harvester "{harv_id}" the "start" signal...')
-    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/start/', auth=(credentials.ods_user, credentials.ods_password))
+    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/start/', params={'apikey': credentials.api_key})
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
     print(f'Sending harvester "{harv_id}" the "publish" signal...')
-    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/publish/', auth=(credentials.ods_user, credentials.ods_password))
+    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/publish/', params={'apikey': credentials.api_key})
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
