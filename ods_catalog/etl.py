@@ -6,7 +6,7 @@ import logging
 
 def main():
     url = 'https://data.bs.ch/explore/dataset/100055/download/?format=csv&use_labels_for_header=true&refine.visibility=domain&refine.publishing_published=True'
-    r = common.requests_get(url, params={'apikey': credentials.api_key})
+    r = common.requests_get(url, headers={'Authorization': f'apikey {credentials.api_key}'})
     df = common.pandas_read_csv(StringIO(r.text), sep=';')
     common.ods_realtime_push_df(df=df, url=credentials.ods_push_url, push_key=credentials.ods_push_key)
 

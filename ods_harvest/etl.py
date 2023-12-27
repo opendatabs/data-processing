@@ -9,7 +9,7 @@ ods_harvester_ids = sys.argv[1].split(',')
 def wait_for_idle(harvester_id):
     while True:
         print(f'Checking status of harvester "{harvester_id}"...')
-        resp = common.requests_get(url=f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harvester_id}/',
+        resp = common.requests_get(url=f'https://data.bs.ch/api/management/v2/harvesters/{harvester_id}/',
                                    headers={'Authorization': f'apikey {credentials.api_key}'})
         handle_http_errors(resp)
         status = resp.json()['status']
@@ -33,12 +33,14 @@ def handle_http_errors(resp):
 for harv_id in ods_harvester_ids:
     wait_for_idle(harv_id)
     print(f'Sending harvester "{harv_id}" the "start" signal...')
-    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/start/', params={'apikey': credentials.api_key})
+    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/start/',
+                                   headers={'Authorization': f'apikey {credentials.api_key}'})
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
     print(f'Sending harvester "{harv_id}" the "publish" signal...')
-    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/publish/', params={'apikey': credentials.api_key})
+    response = common.requests_put(f'https://basel-stadt.opendatasoft.com/api/management/v2/harvesters/{harv_id}/publish/',
+                                   headers={'Authorization': f'apikey {credentials.api_key}'})
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
