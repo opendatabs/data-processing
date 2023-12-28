@@ -6,7 +6,6 @@ import os
 import xml
 import charset_normalizer
 from datetime import datetime, timezone, timedelta
-from xml.sax.handler import ContentHandler
 from zoneinfo import ZoneInfo
 import numpy as np
 import ods_publish.etl_id as odsp
@@ -15,35 +14,7 @@ import pandas as pd
 import common
 import common.change_tracking as ct
 from parlamentsdienst_gr_abstimmungen import credentials
-
-
-# see https://stackoverflow.com/a/33504236
-class ExcelHandler(ContentHandler):
-    def __init__(self):
-        super().__init__()
-        self.chars = []
-        self.cells = []
-        self.rows = []
-        self.tables = []
-
-    def characters(self, content):
-        self.chars.append(content)
-
-    def startElement(self, name, atts):
-        if name == "Cell":
-            self.chars = []
-        elif name == "Row":
-            self.cells = []
-        elif name == "Table":
-            self.rows = []
-
-    def endElement(self, name):
-        if name == "Cell":
-            self.cells.append(''.join(self.chars))
-        elif name == "Row":
-            self.rows.append(self.cells)
-        elif name == "Table":
-            self.tables.append(self.rows)
+from parlamentsdienst_gr_abstimmungen.excel_handler import ExcelHandler
 
 
 # see https://stackoverflow.com/a/65412797
@@ -239,7 +210,7 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
 
                     # Simplify fie name to allow saving into FTP-Server
                     simplified_file_name = simplify_filename_json(local_file, file['remote_file'])
-                    os.rename(local_file, simplified_file_name)
+                    os.replace(local_file, simplified_file_name)
                     local_file = simplified_file_name
 
                     export_filename_csv = local_file.replace('data_orig', 'data').replace('.json', '.csv')
@@ -626,23 +597,3 @@ if __name__ == "__main__":
     logging.info(f'Executing {__file__}...')
     main()
     logging.info(f'Job completed successfully!')
-
-
-# This job processes the following data sources:
-# - Tagesordnungen (Traktandenlisten) - handle_tagesordnungen():
-#   - contents of 1 *.txt (csv) file for each session day: contains details of each Traktandum, which can be linked to a single poll, to none, one or multiple Geschäfte and Dokumente
-#   - 1 folder of csv files that contain all past and present Tagesordnungen
-#   - file for current session may be present only after first poll of session has been completed
-# - Session calendar - get_session_calendar():
-#   - iCal retrieved from Google Calendar, 1 entry per session day
-# - Live Polls from FTP Server - handle_polls(process_archive=False)
-#   - contents of 1 xml file per session: contain each individual Grossratsmitglied's decision for each Traktandum
-#       - calc_details_from_single_xml_file()
-#   - filename of 1 pdf file per poll: contains Traktandum and Subtraktandum for each single poll
-#       - retrieve_traktanden_pdf_filenames()
-#       - calc_traktanden_from_pdf_filenames()
-# - Past polls from FTP Server - handle_polls(process_archive=True)
-#   - contents and filenames contain same as live polls, but for past polls
-#   - 1 folder with subfolder structure for pdf file
-#   - 1 flat folder for all xml files
-#   - 1 flat folder for xlsx files for the time the Grosser Rat held session at Congress Center Basel
