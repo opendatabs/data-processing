@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import common
 from parlamentsdienst_gr_abstimmungen import credentials
 
+
 # see https://stackoverflow.com/a/65412797
 def is_file_older_than(file, delta):
     cutoff = datetime.utcnow() - delta
@@ -32,6 +33,7 @@ def is_session_now(ical_file_path, hours_before_start, hours_after_end):
     session_active = True if len(current_entries) > 0 else False
     logging.info(f'Session active now? {session_active}')
     return session_active
+
 
 def get_trakt_names(session_day):
     ftp = {'server': credentials.gr_session_data_ftp_server, 'user': credentials.gr_session_data_ftp_user, 'password': credentials.gr_session_data_ftp_pass}
@@ -65,9 +67,6 @@ def simplify_filename_json(filename, remote_file):
     if remote_file.rfind('_') == -1:
         return filename
     return filename[:last_underscore_index] + filename[extension_index:]
-
-
-
 
 
 # See https://codereview.stackexchange.com/q/232647
