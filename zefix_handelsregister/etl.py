@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-import numpy as np
-import requests
 import logging
 import pathlib
 
@@ -11,10 +9,18 @@ import ods_publish.etl_id as odsp
 from zefix_handelsregister import credentials
 from SPARQLWrapper import SPARQLWrapper, JSON
 import urllib.request
+from base64 import b64encode
+import xml.etree.ElementTree as ET
 
 proxy_support = urllib.request.ProxyHandler(common.credentials.proxies)
 opener = urllib.request.build_opener(proxy_support)
 urllib.request.install_opener(opener)
+
+
+# https://stackoverflow.com/questions/6999565/python-https-get-with-basic-authentication
+def basic_auth(username, password):
+    token = b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')
+    return f'Basic {token}'
 
 
 def main():
@@ -22,9 +28,17 @@ def main():
     dfs_nomenclature_noga = {}
     for i in range(1, 6):
         dfs_nomenclature_noga[i] = get_noga_nomenclature(i)
+    df_nc_noga_flat = flatten_nomenclature(dfs_nomenclature_noga)
+    path_nomenclature_flat = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'nomenclature_noga_flat.csv')
+    df_nc_noga_flat.to_csv(path_nomenclature_flat, index=False)
+    if ct.has_changed(path_nomenclature_flat):
+        logging.info(f'Exporting noga_nomenclature.csv to FTP server')
+        common.upload_ftp(path_nomenclature_flat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          f'zefix_handelsregister')
+        ct.update_hash_file(path_nomenclature_flat)
+    df_burweb = get_burweb_data(df_nc_noga_flat)
     # Get Zefix and BurWeb data for all cantons
-    for lang in ('de', 'fr'):
-        get_data_of_all_cantons(dfs_nomenclature_noga, lang)
+    get_data_of_all_cantons(df_burweb)
 
     # Extract data for Basel-Stadt and make ready for data.bs.ch
     file_name = '100330_zefix_firmen_BS.csv'
@@ -40,6 +54,8 @@ def main():
 
 
 def get_noga_nomenclature(level):
+    # API-Query for NOGA nomenclature can be created here:
+    # https://www.i14y.admin.ch/de/catalog/datasets/HCL_NOGA/api
     url_noga = f'https://www.i14y.admin.ch/api/Nomenclatures/HCL_NOGA/levelexport/CSV?level={level}'
     r = common.requests_get(url_noga)
     path_nomenclature = os.path.join(pathlib.Path(__file__).parents[0], 'data', f'nomenclature_noga_lv{level}.csv')
@@ -49,47 +65,60 @@ def get_noga_nomenclature(level):
     return df_nomenclature_noga
 
 
-def get_noga_data(df, dfs_nomenclature_noga, lang):
-    # Expand by noga columns
-    df[['noga_abschnitt_code', 'noga_abschnitt', 'noga_abteilung_code', 'noga_abteilung',
-        'noga_gruppe_code', 'noga_gruppe', 'noga_klasse_code', 'noga_klasse', 'noga_code', 'noga']] = np.nan
-    # Iterate over all rows with iterrows()
-    for index, row in df.iterrows():
-        uid = row['company_uid']
-        url = f'https://www.burweb2.admin.ch/BurWeb.Services.External/api/v1/Enterprise/{uid}/NogaCode'
+def flatten_nomenclature(dfs_nomenclature_noga):
+    df_noga_all_nc = dfs_nomenclature_noga[5]
+    names = ['_abteilung', '_gruppe', '_klasse', '']
+    # Iterate from 4 to 1
+    for i in range(4, 0, -1):
+        # Rename before merge of next level
+        df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': f'noga{names[i - 1]}_code'})
+        df_noga_all_nc = df_noga_all_nc.rename(columns={'Parent': 'Code'})
+        for lng in ['de', 'fr', 'it', 'en']:
+            df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga{names[i - 1]}_{lng}'})
+        # Merge with next level
+        df_noga_all_nc = pd.merge(df_noga_all_nc, dfs_nomenclature_noga[i], on='Code')
 
-        try:
-            r = common.requests_get(url, auth=(credentials.user_burweb, credentials.pass_burweb))
-            r.raise_for_status()
-            row['noga_code'] = r.json().get('NogaCode', 'Unknown')
-        except requests.RequestException as e:
-            print(f"Error fetching data for UID {uid}: {e}")
-            return df
+    df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': 'noga_abschnitt_code'})
+    df_noga_all_nc = df_noga_all_nc.drop(columns=['Parent'])
+    for lng in ['de', 'fr', 'it', 'en']:
+        df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga_abschnitt_{lng}'})
 
-        # Additional logic to fetch and return more data can be added here
-        row['noga_abteilung_code'] = row['noga_code'][:2]
-        row['noga_abschnitt_code'] = dfs_nomenclature_noga[2].loc[dfs_nomenclature_noga[2]['Code'] == row['noga_abteilung_code'], 'Parent'].values[0]
-        row['noga_abschnitt'] = dfs_nomenclature_noga[1].loc[dfs_nomenclature_noga[1]['Code'] == row['noga_abschnitt_code'], f'Name_{lang}'].values[0]
-        row['noga_abteilung'] = dfs_nomenclature_noga[2].loc[dfs_nomenclature_noga[2]['Code'] == row['noga_abteilung_code'], f'Name_{lang}'].values[0]
-        row['noga_gruppe_code'] = row['noga_code'][:3]
-        row['noga_gruppe'] = dfs_nomenclature_noga[3].loc[dfs_nomenclature_noga[3]['Code'] == row['noga_gruppe_code'], f'Name_{lang}'].values[0]
-        row['noga_klasse_code'] = row['noga_code'][:4]
-        row['noga_klasse'] = dfs_nomenclature_noga[4].loc[dfs_nomenclature_noga[4]['Code'] == row['noga_klasse_code'], f'Name_{lang}'].values[0]
-        row['noga'] = dfs_nomenclature_noga[5].loc[dfs_nomenclature_noga[5]['Code'] == row['noga_code'], f'Name_{lang}'].values[0]
-        df.loc[index] = row
-    return df
+    return df_noga_all_nc
 
-def get_data_of_all_cantons(dfs_nomenclature_noga, lang):
+
+def get_burweb_data(df_nc_noga):
+    url = 'https://www.burweb2.admin.ch/BurWeb.Services.External/V1_8/ExtractV1X8/Full'
+    headers = {'Authorization': basic_auth(credentials.user_burweb, credentials.pass_burweb)}
+    r = common.requests_get(url, headers=headers)
+    # Save XML into file and then into pandas
+    path_xml = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'burweb_full_extract.xml')
+    with open(path_xml, 'wb') as f:
+        f.write(r.content)
+    tree = ET.parse(path_xml)
+    enterprise_units = tree.findall('.//enterpriseUnit')
+    # Parsing the XML and storing the data
+    data = []
+    for unit in enterprise_units:
+        legal_id = unit.findtext('legalId')
+        noga2008 = unit.findtext('.//noga2008')
+        data.append([legal_id, noga2008])
+    df_burweb = pd.DataFrame(data, columns=['company_uid', 'noga_code'])
+    # Merge with noga data
+    df_burweb = pd.merge(df_burweb, df_nc_noga, on='noga_code', how='left')
+    return df_burweb
+
+
+def get_data_of_all_cantons(df_burweb):
     sparql = SPARQLWrapper("https://lindas.admin.ch/query")
     sparql.setReturnFormat(JSON)
     # Iterate over all cantons
     for i in range(1, 27):
-        logging.info(f'Getting data for canton {i} in language {lang}...')
+        logging.info(f'Getting data for canton {i}...')
         # Query can be tested and adjusted here: https://ld.admin.ch/sparql/#
         sparql.setQuery("""
                 PREFIX schema: <http://schema.org/>
                 PREFIX admin: <https://schema.ld.admin.ch/>
-                SELECT ?canton_id ?canton ?short_name_canton ?district_id ?district ?muni_id ?municipality ?company_uri ?company_uid ?company_legal_name ?type_id ?company_type ?adresse ?plz ?locality 
+                SELECT ?canton_id ?canton ?short_name_canton ?district_id ?district_de ?district_fr ?district_it ?district_en ?muni_id ?municipality ?company_uri ?company_uid ?company_legal_name ?type_id ?company_type_de ?company_type_fr ?adresse ?plz ?locality 
                 WHERE {
                     # Get information of the company
                     ?company_uri a admin:ZefixOrganisation ;
@@ -102,7 +131,7 @@ def get_data_of_all_cantons(dfs_nomenclature_noga, lang):
                     ?company_identifiers schema:value ?company_uid .
                     ?company_identifiers schema:name "CompanyUID" .
                     ?muni_id schema:name ?municipality .
-                    ?type_id schema:name ?company_type .
+                    ?type_id schema:name ?company_type_de .
                     # Get address-information (do not take c/o-information in, since we get fewer results)
                     ?adr schema:streetAddress ?adresse ;
                         schema:addressLocality ?locality ;
@@ -113,11 +142,38 @@ def get_data_of_all_cantons(dfs_nomenclature_noga, lang):
                         schema:alternateName ?short_name_canton ;
                         schema:identifier ?canton_id .
                     ?district_id schema:containsPlace ?muni_id ;
-                        schema:name ?district .
-
-                  # Filter by company-types that are german (otherwise result is much bigger)
-                  FILTER langMatches(lang(?district), \"""" + lang + """\") .
-                  FILTER langMatches(lang(?company_type), \"""" + lang + """\") .
+                        schema:name ?district_de .
+  
+                    # Optional to get district names in French
+                    OPTIONAL {
+                        ?district_id schema:containsPlace ?muni_id ;
+                            schema:name ?district_fr .
+                        FILTER langMatches(lang(?district_fr), "fr")
+                    }
+                    
+                    # Optional to get district names in Italian
+                    OPTIONAL {
+                        ?district_id schema:containsPlace ?muni_id ;
+                            schema:name ?district_it .
+                        FILTER langMatches(lang(?district_it), "it")
+                    }
+                    
+                    # Optional to get district names in English
+                    OPTIONAL {
+                        ?district_id schema:containsPlace ?muni_id ;
+                            schema:name ?district_en .
+                        FILTER langMatches(lang(?district_en), "en")
+                    }
+                  
+                    # Optional to get company types in French
+                    OPTIONAL {
+                        ?type_id schema:name ?company_type_fr .
+                        FILTER langMatches(lang(?company_type_fr), "fr")
+                    }
+                  
+                    # Filter by company-types that are german (otherwise result is much bigger)
+                    FILTER langMatches(lang(?district_de), "de") .
+                    FILTER langMatches(lang(?company_type_de), "de") .
                 }
                 ORDER BY ?company_legal_name
             """)
@@ -135,9 +191,9 @@ def get_data_of_all_cantons(dfs_nomenclature_noga, lang):
         results_df = results_df.drop(columns=['adresse'])
 
         # Get noga data
-        results_df = get_noga_data(results_df, dfs_nomenclature_noga, lang)
+        results_df = pd.merge(results_df, df_burweb, on='company_uid', how='left')
 
-        file_name = f"companies_{results_df['short_name_canton'][0]}_{lang}.csv"
+        file_name = f"companies_{results_df['short_name_canton'][0]}.csv"
         path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', file_name)
         results_df.to_csv(path_export, index=False)
         if ct.has_changed(path_export):
@@ -157,7 +213,7 @@ def get_gebaeudeeingaenge():
 
 
 def work_with_BS_data():
-    path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS_de.csv')
+    path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
     # Replace *Str.* with *Strasse* and *str.* with *strasse*
     df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse')
@@ -167,13 +223,12 @@ def work_with_BS_data():
     df_geb_eing['street'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
     # Merge on street
     df_merged = pd.merge(df_BS, df_geb_eing, on='street', how='left')
-    return df_merged[['company_type', 'type_id', 'municipality', 'locality', 'canton_id',
-                      'company_legal_name', 'short_name_canton', 'district', 'company_uid',
-                      'canton', 'muni_id', 'district_id', 'company_uri', 'plz', 'zusatz',
+    return df_merged[['company_type_de', 'type_id', 'municipality', 'locality',
+                      'company_legal_name', 'company_uid', 'muni_id', 'company_uri', 'plz', 'zusatz',
                       'street', 'egid', 'eingang_koordinaten', 'noga_abschnitt_code',
-                      'noga_abschnitt', 'noga_abteilung_code', 'noga_abteilung',
-                      'noga_gruppe_code', 'noga_gruppe', 'noga_klasse_code',
-                      'noga_klasse', 'noga_code', 'noga']]
+                      'noga_abschnitt_de', 'noga_abteilung_code', 'noga_abteilung_de',
+                      'noga_gruppe_code', 'noga_gruppe_de', 'noga_klasse_code',
+                      'noga_klasse_de', 'noga_code', 'noga_de']]
 
 
 if __name__ == '__main__':
