@@ -38,7 +38,7 @@ def get_data_of_all_cantons():
     sparql = SPARQLWrapper("https://lindas.admin.ch/query")
     sparql.setReturnFormat(JSON)
     # Iterate over all cantons
-    for i in range(12, 13):
+    for i in range(1, 27):
         logging.info(f'Getting data for canton {i}...')
         # Query can be tested and adjusted here: https://ld.admin.ch/sparql/#
         sparql.setQuery("""
@@ -154,10 +154,7 @@ def work_with_BS_data():
     df_merged = pd.merge(df_BS, df_geb_eing, on='street', how='left')
     return df_merged[['company_type_de', 'type_id', 'municipality', 'locality',
                       'company_legal_name', 'company_uid', 'muni_id', 'company_uri', 'plz', 'zusatz',
-                      'street', 'egid', 'eingang_koordinaten', 'noga_abschnitt_code',
-                      'noga_abschnitt_de', 'noga_abteilung_code', 'noga_abteilung_de',
-                      'noga_gruppe_code', 'noga_gruppe_de', 'noga_klasse_code',
-                      'noga_klasse_de', 'noga_code', 'noga_de', 'url_kubb']]
+                      'street', 'egid', 'eingang_koordinaten']]
 
 
 if __name__ == '__main__':
