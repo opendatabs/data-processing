@@ -37,12 +37,13 @@ def main():
                           f'zefix_handelsregister')
         ct.update_hash_file(path_nomenclature_flat)
     df_burweb = get_burweb_data(df_nc_noga_flat)
+
     # Get Zefix and BurWeb data for all cantons
     get_data_of_all_cantons(df_burweb)
 
     # Extract data for Basel-Stadt and make ready for data.bs.ch
     file_name = '100330_zefix_firmen_BS.csv'
-    path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'noga_nomenclature', file_name)
+    path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'export', file_name)
     df_BS = work_with_BS_data()
     df_BS.to_csv(path_export, index=False)
     if ct.has_changed(path_export):
@@ -89,13 +90,19 @@ def flatten_nomenclature(dfs_nomenclature_noga):
 def get_burweb_data(df_nc_noga):
     url = 'https://www.burweb2.admin.ch/BurWeb.Services.External/V1_8/ExtractV1X8/Full'
     headers = {'Authorization': basic_auth(credentials.user_burweb, credentials.pass_burweb)}
-    r = common.requests_get(url, headers=headers)
-    # Save XML into file and then into pandas
-    path_xml = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'burweb_full_extract.xml')
-    with open(path_xml, 'wb') as f:
-        f.write(r.content)
+    # Stream the download
+    with common.requests_get(url, headers=headers, stream=True) as r:
+        r.raise_for_status()
+        path_xml = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'burweb_full_extract.xml')
+
+        # Write chunks to file
+        with open(path_xml, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
     tree = ET.parse(path_xml)
     enterprise_units = tree.findall('.//enterpriseUnit')
+
     # Parsing the XML and storing the data
     data = []
     for unit in enterprise_units:
