@@ -9,37 +9,17 @@ import ods_publish.etl_id as odsp
 from zefix_handelsregister import credentials
 from SPARQLWrapper import SPARQLWrapper, JSON
 import urllib.request
-from base64 import b64encode
-import xml.etree.ElementTree as ET
 
 proxy_support = urllib.request.ProxyHandler(common.credentials.proxies)
 opener = urllib.request.build_opener(proxy_support)
 urllib.request.install_opener(opener)
 
 
-# https://stackoverflow.com/questions/6999565/python-https-get-with-basic-authentication
-def basic_auth(username, password):
-    token = b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')
-    return f'Basic {token}'
-
-
 def main():
-    # Get nomenclature data from i14y.admin.ch
-    dfs_nomenclature_noga = {}
-    for i in range(1, 6):
-        dfs_nomenclature_noga[i] = get_noga_nomenclature(i)
-    df_nc_noga_flat = flatten_nomenclature(dfs_nomenclature_noga)
-    path_nomenclature_flat = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'nomenclature_noga_flat.csv')
-    df_nc_noga_flat.to_csv(path_nomenclature_flat, index=False)
-    if ct.has_changed(path_nomenclature_flat):
-        logging.info(f'Exporting noga_nomenclature.csv to FTP server')
-        common.upload_ftp(path_nomenclature_flat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          f'zefix_handelsregister')
-        ct.update_hash_file(path_nomenclature_flat)
-    df_burweb = get_burweb_data(df_nc_noga_flat)
-
+    # Get NOGA data (Temporarily deactivated)
+    # df_burweb = get_noga_data()
     # Get Zefix and BurWeb data for all cantons
-    get_data_of_all_cantons(df_burweb)
+    get_data_of_all_cantons()
 
     # Extract data for Basel-Stadt and make ready for data.bs.ch
     file_name = '100330_zefix_firmen_BS.csv'
@@ -54,72 +34,11 @@ def main():
         ct.update_hash_file(path_export)
 
 
-def get_noga_nomenclature(level):
-    # API-Query for NOGA nomenclature can be created here:
-    # https://www.i14y.admin.ch/de/catalog/datasets/HCL_NOGA/api
-    url_noga = f'https://www.i14y.admin.ch/api/Nomenclatures/HCL_NOGA/levelexport/CSV?level={level}'
-    r = common.requests_get(url_noga)
-    path_nomenclature = os.path.join(pathlib.Path(__file__).parents[0], 'data', f'nomenclature_noga_lv{level}.csv')
-    with open(path_nomenclature, 'wb') as f:
-        f.write(r.content)
-    df_nomenclature_noga = pd.read_csv(path_nomenclature, dtype=str)
-    return df_nomenclature_noga
-
-
-def flatten_nomenclature(dfs_nomenclature_noga):
-    df_noga_all_nc = dfs_nomenclature_noga[5]
-    names = ['_abteilung', '_gruppe', '_klasse', '']
-    # Iterate from 4 to 1
-    for i in range(4, 0, -1):
-        # Rename before merge of next level
-        df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': f'noga{names[i - 1]}_code'})
-        df_noga_all_nc = df_noga_all_nc.rename(columns={'Parent': 'Code'})
-        for lng in ['de', 'fr', 'it', 'en']:
-            df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga{names[i - 1]}_{lng}'})
-        # Merge with next level
-        df_noga_all_nc = pd.merge(df_noga_all_nc, dfs_nomenclature_noga[i], on='Code')
-
-    df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': 'noga_abschnitt_code'})
-    df_noga_all_nc = df_noga_all_nc.drop(columns=['Parent'])
-    for lng in ['de', 'fr', 'it', 'en']:
-        df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga_abschnitt_{lng}'})
-
-    return df_noga_all_nc
-
-
-def get_burweb_data(df_nc_noga):
-    url = 'https://www.burweb2.admin.ch/BurWeb.Services.External/V1_8/ExtractV1X8/Full'
-    headers = {'Authorization': basic_auth(credentials.user_burweb, credentials.pass_burweb)}
-    # Stream the download
-    with common.requests_get(url, headers=headers, stream=True) as r:
-        r.raise_for_status()
-        path_xml = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'burweb_full_extract.xml')
-
-        # Write chunks to file
-        with open(path_xml, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-    tree = ET.parse(path_xml)
-    enterprise_units = tree.findall('.//enterpriseUnit')
-
-    # Parsing the XML and storing the data
-    data = []
-    for unit in enterprise_units:
-        legal_id = unit.findtext('legalId')
-        noga2008 = unit.findtext('.//noga2008')
-        data.append([legal_id, noga2008])
-    df_burweb = pd.DataFrame(data, columns=['company_uid', 'noga_code'])
-    # Merge with noga data
-    df_burweb = pd.merge(df_burweb, df_nc_noga, on='noga_code', how='left')
-    return df_burweb
-
-
-def get_data_of_all_cantons(df_burweb):
+def get_data_of_all_cantons():
     sparql = SPARQLWrapper("https://lindas.admin.ch/query")
     sparql.setReturnFormat(JSON)
     # Iterate over all cantons
-    for i in range(1, 27):
+    for i in range(12, 13):
         logging.info(f'Getting data for canton {i}...')
         # Query can be tested and adjusted here: https://ld.admin.ch/sparql/#
         sparql.setQuery("""
@@ -192,13 +111,16 @@ def get_data_of_all_cantons(df_burweb):
         results_df = results_df.rename(columns=new_column_names)
         # Split the column 'address' into zusatz and street,
         # but if there is no zusatz, then street is in the first column
-        results_df.loc[results_df['adresse'].str.contains('\n'), ['zusatz', 'street']] = results_df[
-            'adresse'].str.split('\n', expand=True)
-        results_df.loc[~results_df['adresse'].str.contains('\n'), 'street'] = results_df['adresse']
+        temp_df = results_df['adresse'].str.split('\n', expand=True)
+        results_df.loc[results_df['adresse'].str.contains('\n'), 'zusatz'] = temp_df[0]
+        results_df.loc[results_df['adresse'].str.contains('\n'), 'street'] = temp_df[1]
+        results_df.loc[~results_df['adresse'].str.contains('\n'), 'street'] = temp_df[0]
         results_df = results_df.drop(columns=['adresse'])
 
+        '''
         # Get noga data
         results_df = pd.merge(results_df, df_burweb, on='company_uid', how='left')
+        '''
 
         file_name = f"companies_{results_df['short_name_canton'][0]}.csv"
         path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', file_name)
@@ -235,7 +157,7 @@ def work_with_BS_data():
                       'street', 'egid', 'eingang_koordinaten', 'noga_abschnitt_code',
                       'noga_abschnitt_de', 'noga_abteilung_code', 'noga_abteilung_de',
                       'noga_gruppe_code', 'noga_gruppe_de', 'noga_klasse_code',
-                      'noga_klasse_de', 'noga_code', 'noga_de']]
+                      'noga_klasse_de', 'noga_code', 'noga_de', 'url_kubb']]
 
 
 if __name__ == '__main__':
@@ -243,3 +165,90 @@ if __name__ == '__main__':
     logging.info(f'Executing {__file__}...')
     main()
     logging.info('Job successful')
+
+
+# Temporarily not needed
+'''
+# https://stackoverflow.com/questions/6999565/python-https-get-with-basic-authentication
+def basic_auth(username, password):
+    token = b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')
+    return f'Basic {token}'
+
+
+def get_noga_data():
+    # Get nomenclature data from i14y.admin.ch
+    dfs_nomenclature_noga = {}
+    for i in range(1, 6):
+        dfs_nomenclature_noga[i] = get_noga_nomenclature(i)
+    df_nc_noga_flat = flatten_nomenclature(dfs_nomenclature_noga)
+    path_nomenclature_flat = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'nomenclature_noga_flat.csv')
+    df_nc_noga_flat.to_csv(path_nomenclature_flat, index=False)
+    df_nc_noga_flat['url_kubb'] = f'https://www.kubb-tool.bfs.admin.ch/de/code/{df_nc_noga_flat["noga_code"]}'
+    if ct.has_changed(path_nomenclature_flat):
+        logging.info(f'Exporting noga_nomenclature.csv to FTP server')
+        common.upload_ftp(path_nomenclature_flat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          f'zefix_handelsregister')
+        ct.update_hash_file(path_nomenclature_flat)
+    return get_burweb_data(df_nc_noga_flat)
+
+
+def get_noga_nomenclature(level):
+    # API-Query for NOGA nomenclature can be created here:
+    # https://www.i14y.admin.ch/de/catalog/datasets/HCL_NOGA/api
+    url_noga = f'https://www.i14y.admin.ch/api/Nomenclatures/HCL_NOGA/levelexport/CSV?level={level}'
+    r = common.requests_get(url_noga)
+    path_nomenclature = os.path.join(pathlib.Path(__file__).parents[0], 'data', f'nomenclature_noga_lv{level}.csv')
+    with open(path_nomenclature, 'wb') as f:
+        f.write(r.content)
+    df_nomenclature_noga = pd.read_csv(path_nomenclature, dtype=str)
+    return df_nomenclature_noga
+
+
+def flatten_nomenclature(dfs_nomenclature_noga):
+    df_noga_all_nc = dfs_nomenclature_noga[5]
+    names = ['_abteilung', '_gruppe', '_klasse', '']
+    # Iterate from 4 to 1
+    for i in range(4, 0, -1):
+        # Rename before merge of next level
+        df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': f'noga{names[i - 1]}_code'})
+        df_noga_all_nc = df_noga_all_nc.rename(columns={'Parent': 'Code'})
+        for lng in ['de', 'fr', 'it', 'en']:
+            df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga{names[i - 1]}_{lng}'})
+        # Merge with next level
+        df_noga_all_nc = pd.merge(df_noga_all_nc, dfs_nomenclature_noga[i], on='Code')
+
+    df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': 'noga_abschnitt_code'})
+    df_noga_all_nc = df_noga_all_nc.drop(columns=['Parent'])
+    for lng in ['de', 'fr', 'it', 'en']:
+        df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga_abschnitt_{lng}'})
+
+    return df_noga_all_nc
+
+
+def get_burweb_data(df_nc_noga):
+    url = 'https://www.burweb2.admin.ch/BurWeb.Services.External/V1_8/ExtractV1X8/Full'
+    headers = {'Authorization': basic_auth(credentials.user_burweb, credentials.pass_burweb)}
+    # Stream the download
+    with common.requests_get(url, headers=headers, stream=True) as r:
+        r.raise_for_status()
+        path_xml = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'burweb_full_extract.xml')
+
+        # Write chunks to file
+        with open(path_xml, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+    tree = ET.parse(path_xml)
+    enterprise_units = tree.findall('.//enterpriseUnit')
+
+    # Parsing the XML and storing the data
+    data = []
+    for unit in enterprise_units:
+        legal_id = unit.findtext('legalId')
+        noga2008 = unit.findtext('.//noga2008')
+        data.append([legal_id, noga2008])
+    df_burweb = pd.DataFrame(data, columns=['company_uid', 'noga_code'])
+    # Merge with noga data
+    df_burweb = pd.merge(df_burweb, df_nc_noga, on='noga_code', how='left')
+    return df_burweb
+'''
