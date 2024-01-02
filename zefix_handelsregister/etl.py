@@ -145,8 +145,10 @@ def work_with_BS_data():
     path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
     # Replace *Str.* with *Strasse* and *str.* with *strasse*
-    df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse')
-    df_BS['street'] = df_BS['street'].str.replace('str.', 'strasse')
+    df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse', regex=False)
+    df_BS['street'] = df_BS['street'].str.replace('str.', 'strasse', regex=False)
+    # Replace *St. followed by a letter with *St. * and then the letter
+    df_BS['street'] = df_BS['street'].str.replace('St.([a-zA-Z])', 'St. \\1', regex=True)
     path_geb_eing = get_gebaeudeeingaenge()
     df_geb_eing = pd.read_csv(path_geb_eing, sep=';')
     df_geb_eing['street'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
