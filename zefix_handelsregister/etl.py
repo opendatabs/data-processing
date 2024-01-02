@@ -38,7 +38,7 @@ def get_data_of_all_cantons():
     sparql = SPARQLWrapper("https://lindas.admin.ch/query")
     sparql.setReturnFormat(JSON)
     # Iterate over all cantons
-    for i in range(12, 13):
+    for i in range(1, 27):
         logging.info(f'Getting data for canton {i}...')
         # Query can be tested and adjusted here: https://ld.admin.ch/sparql/#
         sparql.setQuery("""
