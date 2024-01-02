@@ -147,6 +147,8 @@ def work_with_BS_data():
     # Replace *Str.* with *Strasse* and *str.* with *strasse*
     df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse')
     df_BS['street'] = df_BS['street'].str.replace('str.', 'strasse')
+    # Replace *St. followed by a letter with *St. *
+    df_BS['street'] = df_BS['street'].str.replace('St.[A-Z]', 'St. ')
     path_geb_eing = get_gebaeudeeingaenge()
     df_geb_eing = pd.read_csv(path_geb_eing, sep=';')
     df_geb_eing['street'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
