@@ -117,12 +117,20 @@ def get_data_of_all_cantons():
         results_df.loc[~results_df['adresse'].str.contains('\n'), 'street'] = temp_df[0]
         results_df = results_df.drop(columns=['adresse'])
 
+        short_name_canton = results_df['short_name_canton'][0]
+        # Add url to cantonal company register
+        # Transform UID in format CHE123456789 to format CHE-123.456.789
+        company_uid_str = results_df['company_uid'].str.replace('CHE([0-9]{3})([0-9]{3})([0-9]{3})', 'CHE-\\1.\\2.\\3', regex=True)
+        # So BS and CHE341493593 should give 'https://bs.chregister.ch/cr-portal/auszug/auszug.xhtml?uid=CHE-341.493.593'
+        results_df[
+            'url_cantonal_register'] = 'https://' + short_name_canton.lower() + '.chregister.ch/cr-portal/auszug/auszug.xhtml?uid=' + company_uid_str
+
         '''
         # Get noga data
         results_df = pd.merge(results_df, df_burweb, on='company_uid', how='left')
         '''
 
-        file_name = f"companies_{results_df['short_name_canton'][0]}.csv"
+        file_name = f"companies_{short_name_canton}.csv"
         path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', file_name)
         results_df.to_csv(path_export, index=False)
         if ct.has_changed(path_export):
@@ -156,7 +164,7 @@ def work_with_BS_data():
     df_merged = pd.merge(df_BS, df_geb_eing, on='street', how='left')
     return df_merged[['company_type_de', 'type_id', 'municipality', 'locality',
                       'company_legal_name', 'company_uid', 'muni_id', 'company_uri', 'plz', 'zusatz',
-                      'street', 'egid', 'eingang_koordinaten']]
+                      'street', 'egid', 'eingang_koordinaten', 'url_cantonal_register']]
 
 
 if __name__ == '__main__':
@@ -164,7 +172,6 @@ if __name__ == '__main__':
     logging.info(f'Executing {__file__}...')
     main()
     logging.info('Job successful')
-
 
 # Temporarily not needed
 '''
