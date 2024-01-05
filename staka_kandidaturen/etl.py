@@ -5,6 +5,12 @@ from staka_kandidaturen import credentials
 
 
 def main():
+    df_rr = process_regierungsrat()
+    df_rp = process_regierungsrat(which='RP')
+    df_rr_rp = pd.concat([df_rr, df_rp])
+    path_export = os.path.join(credentials.path_dest_rr, '100333_kandidaturen_regierungsrat_ersatz.csv')
+    df_rr_rp.to_csv(path_export, index=False)
+
     df_nr = process_nationalrat()
     path_export = os.path.join(credentials.path_dest_nr, '100316_kandidaturen_nationalrat.csv')
     df_nr.to_csv(path_export, index=False)
@@ -89,6 +95,20 @@ def process_staenderat() -> pd.DataFrame:
         df_all_kand = pd.concat([df_all_kand, pd.DataFrame([entries_per_kand])])
 
     return df_all_kand
+
+
+def process_regierungsrat(which='RR'):
+    xlsx = os.path.join(credentials.path_orig, f"{which}_für_OGD.xlsx")
+
+    df = pd.DataFrame(index=None)
+    for sheet_name in pd.ExcelFile(xlsx).sheet_names:
+        df_list = pd.read_excel(xlsx, sheet_name=sheet_name, dtype=str)
+        df_list.columns = ['listen_nr', 'listenbezeichnung', 'zeilen_nr', 'name', 'vorname',
+                           'bisher', 'geschlecht', 'jahrgang', 'zusatz']
+        df = pd.concat([df, df_list])
+    df['name_vorname'] = df['name'] + ', ' + df['vorname']
+    df['kandidatur'] = 'Regierungsrat' if which == 'RR' else 'Regierungspräsidium'
+    return df
 
 
 if __name__ == '__main__':
