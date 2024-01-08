@@ -1,15 +1,31 @@
 import os
 import pandas as pd
 import logging
+
 from staka_kandidaturen import credentials
+import common
+import common.change_tracking as ct
+import ods_publish.etl_id as odsp
 
 
 def main():
     df_rr = process_regierungsrat()
-    df_rp = process_regierungsrat(which='RP')
-    df_rr_rp = pd.concat([df_rr, df_rp])
     path_export = os.path.join(credentials.path_dest_rr, '100333_kandidaturen_regierungsrat_ersatz.csv')
-    df_rr_rp.to_csv(path_export, index=False)
+    df_rr.to_csv(path_export, index=False)
+    if ct.has_changed(path_export):
+        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          '/wahlen_abstimmungen/wahlen/rr_ersatz/kandidaturen_2024')
+        odsp.publish_ods_dataset_by_id('100333')
+        ct.update_hash_file(path_export)
+
+    df_rp = process_regierungsrat(which='RP')
+    path_export = os.path.join(credentials.path_dest_rr, '100334_kandidaturen_regierungspraesidium_ersatz.csv')
+    df_rp.to_csv(path_export, index=False)
+    if ct.has_changed(path_export):
+        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          '/wahlen_abstimmungen/wahlen/rr_ersatz/kandidaturen_2024')
+        odsp.publish_ods_dataset_by_id('100334')
+        ct.update_hash_file(path_export)
 
     df_nr = process_nationalrat()
     path_export = os.path.join(credentials.path_dest_nr, '100316_kandidaturen_nationalrat.csv')
@@ -107,7 +123,8 @@ def process_regierungsrat(which='RR'):
                            'bisher', 'geschlecht', 'jahrgang', 'zusatz']
         df = pd.concat([df, df_list])
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
-    df['kandidatur'] = 'Regierungsrat' if which == 'RR' else 'Regierungspräsidium'
+    df['listen_nr'] = df['listen_nr'].apply(lambda x: x.zfill(2))
+    df = df.drop(columns=['zeilen_nr'])
     return df
 
 
