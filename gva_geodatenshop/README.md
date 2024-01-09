@@ -2,7 +2,7 @@
 
 ## Publish existing GVA datasets
 ### Identify dataset to publish in ogd_datensaetze.csv
-- GVA exports all available geo datasets every morning into `{file File Server Root}\PD\PD-StatA-FST-OGD-Data-GVA\ogd_datensaetze.csv`.
+- GVA exports all available geo datasets every morning into `{File Server Root}\PD\PD-StatA-FST-OGD-Data-GVA\ogd_datensaetze.csv`.
 - Open in Excel and find the dataset to be published as OGD.
   Copy contens of column "kontakt_dienststelle" into clipboard. 
 - Copy contents of column "ordnerpfad" into clipboard. 
@@ -15,8 +15,8 @@
 - Commit, push to github. 
 
 ### Fill out file Metadata.csv
-- Open file [Metadata.csv](./Metadata.csv) in Excel.
-- Reformat column "dcat.issued" in Excel to use custom format "JJJJ-MM-TT". 
+- Open file [Metadata.csv](./Metadata.csv) in Excel. If not opened in Excel, the file will have another encoding leading to problems with the harvester.
+- Reformat column "dcat.issued" in Excel to use custom format "JJJJ-MM-TT".
 - Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
 - Column "shapes": Define which shp files shape(s) should be imported. Leave empty to import all shapes to explore the shapes in ODS before publication. Each shape will be imported as a new ODS dataset. Do not add file extension. Multiple shapes can be separated with semicolon. Do not add a semicolon at the end of a list of shape names. If empty, all shapes will be imported. 
