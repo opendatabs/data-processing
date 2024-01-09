@@ -1,14 +1,18 @@
 import os
+import json
 import pandas as pd
 import logging
 import pathlib
+from SPARQLWrapper import SPARQLWrapper, JSON
+import urllib.request
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+import time
 
 import common
 import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 from zefix_handelsregister import credentials
-from SPARQLWrapper import SPARQLWrapper, JSON
-import urllib.request
 
 proxy_support = urllib.request.ProxyHandler(common.credentials.proxies)
 opener = urllib.request.build_opener(proxy_support)
@@ -38,7 +42,7 @@ def get_data_of_all_cantons():
     sparql = SPARQLWrapper("https://lindas.admin.ch/query")
     sparql.setReturnFormat(JSON)
     # Iterate over all cantons
-    for i in range(1, 27):
+    for i in range(12, 13):
         logging.info(f'Getting data for canton {i}...')
         # Query can be tested and adjusted here: https://ld.admin.ch/sparql/#
         sparql.setQuery("""
@@ -120,7 +124,8 @@ def get_data_of_all_cantons():
         short_name_canton = results_df['short_name_canton'][0]
         # Add url to cantonal company register
         # Transform UID in format CHE123456789 to format CHE-123.456.789
-        company_uid_str = results_df['company_uid'].str.replace('CHE([0-9]{3})([0-9]{3})([0-9]{3})', 'CHE-\\1.\\2.\\3', regex=True)
+        company_uid_str = results_df['company_uid'].str.replace('CHE([0-9]{3})([0-9]{3})([0-9]{3})', 'CHE-\\1.\\2.\\3',
+                                                                regex=True)
         # So BS and CHE341493593 should give 'https://bs.chregister.ch/cr-portal/auszug/auszug.xhtml?uid=CHE-341.493.593'
         results_df[
             'url_cantonal_register'] = 'https://' + short_name_canton.lower() + '.chregister.ch/cr-portal/auszug/auszug.xhtml?uid=' + company_uid_str
@@ -140,31 +145,45 @@ def get_data_of_all_cantons():
             ct.update_hash_file(path_export)
 
 
-def get_gebaeudeeingaenge():
-    raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'gebaeudeeingaenge.csv')
-    logging.info(f'Downloading Gebäudeeingänge from ods to file {raw_data_file}...')
-    r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100231')
-    with open(raw_data_file, 'wb') as f:
-        f.write(r.content)
-    return raw_data_file
+def get_coordinates(df):
+    # Get coordinates for all addresses
+    geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+    df['plz'] = df['plz'].fillna(0).astype(int).astype(str).replace('0', '')
+    df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['municipality']
+    addresses = df['address'].unique()
+    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'lookup_table.json')
+    if os.path.exists(path_lookup_table):
+        with open(path_lookup_table, 'r') as f:
+            cached_coordinates = json.load(f)
+    else:
+        cached_coordinates = {}
+    for address in addresses:
+        if address not in cached_coordinates:
+            try:
+                location = geocode(address)
+                if location:
+                    cached_coordinates[address] = (location.latitude, location.longitude)
+                else:
+                    logging.info(f"Location not found for address: {address}")
+            except Exception as e:
+                logging.info(f"Error occurred for address {address}: {e}")
+                time.sleep(5)
+        else:
+            logging.info(f"Using cached coordinates for address: {address}")
+    df['coordinates'] = df['address'].map(cached_coordinates)
+    # Save lookup table
+    with open(path_lookup_table, 'w') as f:
+        json.dump(cached_coordinates, f)
+    return df
 
 
 def work_with_BS_data():
     path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
-    # Replace *Str.* with *Strasse* and *str.* with *strasse*
-    df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse', regex=False)
-    df_BS['street'] = df_BS['street'].str.replace('str.', 'strasse', regex=False)
-    # Replace *St. followed by a letter with *St. * and then the letter
-    df_BS['street'] = df_BS['street'].str.replace('St\.([a-zA-Z])', 'St. \\1', regex=True)
-    path_geb_eing = get_gebaeudeeingaenge()
-    df_geb_eing = pd.read_csv(path_geb_eing, sep=';')
-    df_geb_eing['street'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
-    # Merge on street
-    df_merged = pd.merge(df_BS, df_geb_eing, on='street', how='left')
-    return df_merged[['company_type_de', 'type_id', 'municipality', 'locality',
-                      'company_legal_name', 'company_uid', 'muni_id', 'company_uri', 'plz', 'zusatz',
-                      'street', 'egid', 'eingang_koordinaten', 'url_cantonal_register']]
+    df_BS = get_coordinates(df_BS)
+    return df_BS[['company_type_de', 'company_legal_name', 'company_uid', 'municipality', 'plz', 'street', 'zusatz',
+                  'coordinates', 'url_cantonal_register', 'type_id', 'company_uri', 'muni_id']]
 
 
 if __name__ == '__main__':
