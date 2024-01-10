@@ -45,3 +45,4 @@ __pycache__/
 /stata_erwarteter_stromverbrauch/.Rhistory
 /mobilitaet_parkflaechen/data/list_directories.txt
 /kapo_smileys/data/list_files.txt
+/zefix_handelsregister/data/lookup_table.json

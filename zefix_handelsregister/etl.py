@@ -42,7 +42,7 @@ def get_data_of_all_cantons():
     sparql = SPARQLWrapper("https://lindas.admin.ch/query")
     sparql.setReturnFormat(JSON)
     # Iterate over all cantons
-    for i in range(12, 13):
+    for i in range(1, 27):
         logging.info(f'Getting data for canton {i}...')
         # Query can be tested and adjusted here: https://ld.admin.ch/sparql/#
         sparql.setQuery("""
@@ -150,7 +150,7 @@ def get_coordinates(df):
     geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     df['plz'] = df['plz'].fillna(0).astype(int).astype(str).replace('0', '')
-    df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['municipality']
+    df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['locality']
     addresses = df['address'].unique()
     path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'lookup_table.json')
     if os.path.exists(path_lookup_table):
@@ -182,8 +182,9 @@ def work_with_BS_data():
     path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
     df_BS = get_coordinates(df_BS)
-    return df_BS[['company_type_de', 'company_legal_name', 'company_uid', 'municipality', 'plz', 'street', 'zusatz',
-                  'coordinates', 'url_cantonal_register', 'type_id', 'company_uri', 'muni_id']]
+    return df_BS[['company_type_de', 'company_legal_name', 'company_uid', 'municipality',
+                  'street', 'zusatz', 'plz', 'locality', 'coordinates',
+                  'url_cantonal_register', 'type_id', 'company_uri', 'muni_id']]
 
 
 if __name__ == '__main__':
