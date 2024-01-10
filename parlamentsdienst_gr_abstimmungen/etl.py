@@ -177,6 +177,8 @@ def handle_congress_center_polls(df_unique_session_dates):
         df_names['Mitglied_Name'] = df_names.Vorname + ' ' + df_names.Nachname
         df_names['Mitglied_Name'] = df_names.Mitglied_Name.str.replace('\\xa0', '', regex=False)
         df['Mitglied_Name'] = df_names.Mitglied_Name
+        df['Mitglied_Vorname'] = df_names.Vorname
+        df['Mitglied_Nachname'] = df_names.Nachname
         df['Mitglied_Name_Fraktion'] = df.Mitglied_Name + ' (' + df.Fraktion + ')'
         df['Entscheid_Mitglied'] = df['Choice Text'].replace({'Ja': 'J', 'Nein': 'N', '-': 'A', 'Enthaltung': 'E'})
         # Data from Congress Center does not contain the Entscheid_Mitglie-value P (Präsident),
@@ -196,8 +198,8 @@ def handle_congress_center_polls(df_unique_session_dates):
         df.Traktandum = df.Traktandum.fillna('')
         df.Subtraktandum = df.Subtraktandum.fillna('')
         df['tagesordnung_link'] = (
-                    'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df.Datum + '&refine.traktand='
-                    + df.Traktandum)
+                'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df.Datum + '&refine.traktand='
+                + df.Traktandum)
 
         df_poll_counts = df.groupby(['Current Voting ID', 'file_name', 'Choice Text'])[
             'Handset ID'].count().reset_index(name='Anzahl')
@@ -274,8 +276,8 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
         df_merge1.loc[df_merge1['Typ'] == 'Offene Wahl', 'Typ'] = 'offene Wahl'
         df_merge1 = df_merge1.drop(columns=['Abst_Typ'])
         df_merge1['tagesordnung_link'] = (
-                    'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(
-                str))
+                'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_merge1.Datum + '&refine.traktand=' + df_merge1.Traktandum.astype(
+            str))
         # todo: Add link to pdf file (if possible)
         # Correct historical incidence of wrong seat number 182 (2022-03-17)
         df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
@@ -339,6 +341,9 @@ def calc_details_from_single_xml_file(local_file):
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
+    details['Mitglied_Vorname'] = details.Mitglied_Name.str.split(' ').str.get(0)
+    details['Mitglied_Nachname'] = details.Mitglied_Name.str.replace('von ', 'von_').str.split(' ').str.get(
+        -1).str.replace('von_', 'von ')
     # Mistake in Sitz_Nr in original data due to same family name
     details.loc[(details['Mitglied_Name'] == 'Beatrice Messerli') & (details['Sitz_Nr'] == '18'), 'Sitz_Nr'] = '42'
     details.loc[(details['Mitglied_Name'] == 'Claudia Baumgartner') & (details['Sitz_Nr'] == '69'), 'Sitz_Nr'] = '21'
@@ -480,8 +485,8 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json[['Traktandum', 'Subtraktandum']] = (
         df_json['agenda_number'].str.replace('T', '', regex=False).str.split('-', expand=True))
     df_json['tagesordnung_link'] = (
-                'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_json.Datum + '&refine.traktand='
-                + df_json.Traktandum.astype(int).astype(str))
+            'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_json.Datum + '&refine.traktand='
+            + df_json.Traktandum.astype(int).astype(str))
     return df_json[
         ['session_date', 'Abst_Nr', 'Datum', 'Zeit', 'Anz_J', 'Anz_N', 'Anz_E', 'Anz_A', 'Anz_P', 'Typ', 'Geschaeft',
          'Zeitstempel', 'Zeitstempel_text', 'Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion',
