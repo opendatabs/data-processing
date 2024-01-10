@@ -53,7 +53,8 @@ def get_trakt_names(session_day):
         raise ValueError(f'No session found for date {session_day}')
     logging.info(f'Found closest session date {closest_session_path} for date {session_day}')
     # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
-    csv_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path, credentials.local_data_path, 'BSGR_Agenda.csv')
+    agenda_save_path = credentials.ftp_ls_file.replace('\\ftp_listing.json', '')
+    csv_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path, agenda_save_path, 'BSGR_Agenda.csv')
     if csv_file[0] is None:
         raise ValueError(f'No BSGR_Agenda.csv found for date {session_day}')
     return pd.read_csv(csv_file[0]['local_file'], delimiter=';')
