@@ -150,7 +150,7 @@ def get_coordinates(df):
     geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     df['plz'] = df['plz'].fillna(0).astype(int).astype(str).replace('0', '')
-    df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['locality']
+    df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['locality'].str.split(' ').str[0]
     addresses = df['address'].unique()
     path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'lookup_table.json')
     if os.path.exists(path_lookup_table):

@@ -54,8 +54,9 @@ def get_trakt_names(session_day):
     logging.info(f'Found closest session date {closest_session_path} for date {session_day}')
     # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
     csv_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path,
-                                   credentials.data_path, 'BSGR_Agenda.csv')
-    if csv_file[0] is None:
+                                   credentials.data_path, 'BSGR_AGENDA.csv')
+    # if csv_file is empty, raise error
+    if len(csv_file) == 0:
         raise ValueError(f'No BSGR_Agenda.csv found for date {session_day}')
     return pd.read_csv(csv_file[0]['local_file'], delimiter=';')
 
