@@ -6,6 +6,7 @@ RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
 RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
 RUN python3 -m pip install --user --no-cache-dir SPARQLWrapper==2.0.0
+RUN python3 -m pip install --user --no-cache-dir geopy==2.4.1
 CMD ["python3", "-m", "zefix_handelsregister.etl"]
 
 # Docker commands to create image and run container:
