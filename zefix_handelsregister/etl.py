@@ -173,7 +173,7 @@ def get_coordinates(df):
             logging.info(f"Using cached coordinates for address: {address}")
     df['coordinates'] = df['address'].map(cached_coordinates)
     # Save lookup table
-    with open(path_lookup_table, 'w') as f:
+    with open(path_lookup_table, 'w', encoding='utf-8') as f:
         json.dump(cached_coordinates, f)
     return df
 
