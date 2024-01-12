@@ -1,13 +1,14 @@
 import os
 import json
-import pandas as pd
+import time
 import logging
 import pathlib
-from SPARQLWrapper import SPARQLWrapper, JSON
+import pandas as pd
 import urllib.request
+from SPARQLWrapper import SPARQLWrapper, JSON
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
-import time
+from rapidfuzz import process
 
 import common
 import common.change_tracking as ct
@@ -145,16 +146,16 @@ def get_data_of_all_cantons():
             ct.update_hash_file(path_export)
 
 
-def get_coordinates(df):
+def get_coordinates_from_address(df):
     # Get coordinates for all addresses
     geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     df['plz'] = df['plz'].fillna(0).astype(int).astype(str).replace('0', '')
     df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['locality'].str.split(' ').str[0]
     addresses = df['address'].unique()
-    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'lookup_table.json')
+    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'addr_to_coords_lookup_table.json')
     if os.path.exists(path_lookup_table):
-        with open(path_lookup_table, 'r', encoding='utf-8', errors='replace') as f:
+        with open(path_lookup_table, 'r') as f:
             cached_coordinates = json.load(f)
     else:
         cached_coordinates = {}
@@ -173,17 +174,31 @@ def get_coordinates(df):
             logging.info(f"Using cached coordinates for address: {address}")
     df['coordinates'] = df['address'].map(cached_coordinates)
     # Save lookup table
-    with open(path_lookup_table, 'w', encoding='utf-8') as f:
+    with open(path_lookup_table, 'w') as f:
         json.dump(cached_coordinates, f)
+    # Append coordinates for addresses that could not be found
+    missing_coords = df[df['coordinates'].isna()]
+    for index, row in missing_coords.iterrows():
+        closest_address = find_closest_address(row['address'], cached_coordinates.keys())
+        if closest_address:
+            df.at[index, 'address'] = closest_address
+            df.at[index, 'coordinates'] = cached_coordinates[closest_address]
     return df
+
+
+def find_closest_address(address, address_list):
+    if address:
+        closest_address, _, _ = process.extractOne(address, address_list)
+        return closest_address
+    return None
 
 
 def work_with_BS_data():
     path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
-    df_BS = get_coordinates(df_BS)
+    df_BS = get_coordinates_from_address(df_BS)
     return df_BS[['company_type_de', 'company_legal_name', 'company_uid', 'municipality',
-                  'street', 'zusatz', 'plz', 'locality', 'coordinates',
+                  'street', 'zusatz', 'plz', 'locality', 'address', 'coordinates',
                   'url_cantonal_register', 'type_id', 'company_uri', 'muni_id']]
 
 
