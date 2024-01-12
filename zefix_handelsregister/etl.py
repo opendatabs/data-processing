@@ -189,7 +189,7 @@ def get_coordinates_from_address(df):
 def find_closest_address(address, address_list):
     if address:
         closest_address, _, _ = process.extractOne(address, address_list)
-        logging.info(f"Closest address for {address} is according to fuzzy matching (Levenshtein): {closest_address}")
+        logging.info(f"Closest address for {address} according to fuzzy matching (Levenshtein) is: {closest_address}")
         return closest_address
     return None
 
