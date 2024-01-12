@@ -73,34 +73,34 @@ def get_data_of_all_cantons():
                         schema:identifier ?canton_id .
                     ?district_id schema:containsPlace ?muni_id ;
                         schema:name ?district_de .
-  
+
                     # Optional to get district names in French
                     OPTIONAL {
                         ?district_id schema:containsPlace ?muni_id ;
                             schema:name ?district_fr .
                         FILTER langMatches(lang(?district_fr), "fr")
                     }
-                    
+
                     # Optional to get district names in Italian
                     OPTIONAL {
                         ?district_id schema:containsPlace ?muni_id ;
                             schema:name ?district_it .
                         FILTER langMatches(lang(?district_it), "it")
                     }
-                    
+
                     # Optional to get district names in English
                     OPTIONAL {
                         ?district_id schema:containsPlace ?muni_id ;
                             schema:name ?district_en .
                         FILTER langMatches(lang(?district_en), "en")
                     }
-                  
+
                     # Optional to get company types in French
                     OPTIONAL {
                         ?type_id schema:name ?company_type_fr .
                         FILTER langMatches(lang(?company_type_fr), "fr")
                     }
-                  
+
                     # Filter by company-types that are german (otherwise result is much bigger)
                     FILTER langMatches(lang(?district_de), "de") .
                     FILTER langMatches(lang(?company_type_de), "de") .
@@ -154,7 +154,7 @@ def get_coordinates(df):
     addresses = df['address'].unique()
     path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'lookup_table.json')
     if os.path.exists(path_lookup_table):
-        with open(path_lookup_table, 'r') as f:
+        with open(path_lookup_table, 'r', encoding='utf-8', errors='replace') as f:
             cached_coordinates = json.load(f)
     else:
         cached_coordinates = {}
