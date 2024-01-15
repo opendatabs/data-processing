@@ -179,21 +179,22 @@ def get_coordinates_from_address(df):
     for index, row in missing_coords.iterrows():
         closest_address = find_closest_address(row['street'])
         if closest_address:
-            df.at[index, 'address'] = closest_address + ', ' + row['plz'] + ' ' + row['locality'].str.split(' ').str[0]
-            if df.at[index, 'address'] not in cached_coordinates:
+            closest_address = closest_address + ', ' + df.at[index, 'plz'] + ' ' + df.at[index, 'locality'].str.split(' ').str[0]
+            df.at[index, 'address'] = closest_address
+            if closest_address not in cached_coordinates:
                 try:
-                    location = geocode(df.at[index, 'address'])
+                    location = geocode(closest_address)
                     if location:
-                        cached_coordinates[df.at[index, 'address']] = (location.latitude, location.longitude)
-                        df.at[index, 'coordinates'] = cached_coordinates[df.at[index, 'address']]
+                        cached_coordinates[closest_address] = (location.latitude, location.longitude)
+                        df.at[index, 'coordinates'] = cached_coordinates[closest_address]
                     else:
-                        logging.info(f"Location not found for address: {df.at[index, 'address']}")
+                        logging.info(f"Location not found for address: {closest_address}")
                 except Exception as e:
-                    logging.info(f"Error occurred for address {df.at[index, 'address']}: {e}")
+                    logging.info(f"Error occurred for address {closest_address}: {e}")
                     time.sleep(5)
             else:
-                logging.info(f"Using cached coordinates for address: {df.at[index, 'address']}")
-                df.at[index, 'coordinates'] = cached_coordinates[df.at[index, 'address']]
+                logging.info(f"Using cached coordinates for address: {closest_address}")
+                df.at[index, 'coordinates'] = cached_coordinates[closest_address]
     # Save lookup table
     with open(path_lookup_table, 'w') as f:
         json.dump(cached_coordinates, f)
