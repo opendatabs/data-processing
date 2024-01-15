@@ -177,9 +177,9 @@ def get_coordinates_from_address(df):
     # Append coordinates for addresses that could not be found
     missing_coords = df[df['coordinates'].isna()]
     for index, row in missing_coords.iterrows():
-        closest_address = find_closest_address(row['street'])
-        if closest_address:
-            closest_address = closest_address + ', ' + df.at[index, 'plz'] + ' ' + df.at[index, 'locality'].str.split(' ').str[0]
+        closest_streetname = find_closest_streetname(row['street'])
+        if closest_streetname:
+            closest_address = closest_streetname + ', ' + row['plz'] + ' ' + row['locality'].split(' ')[0]
             df.at[index, 'address'] = closest_address
             if closest_address not in cached_coordinates:
                 try:
@@ -201,13 +201,13 @@ def get_coordinates_from_address(df):
     return df
 
 
-def find_closest_address(street):
+def find_closest_streetname(street):
     if street:
         df_geb_eing = get_gebaeudeeingaenge()
         street_list = (df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()
-        closest_address, _, _ = process.extractOne(street, street_list)
-        logging.info(f"Closest address for {street} according to fuzzy matching (Levenshtein) is: {closest_address}")
-        return closest_address
+        closest_streetname, _, _ = process.extractOne(street, street_list)
+        logging.info(f"Closest address for {street} according to fuzzy matching (Levenshtein) is: {closest_streetname}")
+        return closest_streetname
     return None
 
 
