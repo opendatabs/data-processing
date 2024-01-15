@@ -173,25 +173,50 @@ def get_coordinates_from_address(df):
         else:
             logging.info(f"Using cached coordinates for address: {address}")
     df['coordinates'] = df['address'].map(cached_coordinates)
-    # Save lookup table
-    with open(path_lookup_table, 'w') as f:
-        json.dump(cached_coordinates, f)
+
     # Append coordinates for addresses that could not be found
     missing_coords = df[df['coordinates'].isna()]
     for index, row in missing_coords.iterrows():
-        closest_address = find_closest_address(row['address'], cached_coordinates.keys())
+        closest_address = find_closest_address(row['street'])
         if closest_address:
-            df.at[index, 'address'] = closest_address
-            df.at[index, 'coordinates'] = cached_coordinates[closest_address]
+            df.at[index, 'address'] = closest_address + ', ' + row['plz'] + ' ' + row['locality'].str.split(' ').str[0]
+            if df.at[index, 'address'] not in cached_coordinates:
+                try:
+                    location = geocode(df.at[index, 'address'])
+                    if location:
+                        cached_coordinates[df.at[index, 'address']] = (location.latitude, location.longitude)
+                        df.at[index, 'coordinates'] = cached_coordinates[df.at[index, 'address']]
+                    else:
+                        logging.info(f"Location not found for address: {df.at[index, 'address']}")
+                except Exception as e:
+                    logging.info(f"Error occurred for address {df.at[index, 'address']}: {e}")
+                    time.sleep(5)
+            else:
+                logging.info(f"Using cached coordinates for address: {df.at[index, 'address']}")
+                df.at[index, 'coordinates'] = cached_coordinates[df.at[index, 'address']]
+    # Save lookup table
+    with open(path_lookup_table, 'w') as f:
+        json.dump(cached_coordinates, f)
     return df
 
 
-def find_closest_address(address, address_list):
-    if address:
-        closest_address, _, _ = process.extractOne(address, address_list)
-        logging.info(f"Closest address for {address} according to fuzzy matching (Levenshtein) is: {closest_address}")
+def find_closest_address(street):
+    if street:
+        df_geb_eing = get_gebaeudeeingaenge()
+        street_list = (df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()
+        closest_address, _, _ = process.extractOne(street, street_list)
+        logging.info(f"Closest address for {street} according to fuzzy matching (Levenshtein) is: {closest_address}")
         return closest_address
     return None
+
+
+def get_gebaeudeeingaenge():
+    raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'gebaeudeeingaenge.csv')
+    logging.info(f'Downloading Gebäudeeingänge from ods to file {raw_data_file}...')
+    r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100231')
+    with open(raw_data_file, 'wb') as f:
+        f.write(r.content)
+    return pd.read_csv(raw_data_file, sep=';')
 
 
 def work_with_BS_data():
