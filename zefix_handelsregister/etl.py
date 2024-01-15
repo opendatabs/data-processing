@@ -4,6 +4,7 @@ import time
 import logging
 import pathlib
 import pandas as pd
+import numpy as np
 import urllib.request
 from SPARQLWrapper import SPARQLWrapper, JSON
 from geopy.geocoders import Nominatim
@@ -205,7 +206,8 @@ def find_closest_streetname(street):
     if street:
         df_geb_eing = get_gebaeudeeingaenge()
         street_list = (df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()
-        street_list += (df_geb_eing['strnamk'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()
+        street_list = np.concatenate((street_list,
+                                      (df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()))
         closest_streetname, _, _ = process.extractOne(street, street_list)
         logging.info(f"Closest address for {street} according to fuzzy matching (Levenshtein) is: {closest_streetname}")
         return closest_streetname
