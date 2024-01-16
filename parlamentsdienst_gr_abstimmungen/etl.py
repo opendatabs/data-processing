@@ -171,25 +171,20 @@ def handle_congress_center_polls(df_unique_session_dates):
         df['Datenstand'] = df.Zeitstempel
         df['Datenstand_text'] = df.Zeitstempel_text
 
-        df_names = df.Name.str.replace('von ', 'von_').str.split(' ', n=1, expand=True)
-        df_names.columns = ['Nachname', 'Vorname']
-        df_names.Nachname = df_names.Nachname.str.replace('von_', 'von ')
-        df_names['Mitglied_Name'] = df_names.Vorname + ' ' + df_names.Nachname
-        df_names['Mitglied_Name'] = df_names.Mitglied_Name.str.replace('\\xa0', '', regex=False)
-        df['Mitglied_Name'] = df_names.Mitglied_Name
-        df['Mitglied_Vorname'] = df_names.Vorname
-        df['Mitglied_Nachname'] = df_names.Nachname
+        df['Mitglied_Name'] = df['Name']
+        df = get_closest_name_from_member_dataset(df, surname_first=True)
+
         df['Mitglied_Name_Fraktion'] = df.Mitglied_Name + ' (' + df.Fraktion + ')'
         df['Entscheid_Mitglied'] = df['Choice Text'].replace({'Ja': 'J', 'Nein': 'N', '-': 'A', 'Enthaltung': 'E'})
         # Data from Congress Center does not contain the Entscheid_Mitglie-value P (Präsident),
         # so we add it here after checking it with the data provider
-        df.loc[(df.Mitglied_Name == 'Salome Hofer') & (df['Creation Date'] >= datetime(2020, 2, 1)) &
+        df.loc[(df.Mitglied_Name == 'Hofer, Salome') & (df['Creation Date'] >= datetime(2020, 2, 1)) &
                (df['Creation Date'] <= datetime(2021, 2, 1)) & (
                        df['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
-        df.loc[(df.Mitglied_Name == 'David Jenny') & (df['Creation Date'] >= datetime(2021, 2, 1)) &
+        df.loc[(df.Mitglied_Name == 'Jenny, David') & (df['Creation Date'] >= datetime(2021, 2, 1)) &
                (df['Creation Date'] <= datetime(2022, 2, 1)) & (
                        df['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
-        df.loc[(df.Mitglied_Name == 'Jo Vergeat') & (df['Creation Date'] >= datetime(2022, 2, 1)) &
+        df.loc[(df.Mitglied_Name == 'Vergeat, Jo') & (df['Creation Date'] >= datetime(2022, 2, 1)) &
                (df['Creation Date'] <= datetime(2023, 2, 1)) & (
                        ['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
 
@@ -341,13 +336,12 @@ def calc_details_from_single_xml_file(local_file):
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
-    details['Mitglied_Vorname'] = details.Mitglied_Name.str.split(' ').str.get(0)
-    details['Mitglied_Nachname'] = details.Mitglied_Name.str.replace('von ', 'von_').str.split(' ').str.get(
-        -1).str.replace('von_', 'von ')
+    details = get_closest_name_from_member_dataset(details)
+    details['Mitglied_Name_Fraktion'] = details.Mitglied_Name + ' (' + details.Fraktion + ')'
     # Mistake in Sitz_Nr in original data due to same family name
-    details.loc[(details['Mitglied_Name'] == 'Beatrice Messerli') & (details['Sitz_Nr'] == '18'), 'Sitz_Nr'] = '42'
-    details.loc[(details['Mitglied_Name'] == 'Claudia Baumgartner') & (details['Sitz_Nr'] == '69'), 'Sitz_Nr'] = '21'
-    details.loc[(details['Mitglied_Name'] == 'Christian von Wartburg') & (details['Sitz_Nr'] == '77'), 'Sitz_Nr'] = '33'
+    details.loc[(details['Mitglied_Name'] == 'Messerli, Beatrice') & (details['Sitz_Nr'] == '18'), 'Sitz_Nr'] = '42'
+    details.loc[(details['Mitglied_Name'] == 'Baumgartner, Claudia') & (details['Sitz_Nr'] == '69'), 'Sitz_Nr'] = '21'
+    details.loc[(details['Mitglied_Name'] == 'von Wartburg, Christian') & (details['Sitz_Nr'] == '77'), 'Sitz_Nr'] = '33'
 
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
@@ -477,6 +471,7 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json['Zeitstempel_text'] = df_json['started'].str.replace('Z', '+0000', regex=False)
     df_json['Zeitstempel'] = pd.to_datetime(df_json['Zeitstempel_text'])
     df_json['Mitglied_Name'] = df_json['first_name'] + ' ' + df_json['last_name']
+    df_json = get_closest_name_from_member_dataset(df_json)
     df_json['Mitglied_Name_Fraktion'] = df_json['Mitglied_Name'] + ' (' + df_json['Fraktion'] + ')'
     df_json.to_csv(f'{credentials.local_data_path}/temp_df_json.csv')
     df_json['Datenstand_text'] = df_json['created'].str.replace('Z', '+0000', regex=False)
