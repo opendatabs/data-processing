@@ -203,12 +203,41 @@ def handle_congress_center_polls(df_unique_session_dates):
             columns={'-': 'Anz_A', 'Enthaltung': 'Anz_E', 'Ja': 'Anz_J', 'Nein': 'Anz_N'}))
         df = df.merge(df_poll_counts_pivot, how='left', on=['file_name', 'Current Voting ID'])
 
-        # {"session_date": "20141119", "Abst_Nr": "745", "Datum": "2014-11-19", "Zeit": "09:24:56.000", "Anz_J": "39", "Anz_N": "47", "Anz_E": "6", "Anz_A": "7", "Anz_P": "1", "Typ": "Abstimmung", "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises", "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100", "Sitz_Nr": "1", "Mitglied_Name": "Beatriz Greuter", "Fraktion": "SP", "Mitglied_Name_Fraktion": "Beatriz Greuter (SP)", "Datenstand_text": "2022-03-17T12:19:35+01:00", "Entscheid_Mitglied": "J", "Traktandum": 16, "Subtraktandum": 3, "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
+        '''
+        {
+            "session_date": "20141119",
+            "Abst_Nr": "745", "Datum": "2014-11-19",
+            "Zeit": "09:24:56.000",
+            "Anz_J": "39",
+            "Anz_N": "47",
+            "Anz_E": "6",
+            "Anz_A": "7",
+            "Anz_P": "1",
+            "Typ": "Abstimmung",
+            "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises",
+            "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100",
+            "Sitz_Nr": "1",
+            "Mitglied_Name": "Greuter, Beatriz",
+            "Fraktion": "SP",
+            "Mitglied_Name_Fraktion": "Greuter, Beatriz (SP)",
+            "Datenstand_text": "2022-03-17T12:19:35+01:00",
+            "Entscheid_Mitglied": "J",
+            "Traktandum": 16,
+            "Subtraktandum": 3,
+            "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16",
+            "Mitglied_Nachname": "Greuter",
+            "Mitglied_Vorname": "Beatriz",
+            "GR_uni_nr": "2880",
+            "GR_url": "https://grosserrat.bs.ch/?mnr=2880",
+            "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
+        }
+        '''
         # We don't have column 'Anz_P' in Congress Center data, so we don't push it
         columns_to_export = ["session_date", "Abst_Nr", "Datum", "Zeit", "Anz_J", "Anz_N", "Anz_E", "Anz_A", "Typ",
                              "Geschaeft", "Zeitstempel_text", "Sitz_Nr", "Mitglied_Name", "Fraktion",
                              "Mitglied_Name_Fraktion", "Datenstand_text", "Entscheid_Mitglied", "Traktandum",
-                             "Subtraktandum", "tagesordnung_link"]
+                             "Subtraktandum", "tagesordnung_link", "Mitglied_Vorname", "Mitglied_Nachname",
+                             "GR_uni_nr", "GR_url", "GR_url_ods"]
         df_export = df[columns_to_export]
         cc_export_file = os.path.join(credentials.local_data_path.replace('data_orig', 'data'),
                                       cc_data_file_name.replace('.xlsx', '.csv'))
@@ -284,7 +313,35 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
 
         curr_poll_df = df_merge2
 
-        # {"session_date":"20141119","Abst_Nr":"745","Datum":"2014-11-19","Zeit":"09:24:56.000", "Anz_J":"39","Anz_N":"47","Anz_E":"6","Anz_A":"7","Anz_P":"1","Typ":"Abstimmung", "Geschaeft":"Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises", "Zeitstempel_text":"2014-11-19T09:24:56.000000+0100","Sitz_Nr":"1", "Mitglied_Name":"Beatriz Greuter","Fraktion":"SP","Mitglied_Name_Fraktion":"Beatriz Greuter (SP)", "Datenstand_text":"2022-03-17T12:19:35+01:00","Entscheid_Mitglied":"J","Traktandum":16,"Subtraktandum":3, "tagesordnung_link":"https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16"}
+        '''
+        {
+            "session_date": "20141119",
+            "Abst_Nr": "745", "Datum": "2014-11-19",
+            "Zeit": "09:24:56.000",
+            "Anz_J": "39",
+            "Anz_N": "47",
+            "Anz_E": "6",
+            "Anz_A": "7",
+            "Anz_P": "1",
+            "Typ": "Abstimmung",
+            "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises",
+            "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100",
+            "Sitz_Nr": "1",
+            "Mitglied_Name": "Greuter, Beatriz",
+            "Fraktion": "SP",
+            "Mitglied_Name_Fraktion": "Greuter, Beatriz (SP)",
+            "Datenstand_text": "2022-03-17T12:19:35+01:00",
+            "Entscheid_Mitglied": "J",
+            "Traktandum": 16,
+            "Subtraktandum": 3,
+            "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16",
+            "Mitglied_Nachname": "Greuter",
+            "Mitglied_Vorname": "Beatriz",
+            "GR_uni_nr": "2880",
+            "GR_url": "https://grosserrat.bs.ch/?mnr=2880",
+            "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
+        }
+        '''
         common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
         export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
         logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
@@ -351,7 +408,8 @@ def calc_details_from_single_xml_file(local_file):
     # e.g. here: https://grosserrat.bs.ch/ratsbetrieb/geschaefte/200111156
     details_long = details.melt(
         id_vars=['Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Datum', 'Datenstand',
-                 'Datenstand_text'], var_name='Abst_Nr', value_name='Entscheid_Mitglied')
+                 'Datenstand_text', "Mitglied_Vorname", "Mitglied_Nachname", "GR_uni_nr", "GR_url", "GR_url_ods"],
+        var_name='Abst_Nr', value_name='Entscheid_Mitglied')
     df_merge1 = polls.merge(details_long, how='left', on=['Datum', 'Abst_Nr'])
     df_merge1['session_date'] = session_date  # Only used for joining with df_trakt
     return df_merge1
@@ -443,6 +501,35 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
                     ct.update_hash_file(local_file)
             # TODO: Figure out how to handle ungültig with json-System
             curr_poll_df = df_unique_session_dates.merge(curr_poll_df, on=['session_date'], how='inner')
+            '''
+            {
+                "session_date": "20141119",
+                "Abst_Nr": "745", "Datum": "2014-11-19",
+                "Zeit": "09:24:56.000",
+                "Anz_J": "39",
+                "Anz_N": "47",
+                "Anz_E": "6",
+                "Anz_A": "7",
+                "Anz_P": "1",
+                "Typ": "Abstimmung",
+                "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises",
+                "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100",
+                "Sitz_Nr": "1",
+                "Mitglied_Name": "Greuter, Beatriz",
+                "Fraktion": "SP",
+                "Mitglied_Name_Fraktion": "Greuter, Beatriz (SP)",
+                "Datenstand_text": "2022-03-17T12:19:35+01:00",
+                "Entscheid_Mitglied": "J",
+                "Traktandum": 16,
+                "Subtraktandum": 3,
+                "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16",
+                "Mitglied_Nachname": "Greuter",
+                "Mitglied_Vorname": "Beatriz",
+                "GR_uni_nr": "2880",
+                "GR_url": "https://grosserrat.bs.ch/?mnr=2880",
+                "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
+            }
+            '''
             common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
             all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
             ct.update_hash_file(json_ls_file)
@@ -485,7 +572,8 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     return df_json[
         ['session_date', 'Abst_Nr', 'Datum', 'Zeit', 'Anz_J', 'Anz_N', 'Anz_E', 'Anz_A', 'Anz_P', 'Typ', 'Geschaeft',
          'Zeitstempel', 'Zeitstempel_text', 'Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion',
-         'Datenstand', 'Datenstand_text', 'Entscheid_Mitglied', 'Traktandum', 'Subtraktandum', 'tagesordnung_link']]
+         'Datenstand', 'Datenstand_text', 'Entscheid_Mitglied', 'Traktandum', 'Subtraktandum', 'tagesordnung_link',
+         "Mitglied_Vorname", "Mitglied_Nachname", "GR_uni_nr", "GR_url", "GR_url_ods"]]
 
 
 def main():
@@ -496,9 +584,9 @@ def main():
     # Uncomment to process Congress Center data
     # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
-    # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
+    poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
-    # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
+    poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_dfs.append(
