@@ -584,9 +584,9 @@ def main():
     # Uncomment to process Congress Center data
     # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
-    poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
+    # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
-    poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
+    # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_dfs.append(
