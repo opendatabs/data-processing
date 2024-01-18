@@ -342,7 +342,10 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
             "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
         }
         '''
-        common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
+        for j in range(0, len(curr_poll_df), 1000):
+            df_export = curr_poll_df.iloc[j:j + 1000]
+            common.ods_realtime_push_df(df_export, credentials.push_url)
+
         export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
         logging.info(f'Saving data files to FTP server as backup: {local_file}, {export_filename_csv}')
         common.upload_ftp(local_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
