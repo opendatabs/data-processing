@@ -64,7 +64,7 @@ for station in stations:
 
             df.set_index('timestamp', drop=False, inplace=True)
             df['station_id'] = station
-            all_data = all_data.append(df, sort=True)
+            all_data = pd.concat([all_data, df], sort=True)
             dfs[(station, date_string)] = df
 
             print(f'Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API...')
