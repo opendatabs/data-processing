@@ -1,9 +1,9 @@
 FROM python:3.11-bullseye
 WORKDIR /code/data-processing
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
+RUN python3 -m pip install --user --no-cache-dir pandas==2.1.4
 RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir openpyxl==3.2.0b1
+RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.10
 RUN python3 -m pip install --user --no-cache-dir pytest==8.0.0rc2
 RUN python3 -m pip install --user --no-cache-dir pyshp==2.3.1
 CMD ["python3", "-m", "kapo_smileys.etl"]
