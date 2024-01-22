@@ -48,7 +48,7 @@ def main():
     public_key = credentials.publicKey
     private_key = credentials.privateKey
     print('Retrieving information about all stations of current user from API...')
-    (pretty_resp, df) = call_fieldclimate_api('https://api.fieldclimate.com/v1', '/user/stations', public_key,
+    (pretty_resp, df) = call_fieldclimate_api('https://api.fieldclimate.com/v2', '/user/stations', public_key,
                                               private_key, f'stations-{datetime.now()}')
     print('Filtering stations with altitude not set to null, only those are live...')
     # mast_frame = stations_frame[stations_frame['name.custom'].str.contains('Mast')
