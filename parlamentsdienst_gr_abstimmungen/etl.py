@@ -586,7 +586,7 @@ def main():
     df_unique_session_dates = get_unique_session_dates(df_cal)
     poll_dfs = []
     # Uncomment to process Congress Center data
-    poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
+    # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
     # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
