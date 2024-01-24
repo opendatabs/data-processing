@@ -1,5 +1,7 @@
 FROM python:3.11-bullseye
 WORKDIR /code/data-processing
+# Reading filtered excel file with pandas.read_excel() requires openpyxl 3.0.10
+# openpyxl 3.0.10 requires pandas 2.1.4 or lower
 RUN python3 -m pip install --user --no-cache-dir pandas==2.1.4
 RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
