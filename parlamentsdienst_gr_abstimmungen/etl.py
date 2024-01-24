@@ -166,8 +166,9 @@ def handle_congress_center_polls(df_unique_session_dates):
         df['Zeitstempel'] = df['Creation Date'].dt.tz_localize('Europe/Zurich')
         df['Zeitstempel_text'] = df.Zeitstempel.dt.strftime(date_format='%Y-%m-%dT%H:%M:%S.%f%z')
         df['Sitz_Nr'] = df['Handset ID'] - 300
-        df['Fraktion'] = df['Vote Group'].str.replace('Die Mitte/EVP', 'Mitte-EVP').str.replace('fraktionslos',
-                                                                                                'Fraktionslos')
+        df['Fraktion'] = (df['Vote Group'].str.replace('Die Mitte/EVP', 'Mitte-EVP')
+                          .str.replace('die Mitte/EVP', 'Mitte-EVP')
+                          .str.replace('fraktionslos', 'Fraktionslos'))
         df['Datenstand'] = df.Zeitstempel
         df['Datenstand_text'] = df.Zeitstempel_text
 
@@ -585,7 +586,7 @@ def main():
     df_unique_session_dates = get_unique_session_dates(df_cal)
     poll_dfs = []
     # Uncomment to process Congress Center data
-    # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
+    poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
     # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
