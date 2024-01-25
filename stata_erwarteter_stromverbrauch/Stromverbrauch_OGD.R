@@ -7,7 +7,7 @@ if (file.exists("Stromverbrauch_productiv.R")) {
   file.remove("Stromverbrauch_productiv.R")
 }
 
-knitr::purl("Stromverbrauch_productiv.Rmd", output = "Stromverbrauch_productiv.R")
+knitr::purl("stromverbrauch/Productiv/Stromverbrauch_productiv.Rmd", output = "Stromverbrauch_productiv.R")
 
 fread("pw.txt") -> pw
 
