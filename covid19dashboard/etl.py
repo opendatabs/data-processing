@@ -41,7 +41,7 @@ def main():
         df_canton_filled['ndiff_released'] = df_canton_diff.ncumul_released
         df_canton_filled['ndiff_deceased'] = df_canton_diff.ncumul_deceased
 
-        df_filled = df_filled.append(df_canton_filled, ignore_index=True)
+        df_filled = pd.concat((df_filled, df_canton_filled), ignore_index=True)
 
     # if the (empty) column current_quarantined_total is imported, remove it
     if 'current_quarantined_total' in df_filled:
