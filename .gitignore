@@ -35,6 +35,7 @@ __pycache__/
 **/*.pdf
 **/*.sas7bdat
 /stata_erwarteter_stromverbrauch/pw.txt
+/stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R
 /bafu_hydrodaten_vorhersagen/**/*table.txt
 /kapo_ordnungsbussen/**/list_directories.txt
 /stata_daily_upload/data/StatA/stata_daily_uploads.json
