@@ -4,12 +4,13 @@ import time
 import logging
 import pathlib
 import pandas as pd
-import numpy as np
 import urllib.request
 from SPARQLWrapper import SPARQLWrapper, JSON
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 from rapidfuzz import process
+import geopandas as gpd
+from shapely.geometry import Point
 
 import common
 import common.change_tracking as ct
@@ -128,7 +129,6 @@ def get_data_of_all_cantons():
         # Transform UID in format CHE123456789 to format CHE-123.456.789
         company_uid_str = results_df['company_uid'].str.replace('CHE([0-9]{3})([0-9]{3})([0-9]{3})', 'CHE-\\1.\\2.\\3',
                                                                 regex=True)
-        # So BS and CHE341493593 should give 'https://bs.chregister.ch/cr-portal/auszug/auszug.xhtml?uid=CHE-341.493.593'
         results_df[
             'url_cantonal_register'] = 'https://' + short_name_canton.lower() + '.chregister.ch/cr-portal/auszug/auszug.xhtml?uid=' + company_uid_str
 
@@ -147,73 +147,6 @@ def get_data_of_all_cantons():
             ct.update_hash_file(path_export)
 
 
-def get_coordinates_from_address(df):
-    # Get coordinates for all addresses
-    geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
-    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
-    df['plz'] = df['plz'].fillna(0).astype(int).astype(str).replace('0', '')
-    df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['locality'].str.split(' ').str[0]
-    addresses = df['address'].unique()
-    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'addr_to_coords_lookup_table.json')
-    if os.path.exists(path_lookup_table):
-        with open(path_lookup_table, 'r') as f:
-            cached_coordinates = json.load(f)
-    else:
-        cached_coordinates = {}
-    for address in addresses:
-        if address not in cached_coordinates:
-            try:
-                location = geocode(address)
-                if location:
-                    cached_coordinates[address] = (location.latitude, location.longitude)
-                else:
-                    logging.info(f"Location not found for address: {address}")
-            except Exception as e:
-                logging.info(f"Error occurred for address {address}: {e}")
-                time.sleep(5)
-        else:
-            logging.info(f"Using cached coordinates for address: {address}")
-    df['coordinates'] = df['address'].map(cached_coordinates)
-
-    # Append coordinates for addresses that could not be found
-    missing_coords = df[df['coordinates'].isna()]
-    for index, row in missing_coords.iterrows():
-        closest_streetname = find_closest_streetname(row['street'])
-        if closest_streetname:
-            closest_address = closest_streetname + ', ' + row['plz'] + ' ' + row['locality'].split(' ')[0]
-            df.at[index, 'address'] = closest_address
-            if closest_address not in cached_coordinates:
-                try:
-                    location = geocode(closest_address)
-                    if location:
-                        cached_coordinates[closest_address] = (location.latitude, location.longitude)
-                        df.at[index, 'coordinates'] = cached_coordinates[closest_address]
-                    else:
-                        logging.info(f"Location not found for address: {closest_address}")
-                except Exception as e:
-                    logging.info(f"Error occurred for address {closest_address}: {e}")
-                    time.sleep(5)
-            else:
-                logging.info(f"Using cached coordinates for address: {closest_address}")
-                df.at[index, 'coordinates'] = cached_coordinates[closest_address]
-    # Save lookup table
-    with open(path_lookup_table, 'w') as f:
-        json.dump(cached_coordinates, f)
-    return df
-
-
-def find_closest_streetname(street):
-    if street:
-        df_geb_eing = get_gebaeudeeingaenge()
-        street_list = (df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()
-        street_list = np.concatenate((street_list,
-                                      (df_geb_eing['strnamk'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()))
-        closest_streetname, _, _ = process.extractOne(street, street_list)
-        logging.info(f"Closest address for {street} according to fuzzy matching (Levenshtein) is: {closest_streetname}")
-        return closest_streetname
-    return None
-
-
 def get_gebaeudeeingaenge():
     raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'gebaeudeeingaenge.csv')
     logging.info(f'Downloading Gebäudeeingänge from ods to file {raw_data_file}...')
@@ -223,10 +156,99 @@ def get_gebaeudeeingaenge():
     return pd.read_csv(raw_data_file, sep=';')
 
 
+def get_coordinates_from_gwr(df, df_geb_eing):
+    df_geb_eing['address'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str) + ', ' + df_geb_eing[
+        'dplz4'].astype(str) + ' ' + df_geb_eing['dplzname']
+    df = df.merge(df_geb_eing[['address', 'eingang_koordinaten']], on='address', how='left')
+    df.rename(columns={'eingang_koordinaten': 'coordinates'}, inplace=True)
+    return df
+
+
+def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, street_series=None):
+    geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+    shp_file_path = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'shp_bs', 'bs.shp')
+    gdf_bs = gpd.read_file(shp_file_path)
+    missing_coords = df[df['coordinates'].isna()]
+    for index, row in missing_coords.iterrows():
+        if use_rapidfuzz:
+            closest_streetname = find_closest_streetname(row['street'], street_series)
+            address = closest_streetname + ', ' + row['plz'] + ' ' + row['locality'].split(' ')[0]
+        else:
+            address = row['address']
+        if address not in cached_coordinates:
+            try:
+                location = geocode(address)
+                if location:
+                    point = Point(location.longitude, location.latitude)
+                    is_in_bs = (row['locality'].split(' ')[0] == 'Basel' or
+                                row['locality'].split(' ')[0] == 'Riehen' or
+                                row['locality'].split(' ')[0] == 'Bettingen')
+                    if is_in_bs and not gdf_bs.contains(point).any():
+                        logging.info(f"Location {location} is not in Basel-Stadt")
+                        continue
+                    cached_coordinates[address] = (location.latitude, location.longitude)
+                    df.at[index, 'coordinates'] = cached_coordinates[address]
+                else:
+                    logging.info(f"Location not found for address: {address}")
+            except Exception as e:
+                logging.info(f"Error occurred for address {address}: {e}")
+                time.sleep(5)
+        else:
+            logging.info(f"Using cached coordinates for address: {address}")
+            df.at[index, 'coordinates'] = cached_coordinates[address]
+    return df, cached_coordinates
+
+
+def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
+    # Get lookup table for addresses that could not be found
+    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'addr_to_coords_lookup_table.json')
+    if os.path.exists(path_lookup_table):
+        with open(path_lookup_table, 'r') as f:
+            cached_coordinates = json.load(f)
+    else:  # Create empty lookup table since it does not exist yet
+        cached_coordinates = {}
+
+    df, cached_coordinates = get_coordinates_from_nominatim(df, cached_coordinates)
+
+    # Last resort: Find closest street in Gebäudeeingänge (https://data.bs.ch/explore/dataset/100231)
+    # with help of rapidfuzz and then get coordinates from Nominatim
+    street_series = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
+    df, cached_coordinates = get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=True,
+                                                            street_series=street_series)
+
+    # Save lookup table
+    with open(path_lookup_table, 'w') as f:
+        json.dump(cached_coordinates, f)
+    return df
+
+
+def find_closest_streetname(street, street_series):
+    if street:
+        closest_address, _, _ = process.extractOne(street, street_series)
+        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
+        return closest_address
+    return street
+
+
 def work_with_BS_data():
     path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
-    df_BS = get_coordinates_from_address(df_BS)
+    # Pre-processing
+    df_BS['plz'] = df_BS['plz'].fillna(0).astype(int).astype(str).replace('0', '')
+    df_BS['street'] = df_BS['street'].str.replace('Str.', 'Strasse', regex=False)
+    df_BS['street'] = df_BS['street'].str.replace('str.', 'strasse', regex=False)
+    # Replace *St. followed by a letter with *St. * and then the letter
+    df_BS['street'] = df_BS['street'].str.replace('St\.([a-zA-Z])', 'St. \\1', regex=True)
+    df_BS['address'] = df_BS['street'] + ', ' + df_BS['plz'] + ' ' + df_BS['locality'].str.split(' ').str[0]
+    # Get data of Gebäudeeingänge https://data.bs.ch/explore/dataset/100231
+    df_geb_eing = get_gebaeudeeingaenge()
+
+    # First try to get coordinates from Gebäudeeingänge directly
+    df_BS = get_coordinates_from_gwr(df_BS, df_geb_eing)
+    # Then try to get coordinates from Nominatim
+    df_BS = get_coordinates_from_nomatim_and_gwr(df_BS, df_geb_eing)
+
     return df_BS[['company_type_de', 'company_legal_name', 'company_uid', 'municipality',
                   'street', 'zusatz', 'plz', 'locality', 'address', 'coordinates',
                   'url_cantonal_register', 'type_id', 'company_uri', 'muni_id']]
