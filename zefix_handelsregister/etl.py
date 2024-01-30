@@ -181,10 +181,10 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
                 location = geocode(address)
                 if location:
                     point = Point(location.longitude, location.latitude)
-                    is_in_bs = (row['locality'].split(' ')[0] == 'Basel' or
-                                row['locality'].split(' ')[0] == 'Riehen' or
-                                row['locality'].split(' ')[0] == 'Bettingen')
-                    if is_in_bs and not gdf_bs.contains(point).any():
+                    is_in_bs = ('Basel' in row['locality'] or
+                                'Riehen' in row['locality'] or
+                                'Bettingen' in row['locality'])
+                    if is_in_bs != gdf_bs.contains(point).any():
                         logging.info(f"Location {location} is not in Basel-Stadt")
                         continue
                     cached_coordinates[address] = (location.latitude, location.longitude)
@@ -259,89 +259,3 @@ if __name__ == '__main__':
     logging.info(f'Executing {__file__}...')
     main()
     logging.info('Job successful')
-
-# Temporarily not needed
-'''
-# https://stackoverflow.com/questions/6999565/python-https-get-with-basic-authentication
-def basic_auth(username, password):
-    token = b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')
-    return f'Basic {token}'
-
-
-def get_noga_data():
-    # Get nomenclature data from i14y.admin.ch
-    dfs_nomenclature_noga = {}
-    for i in range(1, 6):
-        dfs_nomenclature_noga[i] = get_noga_nomenclature(i)
-    df_nc_noga_flat = flatten_nomenclature(dfs_nomenclature_noga)
-    path_nomenclature_flat = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'nomenclature_noga_flat.csv')
-    df_nc_noga_flat.to_csv(path_nomenclature_flat, index=False)
-    df_nc_noga_flat['url_kubb'] = f'https://www.kubb-tool.bfs.admin.ch/de/code/{df_nc_noga_flat["noga_code"]}'
-    if ct.has_changed(path_nomenclature_flat):
-        logging.info(f'Exporting noga_nomenclature.csv to FTP server')
-        common.upload_ftp(path_nomenclature_flat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          f'zefix_handelsregister')
-        ct.update_hash_file(path_nomenclature_flat)
-    return get_burweb_data(df_nc_noga_flat)
-
-
-def get_noga_nomenclature(level):
-    # API-Query for NOGA nomenclature can be created here:
-    # https://www.i14y.admin.ch/de/catalog/datasets/HCL_NOGA/api
-    url_noga = f'https://www.i14y.admin.ch/api/Nomenclatures/HCL_NOGA/levelexport/CSV?level={level}'
-    r = common.requests_get(url_noga)
-    path_nomenclature = os.path.join(pathlib.Path(__file__).parents[0], 'data', f'nomenclature_noga_lv{level}.csv')
-    with open(path_nomenclature, 'wb') as f:
-        f.write(r.content)
-    df_nomenclature_noga = pd.read_csv(path_nomenclature, dtype=str)
-    return df_nomenclature_noga
-
-
-def flatten_nomenclature(dfs_nomenclature_noga):
-    df_noga_all_nc = dfs_nomenclature_noga[5]
-    names = ['_abteilung', '_gruppe', '_klasse', '']
-    # Iterate from 4 to 1
-    for i in range(4, 0, -1):
-        # Rename before merge of next level
-        df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': f'noga{names[i - 1]}_code'})
-        df_noga_all_nc = df_noga_all_nc.rename(columns={'Parent': 'Code'})
-        for lng in ['de', 'fr', 'it', 'en']:
-            df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga{names[i - 1]}_{lng}'})
-        # Merge with next level
-        df_noga_all_nc = pd.merge(df_noga_all_nc, dfs_nomenclature_noga[i], on='Code')
-
-    df_noga_all_nc = df_noga_all_nc.rename(columns={'Code': 'noga_abschnitt_code'})
-    df_noga_all_nc = df_noga_all_nc.drop(columns=['Parent'])
-    for lng in ['de', 'fr', 'it', 'en']:
-        df_noga_all_nc = df_noga_all_nc.rename(columns={f'Name_{lng}': f'noga_abschnitt_{lng}'})
-
-    return df_noga_all_nc
-
-
-def get_burweb_data(df_nc_noga):
-    url = 'https://www.burweb2.admin.ch/BurWeb.Services.External/V1_8/ExtractV1X8/Full'
-    headers = {'Authorization': basic_auth(credentials.user_burweb, credentials.pass_burweb)}
-    # Stream the download
-    with common.requests_get(url, headers=headers, stream=True) as r:
-        r.raise_for_status()
-        path_xml = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'burweb_full_extract.xml')
-
-        # Write chunks to file
-        with open(path_xml, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-    tree = ET.parse(path_xml)
-    enterprise_units = tree.findall('.//enterpriseUnit')
-
-    # Parsing the XML and storing the data
-    data = []
-    for unit in enterprise_units:
-        legal_id = unit.findtext('legalId')
-        noga2008 = unit.findtext('.//noga2008')
-        data.append([legal_id, noga2008])
-    df_burweb = pd.DataFrame(data, columns=['company_uid', 'noga_code'])
-    # Merge with noga data
-    df_burweb = pd.merge(df_burweb, df_nc_noga, on='noga_code', how='left')
-    return df_burweb
-'''
