@@ -574,7 +574,7 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json['Entscheid_Mitglied'] = df_json['individual_result'].replace(
         {'y': 'J', 'n': 'N', 'a': 'E', 'x': 'A', ' ': 'A'})
     df_json.loc[(df_json['chairman']) & (df_json['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
-    df_json['Anz_P'] = np.where(df_json['Entscheid_Mitglied'] == 'P', 1, 0)
+    df_json['Anz_P'] = 0 if df_json['Entscheid_Mitglied'].str.contains('P').sum() == 0 else 1
     df_json['Anz_A'] = 100 - (df_json['Anz_J'] + df_json['Anz_N'] + df_json['Anz_E'] + df_json['Anz_P'])
     df_json[['Traktandum', 'Subtraktandum']] = (
         df_json['agenda_number'].str.replace('T', '', regex=False).str.split('-', expand=True))
@@ -594,7 +594,7 @@ def main():
     df_unique_session_dates = get_unique_session_dates(df_cal)
     poll_dfs = []
     # Uncomment to process Congress Center data
-    # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
+    poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
     poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
