@@ -390,19 +390,25 @@ def calc_details_from_single_xml_file(local_file):
     details.columns.values[1] = 'Mitglied_Name_Fraktion'
     # Replace multiple spaces with single space and Fraktionen to match other formats
     details.Mitglied_Name_Fraktion = (
-        details.Mitglied_Name_Fraktion.str.replace(r'\s+', ' ', regex=True).str.replace('die Mitte/EVP',
-                                                                                        'Mitte-EVP').str.replace(
-            'fraktionslos', 'Fraktionslos'))
+        details.Mitglied_Name_Fraktion.str.replace(r'\s+', ' ', regex=True)
+        .str.replace('die Mitte/EVP', 'Mitte-EVP')
+        .str.replace('fraktionslos', 'Fraktionslos')
+        .str.replace('=', 'Fraktionslos'))
     # Get the text in between ( and ) as Fraktion
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name
     details['Mitglied_Name'] = details.Mitglied_Name_Fraktion.str.split('(', expand=True)[[0]].squeeze().str.strip()
     details = get_closest_name_from_member_dataset(details)
-    details['Mitglied_Name_Fraktion'] = details.Mitglied_Name + ' (' + details.Fraktion + ')'
+
     # Mistake in Sitz_Nr in original data due to same family name
     details.loc[(details['Mitglied_Name'] == 'Messerli, Beatrice') & (details['Sitz_Nr'] == '18'), 'Sitz_Nr'] = '42'
     details.loc[(details['Mitglied_Name'] == 'Baumgartner, Claudia') & (details['Sitz_Nr'] == '69'), 'Sitz_Nr'] = '21'
-    details.loc[(details['Mitglied_Name'] == 'von Wartburg, Christian') & (details['Sitz_Nr'] == '77'), 'Sitz_Nr'] = '33'
+    details.loc[
+        (details['Mitglied_Name'] == 'von Wartburg, Christian') & (details['Sitz_Nr'] == '77'), 'Sitz_Nr'] = '33'
+    # Mistake in Fraktionszugehörigkeit on 20.10.2021
+    details.loc[(details['Mitglied_Name'] == 'Hanauer, Raffaela') & (details['Fraktion'] == 'SP'), 'Fraktion'] = 'GAB'
+
+    details['Mitglied_Name_Fraktion'] = details.Mitglied_Name + ' (' + details.Fraktion + ')'
 
     details['Datenstand'] = pd.to_datetime(data_timestamp.isoformat())
     details['Datenstand_text'] = data_timestamp.isoformat()
@@ -553,8 +559,6 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json['Abst_Nr'] = df_json['voting_number'].astype('int').astype('str')
     df_json['Datum'] = pd.to_datetime(df_json['session_date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
     df_json['Zeit'] = df_json['voting_time'].apply(lambda x: f"{x[:2]}:{x[2:4]}:{x[4:6]}.000")
-    df_json['Anz_P'] = df_json['chairman'].values.sum()
-    df_json['Anz_A'] = 100 - (df_json['Anz_J'] + df_json['Anz_N'] + df_json['Anz_E'] + df_json['Anz_P'])
     df_json['Typ'] = df_json['voting_type'].replace(
         {'0': 'Anwesenheit', '1': 'Ad Hoc einfaches Mehr', '2': 'Ad Hoc 2/3 Mehr', '3': 'Eventual Abstimmung',
          '4': 'Schlussabstimmung', '5': 'Quorum erfassen'})
@@ -567,7 +571,11 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json.to_csv(f'{credentials.local_data_path}/temp_df_json.csv')
     df_json['Datenstand_text'] = df_json['created'].str.replace('Z', '+0000', regex=False)
     df_json['Datenstand'] = pd.to_datetime(df_json['Datenstand_text'])
-    df_json['Entscheid_Mitglied'] = df_json['individual_result'].replace({'y': 'J', 'n': 'N', 'a': 'E', 'x': 'A'})
+    df_json['Entscheid_Mitglied'] = df_json['individual_result'].replace(
+        {'y': 'J', 'n': 'N', 'a': 'E', 'x': 'A', ' ': 'A'})
+    df_json.loc[(df_json['chairman']) & (df_json['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
+    df_json['Anz_P'] = np.where(df_json['Entscheid_Mitglied'] == 'P', 1, 0)
+    df_json['Anz_A'] = 100 - (df_json['Anz_J'] + df_json['Anz_N'] + df_json['Anz_E'] + df_json['Anz_P'])
     df_json[['Traktandum', 'Subtraktandum']] = (
         df_json['agenda_number'].str.replace('T', '', regex=False).str.split('-', expand=True))
     df_json['tagesordnung_link'] = (
@@ -588,9 +596,10 @@ def main():
     # Uncomment to process Congress Center data
     # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
-    # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
+    poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
-    # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
+    poll_dfs.append(
+        (handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_dfs.append(
