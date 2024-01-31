@@ -389,11 +389,14 @@ def calc_details_from_single_xml_file(local_file):
     details.columns.values[0] = 'Sitz_Nr'
     details.columns.values[1] = 'Mitglied_Name_Fraktion'
     # Replace multiple spaces with single space and Fraktionen to match other formats
-    details.Mitglied_Name_Fraktion = (
-        details.Mitglied_Name_Fraktion.str.replace(r'\s+', ' ', regex=True)
-        .str.replace('die Mitte/EVP', 'Mitte-EVP')
-        .str.replace('fraktionslos', 'Fraktionslos')
-        .str.replace('=', 'Fraktionslos'))
+    details.Mitglied_Name_Fraktion = (details.Mitglied_Name_Fraktion.str.replace(r'\s+', ' ', regex=True)
+                                      .str.replace('die Mitte/EVP', 'Mitte-EVP')
+                                      .str.replace('fraktionslos', 'Fraktionslos')
+                                      .str.replace('=', 'Fraktionslos'))
+
+    # In December 2013 seat number 99 was empty, so we add it here
+    if session_date[:4] == '2013' and session_date[4:6] == '12':
+        details = add_seat_99(details)
     # Get the text in between ( and ) as Fraktion
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name
@@ -594,12 +597,11 @@ def main():
     df_unique_session_dates = get_unique_session_dates(df_cal)
     poll_dfs = []
     # Uncomment to process Congress Center data
-    poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
+    # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
     # Uncomment to process poll data from old system (xml files)
-    poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
+    # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
-    poll_dfs.append(
-        (handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
+    # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_dfs.append(

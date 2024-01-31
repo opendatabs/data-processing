@@ -183,7 +183,8 @@ def fill_values_from_dataframe(df: pd.DataFrame, df_lookup: pd.DataFrame, index,
     df.loc[index, 'Mitglied_Name'] = df_lookup.loc[index_lookup, 'name_vorname']
     df.loc[index, 'GR_uni_nr'] = df_lookup.loc[index_lookup, 'uni_nr']
     df.loc[index, 'GR_url'] = df_lookup.loc[index_lookup, 'url']
-    df.loc[index, 'GR_url_ods'] += df_lookup.loc[index_lookup, 'uni_nr'].astype(str)
+    df.loc[index, 'GR_url_ods'] = '' if df_lookup.loc[index_lookup, 'uni_nr'] == '' else \
+        'https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' + df_lookup.loc[index_lookup, 'uni_nr'].astype(str)
     return df
 
 
@@ -193,7 +194,7 @@ def get_closest_name_from_member_dataset(df: pd.DataFrame, surname_first=False):
     df['Mitglied_Nachname'] = ''
     df['GR_uni_nr'] = ''
     df['GR_url'] = ''
-    df['GR_url_ods'] = 'https://data.bs.ch/explore/dataset/100307/?refine.uni_nr='
+    df['GR_url_ods'] = ''
     # Download members of Grosser Rat from ods
     raw_data_file = os.path.join(credentials.data_path, 'members_gr.csv')
     logging.info(f'Downloading Members of Grosser Rat from ods to file {raw_data_file}...')
@@ -235,4 +236,22 @@ def get_closest_name_from_member_dataset(df: pd.DataFrame, surname_first=False):
         df = fill_values_from_dataframe(df, lookup_table, index, index_lookup)
     # Save lookup table
     lookup_table.to_csv(path_lookup_table, index=False)
+    return df
+
+def add_seat_99(df):
+    # Create a new row
+    new_row = {'Sitz_Nr': '99', 'Mitglied_Name_Fraktion': 'NN NN (GLP)'}
+
+    # Set the same date as in other rows
+    datum = df['Datum'].iloc[0]
+    if datum:
+        new_row['Datum'] = datum
+
+    # Fill other columns with 'A'
+    for col in df.columns:
+        if col not in new_row:
+            new_row[col] = 'A'
+
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
     return df
