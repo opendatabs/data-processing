@@ -20,5 +20,3 @@ CMD ["python3", "-m", "tba_wiese.etl"]
 # docker build -t tba_wiese --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name tba_wiese tba_wiese
-
-
