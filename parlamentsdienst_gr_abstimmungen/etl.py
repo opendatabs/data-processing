@@ -179,9 +179,6 @@ def handle_congress_center_polls(df_unique_session_dates):
         df['Entscheid_Mitglied'] = df['Choice Text'].replace({'Ja': 'J', 'Nein': 'N', '-': 'A', 'Enthaltung': 'E'})
         # Data from Congress Center does not contain the Entscheid_Mitglie-value P (Präsident),
         # so we add it here after checking it with the data provider
-        df.loc[(df.Mitglied_Name == 'Hofer, Salome') & (df['Creation Date'] >= datetime(2020, 2, 1)) &
-               (df['Creation Date'] <= datetime(2021, 2, 1)) & (
-                       df['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
         df.loc[(df.Mitglied_Name == 'Jenny, David') & (df['Creation Date'] >= datetime(2021, 2, 1)) &
                (df['Creation Date'] <= datetime(2022, 2, 1)) & (
                        df['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
@@ -202,6 +199,23 @@ def handle_congress_center_polls(df_unique_session_dates):
         df_poll_counts_pivot = (df_poll_counts.pivot_table('Anzahl', ['Current Voting ID', 'file_name'],
                                                            'Choice Text').reset_index().rename(
             columns={'-': 'Anz_A', 'Enthaltung': 'Anz_E', 'Ja': 'Anz_J', 'Nein': 'Anz_N'}))
+        # Add column 'Anz_P' and set it to 0
+        df_poll_counts_pivot['Anz_P'] = 0
+        # Because we changed 'A' to 'P' before:
+        for (file_name, voting_id), group in df.groupby(['file_name', 'Current Voting ID']):
+            # Check if there's at least one 'P' in the 'Entscheid_Mitglied' column
+            has_p = group['Entscheid_Mitglied'].eq('P').any()
+
+            # Find the corresponding row in df_summary
+            idx = df_poll_counts_pivot[(df_poll_counts_pivot['file_name'] == file_name) & (
+                        df_poll_counts_pivot['Current Voting ID'] == voting_id)].index
+
+            # Update 'Anz_A' and 'Anz_P' in df_summary based on the presence of 'P'
+            if has_p:
+                df_poll_counts_pivot.loc[idx, 'Anz_A'] -= 1  # Decrement 'Anz_A'
+                df_poll_counts_pivot.loc[idx, 'Anz_P'] += 1  # Set 'Anz_P' to 1
+        # Replace NaN with 0
+        df_poll_counts_pivot = df_poll_counts_pivot.fillna(0)
         df = df.merge(df_poll_counts_pivot, how='left', on=['file_name', 'Current Voting ID'])
 
         '''
@@ -233,9 +247,8 @@ def handle_congress_center_polls(df_unique_session_dates):
             "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
         }
         '''
-        # We don't have column 'Anz_P' in Congress Center data, so we don't push it
-        columns_to_export = ["session_date", "Abst_Nr", "Datum", "Zeit", "Anz_J", "Anz_N", "Anz_E", "Anz_A", "Typ",
-                             "Geschaeft", "Zeitstempel_text", "Sitz_Nr", "Mitglied_Name", "Fraktion",
+        columns_to_export = ["session_date", "Abst_Nr", "Datum", "Zeit", "Anz_J", "Anz_N", "Anz_E", "Anz_A", "Anz_P",
+                             "Typ", "Geschaeft", "Zeitstempel_text", "Sitz_Nr", "Mitglied_Name", "Fraktion",
                              "Mitglied_Name_Fraktion", "Datenstand_text", "Entscheid_Mitglied", "Traktandum",
                              "Subtraktandum", "tagesordnung_link", "Mitglied_Vorname", "Mitglied_Nachname",
                              "GR_uni_nr", "GR_url", "GR_url_ods"]
@@ -397,6 +410,7 @@ def calc_details_from_single_xml_file(local_file):
     # In December 2013 seat number 99 was empty, so we add it here
     if session_date[:4] == '2013' and session_date[4:6] == '12':
         details = add_seat_99(details)
+        polls['Anz_A'] = polls['Anz_A'].astype(int) + 1
     # Get the text in between ( and ) as Fraktion
     details['Fraktion'] = details.Mitglied_Name_Fraktion.str.extract(r"\(([^)]+)\)", expand=False)
     # Get the text before ( as Mitglied_Name

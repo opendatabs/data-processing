@@ -183,8 +183,8 @@ def fill_values_from_dataframe(df: pd.DataFrame, df_lookup: pd.DataFrame, index,
     df.loc[index, 'Mitglied_Name'] = df_lookup.loc[index_lookup, 'name_vorname']
     df.loc[index, 'GR_uni_nr'] = df_lookup.loc[index_lookup, 'uni_nr']
     df.loc[index, 'GR_url'] = df_lookup.loc[index_lookup, 'url']
-    df.loc[index, 'GR_url_ods'] = '' if df_lookup.loc[index_lookup, 'uni_nr'] == '' else \
-        'https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' + df_lookup.loc[index_lookup, 'uni_nr'].astype(str)
+    df.loc[index, 'GR_url_ods'] = '' if df_lookup.loc[index_lookup, 'name'] == 'Vakanz' else \
+        'https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' + df_lookup.loc[index_lookup, 'uni_nr'].astype(int).astype(str)
     return df
 
 
