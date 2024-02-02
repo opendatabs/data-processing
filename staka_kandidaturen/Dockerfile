@@ -10,7 +10,7 @@ CMD ["python3", "-m", "staka_kandidaturen.etl"]
 # cd staka_kandidaturen
 # docker build -t staka_kandidaturen .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name staka_kandidaturen staka_kandidaturen
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing /mnt/OGD-DataExch/StatA/Wahlen-Abstimmungen/Kandidaturen:/code/data-processing/staka_kandidaturen/data_orig --name staka_kandidaturen staka_kandidaturen
 
 # Docker on Mac:
 # docker run -it --rm -v /path/to/data-processing:/code/data-processing --name staka_kandidaturen staka_kandidaturen
