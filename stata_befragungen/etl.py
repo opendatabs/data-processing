@@ -4,11 +4,11 @@ import os
 import pathlib
 import shutil
 import pandas as pd
-import cchardet as chardet
 import unicodedata
 import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 import common
+from charset_normalizer import from_path
 from stata_befragungen import credentials
 
 
@@ -93,12 +93,10 @@ def process_single_file(data_file, var_file, export_file, ftp_folder, ods_id, ja
 
 
 def get_encoding(filename):
-    logging.info(f'Retrieving encoding...')
-    with open(filename, 'rb') as f:
-        raw_data = f.read()
-        result = chardet.detect(raw_data)
-        enc = result['encoding']
-        logging.info(f'Retrieved encoding {enc}...')
+    logging.info('Retrieving encoding...')
+    result = from_path(filename)
+    enc = result.best().encoding
+    logging.info(f'Retrieved encoding {enc}...')
     return enc
 
 
