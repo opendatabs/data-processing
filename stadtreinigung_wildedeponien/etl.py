@@ -75,7 +75,8 @@ def main():
         logging.info('Spatially joining points with Bezirk...')
         gdf_wv_bez = gpd.sjoin(gdf_wv, df_bez, how='left', op="within", rsuffix='bez', lsuffix='points')
         logging.info('Dropping unnecessary columns...')
-        gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'], inplace=True)
+        gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'],
+                        inplace=True)
 
         # todo: Find nearest Wohnviertel / Bezirk of points outside of those shapes (Rhein, Outside of BS territory)
         # e.g. see https://gis.stackexchange.com/a/342489
@@ -85,7 +86,8 @@ def main():
         logging.info(f'Exporting data to {file_path}...')
         gdf_wv_bez.to_csv(file_path, index=False, date_format='%Y-%m-%dT%H:%M:%S%z')
         if ct.has_changed(file_path):
-            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'stadtreinigung/illegale-deponien')
+            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                              'stadtreinigung/illegale-deponien')
             odsp.publish_ods_dataset_by_id('100070')
             ct.update_hash_file(file_path)
 

@@ -1,12 +1,10 @@
-FROM python:3.10.2-bullseye
+FROM python:3.11-bullseye
 WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
-RUN python3 -m pip install --user --no-cache-dir geopandas==0.10.2
-RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
-RUN python3 -m pip install --user --no-cache-dir pygeos==0.12.0
+RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
+RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
+RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
+RUN python3 -m pip install --user --no-cache-dir geopandas==0.14.3
+RUN python3 -m pip install --user --no-cache-dir pygeos==0.14
 CMD ["python3", "-m", "stadtreinigung_wildedeponien.etl"]
 
 
