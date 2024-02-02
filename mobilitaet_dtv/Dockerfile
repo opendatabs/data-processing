@@ -17,5 +17,3 @@ CMD ["python3", "-m", "mobilitaet_dtv.etl"]
 # docker build -t mobilitaet_dtv --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name mobilitaet_dtv mobilitaet_dtv
-
-
