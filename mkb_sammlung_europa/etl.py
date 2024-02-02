@@ -34,6 +34,7 @@ def main():
         ct.update_hash_file(credentials.path_export_file)
     logging.info('Job successful!')
 
+
 def remove_commas_at_end(df):
     for column in list(df.columns):
         df[column] = df[column].str.rstrip(', ')
