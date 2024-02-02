@@ -17,5 +17,3 @@ CMD ["python3", "-m", "ods_catalog.etl"]
 # docker build -t ods_catalog --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name ods_catalog ods_catalog python3 -m ods_catalog.etl
-
-
