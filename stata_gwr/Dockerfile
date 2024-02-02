@@ -19,5 +19,3 @@ CMD ["python3", "-m", "stata_gwr.etl"]
 # docker build -t stata_gwr --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name stata_gwr stata_gwr
-
-
