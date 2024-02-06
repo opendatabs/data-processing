@@ -8,6 +8,7 @@ import common.change_tracking as ct
 import pytest
 import common
 import time
+import pandas as pd
 
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 CHANGE_TRACKING_DIR = os.path.join(CURR_DIR, 'fixtures', 'change_tracking')
@@ -96,3 +97,55 @@ def test_changed_file_timestamp(text_file):
     assert ct.has_changed(text_file, hash_file_dir=CHANGE_TRACKING_DIR, method='modification_date')
     assert not ct.has_changed(text_file, hash_file_dir=CHANGE_TRACKING_DIR, method='modification_date')
     assert not ct.has_changed(text_file, hash_file_dir=CHANGE_TRACKING_DIR, method='modification_date')
+
+
+def create_df(id_values, value_values, index=None):
+    return pd.DataFrame({'id': id_values, 'value': value_values}, index=index)
+
+
+def test_find_new_rows():
+    df_old = create_df(['1', '2', '3'], ['a', 'b', 'c'])
+    df_new = create_df(['2', '3', '4'], ['b', 'c', 'd'])
+    expected = create_df(['4'], ['d'], index=[2])
+    result = ct.find_new_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result, expected)
+
+    df_new = create_df(['1', '2', '3'], ['a', 'b', 'c'])
+    expected = pd.DataFrame(columns=['id', 'value'])
+    result = ct.find_new_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result, expected)
+
+    with pytest.raises(KeyError):
+        ct.find_new_rows(df_old, df_new, ['non_existent_column'])
+
+
+def test_find_modified_rows():
+    df_old = create_df(['1', '2', '3'], ['a', 'b', 'c'])
+    df_new = create_df(['1', '2', '3'], ['a', 'b', 'd'])
+    expected = create_df(['3'], ['d'], index=[2])
+    result = ct.find_modified_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result, expected)
+
+    df_new = create_df(['1', '2', '3'], ['a', 'b', 'c'])
+    expected = pd.DataFrame(columns=['id', 'value'])
+    result = ct.find_modified_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result, expected)
+
+    with pytest.raises(KeyError):
+        ct.find_modified_rows(df_old, df_new, ['non_existent_column'])
+
+
+def test_find_deleted_rows():
+    df_old = create_df(['1', '2', '3'], ['a', 'b', 'c'])
+    df_new = create_df(['2', '3', '4'], ['b', 'c', 'd'])
+    expected = create_df(['1'], ['a'], index=[0])
+    result = ct.find_deleted_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result, expected)
+
+    df_new = create_df(['1', '2', '3'], ['a', 'b', 'c'])
+    expected = pd.DataFrame(columns=['id', 'value'])
+    result = ct.find_deleted_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result, expected)
+
+    with pytest.raises(KeyError):
+        ct.find_deleted_rows(df_old, df_new, ['non_existent_column'])
