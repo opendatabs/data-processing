@@ -4,6 +4,7 @@ from hashlib import blake2b
 from filehash import FileHash
 import os
 import time
+import pandas as pd
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -32,13 +33,15 @@ def update_mod_timestamp_file(file_name, check_file_name='') -> str:
     # logging.info(f'Ensuring that check file path exists...')
     pathlib.Path(os.path.dirname(check_file_name)).mkdir(parents=True, exist_ok=True)
     with open(check_file_name, 'w') as f:
-        logging.info(f'Getting modification timestamp of file {file_name} and writing to check file {check_file_name}...')
+        logging.info(
+            f'Getting modification timestamp of file {file_name} and writing to check file {check_file_name}...')
         # crc32_hasher = FileHash(hash_algorithm='crc32')
         # file_hash = crc32_hasher.hash_file(file_name)
         epoch = os.path.getmtime(file_name)
         iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(epoch))
         time_string = f'{epoch},{iso},{file_name}'
-        logging.info(f'Writing the following time string into the check file (Epoch, ISO rounded to seconds, file path): {time_string}')
+        logging.info(
+            f'Writing the following time string into the check file (Epoch, ISO rounded to seconds, file path): {time_string}')
         f.write(time_string)
     return time_string
 
@@ -92,7 +95,8 @@ def has_changed(filename: str, hash_file_dir='', do_update_hash_file=False, meth
         current_timestamp_str = str(current_timestamp)
         current_iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(current_timestamp))
         check_numbers_differ = current_timestamp_str != check_timestamp
-        logging.info(f'Comparing timestamps (Epoch, ISO rounded to seconds, file path): current / last: {current_timestamp_str} / {check_timestamp}, {current_iso} / {check_iso}. Different? {check_numbers_differ}')
+        logging.info(
+            f'Comparing timestamps (Epoch, ISO rounded to seconds, file path): current / last: {current_timestamp_str} / {check_timestamp}, {current_iso} / {check_iso}. Different? {check_numbers_differ}')
     if check_numbers_differ:
         logging.info(f'Check numbers do not match, file has changed.')
         if do_update_hash_file:
@@ -101,3 +105,31 @@ def has_changed(filename: str, hash_file_dir='', do_update_hash_file=False, meth
     else:
         logging.info(f'Check numbers match, no changes detected.')
         return False
+
+
+def find_new_rows(df_old, df_new, id_columns):
+    # Find new rows by checking for rows in df_new that are not in df_old
+    merged = pd.merge(df_old[id_columns], df_new, on=id_columns, how='right', indicator=True)
+    new_rows = merged[merged['_merge'] == 'right_only'].drop(columns=['_merge'])
+    return new_rows
+
+
+def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
+    if columns_to_compare is None:
+        columns_to_compare = [col for col in df_new.columns if col not in id_columns]
+
+    # Merge on id_columns and compare specified columns
+    merged = pd.merge(df_old, df_new, on=id_columns, suffixes=('_old', '_new'), how='inner')
+    mask = pd.DataFrame()
+    for col in columns_to_compare:
+        mask[col] = merged[f'{col}_old'] != merged[f'{col}_new']
+    modified_rows = merged[mask.any(axis=1)]
+    return modified_rows[id_columns + [f'{col}_new' for col in columns_to_compare]].rename(
+        columns={f'{col}_new': col for col in columns_to_compare})
+
+
+def find_deleted_rows(df_old, df_new, id_columns):
+    # Find deleted rows by checking for rows in df_old that are not in df_new
+    merged = pd.merge(df_old, df_new[id_columns], on=id_columns, how='left', indicator=True)
+    deleted_rows = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
+    return deleted_rows
