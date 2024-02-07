@@ -46,3 +46,4 @@ __pycache__/
 /mobilitaet_parkflaechen/data/list_directories.txt
 /kapo_smileys/data/list_files.txt
 /zefix_handelsregister/data/addr_to_coords_lookup_table.json
+/zri_gesetzessammlung/data/*.json
