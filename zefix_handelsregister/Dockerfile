@@ -1,12 +1,11 @@
-FROM python:3.10.2-bullseye
+FROM python:3.11-bullseye
 WORKDIR /code/data-processing
-# ARG HTTPS_PROXY
-# ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
-RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
+RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
+RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
+RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir SPARQLWrapper==2.0.0
 RUN python3 -m pip install --user --no-cache-dir geopy==2.4.1
+RUN python3 -m pip install --user --no-cache-dir rapidfuzz==3.6.1
 CMD ["python3", "-m", "zefix_handelsregister.etl"]
 
 # Docker commands to create image and run container:

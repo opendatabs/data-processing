@@ -1,12 +1,10 @@
-FROM python:3.10.2-bullseye
+FROM python:3.11-bullseye
 WORKDIR /code/data-processing
-# ARG HTTPS_PROXY
-# ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.0.2
+RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
 RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir requests_ntlm==1.2.0
-RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.10
+RUN python3 -m pip install --user --no-cache-dir openpyxl==3.2.0b1
 RUN python3 -m pip install --user --no-cache-dir gssapi==1.8.3
 RUN python3 -m pip install --user --no-cache-dir krb5==0.5.1
 CMD ["python3", "-m", "itbs_klv.etl"]

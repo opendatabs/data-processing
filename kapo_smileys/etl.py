@@ -256,7 +256,7 @@ def main():
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
         zip_ref.extractall(shp_path)
     shp_coords_df = read_shapefile(os.path.join(shp_path, '100286.shp'))
-    # Concert idstandort to int
+    # Convert idstandort to int
     shp_coords_df['idstandort'] = shp_coords_df.idstandort.astype(int)
     df_einsaetze = pd.merge(df_einsaetze, shp_coords_df[['idstandort', 'coords']],
                             how='left', left_on='id_Standort', right_on='idstandort').drop(columns=['idstandort'])

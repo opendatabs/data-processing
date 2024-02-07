@@ -1,13 +1,15 @@
 import os
 import json
-import pandas as pd
+import time
 import logging
 import pathlib
-from SPARQLWrapper import SPARQLWrapper, JSON
+import pandas as pd
+import numpy as np
 import urllib.request
+from SPARQLWrapper import SPARQLWrapper, JSON
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
-import time
+from rapidfuzz import process
 
 import common
 import common.change_tracking as ct
@@ -73,34 +75,34 @@ def get_data_of_all_cantons():
                         schema:identifier ?canton_id .
                     ?district_id schema:containsPlace ?muni_id ;
                         schema:name ?district_de .
-  
+
                     # Optional to get district names in French
                     OPTIONAL {
                         ?district_id schema:containsPlace ?muni_id ;
                             schema:name ?district_fr .
                         FILTER langMatches(lang(?district_fr), "fr")
                     }
-                    
+
                     # Optional to get district names in Italian
                     OPTIONAL {
                         ?district_id schema:containsPlace ?muni_id ;
                             schema:name ?district_it .
                         FILTER langMatches(lang(?district_it), "it")
                     }
-                    
+
                     # Optional to get district names in English
                     OPTIONAL {
                         ?district_id schema:containsPlace ?muni_id ;
                             schema:name ?district_en .
                         FILTER langMatches(lang(?district_en), "en")
                     }
-                  
+
                     # Optional to get company types in French
                     OPTIONAL {
                         ?type_id schema:name ?company_type_fr .
                         FILTER langMatches(lang(?company_type_fr), "fr")
                     }
-                  
+
                     # Filter by company-types that are german (otherwise result is much bigger)
                     FILTER langMatches(lang(?district_de), "de") .
                     FILTER langMatches(lang(?company_type_de), "de") .
@@ -145,14 +147,14 @@ def get_data_of_all_cantons():
             ct.update_hash_file(path_export)
 
 
-def get_coordinates(df):
+def get_coordinates_from_address(df):
     # Get coordinates for all addresses
     geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     df['plz'] = df['plz'].fillna(0).astype(int).astype(str).replace('0', '')
     df['address'] = df['street'] + ', ' + df['plz'] + ' ' + df['locality'].str.split(' ').str[0]
     addresses = df['address'].unique()
-    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'lookup_table.json')
+    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'addr_to_coords_lookup_table.json')
     if os.path.exists(path_lookup_table):
         with open(path_lookup_table, 'r') as f:
             cached_coordinates = json.load(f)
@@ -172,18 +174,61 @@ def get_coordinates(df):
         else:
             logging.info(f"Using cached coordinates for address: {address}")
     df['coordinates'] = df['address'].map(cached_coordinates)
+
+    # Append coordinates for addresses that could not be found
+    missing_coords = df[df['coordinates'].isna()]
+    for index, row in missing_coords.iterrows():
+        closest_streetname = find_closest_streetname(row['street'])
+        if closest_streetname:
+            closest_address = closest_streetname + ', ' + row['plz'] + ' ' + row['locality'].split(' ')[0]
+            df.at[index, 'address'] = closest_address
+            if closest_address not in cached_coordinates:
+                try:
+                    location = geocode(closest_address)
+                    if location:
+                        cached_coordinates[closest_address] = (location.latitude, location.longitude)
+                        df.at[index, 'coordinates'] = cached_coordinates[closest_address]
+                    else:
+                        logging.info(f"Location not found for address: {closest_address}")
+                except Exception as e:
+                    logging.info(f"Error occurred for address {closest_address}: {e}")
+                    time.sleep(5)
+            else:
+                logging.info(f"Using cached coordinates for address: {closest_address}")
+                df.at[index, 'coordinates'] = cached_coordinates[closest_address]
     # Save lookup table
     with open(path_lookup_table, 'w') as f:
         json.dump(cached_coordinates, f)
     return df
 
 
+def find_closest_streetname(street):
+    if street:
+        df_geb_eing = get_gebaeudeeingaenge()
+        street_list = (df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()
+        street_list = np.concatenate((street_list,
+                                      (df_geb_eing['strnamk'] + ' ' + df_geb_eing['deinr'].astype(str)).unique()))
+        closest_streetname, _, _ = process.extractOne(street, street_list)
+        logging.info(f"Closest address for {street} according to fuzzy matching (Levenshtein) is: {closest_streetname}")
+        return closest_streetname
+    return None
+
+
+def get_gebaeudeeingaenge():
+    raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'gebaeudeeingaenge.csv')
+    logging.info(f'Downloading Gebäudeeingänge from ods to file {raw_data_file}...')
+    r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100231')
+    with open(raw_data_file, 'wb') as f:
+        f.write(r.content)
+    return pd.read_csv(raw_data_file, sep=';')
+
+
 def work_with_BS_data():
     path_BS = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'all_cantons', 'companies_BS.csv')
     df_BS = pd.read_csv(path_BS)
-    df_BS = get_coordinates(df_BS)
+    df_BS = get_coordinates_from_address(df_BS)
     return df_BS[['company_type_de', 'company_legal_name', 'company_uid', 'municipality',
-                  'street', 'zusatz', 'plz', 'locality', 'coordinates',
+                  'street', 'zusatz', 'plz', 'locality', 'address', 'coordinates',
                   'url_cantonal_register', 'type_id', 'company_uri', 'muni_id']]
 
 
