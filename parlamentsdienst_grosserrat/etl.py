@@ -472,8 +472,8 @@ def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.
     df = pd.merge(df_dok, df_ges, left_on='Laufnummer', right_on='laufnr', suffixes=('_dok', '_ges'))
 
     # Rename columns for clarity
-    df = df.rename(columns={'beginn': 'beginn_ges', 'ende': 'ende_ges', 'titel': 'titel_ges',
-                            'laufnr': 'laufnr_ges', 'status': 'status_ges', 'titel': 'titel_ges',
+    df = df.rename(columns={'beginn': 'beginn_ges', 'ende': 'ende_ges',
+                            'titel': 'titel_ges', 'laufnr': 'laufnr_ges', 'status': 'status_ges',
                             'signatur': 'signatur_ges', 'departement': 'departement_ges',
                             'Datum': 'dokudatum', 'Dokument Nr.': 'dok_nr',
                             'Url': 'url', 'Titel': 'titel_dok', 'Signatur': 'signatur_dok'})
