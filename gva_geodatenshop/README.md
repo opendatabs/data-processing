@@ -10,7 +10,8 @@
 ### Define Column "Publizierende Organisation"
 - Open File [Publizierende_organisation.csv](./Publizierende_organisation.csv) in Excel.
 - Search worksheet for the value of "kontakt_dienststelle" in clipboard. 
-- If not found, add a new row that defines the top-level organisation of the "kontakt_dienststelle" of the dataset to be published. 
+- If not found, add a new row that defines the top-level organisation of the "kontakt_dienststelle" of the dataset to be published.
+- "herausgeber" is the second keyword after the top-level-organisation.
 - Save, check for unwanted changes using a diff tool, fix if necessary. 
 - Commit, push to github. 
 
