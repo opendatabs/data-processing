@@ -26,6 +26,7 @@ def push_data_files_old(csv_files, truebung=False):
         # Trübung: {"Startzeitpunkt": "20.10.2020 09:00:00", "Endezeitpunkt": "20.10.2020 10:00:00", "RUS.W.O.MS.TR": 1.9}
         r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
+
 # Trübung: {"Startzeitpunkt": "2023-11-22 22:00:00+0100", "Endezeitpunkt": "2023-11-22 23:00:00+0100",
 # "RUS.W.O.MS.TR": 1.9}
 def push_data_files(csv_files, truebung=False):
@@ -67,21 +68,20 @@ def archive_data_files(csv_files, truebung=False):
 def push_older_data_files():
     data_path = os.path.join(os.path.dirname(__file__), 'data_orig')
 
-    df1 = pd.read_csv(os.path.join(data_path, 'online2002_2019.csv'), sep=';')
-    df1 = add_seconds(df1)
+    df1 = pd.read_csv(os.path.join(data_path, 'online2002_2023.csv'), sep=',')
+    # Transoform Startzeitpunkt and Endezeitpunkt to the format expected by ODS
+    df1['Startzeitpunkt'] = pd.to_datetime(df1['Startzeitpunkt'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%d.%m.%Y %H:%M:%S')
+    df1['Endezeitpunkt'] = pd.to_datetime(df1['Endezeitpunkt'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%d.%m.%Y %H:%M:%S')
     batched_ods_realtime_push(df1)
 
-    df2 = pd.read_csv(os.path.join(data_path, 'Onliner_RUES_2020_2021_2022_1h_S3_OGD.csv'), sep=';', encoding='cp1252')
-    df2 = df2.rename(
+    df3 = pd.read_csv(os.path.join(data_path, 'Onliner_RUES_2023_1h_S3_OGD.csv'), sep=';', encoding='cp1252')
+    df3 = df3.rename(
         columns={'StartZeit': 'Startzeitpunkt', 'EndeZeit': 'Endezeitpunkt', 'Temp_S3 [°C]': 'RUS.W.O.S3.TE',
                  'pH_S3 [-]': 'RUS.W.O.S3.PH', 'O2_S3 [mg_O2/L]': 'RUS.W.O.S3.O2',
                  'LF_S3 [µS/cm_25°C]': 'RUS.W.O.S3.LF'})
-    df2 = df2[['Startzeitpunkt', 'Endezeitpunkt', 'RUS.W.O.S3.LF', 'RUS.W.O.S3.O2', 'RUS.W.O.S3.PH', 'RUS.W.O.S3.TE']]
-    df2 = add_seconds(df2)
-    df2 = df2.dropna(subset=['Startzeitpunkt', 'Endezeitpunkt'])
-    batched_ods_realtime_push(df2)
-
-    df3 = pd.read_csv(os.path.join(data_path, '2023_01_03-2023_01_05_unkorrigiert.csv'), sep=';')
+    df3 = df3[['Startzeitpunkt', 'Endezeitpunkt', 'RUS.W.O.S3.LF', 'RUS.W.O.S3.O2', 'RUS.W.O.S3.PH', 'RUS.W.O.S3.TE']]
+    df3 = add_seconds(df3)
+    df3 = df3.dropna(subset=['Startzeitpunkt', 'Endezeitpunkt'])
     batched_ods_realtime_push(df3)
     pass
 
@@ -103,7 +103,7 @@ def add_seconds(df):
 
 def main():
     # Uncomment to parse, transform and push older files (corrected etc.)
-    # push_older_data_files()
+    push_older_data_files()
 
     csv_files = download_latest_data()
     push_data_files_old(csv_files)
