@@ -1,6 +1,5 @@
 import logging
 import os
-from more_itertools import chunked
 from collections import defaultdict
 import pandas as pd
 import common
@@ -72,7 +71,7 @@ def push_older_data_files():
     # Transoform Startzeitpunkt and Endezeitpunkt to the format expected by ODS
     df1['Startzeitpunkt'] = pd.to_datetime(df1['Startzeitpunkt'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%d.%m.%Y %H:%M:%S')
     df1['Endezeitpunkt'] = pd.to_datetime(df1['Endezeitpunkt'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%d.%m.%Y %H:%M:%S')
-    batched_ods_realtime_push(df1)
+    common.batched_ods_realtime_push(df1, url=credentials.ods_push_url, chunk_size=25000)
 
     df3 = pd.read_csv(os.path.join(data_path, 'Onliner_RUES_2023_1h_S3_OGD.csv'), sep=';', encoding='cp1252')
     df3 = df3.rename(
@@ -82,17 +81,8 @@ def push_older_data_files():
     df3 = df3[['Startzeitpunkt', 'Endezeitpunkt', 'RUS.W.O.S3.LF', 'RUS.W.O.S3.O2', 'RUS.W.O.S3.PH', 'RUS.W.O.S3.TE']]
     df3 = add_seconds(df3)
     df3 = df3.dropna(subset=['Startzeitpunkt', 'Endezeitpunkt'])
-    batched_ods_realtime_push(df3)
+    common.batched_ods_realtime_push(df3, url=credentials.ods_push_url, chunk_size=25000)
     pass
-
-
-def batched_ods_realtime_push(df, chunk_size=25000):
-    logging.info(f'Pushing a dataframe in chunks of size {chunk_size} to ods...')
-    df_chunks = chunked(df.index, chunk_size)
-    for df_chunk_indexes in df_chunks:
-        logging.info(f'Submitting a data chunk to ODS...')
-        df_chunk = df.iloc[df_chunk_indexes]
-        r = common.ods_realtime_push_df(df_chunk, credentials.ods_push_url)
 
 
 def add_seconds(df):

@@ -10,6 +10,7 @@ import pandas as pd
 import fnmatch
 import logging
 import dateutil
+from more_itertools import chunked
 from common import credentials
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -242,6 +243,15 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
     embargo_over = now_in_switzerland > embargo_datetime
     logging.info(f'Embargo over: {embargo_over}')
     return embargo_over
+
+
+def batched_ods_realtime_push(df, url, push_key='', chunk_size=1000):
+    logging.info(f'Pushing a dataframe in chunks of size {chunk_size} to ods...')
+    df_chunks = chunked(df.index, chunk_size)
+    for df_chunk_indexes in df_chunks:
+        logging.info(f'Submitting a data chunk to ODS...')
+        df_chunk = df.iloc[df_chunk_indexes]
+        ods_realtime_push_df(df_chunk, url)
 
 
 def ods_realtime_push_df(df, url, push_key=''):
