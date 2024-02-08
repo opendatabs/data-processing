@@ -1,10 +1,10 @@
-FROM python:3.10.2-bullseye
+FROM python:3.11-bullseye
 WORKDIR /code/data-processing
 #ARG HTTPS_PROXY
 #ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==1.3.5
-RUN python3 -m pip install --user --no-cache-dir requests==2.26.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.1.dev5
+RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
+RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
+RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 CMD ["python3", "-m", "mobilitaet_dtv.etl"]
 
 
@@ -19,5 +19,3 @@ CMD ["python3", "-m", "mobilitaet_dtv.etl"]
 # docker build -t mobilitaet_dtv --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name mobilitaet_dtv mobilitaet_dtv
-
-

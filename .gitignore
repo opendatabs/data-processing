@@ -35,15 +35,14 @@ __pycache__/
 **/*.pdf
 **/*.sas7bdat
 /stata_erwarteter_stromverbrauch/pw.txt
+/stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R
 /bafu_hydrodaten_vorhersagen/**/*table.txt
 /kapo_ordnungsbussen/**/list_directories.txt
 /stata_daily_upload/data/StatA/stata_daily_uploads.json
 .Rproj.user
-/stata_erwarteter_stromverbrauch/.RData
 /kapo_smileys/plots/*
-/stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R
-/stata_erwarteter_stromverbrauch/.Rhistory
 /mobilitaet_parkflaechen/data/list_directories.txt
 /kapo_smileys/data/list_files.txt
 /zefix_handelsregister/data/addr_to_coords_lookup_table.json
 /zri_gesetzessammlung/data/*.json
+!/zefix_handelsregister/data/shp_bs/*

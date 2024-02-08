@@ -9,31 +9,37 @@ import ods_publish.etl_id as odsp
 
 
 def main():
+    # Regierungsrat-Ersatzwahl 2024
     df_rr = process_regierungsrat()
-    path_export = os.path.join(credentials.path_dest_rr, '100333_kandidaturen_regierungsrat_ersatz.csv')
+    path_export = os.path.join(credentials.path_data, '100333_kandidaturen_regierungsrat_ersatz.csv')
     df_rr.to_csv(path_export, index=False)
-    if ct.has_changed(path_export):
-        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          '/wahlen_abstimmungen/wahlen/rr_ersatz/kandidaturen_2024')
-        odsp.publish_ods_dataset_by_id('100333')
-        ct.update_hash_file(path_export)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/rr_ersatz/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100333')
 
+    # Regierungspräsidium-Ersatzwahl 2024
     df_rp = process_regierungsrat(which='RP')
-    path_export = os.path.join(credentials.path_dest_rr, '100334_kandidaturen_regierungspraesidium_ersatz.csv')
+    path_export = os.path.join(credentials.path_data, '100334_kandidaturen_regierungspraesidium_ersatz.csv')
     df_rp.to_csv(path_export, index=False)
-    if ct.has_changed(path_export):
-        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          '/wahlen_abstimmungen/wahlen/rr_ersatz/kandidaturen_2024')
-        odsp.publish_ods_dataset_by_id('100334')
-        ct.update_hash_file(path_export)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/rr_ersatz/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100334')
 
+    # Nationalratswahlen 2023
     df_nr = process_nationalrat()
-    path_export = os.path.join(credentials.path_dest_nr, '100316_kandidaturen_nationalrat.csv')
+    path_export = os.path.join(credentials.path_data, '100316_kandidaturen_nationalrat.csv')
     df_nr.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/nr/kandidaturen_2023')
+    odsp.publish_ods_dataset_by_id('100316')
 
+    # Ständeratswahlen 2023
     df_sr = process_staenderat()
-    path_export = os.path.join(credentials.path_dest_sr, '100317_kandidaturen_staenderat.csv')
+    path_export = os.path.join(credentials.path_data, '100317_kandidaturen_staenderat.csv')
     df_sr.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/sr/kandidaturen_2023')
+    odsp.publish_ods_dataset_by_id('100317')
 
 
 def process_nationalrat() -> pd.DataFrame:

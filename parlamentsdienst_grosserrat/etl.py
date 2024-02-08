@@ -23,6 +23,9 @@ PATH_ZUW = StringIO(common.requests_get(f'{PATH_GR}zuw').text)
 PATH_DOK = StringIO(common.requests_get(f'{PATH_GR}dok').text)
 PATH_VOR = StringIO(common.requests_get(f'{PATH_GR}vor').text)
 PATH_SIZ = StringIO(common.requests_get(f'{PATH_GR}siz').text)
+PATH_GR_SITZUNG = StringIO(common.requests_get(f'{PATH_GR}gr_sitzung').text)
+PATH_GR_TAGESORDNUNG = StringIO(common.requests_get(f'{PATH_GR}gr_tagesordnung').text)
+PATH_GR_TRAKTANDEN = StringIO(common.requests_get(f'{PATH_GR}gr_tagesordnung_pos').text)
 PATH_PERSONEN = 'https://grosserrat.bs.ch/?mnr='
 PATH_GESCHAEFT = 'https://grosserrat.bs.ch/?gnr='
 PATH_DOKUMENT = 'https://grosserrat.bs.ch/?dnr='
@@ -146,6 +149,12 @@ def main():
     df_vor = common.pandas_read_csv(PATH_VOR, encoding='utf-8', dtype=str)
     logging.info(f'Reading Sitzungen.csv...')
     df_siz = common.pandas_read_csv(PATH_SIZ, encoding='utf-8', dtype=str)
+    logging.info(f'Reading Sitzungsdaten.csv...')
+    df_gr_sitzung = common.pandas_read_csv(PATH_GR_SITZUNG, encoding='utf-8', dtype=str)
+    logging.info(f'Reading Tagesordnung.csv...')
+    df_gr_tagesordnung = common.pandas_read_csv(PATH_GR_TAGESORDNUNG, encoding='utf-8', dtype=str)
+    logging.info(f'Reading Traktanden.csv...')
+    df_gr_traktanden = common.pandas_read_csv(PATH_GR_TRAKTANDEN, encoding='utf-8', dtype=str)
 
     # Perform data processing and CSV file creation functions
     args_for_uploads = [create_mitglieder_csv(df_adr, df_mit),

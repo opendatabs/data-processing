@@ -65,7 +65,7 @@ def main():
             if ct.has_changed(raw_file):
                 logging.info('Reading csv into df...')
                 # Some lines have more than 5 columns, ignoring those.
-                df = pd.read_csv(raw_file, skiprows=5, encoding='cp1252', sep=';', error_bad_lines=False)
+                df = pd.read_csv(raw_file, skiprows=5, encoding='cp1252', sep=';', on_bad_lines='skip')
                 df = df.rename(columns={})
                 logging.info('Removing empty lines...')
                 cols = df.columns.to_list()

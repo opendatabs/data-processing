@@ -33,8 +33,9 @@ def main():
         path_to_shp = os.path.join(credentials.data_orig_path, newest_folder, 'Parkflaechen_vollstaendig.shp')
         logging.info(f'Reading {path_to_shp}...')
         gdf = gpd.read_file(path_to_shp)
-        gdf['AKTUELL'] = np.where((gdf['GILT_BIS'].isnull()) | (pd.to_datetime(gdf['GILT_BIS']) > datetime.datetime.now()),
-                                  'Ja', 'Nein')
+        gdf['AKTUELL'] = np.where(
+            (gdf['GILT_BIS'].isnull()) | (pd.to_datetime(gdf['GILT_BIS']) > datetime.datetime.now()),
+            'Ja', 'Nein')
 
         logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid...")
         gdf['centroid'] = gdf['geometry'].centroid
@@ -52,7 +53,7 @@ def main():
 
         columns_of_interest = ['GID', 'GILT_VON', 'GILT_BIS', 'SOBJ_KZ', 'ANZAHL', 'SOPFT_TYP', 'STST_STR', 'TARIF_C1',
                                'SOPFG_GEB', 'GEBPFLICHT', 'MAXPARKZ', 'KEINL', 'AKTUELL', 'PLZ', 'WOV_ID', 'WOV_NAME',
-                               'BEZ_ID', 'BEZ_NAME', 'GEO_SHAPE', 'CENTROID']
+                               'BEZ_ID', 'BEZ_NAME']  # , 'GEO_SHAPE', 'CENTROID']
         gdf = gdf[columns_of_interest]
 
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
