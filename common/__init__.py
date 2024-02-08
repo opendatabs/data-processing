@@ -12,6 +12,7 @@ import logging
 import dateutil
 from more_itertools import chunked
 from common import credentials
+from common import change_tracking
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
@@ -254,16 +255,36 @@ def batched_ods_realtime_push(df, url, push_key='', chunk_size=1000):
         ods_realtime_push_df(df_chunk, url)
 
 
-def ods_realtime_push_df(df, url, push_key=''):
+def ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key=''):
+    new_rows = change_tracking.find_new_rows(df_old, df_new, id_columns)
+    ods_realtime_push_df(new_rows, url, push_key)
+
+
+def ods_realtime_delete_entries(df_old, df_new, id_columns, url, push_key=''):
+    deleted_rows = change_tracking.find_new_rows(df_new, df_old, id_columns)
+    ods_realtime_push_df(deleted_rows, url, push_key, delete=True)
+
+
+def ods_realtime_push_modified_entries(df_old, df_new, id_columns, columns_to_compare, url, push_key=''):
+    deprecated_rows, updated_rows = change_tracking.find_modified_rows(df_old, df_new, id_columns, columns_to_compare)
+    ods_realtime_push_df(deprecated_rows, url, push_key, delete=True)
+    ods_realtime_push_df(updated_rows, url, push_key)
+
+
+def ods_realtime_push_df(df, url, push_key='', delete=False):
     if not push_key:
         t = url.partition('?pushkey=')
         url = t[0]
         push_key = t[2]
+    # Create delete url if delete is True:
+    # https://userguide.opendatasoft.com/l/en/article/fqwi39mrdu-keeping-data-up-to-date#deleting_data_using_the_record_id
+    if delete:
+        url = url.rsplit('push', 1)[0] + 'delete'
     row_count = len(df)
     if row_count == 0:
-        logging.info(f'No rows to push to ODS... ')
+        logging.info(f"No rows to {'delete' if delete else 'push'} to ODS... ")
     else:
-        logging.info(f'Pushing {row_count} rows to ODS realtime API...')
+        logging.info(f"{'Deleting' if delete else 'Pushing'} {row_count} rows to ODS realtime API...")
         payload = df.to_json(orient="records")
         # logging.info(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.

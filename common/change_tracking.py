@@ -124,8 +124,11 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     for col in columns_to_compare:
         mask[col] = merged[f'{col}_old'] != merged[f'{col}_new']
     modified_rows = merged[mask.any(axis=1)]
-    return modified_rows[id_columns + [f'{col}_new' for col in columns_to_compare]].rename(
+    deprecated_rows = modified_rows[id_columns + [f'{col}_old' for col in columns_to_compare]].rename(
+        columns={f'{col}_old': col for col in columns_to_compare})
+    updated_rows = modified_rows[id_columns + [f'{col}_new' for col in columns_to_compare]].rename(
         columns={f'{col}_new': col for col in columns_to_compare})
+    return deprecated_rows, updated_rows
 
 
 def find_deleted_rows(df_old, df_new, id_columns):

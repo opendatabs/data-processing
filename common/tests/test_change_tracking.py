@@ -13,6 +13,7 @@ import pandas as pd
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 CHANGE_TRACKING_DIR = os.path.join(CURR_DIR, 'fixtures', 'change_tracking')
 
+
 # Show Logs in PyCharm when debugging PyTests: https://intellij-support.jetbrains.com/hc/en-us/community/posts/360007644040/comments/360002681399
 
 def teardown_function():
@@ -122,14 +123,16 @@ def test_find_new_rows():
 def test_find_modified_rows():
     df_old = create_df(['1', '2', '3'], ['a', 'b', 'c'])
     df_new = create_df(['1', '2', '3'], ['a', 'b', 'd'])
-    expected = create_df(['3'], ['d'], index=[2])
-    result = ct.find_modified_rows(df_old, df_new, ['id'])
-    pd.testing.assert_frame_equal(result, expected)
+    expected = (create_df(['3'], ['c'], index=[2]), create_df(['3'], ['d'], index=[2]))
+    result1, result2 = ct.find_modified_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result1, expected[0])
+    pd.testing.assert_frame_equal(result2, expected[1])
 
     df_new = create_df(['1', '2', '3'], ['a', 'b', 'c'])
     expected = pd.DataFrame(columns=['id', 'value'])
-    result = ct.find_modified_rows(df_old, df_new, ['id'])
-    pd.testing.assert_frame_equal(result, expected)
+    result1, result2 = ct.find_modified_rows(df_old, df_new, ['id'])
+    pd.testing.assert_frame_equal(result1, expected)
+    pd.testing.assert_frame_equal(result2, expected)
 
     with pytest.raises(KeyError):
         ct.find_modified_rows(df_old, df_new, ['non_existent_column'])
