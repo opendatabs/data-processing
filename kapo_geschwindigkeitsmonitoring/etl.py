@@ -91,7 +91,7 @@ def create_metadata_per_direction_df(df_metadata):
     df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2']]
     df_richtung2 = df_richtung2.rename(columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85', 'Ue_Quote_2': 'Ue_Quote'})
     df_richtung2['Richtung ID'] = 2
-    df_richtung = df_richtung1.append(df_richtung2)
+    df_richtung = pd.concat([df_richtung1, df_richtung2])
     df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote']]
