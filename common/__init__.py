@@ -264,6 +264,7 @@ def ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key='
 
 def ods_realtime_push_modified_entries(df_old, df_new, id_columns, columns_to_compare, url, push_key=''):
     deprecated_rows, updated_rows = change_tracking.find_modified_rows(df_old, df_new, id_columns, columns_to_compare)
+    logging.info(f'Replacing {len(deprecated_rows)} modified rows in ODS...')
     ods_realtime_push_df(deprecated_rows, url, push_key, delete=True)
     ods_realtime_push_df(updated_rows, url, push_key)
 
@@ -274,7 +275,7 @@ def batched_ods_realtime_push(df, url, push_key='', chunk_size=1000):
     for df_chunk_indexes in df_chunks:
         logging.info(f'Submitting a data chunk to ODS...')
         df_chunk = df.iloc[df_chunk_indexes]
-        ods_realtime_push_df(df_chunk, url)
+        ods_realtime_push_df(df_chunk, url, push_key)
 
 
 def ods_realtime_push_df(df, url, push_key='', delete=False):
