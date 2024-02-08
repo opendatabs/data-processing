@@ -7,7 +7,7 @@ import os
 import common
 from kapo_geschwindigkeitsmonitoring import credentials
 import psycopg2 as pg
-import cchardet as chardet
+from charset_normalizer import from_path
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 
@@ -132,8 +132,8 @@ def create_measurements_df(df_meta_raw):
             # logging.info(f'Detecting encoding of {file}...')
             with open(file, 'rb') as f:
                 raw_data = f.read()
-                result = chardet.detect(raw_data)
-                enc = result['encoding']
+                result = from_path(raw_data)
+                enc = result.best().encoding
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
             raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
             if raw_df.empty:
