@@ -254,7 +254,7 @@ for index, row in joined_data.iterrows():
 
 # Save harvester file
 if len(metadata_for_ods) > 0:
-    ods_metadata = pd.DataFrame().append(metadata_for_ods, ignore_index=True, sort=False)
+    ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
     ods_metadata_filename = os.path.join(credentials.path_root, 'Opendatasoft_Export_GVA.csv')
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
