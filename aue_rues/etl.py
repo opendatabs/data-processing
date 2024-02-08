@@ -103,7 +103,7 @@ def add_seconds(df):
 
 def main():
     # Uncomment to parse, transform and push older files (corrected etc.)
-    push_older_data_files()
+    # push_older_data_files()
 
     csv_files = download_latest_data()
     push_data_files_old(csv_files)
