@@ -144,7 +144,7 @@ def create_measurements_df(df_meta_raw):
             raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6,
                                    header=0, encoding=enc,
                                    names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'],
-                                   on_bad_lines='skip', warn_bad_lines=True)
+                                   on_bad_lines='skip')
             if raw_df.empty:
                 logging.info(f'Dataframe is empty, ignoring...')
             else:
