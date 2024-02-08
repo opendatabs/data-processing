@@ -33,7 +33,7 @@ def fix_data(filename, measure_id, encoding):
     return filename_fixed
 
 
-def main(): 
+def main():
     logging.info(f'Connecting to DB...')
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
@@ -53,7 +53,8 @@ def main():
     df_meta_raw = df_meta_raw[df_meta_raw['Messbeginn'].notna()]
     df_meta_raw['messbeginn_jahr'] = df_meta_raw.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100097')
-    df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw['dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
+    df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw[
+        'dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
 
     df_metadata = create_metadata_per_location_df(df_meta_raw)
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
@@ -76,7 +77,8 @@ def create_metadata_per_location_df(df):
     df_metadata.to_csv(metadata_filename, index=False)
     df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=metadata_filename, method='hash'):
-        common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+        common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user,
+                          password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100112')
         ct.update_hash_file(metadata_filename)
     return df_metadata
@@ -86,10 +88,14 @@ def create_metadata_per_direction_df(df_metadata):
     logging.info(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
     # Manual stacking of the columns for Richtung 1 and 2
     df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1']]
-    df_richtung1 = df_richtung1.rename(columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85', 'Ue_Quote_1': 'Ue_Quote'})
+    df_richtung1 = df_richtung1.rename(
+        columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85',
+                 'Ue_Quote_1': 'Ue_Quote'})
     df_richtung1['Richtung ID'] = 1
     df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2']]
-    df_richtung2 = df_richtung2.rename(columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85', 'Ue_Quote_2': 'Ue_Quote'})
+    df_richtung2 = df_richtung2.rename(
+        columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85',
+                 'Ue_Quote_2': 'Ue_Quote'})
     df_richtung2['Richtung ID'] = 2
     df_richtung = pd.concat([df_richtung1, df_richtung2])
     df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
@@ -100,7 +106,8 @@ def create_metadata_per_direction_df(df_metadata):
     df_richtung.to_csv(richtung_filename, index=False)
     df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=richtung_filename, method='hash'):
-        common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+        common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user,
+                          password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
         odsp.publish_ods_dataset_by_id('100115')
         ct.update_hash_file(richtung_filename)
     return df_richtung
@@ -119,7 +126,8 @@ def create_measurements_df(df_meta_raw):
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
         # logging.info(f'Creating case-sensitive directory to data files...')
-        metadata_file_path = credentials.detail_data_q_drive + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(credentials.detail_data_q_base_path, '')
+        metadata_file_path = credentials.detail_data_q_drive + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(
+            credentials.detail_data_q_base_path, '')
         data_search_string = os.path.join(metadata_file_path, "**/*.txt")
         raw_files = glob.glob(data_search_string, recursive=True)
         if len(raw_files) == 0:
@@ -133,7 +141,10 @@ def create_measurements_df(df_meta_raw):
             result = from_path(file)
             enc = result.best().encoding
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
-            raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
+            raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6,
+                                   header=0, encoding=enc,
+                                   names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'],
+                                   on_bad_lines='skip', warn_bad_lines=True)
             if raw_df.empty:
                 logging.info(f'Dataframe is empty, ignoring...')
             else:
@@ -141,7 +152,8 @@ def create_measurements_df(df_meta_raw):
                 logging.info(f'Calculating timestamp...')
                 raw_df['Datum_Zeit'] = raw_df['Datum'] + ' ' + raw_df['Zeit']
                 # todo: fix ambiguous times - setting ambiguous to 'infer' raises an exception for some times
-                raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
+                raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize(
+                    'Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
                 dfs.append(raw_df)
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
                 raw_df.to_csv(filename_current_measure, index=False)
@@ -150,7 +162,9 @@ def create_measurements_df(df_meta_raw):
 
     for obj in files_to_upload:
         if ct.has_changed(filename=obj['filename'], method='hash'):
-            common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
+            common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user,
+                              password=credentials.ftp_pass,
+                              remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
     if len(dfs) == 0:
@@ -163,7 +177,8 @@ def create_measurements_df(df_meta_raw):
         if len(new_df) > 0:
             logging.info(f'{len(new_df)} new datasets have been processed:')
             new_dfs = pd.concat(new_df)
-            new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(['unique'])
+            new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(
+                ['unique'])
             logging.info(new_df_details[['Messung-ID', 'Richtung ID']])
         else:
             logging.info(f'No new raw data found...')
@@ -173,7 +188,8 @@ def create_measurements_df(df_meta_raw):
         all_df.to_csv(all_data_filename, index=False)
         all_df.to_pickle(all_data_filename.replace('.csv', '.pkl'))
         if ct.has_changed(filename=all_data_filename, method='hash'):
-            common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+            common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user,
+                              password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
             odsp.publish_ods_dataset_by_id('100200')
             ct.update_hash_file(all_data_filename)
@@ -193,7 +209,8 @@ def create_measures_per_year(all_df):
         year_data.to_csv(current_filename, index=False)
         year_file_names.append(current_filename)
         if ct.has_changed(filename=current_filename, method='hash'):
-            common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user, password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+            common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
+                              password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             # todo: Publish ODS data when ready
             # odsp.publish_ods_dataset_by_id('100XXX')
             # todo: Create new ods dataset when necessary
@@ -206,4 +223,3 @@ if __name__ == "__main__":
     logging.info(f'Executing {__file__}...')
     main()
     logging.info('Job successful!')
-    
