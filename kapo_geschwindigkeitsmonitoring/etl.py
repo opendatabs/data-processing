@@ -130,10 +130,8 @@ def create_measurements_df(df_meta_raw):
             # direction_csv = os.path.basename(file).split('#')[1]
             filename_current_measure = os.path.join(credentials.path, 'processed', f'{str(measure_id)}_{i}.csv')
             # logging.info(f'Detecting encoding of {file}...')
-            with open(file, 'rb') as f:
-                raw_data = f.read()
-                result = from_path(raw_data)
-                enc = result.best().encoding
+            result = from_path(file)
+            enc = result.best().encoding
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
             raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6, header=0, encoding=enc, names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'], error_bad_lines=True, warn_bad_lines=True)
             if raw_df.empty:
