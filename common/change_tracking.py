@@ -111,6 +111,8 @@ def find_new_rows(df_old, df_new, id_columns):
     # Find new rows by checking for rows in df_new that are not in df_old
     merged = pd.merge(df_old[id_columns], df_new, on=id_columns, how='right', indicator=True)
     new_rows = merged[merged['_merge'] == 'right_only'].drop(columns=['_merge'])
+    logging.info(f'Found {len(new_rows)} new rows.')
+    logging.info(f'New rows: {new_rows}')
     return new_rows
 
 
@@ -118,16 +120,22 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     if columns_to_compare is None:
         columns_to_compare = [col for col in df_new.columns if col not in id_columns]
 
-    # Merge on id_columns and compare specified columns
     merged = pd.merge(df_old, df_new, on=id_columns, suffixes=('_old', '_new'), how='inner')
-    mask = pd.DataFrame()
+    mask = pd.DataFrame(index=merged.index)
     for col in columns_to_compare:
-        mask[col] = merged[f'{col}_old'] != merged[f'{col}_new']
+        old_col = merged[f'{col}_old']
+        new_col = merged[f'{col}_new']
+        mask[col] = ~((old_col == new_col) | (pd.isna(old_col) & pd.isna(new_col)))
     modified_rows = merged[mask.any(axis=1)]
-    deprecated_rows = modified_rows[id_columns + [f'{col}_old' for col in columns_to_compare]].rename(
-        columns={f'{col}_old': col for col in columns_to_compare})
-    updated_rows = modified_rows[id_columns + [f'{col}_new' for col in columns_to_compare]].rename(
+    logging.info(f'Found {len(modified_rows)} modified rows.')
+    deprecated_rows = (modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
+                                     [f'{col}_old' for col in columns_to_compare]].rename(
+        columns={f'{col}_old': col for col in columns_to_compare}))
+    logging.info(f'Deprecated rows: {deprecated_rows}')
+    updated_rows = modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
+                                 [f'{col}_new' for col in columns_to_compare]].rename(
         columns={f'{col}_new': col for col in columns_to_compare})
+    logging.info(f'Updated rows: {updated_rows}')
     return deprecated_rows, updated_rows
 
 
@@ -135,4 +143,6 @@ def find_deleted_rows(df_old, df_new, id_columns):
     # Find deleted rows by checking for rows in df_old that are not in df_new
     merged = pd.merge(df_old, df_new[id_columns], on=id_columns, how='left', indicator=True)
     deleted_rows = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
+    logging.info(f'Found {len(deleted_rows)} deleted rows.')
+    logging.info(f'Deleted rows: {deleted_rows}')
     return deleted_rows

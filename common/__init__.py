@@ -246,10 +246,10 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
     return embargo_over
 
 
-def ods_realtime_push_complete_update(df_old, df_new, id_columns, columns_to_compare, url, push_key=''):
+def ods_realtime_push_complete_update(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
     ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key)
     ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
-    ods_realtime_push_modified_entries(df_old, df_new, id_columns, columns_to_compare, url, push_key)
+    ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare, push_key)
 
 
 def ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key=''):
@@ -262,10 +262,8 @@ def ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key='
     ods_realtime_push_df(deleted_rows, url, push_key, delete=True)
 
 
-def ods_realtime_push_modified_entries(df_old, df_new, id_columns, columns_to_compare, url, push_key=''):
-    deprecated_rows, updated_rows = change_tracking.find_modified_rows(df_old, df_new, id_columns, columns_to_compare)
-    logging.info(f'Replacing {len(deprecated_rows)} modified rows in ODS...')
-    ods_realtime_push_df(deprecated_rows, url, push_key, delete=True)
+def ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
+    _, updated_rows = change_tracking.find_modified_rows(df_old, df_new, id_columns, columns_to_compare)
     ods_realtime_push_df(updated_rows, url, push_key)
 
 
