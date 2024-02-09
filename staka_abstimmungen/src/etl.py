@@ -1,6 +1,7 @@
 import glob
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 import common
@@ -14,6 +15,10 @@ import smtplib
 
 
 def main():
+    push_past_abstimmungen = False
+    logging.info(f'Pushing abstimmungen from the past to ods? {push_past_abstimmungen}')
+    if push_past_abstimmungen:
+        push_past_abstimmungen_to_ods()
     logging.info(f'Reading control.csv...')
     df = pd.read_csv(os.path.join(credentials.path, 'control.csv'), sep=';', parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])
     active_abst = df.query('Active == True').copy(deep=True)
@@ -26,18 +31,21 @@ def main():
         logging.info(f'Should we check for changes in data files now? {do_process}')
         if do_process:
             active_files = find_data_files_for_active_abst(active_abst)
-            data_files_changed = have_data_files_changed(active_files)            
-            if data_files_changed:
-                details_changed, kennz_changed = calculate_and_upload(active_files)
-                # todo: Create live datasets in ODS as a copy of the test datasets if they do not exist yet.
-                # todo: Use ods realtime push instead of FTP pull.
+            data_files_changed = have_data_files_changed(active_files)
+            logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
+            if data_files_changed or make_live_public:
+                df_details, details_changed, df_kennz, kennz_changed = calculate_and_upload(active_files)
+                common.ods_realtime_push_df(df_details, credentials.push_url_details_test)
+                common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_test)
                 what_changed = publish_datasets(active_abst, details_changed, kennz_changed, what_changed=what_changed)
                 for file in active_files:
                     ct.update_hash_file(os.path.join(credentials.path, file))
-                
-            logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
-            if make_live_public:
-                what_changed = make_datasets_public(active_abst, active_files, what_changed)
+
+                if make_live_public:
+                    what_changed = make_datasets_public(active_abst, active_files, what_changed)
+                    common.ods_realtime_push_df(df_details, credentials.push_url_details_public)
+                    common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_public)
+
             send_update_email(what_changed)
     elif active_active_size == 0:
         logging.info(f'No active Abstimmung, nothing to do for the moment. ')
@@ -45,6 +53,36 @@ def main():
         raise NotImplementedError('Only one Abstimmung must be active at any time!')
     logging.info(f'Job Successful!')
 
+
+def push_past_abstimmungen_to_ods():
+    path_data_processing_output = os.path.join(credentials.path, 'data-processing-output')
+    files_details = glob.glob(os.path.join(path_data_processing_output, 'Abstimmungen_Details_*.csv'))
+    files_details = filter_files_by_date(files_details)
+    files_kennz = glob.glob(os.path.join(path_data_processing_output, 'Abstimmungen_*.csv'))
+    files_kennz = filter_files_by_date(files_kennz)
+    for file in files_details:
+        df_details = pd.read_csv(file)
+        common.ods_realtime_push_df(df_details, credentials.push_url_details_test)
+        common.ods_realtime_push_df(df_details, credentials.push_url_details_public)
+    for file in files_kennz:
+        df_kennz = pd.read_csv(file)
+        common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_test)
+        common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_public)
+
+
+def parse_date_from_filename(filename):
+    # Extract date from filename assuming format 'YYYY-MM-DD'
+    match = re.search(r'\d{4}-\d{2}-\d{2}', filename)
+    if match:
+        return datetime.strptime(match.group(), '%Y-%m-%d').date()
+    return None
+
+
+def filter_files_by_date(files):
+    # Get today's date
+    today = datetime.now().date()
+    # Filter out files with a date in the future
+    return [file for file in files if parse_date_from_filename(file) and parse_date_from_filename(file) <= today]
 
 def send_update_email(what_changed):
     text = ''
@@ -97,15 +135,14 @@ def publish_datasets(active_abst, details_changed, kennz_changed, what_changed):
 
 
 def calculate_and_upload(active_files):
-    # todo: Use ODS Realtime API to push data. Using FTP pull often required de- and re-publishing because of perceived schema changes
-    details_abst_date, de_details = calculate_details(active_files)
+    details_abst_date, df_details = calculate_details(active_files)
     details_export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{details_abst_date}.csv')
-    details_changed = upload_ftp_if_changed(de_details, details_export_file_name)
+    details_changed = upload_ftp_if_changed(df_details, details_export_file_name)
 
     kennz_abst_date, df_kennz = calculate_kennzahlen(active_files)
     kennz_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_{kennz_abst_date}.csv')
     kennz_changed = upload_ftp_if_changed(df_kennz, kennz_file_name)
-    return details_changed, kennz_changed
+    return df_details, details_changed, df_kennz, kennz_changed
 
 
 def have_data_files_changed(active_files):
