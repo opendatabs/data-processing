@@ -111,8 +111,8 @@ def find_new_rows(df_old, df_new, id_columns):
     # Find new rows by checking for rows in df_new that are not in df_old
     merged = pd.merge(df_old[id_columns], df_new, on=id_columns, how='right', indicator=True)
     new_rows = merged[merged['_merge'] == 'right_only'].drop(columns=['_merge'])
-    logging.info(f'Found {len(new_rows)} new rows.')
-    logging.info(f'New rows: {new_rows}')
+    logging.info(f'Found {len(new_rows)} new rows:')
+    logging.info(new_rows)
     return new_rows
 
 
@@ -127,15 +127,17 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
         new_col = merged[f'{col}_new']
         mask[col] = ~((old_col == new_col) | (pd.isna(old_col) & pd.isna(new_col)))
     modified_rows = merged[mask.any(axis=1)]
-    logging.info(f'Found {len(modified_rows)} modified rows.')
+    logging.info(f'Found {len(modified_rows)} modified rows:')
     deprecated_rows = (modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
                                      [f'{col}_old' for col in columns_to_compare]].rename(
         columns={f'{col}_old': col for col in columns_to_compare}))
-    logging.info(f'Deprecated rows: {deprecated_rows}')
+    logging.info(f'Deprecated rows:')
+    logging.info(deprecated_rows)
     updated_rows = modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
                                  [f'{col}_new' for col in columns_to_compare]].rename(
         columns={f'{col}_new': col for col in columns_to_compare})
-    logging.info(f'Updated rows: {updated_rows}')
+    logging.info(f'Updated rows:')
+    logging.info(updated_rows)
     return deprecated_rows, updated_rows
 
 
@@ -143,6 +145,6 @@ def find_deleted_rows(df_old, df_new, id_columns):
     # Find deleted rows by checking for rows in df_old that are not in df_new
     merged = pd.merge(df_old, df_new[id_columns], on=id_columns, how='left', indicator=True)
     deleted_rows = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
-    logging.info(f'Found {len(deleted_rows)} deleted rows.')
-    logging.info(f'Deleted rows: {deleted_rows}')
+    logging.info(f'Found {len(deleted_rows)} deleted rows:')
+    logging.info(deleted_rows)
     return deleted_rows
