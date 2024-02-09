@@ -5,17 +5,31 @@ import logging
 
 
 def main():
-    url = 'https://data.bs.ch/explore/dataset/100055/download/?format=csv&use_labels_for_header=true&refine.visibility=domain&refine.publishing_published=True'
-    r = common.requests_get(url, headers={'Authorization': f'apikey {credentials.api_key}'})
-    df = common.pandas_read_csv(StringIO(r.text), sep=';')
-    common.ods_realtime_push_df(df=df, url=credentials.ods_push_url, push_key=credentials.ods_push_key)
+    # Get the current (published) datasets from ODS
+    url_current_datasets = 'https://data.bs.ch/explore/dataset/100057/download/?format=csv&use_labels_for_header=true'
+    r = common.requests_get(url_current_datasets)
+    df_current = common.pandas_read_csv(StringIO(r.text), sep=';')
+    # Get the new (published) datasets from ODS
+    url_new_datasets = 'https://data.bs.ch/explore/dataset/100055/download/?format=csv&use_labels_for_header=true&refine.visibility=domain&refine.publishing_published=True'
+    r = common.requests_get(url_new_datasets, headers={'Authorization': f'apikey {credentials.api_key}'})
+    df_new = common.pandas_read_csv(StringIO(r.text), sep=';')
+    # Push the new datasets to ODS
+    columns_to_compare = ['Federated dataset', 'Title', 'Description', 'Themes', 'Keywords', 'License', 'Language',
+                          'Timezone', 'Publisher', 'Reference', 'Attributions', 'Created', 'Issued', 'Creator',
+                          'Contributor', 'Contact name', 'Contact email', 'Accrual periodicity', 'Spatial', 'Temporal',
+                          'Granularity', 'Data quality', 'Publisher type', 'Conforms to', 'Domain', 'Rights',
+                          'RML Mapping', 'Publizierende Organisation', 'Geodaten Modellbeschreibung', 'Tags',
+                          'Number of records', 'Size of records in the dataset (in bytes)', 'Reuse count',
+                          'API call count', 'Download count', 'Attachments download count', 'File fields download count',
+                          'Popularity score', 'Visibility (domain or restricted)', 'Published', 'Publishing properties']
+    common.ods_realtime_push_complete_update(df_current, df_new, 'Dataset identifier', credentials.ods_push_url,
+                                             columns_to_compare=columns_to_compare, push_key=credentials.ods_push_key)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
-
 
 # ODS realtime push bootstrap:
 # {
