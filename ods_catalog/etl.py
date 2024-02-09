@@ -8,11 +8,11 @@ def main():
     # Get the current (published) datasets from ODS
     url_current_datasets = 'https://data.bs.ch/explore/dataset/100057/download/?format=csv&use_labels_for_header=true'
     r = common.requests_get(url_current_datasets)
-    df_current = common.pandas_read_csv(StringIO(r.text), sep=';')
+    df_current = common.pandas_read_csv(StringIO(r.text), sep=';', dtype=str)
     # Get the new (published) datasets from ODS
     url_new_datasets = 'https://data.bs.ch/explore/dataset/100055/download/?format=csv&use_labels_for_header=true&refine.visibility=domain&refine.publishing_published=True'
     r = common.requests_get(url_new_datasets, headers={'Authorization': f'apikey {credentials.api_key}'})
-    df_new = common.pandas_read_csv(StringIO(r.text), sep=';')
+    df_new = common.pandas_read_csv(StringIO(r.text), sep=';', dtype=str)
     # Push the new datasets to ODS
     columns_to_compare = ['Federated dataset', 'Title', 'Description', 'Themes', 'Keywords', 'License', 'Language',
                           'Timezone', 'Publisher', 'Reference', 'Attributions', 'Created', 'Issued', 'Creator',

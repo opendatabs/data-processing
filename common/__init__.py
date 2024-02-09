@@ -258,7 +258,7 @@ def ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key=''):
 
 
 def ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key=''):
-    deleted_rows = change_tracking.find_new_rows(df_new, df_old, id_columns)
+    deleted_rows = change_tracking.find_deleted_rows(df_new, df_old, id_columns)
     ods_realtime_push_df(deleted_rows, url, push_key, delete=True)
 
 
