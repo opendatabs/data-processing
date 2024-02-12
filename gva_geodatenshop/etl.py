@@ -1,9 +1,11 @@
 import pandas as pd
 from datetime import datetime
+import logging
 import os
 import sys
 import glob
 import zipfile
+from charset_normalizer import from_path
 import common
 from common import change_tracking as ct
 from gva_geodatenshop import credentials
@@ -29,7 +31,7 @@ def geocat_try(geocat_path_list):
         except (KeyError, TypeError):
             # This key apparently is not present, try the next one in the list
             pass
-    print('Error: None of the given keys exist in the source dict...')
+    logging.info('Error: None of the given keys exist in the source dict...')
     raise KeyError(';'.join(geocat_path_list))
 
 
@@ -40,33 +42,42 @@ def remove_empty_string_from_list(string_list):
 no_file_copy = False
 if 'no_file_copy' in sys.argv:
     no_file_copy = True
-    print('Proceeding without copying files...')
+    logging.info('Proceeding without copying files...')
 else:
-    print('Proceeding with copying files...')
+    logging.info('Proceeding with copying files...')
+
+
+def get_encoding(filename):
+    logging.info('Retrieving encoding...')
+    result = from_path(filename)
+    enc = result.best().encoding
+    logging.info(f'Retrieved encoding {enc}...')
+    return enc
 
 
 def open_csv(file_path):
-    print(f'Reading data file form {file_path}...')
-    return pd.read_csv(file_path, sep=';', na_filter=False, encoding='cp1252')
+    logging.info(f'Reading data file form {file_path}...')
+    enc = get_encoding(file_path)
+    return pd.read_csv(file_path, sep=';', na_filter=False, encoding=enc)
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
 metadata = open_csv(os.path.join(credentials.path_root, 'Metadata.csv'))
 pub_org = open_csv(os.path.join(credentials.path_root, 'Publizierende_organisation.csv'))
 
-print(f'Left-joining data, metadata and publizierende_organisation...')
+logging.info(f'Left-joining data, metadata and publizierende_organisation...')
 data_meta = pd.merge(data, metadata, on='ordnerpfad', how='left')
 joined_data = pd.merge(data_meta, pub_org, on='herausgeber', how='left')
 joined_data.to_csv(os.path.join(credentials.path_root, '_alldata.csv'), index=False, sep=';')
 
 metadata_for_ods = []
 
-print('Iterating over datasets...')
+logging.info('Iterating over datasets...')
 for index, row in joined_data.iterrows():
     # Construct folder path
     # path = credentials.path_orig + joined_data.iloc[1]['ordnerpfad'].replace('\\', '/')
     path = credentials.path_orig + row['ordnerpfad'].replace('\\', '/')
-    print('Checking ' + path + '...')
+    logging.info('Checking ' + path + '...')
 
     # Exclude raster data for the moment - we don't have them yet
     if row['import'] is True and row['art'] == 'Vektor':  # and (str(row['ordnerpfad'])) in required_topics
@@ -75,7 +86,7 @@ for index, row in joined_data.iterrows():
 
         # How many unique shp files are there?
         shpfiles = glob.glob(os.path.join(path, '*.shp'))
-        print(str(len(shpfiles)) + ' shp files in ' + path)
+        logging.info(str(len(shpfiles)) + ' shp files in ' + path)
 
         # Which shapes need to be imported to ods?
         shapes_to_load = remove_empty_string_from_list(row['shapes'].split(';'))
@@ -98,16 +109,16 @@ for index, row in joined_data.iterrows():
 
             # If "shapes" column is empty: load all shapes - otherwise only shapes listed in column "shapes"
             if len(shapes_to_load) == 0 or shpfilename_noext in shapes_to_load:
-                print('Preparing shape ' + shpfilename_noext + '...')
+                logging.info('Preparing shape ' + shpfilename_noext + '...')
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace(credentials.path_orig, '')
                 folder_flat = folder.replace('/', '__'). replace('\\', '__')
                 zipfilepath_relative = os.path.join('data', folder_flat + '__' + shpfilename_noext + '.zip')
                 zipfilepath = os.path.join(credentials.path_root, zipfilepath_relative)
-                print('Creating zip file ' + zipfilepath)
+                logging.info('Creating zip file ' + zipfilepath)
                 zipf = zipfile.ZipFile(zipfilepath, 'w')
                 # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
-                print('Finding Files to add to zip')
+                logging.info('Finding Files to add to zip')
                 # Include all files with shpfile's name
                 files_to_zip = glob.glob(os.path.join(path, shpfilename_noext + '.*'))
                 for file_to_zip in files_to_zip:
@@ -135,7 +146,7 @@ for index, row in joined_data.iterrows():
                 # In some geocat URLs there's a tab character, remove it.
                 geocat_uid = row['geocat'].rsplit('/', 1)[-1].replace('\t', '')
                 geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}'
-                print(f'Getting metadata from {geocat_url}...')
+                logging.info(f'Getting metadata from {geocat_url}...')
                 # todo: Locally save geocat metadata file and use this if the https request fails (which seems to happen often)
                 r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'})
                 r.raise_for_status()
@@ -143,11 +154,11 @@ for index, row in joined_data.iterrows():
 
                 # metadata_file = os.path.join(credentials.path_root, 'metadata', geocat_uid + '.json')
                 # cmd = '/usr/bin/curl --proxy ' + credentials.proxy + ' "https://www.geocat.ch/geonetwork/srv/api/records/' + geocat_uid + '" -H "accept: application/json" -s -k > ' + metadata_file
-                # print('Running curl to get geocat.ch metadata: ')
+                # logging.info('Running curl to get geocat.ch metadata: ')
                 # resp = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
-                # print('Processing geocat.ch metadata file ' + metadata_file + '...')
+                # logging.info('Processing geocat.ch metadata file ' + metadata_file + '...')
                 # with open(metadata_file, 'r') as json_file:
-                #     print('Adding shape ' + shpfilename_noext + ' to harverster csv...')
+                #     logging.info('Adding shape ' + shpfilename_noext + ' to harverster csv...')
                 #     json_string = json_file.read()
                 #     metadata = json.loads(json_string)
                 #     # ...continue code on this level...
@@ -243,7 +254,7 @@ for index, row in joined_data.iterrows():
                     'schema_file': schema_file
                 })
             else:
-                print('No shapes to load in this topic.')
+                logging.info('No shapes to load in this topic.')
 
         # No shp file: find out filename
         if len(shpfiles) == 0:
@@ -259,25 +270,25 @@ if len(metadata_for_ods) > 0:
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
-        print(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
+        logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
         common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
         ct.update_hash_file(ods_metadata_filename)
 
     # Upload each schema_file
-    print('Uploading ODS schema files to FTP Server...')
+    logging.info('Uploading ODS schema files to FTP Server...')
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
             schemafile_with_path = os.path.join(credentials.path_root, schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
-                print(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
+                logging.info(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
                 common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
                 ct.update_hash_file(schemafile_with_path)
 
 else:
-    print('Harvester File contains no entries, no upload necessary.')
+    logging.info('Harvester File contains no entries, no upload necessary.')
 
 # Todo: After harvester runs, change datasets title in order to have human readable title and number as id
 # Because ods_id cannot be set via csv harvester, initially the title should be set to ods_id, then after harvester runs,
 # ods title can be changed for those datasets where it is still equal to ods_id.
 
-print('Job successful.')
+logging.info('Job successful.')

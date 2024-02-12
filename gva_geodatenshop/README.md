@@ -16,7 +16,7 @@
 - Commit, push to github. 
 
 ### Fill out file Metadata.csv
-- Open file [Metadata.csv](./Metadata.csv) in Excel. If you use a different editor, make sure you use Encoding "Windows-1252" to edit and save file.
+- Open file [Metadata.csv](./Metadata.csv) in Excel.
 - Reformat column "dcat.issued" in Excel to use custom format "JJJJ-MM-TT".
 - Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
@@ -31,7 +31,6 @@
 - Column "dcat.accrualperiodicity": Accrual periodicity as described [here](https://handbook.opendata.swiss/de/content/glossar/bibliothek/dcat-ap-ch.html?highlight=accrual)
 - Column "schema_file": Set "True" if a (schema file)[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file] is provided in the current folder. Schema files must be named `{ods_id}.csv`. 
 - Column "dcat.issued": Date string in the form "JJJJ-MM-TT" to be used as issued date in ODS and opendata.swiss.
-- Make sure you use Encoding "Windows-1252" to save file.
   
 ### Deployment and harvesting
 - Check changes in file Metadata.csv using a diff viewer.
