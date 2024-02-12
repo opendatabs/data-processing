@@ -33,8 +33,18 @@ def get_path_realtime_push_file():
     raw_data_file = os.path.join(pathlib.Path(__file__).parent, 'data', 'realtime_push_data.csv')
     logging.info(f'Downloading raw realtime push data from ods to file {raw_data_file}...')
     r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100237&apikey={credentials.api_key}')
-    with open(raw_data_file, 'wb') as f:
-        f.write(r.content)
+    # If content just contains the header, do not write to file
+    newline_count = r.text.count('\n')
+    if newline_count > 1:
+        logging.info(f'Writing raw realtime push data to file {raw_data_file}...')
+        with open(raw_data_file, 'wb') as f:
+            f.write(r.content)
+        # Unpublish and publish to empty dataset
+        # This has to be done in case the data owner corrects data-points in the dataset
+        logging.info(f'Unpublishing and publishing dataset 100237 to empty dataset...')
+        odsp.publish_ods_dataset_by_id('100237', unpublish_first=True)
+    else:
+        logging.info(f'No data in realtime push dataset 100237. Not writing to file...')
     return raw_data_file
 
 
@@ -63,7 +73,6 @@ def create_time_fields(df):
 
 
 def create_export_df_from_realtime_push():
-    # TODO: Change change tracking from file has changed to date of the publishment has changed?
     realtime_push_file = get_path_realtime_push_file()
     export_filename = os.path.join(os.path.dirname(__file__), 'data/export', 'netzlast_realtime_push.csv')
     if ct.has_changed(realtime_push_file):
