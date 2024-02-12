@@ -20,9 +20,14 @@ def main():
     print('Job successful!')
 
 
-def publish_ods_dataset_by_id(dataset_id: str):
+def publish_ods_dataset_by_id(dataset_id: str, unpublish_first=False):
     dataset_uid = common.get_ods_uid_by_id(dataset_id, credentials)
-    common.publish_ods_dataset(dataset_uid, credentials)
+    common.publish_ods_dataset(dataset_uid, credentials, unpublish_first=unpublish_first)
+
+
+def unpublish_ods_dataset_by_id(dataset_id: str):
+    dataset_uid = common.get_ods_uid_by_id(dataset_id, credentials)
+    common.unpublish_ods_dataset(dataset_uid, credentials)
 
 
 def ods_set_general_access_policy(dataset_id: str, access_policy: str, do_publish=True):

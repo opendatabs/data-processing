@@ -11,6 +11,8 @@ import fnmatch
 import logging
 import dateutil
 from more_itertools import chunked
+
+import common
 from common import credentials
 from common import change_tracking
 from email.mime.text import MIMEText
@@ -190,20 +192,19 @@ def ensure_ftp_dir(server, user, password, folder):
 
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
-def publish_ods_dataset(dataset_uid, creds):
+def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
     logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
+    if unpublish_first:
+        logging.info('Unpublishing dataset first...')
+        unpublish_ods_dataset(dataset_uid, creds)
+        while not is_unpublished(dataset_uid, creds):
+            logging.info('Waiting 10 seconds before checking if dataset is unpublished...')
+            time.sleep(10)
     response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish',
                             headers={'Authorization': f'apikey {creds.api_key}'})
+
     if not response.ok:
-        logging.info(f'Received http error {response.status_code}:')
-        logging.info(f'Error message: {response.text}')
-        r_json = response.json()
-        # current_status = r_json['raw_params']['current_status']
-        error_key = r_json['error_key']
-        status_code = r_json['status_code']
-        if status_code == 400 and error_key == 'InvalidDatasetStatusPreconditionException':
-            logging.info(f'ODS returned status 400 and error_key "{error_key}", we raise the error now.')
-        response.raise_for_status()
+        raise_response_error(response)
 
         # Received http error 400:
         # Error message: {
@@ -216,6 +217,39 @@ def publish_ods_dataset(dataset_uid, creds):
         #   "raw_message": "Invalid precondition, dataset status is '{current_status}' but must be one of '{authorized_origin_status}'",
         #   "error_key": "InvalidDatasetStatusPreconditionException"
         # }
+
+
+def unpublish_ods_dataset(dataset_uid, creds):
+    logging.info("Telling OpenDataSoft to unpublish dataset " + dataset_uid + '...')
+    response = common.requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/unpublish',
+                                    headers={'Authorization': f'apikey {creds.api_key}'})
+    if not response.ok:
+        raise_response_error(response)
+
+
+def is_unpublished(dataset_uid, creds):
+    logging.info("Checking if dataset " + dataset_uid + ' is unpublished...')
+    published, name, _ = get_dataset_status(dataset_uid, creds)
+    return not published and name == 'idle'
+
+
+def get_dataset_status(dataset_uid, creds):
+    logging.info("Getting status of dataset " + dataset_uid + '...')
+    response = common.requests_get('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/status',
+                                   headers={'Authorization': f'apikey {creds.api_key}'})
+    if not response.ok:
+        raise_response_error(response)
+    return response.json()['published'], response.json()['name'], response.json()['since']
+
+def raise_response_error(response):
+    logging.info(f'Received http error {response.status_code}:')
+    logging.info(f'Error message: {response.text}')
+    r_json = response.json()
+    error_key = r_json['error_key']
+    status_code = r_json['status_code']
+    if status_code == 400 and error_key == 'InvalidDatasetStatusPreconditionException':
+        logging.info(f'ODS returned status 400 and error_key "{error_key}", we raise the error now.')
+    response.raise_for_status()
 
 
 def get_ods_uid_by_id(ods_id, creds):
