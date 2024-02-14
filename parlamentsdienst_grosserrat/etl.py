@@ -37,7 +37,7 @@ UNIX_TS_MIN = '-30610224000'
 
 # Dictionary to handle the comittees which need their ID to be replaced
 REPLACE_UNI_NR_GRE_DICT = {'1934': '3', '4276': '2910', '4278': '3164', '4279': '3196', '4280': '3331',
-                           '4252': np.nan, '4274': np.nan, '4283': np.nan,}
+                           '4252': np.nan, '4274': np.nan, '4283': np.nan, }
 MEMBERS_MISSING = [
     {
         "uni_nr": "4016",
@@ -404,7 +404,8 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
         'url_zuweisungen', 'url_dokumente', 'url_vorgaenge',
         'anrede_urheber', 'gremientyp_urheber', 'name_urheber', 'vorname_urheber', 'name_vorname_urheber',
         'partei_kname_urheber', 'url_urheber', 'nr_urheber', 'url_urheber_ratsmitgl',
-        'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber', 'name_vorname_miturheber',
+        'anrede_miturheber', 'gremientyp_miturheber', 'name_miturheber', 'vorname_miturheber',
+        'name_vorname_miturheber',
         'partei_kname_miturheber', 'url_miturheber', 'nr_miturheber', 'url_miturheber_ratsmitgl'
     ]
     df = df[cols_of_interest]
@@ -554,6 +555,34 @@ def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
     return path_export, 'vorgaenge', '100314'
+
+
+def create_tagesordnung_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_sitzung: pd.DataFrame) -> tuple:
+    df = pd.merge(df_gr_tagesordnung, df_gr_sitzung, left_on='gr_sitzung_idnr', right_on='idnr')
+
+    # Rename columns for clarity
+    df = df.drop(columns=['idnr_y']).rename(columns={'idnr_x': 'idnr'})
+
+    # Replace 0 in columns gruppentitel_1_pos and gruppentitel_2_pos until gruppentitel_5_pos with NaN
+    df.loc[:, 'gruppentitel_1_pos':'gruppentitel_5_pos'] = df.loc[:, 'gruppentitel_1_pos':'gruppentitel_5_pos'].replace(
+        '0', np.nan)
+    # Replace 0000-00-00 in columns tag1 until tag3 with NaN
+    df.loc[:, 'tag1':'tag3'] = df.loc[:, 'tag1':'tag3'].replace('0000-00-00', np.nan)
+
+    # Select relevant columns for publication
+    cols_of_interest = ['idnr', 'tag1', 'tag2', 'tag3', 'einleitungstext', 'zwischentext',
+                        'gruppentitel_1', 'gruppentitel_1_pos', 'gruppentitel_2', 'gruppentitel_2_pos',
+                        'gruppentitel_3', 'gruppentitel_3_pos', 'gruppentitel_4', 'gruppentitel_4_pos',
+                        'gruppentitel_5', 'gruppentitel_5_pos']
+    df = df[cols_of_interest]
+
+    logging.info(f'Creating dataset "Grosser Rat: Tagesordnungen"...')
+    path_export = os.path.join(pathlib.Path(__file__).parents[0],
+                               'data/export/grosser_rat_tagesordnungen.csv')
+    df.to_csv(path_export, index=False)
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'tagesordnungen', '100347'
 
 
 def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
