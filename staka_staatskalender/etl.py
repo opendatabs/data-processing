@@ -6,7 +6,7 @@ from requests.auth import HTTPBasicAuth
 
 import common
 import common.change_tracking as ct
-from staatskalender import credentials
+from staka_staatskalender import credentials
 
 # References:
 # https://docs.onegovcloud.ch/api/
@@ -34,7 +34,7 @@ def get_agencies(token):
     # TODO: Some post-processing if needed
     path_export = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
     df.to_csv(path_export, index=False)
-    return path_export, 'staka/staatskalender', '100349'
+    return path_export, 'staka/staka_staatskalender', '100349'
 
 
 def get_people(token):
@@ -43,7 +43,7 @@ def get_people(token):
     # TODO: Some post-processing if needed
     path_export = os.path.join(credentials.data_path, 'export', '100350_staatskalender_personen.csv')
     df.to_csv(path_export, index=False)
-    return path_export, 'staka/staatskalender', '100350'
+    return path_export, 'staka/staka_staatskalender', '100350'
 
 
 def get_memberships(token):
@@ -52,13 +52,13 @@ def get_memberships(token):
     # TODO: Some post-processing if needed
     path_export = os.path.join(credentials.data_path, 'export', '100351_staatskalender_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
-    return path_export, 'staka/staatskalender', '100351'
+    return path_export, 'staka/staka_staatskalender', '100351'
 
 
 def iterate_over_pages(next_link, token):
     df = pd.DataFrame()
     while True:
-        logging.info(f'Getting agencies from {next_link}...')
+        logging.info(f'Getting data from {next_link}...')
         r = common.requests_get(next_link,
                                 auth=HTTPBasicAuth(token, ''))
         r.raise_for_status()
