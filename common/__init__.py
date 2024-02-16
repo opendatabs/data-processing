@@ -15,6 +15,7 @@ from more_itertools import chunked
 import common
 from common import credentials
 from common import change_tracking
+import ods_publish.etl_id as odsp
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
@@ -432,3 +433,24 @@ def get_text_from_url(url):
     req = requests_get(url)
     req.raise_for_status()
     return io.StringIO(req.text)
+
+
+def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str) -> None:
+    """
+    Updates a dataset by uploading it to an FTP server and publishing it into data.bs.ch.
+
+    This function performs the following steps:
+    1. Checks if the content of the dataset at the specified path has changed.
+    2. If changes are detected, uploads the dataset to an FTP server using provided credentials.
+    3. Publishes the dataset into data.bs.ch using the provided dataset ID.
+    4. Updates the hash file to reflect the current state of the dataset.
+
+    Args:
+        path_export (str): The file path to the dataset that needs to be updated.
+        folder_name (str): The name of the folder on the FTP server where the dataset should be uploaded.
+        dataset_id (str): The ID of the dataset to be published on data.bs.ch.
+    """
+    if change_tracking.has_changed(path_export):
+        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, folder_name)
+        odsp.publish_ods_dataset_by_id(dataset_id)
+        change_tracking.update_hash_file(path_export)
