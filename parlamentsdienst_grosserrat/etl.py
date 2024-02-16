@@ -8,8 +8,6 @@ from io import StringIO
 
 from parlamentsdienst_grosserrat import credentials
 import common
-import common.change_tracking as ct
-import ods_publish.etl_id as odsp
 
 # All paths
 PATH_GR = 'https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable='
@@ -168,7 +166,7 @@ def main():
 
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
-        update_ftp_and_odsp(*args_for_upload)
+        common.update_ftp_and_odsp(*args_for_upload)
 
 
 def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
@@ -213,11 +211,11 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     df = unix_to_datetime(df, ['gr_beginn', 'gr_ende'])
 
     logging.info(f'Creating dataset "Grosser Rat: Ratsmitgliedschaften"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data/export/grosser_rat_mitglieder.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100307_gr_mitglieder.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'mitglieder', '100307'
+    return path_export, 'parlamentsdienst/grosser_rat', '100307'
 
 
 def create_mitgliedschaften_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame, df_gre: pd.DataFrame) -> tuple:
@@ -255,12 +253,11 @@ def create_mitgliedschaften_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame, df_g
     df = unix_to_datetime(df, ['beginn_mit', 'ende_mit'])
 
     logging.info(f'Creating dataset "Grosser Rat: Mitgliedschaften in Gremien"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_mitgliedschaften.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100308_gr_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'mitgliedschaften', '100308'
+    return path_export, 'parlamentsdienst/grosser_rat', '100308'
 
 
 def create_interessensbindungen_csv(df_adr: pd.DataFrame, df_intr: pd.DataFrame) -> tuple:
@@ -286,12 +283,11 @@ def create_interessensbindungen_csv(df_adr: pd.DataFrame, df_intr: pd.DataFrame)
     df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Interessensbindungen"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_interessensbindungen.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100309_gr_interessensbindungen.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'interessensbindungen', '100309'
+    return path_export, 'parlamentsdienst/grosser_rat', '100309'
 
 
 def create_gremien_csv(df_gre: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
@@ -321,12 +317,11 @@ def create_gremien_csv(df_gre: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Gremien"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_gremien.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100310_gr_gremien.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'gremien', '100310'
+    return path_export, 'parlamentsdienst/grosser_rat', '100310'
 
 
 def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd.DataFrame,
@@ -414,12 +409,11 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
     df = unix_to_datetime(df, ['beginn_ges', 'ende_ges'])
 
     logging.info(f'Creating dataset "Grosser Rat: Geschäfte"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_geschaefte.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100311_gr_geschaefte.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'geschaefte', '100311'
+    return path_export, 'parlamentsdienst/grosser_rat', '100311'
 
 
 def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: pd.DataFrame) -> tuple:
@@ -470,12 +464,11 @@ def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: p
     df = unix_to_datetime(df, ['erledigt', 'termin', 'beginn_ges', 'ende_ges'])
 
     logging.info(f'Creating dataset "Grosser Rat: Zuweisungen von Geschäften"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_zuweisungen.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100312_gr_zuweisungen.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'zuweisungen', '100312'
+    return path_export, 'parlamentsdienst/grosser_rat', '100312'
 
 
 def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
@@ -512,12 +505,11 @@ def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.
     df = df.rename(columns={'dok_nr': 'dok_laufnr'})
 
     logging.info(f'Creating dataset "Grosser Rat: Dokumente"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_dokumente.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100313_gr_dokumente.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'dokumente', '100313'
+    return path_export, 'parlamentsdienst/grosser_rat', '100313'
 
 
 def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.DataFrame) -> tuple:
@@ -549,12 +541,11 @@ def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.
     df = unix_to_datetime(df, ['siz_datum', 'beginn_ges', 'ende_ges'])
 
     logging.info(f'Creating dataset "Grosser Rat: Vorgänge von Geschäften"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_vorgaenge.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100314_gr_vorgaenge.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'vorgaenge', '100314'
+    return path_export, 'parlamentsdienst/grosser_rat', '100314'
 
 
 def create_tagesordnung_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_sitzung: pd.DataFrame) -> tuple:
@@ -577,12 +568,11 @@ def create_tagesordnung_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_sitzung: pd.
     df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Tagesordnungen"...')
-    path_export = os.path.join(pathlib.Path(__file__).parents[0],
-                               'data/export/grosser_rat_tagesordnungen.csv')
+    path_export = os.path.join(credentials.data_path, 'export/100347_gr_tagesordnungen.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'tagesordnungen', '100347'
+    return path_export, 'parlamentsdienst/grosser_rat', '100347'
 
 
 def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
@@ -603,28 +593,6 @@ def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
     for column_name in column_names:
         df[column_name] = pd.to_datetime(df[column_name].astype(float), unit='s', errors='coerce')
     return df
-
-
-def update_ftp_and_odsp(path_export: str, dataset_name: str, dataset_id: str) -> None:
-    """
-    Updates a dataset by uploading it to an FTP server and publishing it into data.bs.ch.
-
-    This function performs the following steps:
-    1. Checks if the content of the dataset at the specified path has changed.
-    2. If changes are detected, uploads the dataset to an FTP server using provided credentials.
-    3. Publishes the dataset into data.bs.ch using the provided dataset ID.
-    4. Updates the hash file to reflect the current state of the dataset.
-
-    Args:
-        path_export (str): The file path to the dataset that needs to be updated.
-        dataset_name (str): The name of the dataset, used for the FTP destination path.
-        dataset_id (str): The ID of the dataset to be published on data.bs.ch.
-    """
-    if ct.has_changed(path_export):
-        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          f'parlamentsdienst/gr_{dataset_name}')
-        odsp.publish_ods_dataset_by_id(dataset_id)
-        ct.update_hash_file(path_export)
 
 
 if __name__ == '__main__':
