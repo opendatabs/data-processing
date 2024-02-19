@@ -27,6 +27,7 @@ PATH_GR_TRAKTANDEN = StringIO(common.requests_get(f'{PATH_GR}gr_tagesordnung_pos
 PATH_PERSONEN = 'https://grosserrat.bs.ch/?mnr='
 PATH_GESCHAEFT = 'https://grosserrat.bs.ch/?gnr='
 PATH_DOKUMENT = 'https://grosserrat.bs.ch/?dnr='
+PATH_MEDIA_TAGESORDNUNG = 'https://grosserrat.bs.ch/media/files/tagesordnungen/'
 PATH_DATASET = 'https://data.bs.ch/explore/dataset/'
 
 # Unix timestamps that mark the maximum and minimum possible timestamp
@@ -211,7 +212,7 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     df = unix_to_datetime(df, ['gr_beginn', 'gr_ende'])
 
     logging.info(f'Creating dataset "Grosser Rat: Ratsmitgliedschaften"...')
-    path_export = os.path.join(credentials.data_path, 'export/100307_gr_mitglieder.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100307_gr_mitglieder.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -253,7 +254,7 @@ def create_mitgliedschaften_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame, df_g
     df = unix_to_datetime(df, ['beginn_mit', 'ende_mit'])
 
     logging.info(f'Creating dataset "Grosser Rat: Mitgliedschaften in Gremien"...')
-    path_export = os.path.join(credentials.data_path, 'export/100308_gr_mitgliedschaften.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100308_gr_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -283,7 +284,7 @@ def create_interessensbindungen_csv(df_adr: pd.DataFrame, df_intr: pd.DataFrame)
     df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Interessensbindungen"...')
-    path_export = os.path.join(credentials.data_path, 'export/100309_gr_interessensbindungen.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100309_gr_interessensbindungen.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -317,7 +318,7 @@ def create_gremien_csv(df_gre: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Gremien"...')
-    path_export = os.path.join(credentials.data_path, 'export/100310_gr_gremien.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100310_gr_gremien.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -409,7 +410,7 @@ def create_geschaefte_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_kon: pd
     df = unix_to_datetime(df, ['beginn_ges', 'ende_ges'])
 
     logging.info(f'Creating dataset "Grosser Rat: Geschäfte"...')
-    path_export = os.path.join(credentials.data_path, 'export/100311_gr_geschaefte.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100311_gr_geschaefte.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -464,7 +465,7 @@ def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: p
     df = unix_to_datetime(df, ['erledigt', 'termin', 'beginn_ges', 'ende_ges'])
 
     logging.info(f'Creating dataset "Grosser Rat: Zuweisungen von Geschäften"...')
-    path_export = os.path.join(credentials.data_path, 'export/100312_gr_zuweisungen.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100312_gr_zuweisungen.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -505,7 +506,7 @@ def create_dokumente_csv(df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.
     df = df.rename(columns={'dok_nr': 'dok_laufnr'})
 
     logging.info(f'Creating dataset "Grosser Rat: Dokumente"...')
-    path_export = os.path.join(credentials.data_path, 'export/100313_gr_dokumente.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100313_gr_dokumente.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -541,7 +542,7 @@ def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.
     df = unix_to_datetime(df, ['siz_datum', 'beginn_ges', 'ende_ges'])
 
     logging.info(f'Creating dataset "Grosser Rat: Vorgänge von Geschäften"...')
-    path_export = os.path.join(credentials.data_path, 'export/100314_gr_vorgaenge.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100314_gr_vorgaenge.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
@@ -560,19 +561,58 @@ def create_tagesordnung_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_sitzung: pd.
     # Replace 0000-00-00 in columns tag1 until tag3 with NaN
     df.loc[:, 'tag1':'tag3'] = df.loc[:, 'tag1':'tag3'].replace('0000-00-00', np.nan)
 
+    # Create url's
+    df['url_tagesordnung_dok'] = PATH_MEDIA_TAGESORDNUNG + 'tagesordnung_' + df['tag1'] + '.pdf'
+    df['url_geschaeftsverzeichnis'] = PATH_MEDIA_TAGESORDNUNG + 'geschaeftsverzeichnis_' + df['tag1'] + '.pdf'
+    df['url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
+    df['url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
+    bigger_equal_query = '?q.where.laufnr=laufnr>='
+    less_query = '&q.where.laufnr=laufnr<'
+    df['url_gruppentitel_1'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_1_pos'] + np.where(
+        df['gruppentitel_2_pos'].notna(), less_query + df['gruppentitel_2_pos'], '')
+    df['url_gruppentitel_2'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_2_pos'] + np.where(
+        df['gruppentitel_3_pos'].notna(), less_query + df['gruppentitel_3_pos'], '')
+    df['url_gruppentitel_3'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_3_pos'] + np.where(
+        df['gruppentitel_4_pos'].notna(), less_query + df['gruppentitel_4_pos'], '')
+    df['url_gruppentitel_4'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_4_pos'] + np.where(
+        df['gruppentitel_5_pos'].notna(), less_query + df['gruppentitel_5_pos'], '')
+    df['url_gruppentitel_5'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_5_pos']
     # Select relevant columns for publication
     cols_of_interest = ['idnr', 'tag1', 'tag2', 'tag3', 'einleitungstext', 'zwischentext',
-                        'gruppentitel_1', 'gruppentitel_1_pos', 'gruppentitel_2', 'gruppentitel_2_pos',
-                        'gruppentitel_3', 'gruppentitel_3_pos', 'gruppentitel_4', 'gruppentitel_4_pos',
-                        'gruppentitel_5', 'gruppentitel_5_pos']
+                        'gruppentitel_1', 'gruppentitel_1_pos', 'url_gruppentitel_1',
+                        'gruppentitel_2', 'gruppentitel_2_pos', 'url_gruppentitel_2',
+                        'gruppentitel_3', 'gruppentitel_3_pos', 'url_gruppentitel_3',
+                        'gruppentitel_4', 'gruppentitel_4_pos', 'url_gruppentitel_4',
+                        'gruppentitel_5', 'gruppentitel_5_pos', 'url_gruppentitel_5',
+                        'url_tagesordnung_dok', 'url_geschaeftsverzeichnis', 'url_sammelmappe', 'url_alle_dokumente']
     df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Tagesordnungen"...')
-    path_export = os.path.join(credentials.data_path, 'export/100347_gr_tagesordnungen.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100347_gr_tagesordnungen.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
     return path_export, 'parlamentsdienst/grosser_rat', '100347'
+
+
+def create_traktanden_csv(df: pd.DataFrame) -> tuple:
+    # Everything that starts in the form XX.XXXX.XX is a Signatur
+    df['signatur_first'] = df['signatur'].str.extract(r'(\d{2}\.\d{4}\.\d{2})')
+
+    # Create url's
+    df['url_tagesordnung'] = PATH_DATASET + '100347/?refine.idnr=' + df['tagesordnung_idnr']
+    df['url_kommission'] = PATH_DATASET + '100310/?refine.kurzname=' + df['kommission']
+    df['url_ges'] = PATH_GESCHAEFT + df['signatur_first'].str[:7]
+    df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_first'].str[:7]
+    df['url_dok'] = PATH_DOKUMENT + df['signatur_first']
+    df['url_dokument_ods'] = PATH_DATASET + '100313/?refine.signatur_dok=' + df['signatur_first']
+
+    logging.info(f'Creating dataset "Grosser Rat: Traktanden"...')
+    path_export = os.path.join(credentials.data_path, 'export', '100348_gr_traktanden.csv')
+    df.to_csv(path_export, index=False)
+    # Returning the path where the created CSV-file is stored
+    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
+    return path_export, 'parlamentsdienst/grosser_rat', '100348'
 
 
 def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
