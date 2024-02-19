@@ -1,0 +1,9 @@
+name;label;description
+id_tk;ID;Eindeutiger Identifikator
+std_name;Standortname;Bezeichnung des Standortes
+strasse;Strasse;Strassenname
+haus_nr;Hausnummer;Hausnummer
+plz;PLZ;Postleitzahl
+ort;Ort;Gemeinde
+telefon;Telefon;Telefonnummer
+homepage;Homepage;Internetadresse
