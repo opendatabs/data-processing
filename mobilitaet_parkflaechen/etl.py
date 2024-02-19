@@ -27,7 +27,7 @@ def download_spatial_descriptors(ods_id):
 def main():
     list_path = os.path.join(credentials.data_path, 'list_directories.txt')
     directories = common.list_directories(credentials.data_orig_path, list_path)
-    if ct.has_changed(list_path):
+    if True or ct.has_changed(list_path):
         newest_folder = max(directories, key=lambda d: datetime.datetime.strptime(d, '%Y-%m-%d'))
         logging.info(f'Newest folder is {newest_folder}')
         path_to_shp = os.path.join(credentials.data_orig_path, newest_folder, 'Parkflaechen_vollstaendig.shp')
@@ -54,6 +54,8 @@ def main():
         columns_of_interest = ['GID', 'GILT_VON', 'GILT_BIS', 'SOBJ_KZ', 'ANZAHL', 'SOPFT_TYP', 'STST_STR', 'TARIF_C1',
                                'SOPFG_GEB', 'GEBPFLICHT', 'MAXPARKZ', 'KEINL', 'AKTUELL', 'PLZ', 'WOV_ID', 'WOV_NAME',
                                'BEZ_ID', 'BEZ_NAME']  # , 'GEO_SHAPE', 'CENTROID']
+        # Filter on PLZ that start with 40 (Basel)
+        gdf = gdf[gdf['PLZ'].str.startswith('40')]
         gdf = gdf[columns_of_interest]
 
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
