@@ -62,7 +62,7 @@ def open_csv(file_path):
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
-metadata = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False)
+metadata = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False, dtype=str)
 pub_org = open_csv(os.path.join(credentials.path_harv, 'Publizierende_organisation.csv'))
 
 logging.info(f'Left-joining data, metadata and publizierende_organisation...')
