@@ -1,0 +1,14 @@
+name;label;description
+idueberfes;Id_Überlagende_Festlegung;Eindeutiger Identifikator
+festueber;Festlegung Abk.;Kürzel der Art der Festlegung
+festuebtxt;Festlegung;Art der Festlegung
+verbindli;Verbindlichkeit;Verbindlichkeit
+schutzzwec;Schutzzweck;Schutzzweck von Natur- und Landschaftsschutzzonen
+rekurshaen;rekurshängig;1 (bzw. true) wenn ein Rekurs vorhanden ist. Wenn ein Rekurs hängig ist, enthält das Objekt die neue, geplante Ausprägung, entgegen dem Geschäftsstatus ist diese jedoch noch nicht in Kraft.
+bezeichnng;Bezeichnung;Bezeichnung der Festlegung 
+idgeschae;Id_Geschäft;Eindeutiger Identifikator
+geschaesta;Geschäftsstatus;Geschäftsstatus
+datumstat;Datum Status;Datum Status
+geolink;Geolink;Geolink
+geschaebez;Geschäftsbezeichnung;Geschäftsbezeichnung
+bemerkung;Bemerkung;Bemerkung

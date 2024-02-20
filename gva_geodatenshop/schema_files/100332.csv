@@ -1,0 +1,4 @@
+name;label;description
+id_verbot;Id_Verbotszone;Eindeutiger Identifikator der Verbotszone
+name;Name;Bezeichnung der Verbotszone
+regart;Regulierungsart;Art der Verbotszone

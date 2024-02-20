@@ -1,0 +1,20 @@
+name;label;description
+id_ts;ID;Eindeutiger Identifikator
+institut;Teststelle;Name der Teststelle
+strasse;Strasse;Strassenname
+hausnummer;Hausnummer;Hausnummer
+plz;PLZ;4-stellige Postleitzahl
+ort;Ort;Gemeinde
+telefon;Telefonnummer;Telefonnummer der Teststelle
+bestehend;Nur bestehende Patienten;Werden nur bestehende Patienten getestet
+termin;Terminvereinbarung;Sind Terminvereinbarungen notwendig
+online;Online-Anmeldung;URL für Online Anmeldung
+bemerkung;Bemerkungen;Bemerkungen zur Teststelle
+oeff_wt;Öffnungszeiten Werktags;Öffnungszeiten unter der Woche
+oeff_we;Öffnungszeiten Wochenende;Öffnungszeiten am Wochenende
+schnellte;Schnelltest;Verfügbarkeit von Schnelltests
+kinder;Kinder;Testet diese Teststelle auch Kinder?
+alter;Kinder: Mindestalter;Mindestalter für Tests. Teststellen, welche Personen erst ab einem bestimmten Mindestalter testen, sind spezialisiert auf Corona-Tests bei Kindern.
+testart;Kinder: Zusätzliche Testarten;Art der durchführenden Tests
+symptom;Kinder: Nur symptomatische;Müssen Kinder COVID-19 Symptome haben, um durch diese Teststelle getestet zu werden?
+kommentar;Kinder: Bemerkungen;Bemerkungen zu Teststellen für Kinder

@@ -1,0 +1,8 @@
+name;label;description
+objid;Objekt-ID;Laufnummer
+kart_id;;
+flaeche;Fläche;Fläche in m²
+art;Art;Name der Art in deutsch und latein (in Klammern)
+deckung;Deckung;Deckungsgrad in % gemäss den folgenden Klassen: <1, 1-5, 5-15, 15-25, 25-50, 50-75, 75-100.
+abundanz;Abundanz;Individuenzahl gemäss den folgenden Klassen: 1-10, 11-100, 101-1000, >1000.
+jahr;Jahr;Kartierungsjahr

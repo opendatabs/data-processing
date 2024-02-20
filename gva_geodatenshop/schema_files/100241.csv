@@ -1,0 +1,13 @@
+name;label;description
+id_platz;Id_Veloabstellplatz;Eindeutiger Identifikator
+typ;Typ;Art des Abstellplatzes
+strasse;Strasse;Strassenname des Standort
+tarif;Tarif;Tarif für Benutzung des Abstellplatzes
+anzvelos;Anzahl Velos;Anzahl Stellplätze für Velos/Motorräder
+anschliess;Anschliessbar;Vorrichtung für Anschliessung vorhanden
+gedeckt;Gedeckt;Dach vorhanden
+zugang;Zugänglichkeit;Zugänglichkeit
+infos;Infos;Internetadresse
+cargovelo;Platz Cargovelos;Gibt es Platz für Cargovelos
+bikeride;Bike Ride;Bike + Ride
+velospot;Velospot;Velospot Station

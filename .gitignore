@@ -46,3 +46,4 @@ __pycache__/
 /zefix_handelsregister/data/addr_to_coords_lookup_table.json
 /zri_gesetzessammlung/data/*.json
 !/zefix_handelsregister/data/shp_bs/*
+!/gva_geodatenshop/schema_files/*.csv
