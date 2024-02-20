@@ -8,14 +8,14 @@
 - Copy contents of column "ordnerpfad" into clipboard. 
 
 ### Define Column "Publizierende Organisation"
-- Open File `Publizierende_organisation.csv` located in {File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
+- Open File `Publizierende_organisation.csv` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
 - Search worksheet for the value of "kontakt_dienststelle" in clipboard. 
 - If not found, add a new row that defines the top-level organisation of the "kontakt_dienststelle" of the dataset to be published.
 - "herausgeber" is the responsible "Dienststelle"
 - Save, check for unwanted changes using a diff tool, fix if necessary. 
 
 ### Fill out file Metadata.xlsx
-- Open file `Metadata.xlsx` located in {File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
+- Open file `Metadata.xlsx` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
 - Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
 - Column "shapes": Define which shp files shape(s) should be imported. Leave empty to import all shapes to explore the shapes in ODS before publication. Each shape will be imported as a new ODS dataset. Do not add file extension. Multiple shapes can be separated with semicolon. Do not add a semicolon at the end of a list of shape names. If empty, all shapes will be imported. 
