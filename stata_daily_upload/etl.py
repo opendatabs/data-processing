@@ -10,19 +10,16 @@ import datetime
 
 def main():
     # Open the JSON file where the uploads are saved
-    path_uploads = os.path.join(credentials.path_work, 'StatA', 'stata_daily_uploads.json')
+    path_uploads = os.path.join(credentials.path_work, 'StatA', 'harvesters', 'StatA', 'stata_daily_uploads.json')
     with open(path_uploads, 'r') as jsonfile:
         uploads = json.load(jsonfile)
 
     if ct.has_changed(path_uploads):
         logging.info('Uploads have changed. Upload to FTP...')
-        remote_path = 'FST-OGD/archive_stata_daily_uploads'
-        common.upload_ftp(path_uploads, credentials.ftp_server, credentials.ftp_user,
-                          credentials.ftp_pass, remote_path)
-        # Rename the file on the FTP server
-        from_name = f"{remote_path}/stata_daily_uploads.json"
-        to_name = f"stata_daily_uploads_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
-        common.rename_ftp(from_name, to_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass)
+        path_archive = os.path.join(credentials.path_work, 'StatA', 'harvesters', 'StatA', 'archive',
+                                    f'stata_daily_uploads_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.json')
+        with open(path_archive, 'w') as jsonfile:
+            json.dump(uploads, jsonfile)
         ct.update_hash_file(path_uploads)
 
     # TODO: Refactor
@@ -38,7 +35,8 @@ def main():
                         if ct.has_changed(file_path, method='modification_date'):
                             changed = True
                             ct.update_mod_timestamp_file(file_path)
-                            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, upload['dest_dir'])
+                            common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user,
+                                              credentials.ftp_pass, upload['dest_dir'])
                     if upload.get('make_public_embargo') and common.is_embargo_over(file_path):
                         ods_id_property = upload['ods_id']
                         if isinstance(ods_id_property, list):
