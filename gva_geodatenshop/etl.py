@@ -62,8 +62,8 @@ def open_csv(file_path):
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
-metadata = open_csv(os.path.join(credentials.path_root, 'Metadata.csv'))
-pub_org = open_csv(os.path.join(credentials.path_root, 'Publizierende_organisation.csv'))
+metadata = open_csv(os.path.join(credentials.path_harv, 'Metadata.csv'))
+pub_org = open_csv(os.path.join(credentials.path_harv, 'Publizierende_organisation.csv'))
 
 logging.info(f'Left-joining data, metadata and publizierende_organisation...')
 data_meta = pd.merge(data, metadata, on='ordnerpfad', how='left')
