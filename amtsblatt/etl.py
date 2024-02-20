@@ -2,25 +2,36 @@ import os
 import io
 import logging
 import pandas as pd
+import datetime
 import xml.etree.ElementTree as ET
 
 import common
 from amtsblatt import credentials
+
 
 # References:
 # https://www.amtsblattportal.ch/docs/api/
 
 
 def main():
-    df = iterate_over_pages()
+    df = iterate_over_years()
     df = add_columns(df)
     path_export = os.path.join(credentials.data_path, 'export', '100352_amtsblatt.csv')
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'amtsblatt', '100352')
 
 
-def iterate_over_pages():
-    base_url = 'https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS'
+def iterate_over_years():
+    start_year = 2019
+    df = pd.DataFrame()
+    for year in range(start_year, datetime.datetime.now().year + 1):
+        df_year = iterate_over_pages(year)
+        df = pd.concat([df, df_year])
+    return df
+
+
+def iterate_over_pages(year):
+    base_url = f'https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS&publicationDate.start={year}-01-01&publicationDate.end={year}-12-31'
     page = 0
     next_page = f'{base_url}&pageRequest.page={page}'
     df = pd.DataFrame()
@@ -33,8 +44,8 @@ def iterate_over_pages():
             break
         df = pd.concat([df, df_curr_page])
         page = page + 1
-        # Just found out that 100 does not work, so we stop at 99 for now
-        if page == 20:
+        # TODO: Also get entries after the 100th page
+        if page == 100:
             break
         next_page = f'{base_url}&pageRequest.page={page}'
     return df
@@ -44,7 +55,7 @@ def add_columns(df):
     df['url_kantonsblatt'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/#!/search/publications/detail/{x}')
     df['url_pdf'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf')
     df['url_xml'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/xml')
-    df['text'] = ''
+    df['content'] = ''
     df['attachments'] = ''
     for index, row in df.iterrows():
         xml_content = get_content_from_xml(row['url_xml'])
