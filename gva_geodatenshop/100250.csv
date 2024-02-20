@@ -1,7 +1,0 @@
-name;label;description
-id_strweg;Id_Strassentyp/Weg;Eindeutiger Identifikator der Strasse/Weg
-strname;Strassenname;Strassenname
-snh;Strassennetzhierarchie;Kategorien unterschiedlicher Strassennetzhierarchien (siehe 9.4 Wertebereich in der Modellbeschreibung)
-gemeinde;Gemeinde;Gemeinden (siehe 9.4 Wertebereich in der Modellbeschreibung)
-kategorie;Kategorie;Kategorien (siehe 9.4 Wertebereich in der Modellbeschreibung)
-weg;Weg;Wege

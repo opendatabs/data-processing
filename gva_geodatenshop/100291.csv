@@ -1,6 +1,0 @@
-name;label;description
-idgbereich;Id_GSBereich;Eindeutiger Identifikator des ÖREB Fachsystems
-typ;Typ;Typ des Gewässerschutzbereichs (siehe 9.9 Wertebereich in der Modellbeschreibung)
-kantypbez;Kantonale-Typ-Bezeichnung;Kantonale-Typ-Bezeichnung
-geolink;Rechtsdokumente;Link zu den Rechtsdokumenten
-bemerkung;Bemerkung;Bemerkung

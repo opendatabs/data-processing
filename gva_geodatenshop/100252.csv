@@ -1,7 +1,0 @@
-name;label;description
-id_tempo30;Id_Tempo30Zone;Eindeutiger Identifikator der Tempo30Zonen
-regime;Regime;Regime der Zone
-regimenr;Regimenummer;Nummer des Regimes
-name;Name;Name des Regimes
-umdatum;Umsetzungsdatum;Datum der Umsetzung
-umjahr;Umsetzungsjahr;Jahr der Umsetzung
