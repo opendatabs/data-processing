@@ -1,7 +1,7 @@
 # Harvester for GVA Gedodata files
 
 ## Publish existing GVA datasets
-### Identify dataset to publish in ogd_datensaetze.csv
+### Identify dataset to publish in `ogd_datensaetze.csv`
 - GVA exports all available geo datasets every morning into `{File Server Root}\PD\PD-StatA-FST-OGD-Data-GVA\ogd_datensaetze.csv`.
 - Open in Excel and find the dataset to be published as OGD.
   Copy contens of column "kontakt_dienststelle" into clipboard. 
@@ -14,7 +14,7 @@
 - "herausgeber" is the responsible "Dienststelle"
 - Save, check for unwanted changes using a diff tool, fix if necessary. 
 
-### Fill out file Metadata.xlsx
+### Fill out file `Metadata.xlsx`
 - Open file `Metadata.xlsx` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
 - Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
