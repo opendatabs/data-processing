@@ -2,7 +2,7 @@ name;label;description
 id_invnr;Inventar-Nummer;Eindeutiger Identifikator, Inventar-Nummer
 gruppe;Gruppe;Gruppe zur Unterteilung in Kunst und Bau (KuB) und Kunst im öffentlichen Raum (KiöR)
 fotonummer;Fotonummer;Dateiname des Fotos
-ku_name;Künstlername;Name des Künstlers
+ku_name;Kunstschaffende;Name der Kunstschaffende
 werktitel;Werktitel;Titel des Kunstwerks
 datierung;Datierung;Datierung des Kunstwerks
 standort;Standort;Adresse und genauer Standortbeschrieb des Kunstwerks
@@ -10,6 +10,6 @@ kontaktper;Kontaktperson;Name der Kontaktperson
 funktion;Funktion;Funktion der Kontaktperson
 telefon;Telefon;Telefonnummer der Kontaktperson
 email;Email;Email der Kontaktperson
-pdf;Pdf;Dateiname des PDFs
+pdf;PDF;Dateiname des PDFs
 rueckbau;Rückbau;ist das Werk zurückgebaut
 foto_downloadlink;Foto-Downloadlink;Downloadlink
