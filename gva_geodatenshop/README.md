@@ -8,16 +8,14 @@
 - Copy contents of column "ordnerpfad" into clipboard. 
 
 ### Define Column "Publizierende Organisation"
-- Open File [Publizierende_organisation.csv](./Publizierende_organisation.csv) in Excel.
+- Open File `Publizierende_organisation.csv` located in {File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
 - Search worksheet for the value of "kontakt_dienststelle" in clipboard. 
 - If not found, add a new row that defines the top-level organisation of the "kontakt_dienststelle" of the dataset to be published.
 - "herausgeber" is the responsible "Dienststelle"
 - Save, check for unwanted changes using a diff tool, fix if necessary. 
-- Commit, push to github. 
 
-### Fill out file Metadata.csv
-- Open file [Metadata.csv](./Metadata.csv) in Excel.
-- Reformat column "dcat.issued" in Excel to use custom format "JJJJ-MM-TT".
+### Fill out file Metadata.xlsx
+- Open file `Metadata.xlsx` located in {File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
 - Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
 - Column "shapes": Define which shp files shape(s) should be imported. Leave empty to import all shapes to explore the shapes in ODS before publication. Each shape will be imported as a new ODS dataset. Do not add file extension. Multiple shapes can be separated with semicolon. Do not add a semicolon at the end of a list of shape names. If empty, all shapes will be imported. 
@@ -33,11 +31,8 @@
 - Column "dcat.issued": Date string in the form "JJJJ-MM-TT" to be used as issued date in ODS and opendata.swiss.
   
 ### Deployment and harvesting
-- Check changes in file Metadata.csv using a diff viewer.
-- If everything seem fine: Commit file to git repo, push to github. 
-- Connect to processing server using ssh, cd to `/data/dev/workspace/data-processing`, issue command `git pull`.
 - Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started.
-- After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.csv` accordingly.
+- After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.xlsx` accordingly.
 - Manually change ODS id of newly datasets. 
 - Newly created datasets are not auto-published, but remain private until published in ODS. 
 - Changes in datasets that have been published in ODS before are automatically published when the ODS harvester has finished running.
