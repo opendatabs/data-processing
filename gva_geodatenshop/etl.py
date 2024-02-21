@@ -62,7 +62,7 @@ def open_csv(file_path):
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
-metadata = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False, dtype=str)
+metadata = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False)
 pub_org = open_csv(os.path.join(credentials.path_harv, 'Publizierende_organisation.csv'))
 
 logging.info(f'Left-joining data, metadata and publizierende_organisation...')
@@ -186,7 +186,7 @@ for index, row in joined_data.iterrows():
                 # 1 shape file present
                 else:
                     title = row['titel'].replace(':', ': ')
-                    ods_id = row['ods_id']
+                    ods_id = str(row['ods_id'])
                     if row['schema_file'] == 'True':
                         schema_file = f'{ods_id}.csv'
 
