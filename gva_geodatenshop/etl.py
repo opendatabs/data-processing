@@ -173,13 +173,13 @@ for index, row in joined_data.iterrows():
                     title = str(row['titel_nice']).split(';')[shp_to_load_number]
                     ods_id = str(row['ods_id']).split(';')[shp_to_load_number]
                     if row['schema_file'] == 'True':
-                        schema_file = f'schema_files/{ods_id}.csv'
+                        schema_file = f'{ods_id}.csv'
                 # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
                 elif len(shapes_to_load) == 0 and len(str(row['titel_nice'])) > 0 and len(shpfiles) == 1:
                     title = str(row['titel_nice'])
                     ods_id = str(row['ods_id'])
                     if row['schema_file'] == 'True':
-                        schema_file = f'schema_files/{ods_id}.csv'
+                        schema_file = f'{ods_id}.csv'
                 # Multiple shape files present
                 elif len(shpfiles) > 1:
                     title = row['titel'].replace(':', ': ') + ': ' + shpfilename_noext
@@ -188,7 +188,7 @@ for index, row in joined_data.iterrows():
                     title = row['titel'].replace(':', ': ')
                     ods_id = row['ods_id']
                     if row['schema_file'] == 'True':
-                        schema_file = f'schema_files/{ods_id}.csv'
+                        schema_file = f'{ods_id}.csv'
 
 
                 # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
