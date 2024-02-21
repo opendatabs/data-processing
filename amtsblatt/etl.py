@@ -25,15 +25,22 @@ def iterate_over_years():
     start_year = 2019
     df = pd.DataFrame()
     for year in range(start_year, datetime.datetime.now().year + 1):
-        df_year = iterate_over_pages(year)
-        df = pd.concat([df, df_year])
+        for month in range(1, 13):
+            if year == datetime.datetime.now().year and month > datetime.datetime.now().month:
+                break
+            logging.info(f'Getting data for {year}-{month}...')
+            df_month = iterate_over_pages(year, month)
+            df = pd.concat([df, df_month])
     return df
 
 
-def iterate_over_pages(year):
-    base_url = f'https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS&publicationDate.start={year}-01-01&publicationDate.end={year}-12-31'
+def iterate_over_pages(year, month):
+    base_url = f'https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS'
+    start_date = f'&publicationDate.start={year}-{month}-01'
+    end_date = f'&publicationDate.end={year}-{month+1}-01' if month < 12 else f'&publicationDate.end={year+1}-01-01'
+    url = f'{base_url}{start_date}{end_date}'
     page = 0
-    next_page = f'{base_url}&pageRequest.page={page}'
+    next_page = f'{url}&pageRequest.page={page}'
     df = pd.DataFrame()
     while True:
         logging.info(f'Getting data from {next_page}...')
@@ -44,10 +51,7 @@ def iterate_over_pages(year):
             break
         df = pd.concat([df, df_curr_page])
         page = page + 1
-        # TODO: Also get entries after the 100th page
-        if page == 100:
-            break
-        next_page = f'{base_url}&pageRequest.page={page}'
+        next_page = f'{url}&pageRequest.page={page}'
     return df
 
 
@@ -55,6 +59,7 @@ def add_columns(df):
     df['url_kantonsblatt'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/#!/search/publications/detail/{x}')
     df['url_pdf'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf')
     df['url_xml'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/xml')
+    ''' Leave out for now
     df['content'] = ''
     df['attachments'] = ''
     for index, row in df.iterrows():
@@ -63,7 +68,8 @@ def add_columns(df):
         content = root.find('content')
         attach = root.find('attachments')
         df.at[index, 'content'] = ET.tostring(content, encoding='utf-8') if content is not None else ''
-        df.at[index, 'attachments'] = ET.tostring(attach, encoding='utf-8') if attach is not None else ''
+        df.at[index, 'attachments'] = ET.tostring(attach, encoding='utf-8') if attach is not None else ''$
+    '''
     return df
 
 
