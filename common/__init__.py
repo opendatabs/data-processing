@@ -328,7 +328,10 @@ def ods_realtime_push_df(df, url, push_key='', delete=False):
         payload = df.to_json(orient="records")
         # logging.info(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        r = requests_post(url=url, data=payload, params={'pushkey': push_key})
+        if delete:
+            r = requests_get(url=url, data=payload, params={'pushkey': push_key})
+        else:
+            r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()
         return r
 
