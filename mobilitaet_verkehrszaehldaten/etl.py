@@ -90,7 +90,7 @@ def main():
         no_file_copy = True
         print('Proceeding without copying files...')
 
-    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv']
+    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv']
 
     # Upload processed and truncated data
     for datafile in filename_orig:
