@@ -9,11 +9,12 @@ from zri_gesetzessammlung import credentials
 
 def main():
     df_tols = get_texts_of_law()
-    df_tols.to_csv(os.path.join(credentials.data_path, 'systematics_with_tols.csv'), index=False)
-    df_sys = get_systematics()
-    df_sys.to_csv(os.path.join(credentials.data_path, 'systematics_BS.csv'), index=False)
-    df_rc = get_recent_changes()
-    df_rc.to_csv(os.path.join(credentials.data_path, 'recent_changes_BS.csv'), index=False)
+    path_export = os.path.join(credentials.data_path, '100354_systematics_with_tols.csv')
+    df_tols.to_csv(path_export, index=False)
+    common.update_ftp_and_odsp(path_export, 'zrd_gesetzessammlung', '100354')
+
+    get_recent_changes(process_all=True)
+
 
 
 def get_texts_of_law():
@@ -36,24 +37,11 @@ def get_texts_of_law():
     df = df.explode('tols').reset_index()
     df = pd.concat([df.drop(['tols'], axis=1), df['tols'].apply(pd.Series)], axis=1)
 
-    return df
+    # Drop columns that are redundant since they contain no values
 
-
-def get_systematics():
-    r = common.requests_get('http://lexfind/api/fe/de/entities/6/systematics')
-    r.raise_for_status()
-    systematics = r.json()
-    with open(os.path.join(credentials.data_path, 'systematics_BS.json'), 'w') as f:
-        json.dump(systematics, f, indent=2)
-
-    df = pd.DataFrame(systematics).T.reset_index().set_index('index')
-    df.index = pd.to_numeric(df.index, errors='coerce')
-    df['parent'] = pd.to_numeric(df['parent'], errors='coerce')
-
-    for index, row in df.iterrows():
-        df.at[index, 'identifier_full'] = get_full_path(df, index, 'identifier')
-        df.at[index, 'title_full'] = get_full_path(df, index, 'title')
-
+    df = df.drop(columns=[0, 'version_inactive_since'])
+    # Remove brackets in column children
+    df['children'] = df['children'].astype(str).str.replace('[', '').str.replace(']', '')
     return df
 
 
@@ -67,20 +55,20 @@ def get_full_path(df, index, column_name):
         return get_full_path(df, df.at[index, 'parent'], column_name) + "/" + df.at[index, column_name]
 
 
-def get_recent_changes():
+def get_recent_changes(process_all=False):
     r = common.requests_get('http://lexfind/api/fe/de/entities/6/recent-changes')
     r.raise_for_status()
     recent_changes = r.json()
     df_rc = pd.json_normalize(recent_changes, record_path='recent_changes')
+    common.ods_realtime_push_df(df_rc, credentials.push_url)
 
-    for _ in range(3):
+    while True and process_all:
         domain_suffix = recent_changes['next_batch']
         r = common.requests_get('http://lexfind' + domain_suffix)
         r.raise_for_status()
         recent_changes = r.json()
-        df_rc = pd.concat((df_rc, pd.json_normalize(recent_changes, record_path='recent_changes')))
-
-    return df_rc
+        df_rc = pd.json_normalize(recent_changes, record_path='recent_changes')
+        common.ods_realtime_push_df(df_rc, credentials.push_url)
 
 
 if __name__ == '__main__':
