@@ -242,6 +242,7 @@ def get_dataset_status(dataset_uid, creds):
         raise_response_error(response)
     return response.json()['published'], response.json()['name'], response.json()['since']
 
+
 def raise_response_error(response):
     logging.info(f'Received http error {response.status_code}:')
     logging.info(f'Error message: {response.text}')
@@ -328,10 +329,8 @@ def ods_realtime_push_df(df, url, push_key='', delete=False):
         payload = df.to_json(orient="records")
         # logging.info(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        if delete:
-            r = requests_get(url=url, data=payload, params={'pushkey': push_key})
-        else:
-            r = requests_post(url=url, data=payload, params={'pushkey': push_key})
+        # TODO: Fix delete requests, they are throwing 405 Method Not Allowed
+        r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()
         return r
 
