@@ -9,7 +9,7 @@ import common.change_tracking as ct
 from staka_staatskalender import credentials
 
 # References:
-# https://docs.onegovcloud.ch/#api/
+# https://docs.onegovcloud.ch/api/api#agencies-view
 
 
 def main():
