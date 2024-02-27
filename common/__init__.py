@@ -437,7 +437,8 @@ def get_text_from_url(url):
     return io.StringIO(req.text)
 
 
-def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str) -> None:
+def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str, ftp_server=credentials.ftp_server,
+                        ftp_user=credentials.ftp_user, ftp_pass=credentials.ftp_pass) -> None:
     """
     Updates a dataset by uploading it to an FTP server and publishing it into data.bs.ch.
 
@@ -451,8 +452,11 @@ def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str) -> 
         path_export (str): The file path to the dataset that needs to be updated.
         folder_name (str): The name of the folder on the FTP server where the dataset should be uploaded.
         dataset_id (str): The ID of the dataset to be published on data.bs.ch.
+        ftp_server (str): The FTP server address.
+        ftp_user (str): The FTP user name.
+        ftp_pass (str): The FTP password.
     """
     if change_tracking.has_changed(path_export):
-        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, folder_name)
+        common.upload_ftp(path_export, ftp_server, ftp_user, ftp_pass, folder_name)
         odsp.publish_ods_dataset_by_id(dataset_id)
         change_tracking.update_hash_file(path_export)
