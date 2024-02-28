@@ -4,6 +4,7 @@ import os
 import common
 import common.change_tracking as ct
 from aue_umweltlabor import credentials
+import re
 
 dtypes = {
     'Probentyp': 'category',
@@ -23,7 +24,7 @@ dtypes = {
 def main():
     datafilename = 'OGD-Daten.CSV'
     datafile_with_path = os.path.join(credentials.path_orig, datafilename)
-    if True or ct.has_changed(datafile_with_path):
+    if ct.has_changed(datafile_with_path):
         logging.info('Reading data file from ' + datafile_with_path + '...')
         data = pd.read_csv(datafile_with_path, sep=';', na_filter=False, encoding='cp1252', dtype=dtypes)
 
@@ -42,11 +43,10 @@ def main():
         files_to_upload.append(datafilename)
         for filename in files_to_upload:
             file_path = os.path.join(credentials.path_work, filename)
-            if True or ct.has_changed(file_path):
+            if ct.has_changed(file_path):
                 logging.info('Uploading ' + file_path + ' to FTP...')
                 remote_path = ''
-                # if filename ends with fourdigits.csv (use regex)
-                if filename.endswith('gew_rhein_rues_wasser_\\d{4}.csv'):
+                if re.search(r'gew_rhein_rues_wasser_\d{4}\.csv$', filename):
                     remote_path = 'gew_rhein_rues_wasser_years'
                 common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user,
                                   credentials.ftp_pass, remote_path)
