@@ -1,104 +1,100 @@
 import logging
 import pandas as pd
 import os
-import sys
-from shutil import copy2
 import common
 import common.change_tracking as ct
 from aue_umweltlabor import credentials
 
+dtypes = {
+    'Probentyp': 'category',
+    'Probenahmestelle': 'category',
+    'X-Coord': 'category',
+    'Y-Coord': 'category',
+    'Probenahmedauer': 'category',
+    'Reihenfolge': 'category',
+    'Gruppe': 'category',
+    'Auftragnr': 'category',
+    'Probennr': 'category',
+    'Resultatnummer': 'string',
+    'Automatische Auswertung': 'category'
+}
 
-# get name of object, see https://stackoverflow.com/a/592891
-def namestr(obj, namespace):
-    return [name for name in namespace if namespace[name] is obj]
+
+def main():
+    datafilename = 'OGD-Daten.CSV'
+    datafile_with_path = os.path.join(credentials.path_orig, datafilename)
+    if True or ct.has_changed(datafile_with_path):
+        logging.info('Reading data file from ' + datafile_with_path + '...')
+        data = pd.read_csv(datafile_with_path, sep=';', na_filter=False, encoding='cp1252', dtype=dtypes)
+
+        generated_datasets = split_into_datasets(data)
+        gew_rhein_rues_wasser = generated_datasets['gew_rhein_rues_wasser']
+        generated_datasets = create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets)
+        generated_datasets = create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets)
+
+        for dataset_name, dataset in generated_datasets.items():
+            current_filename = dataset_name + '.csv'
+            logging.info("Exporting dataset to " + current_filename + '...')
+            dataset.to_csv(os.path.join(credentials.path_work, current_filename), sep=';', encoding='utf-8',
+                           index=False)
+
+        files_to_upload = [name + '.csv' for name in generated_datasets.keys()]
+        files_to_upload.append(datafilename)
+        for filename in files_to_upload:
+            file_path = os.path.join(credentials.path_work, filename)
+            if True or ct.has_changed(file_path):
+                logging.info('Uploading ' + file_path + ' to FTP...')
+                remote_path = ''
+                # if filename ends with fourdigits.csv (use regex)
+                if filename.endswith('gew_rhein_rues_wasser_\\d{4}.csv'):
+                    remote_path = 'gew_rhein_rues_wasser_years'
+                common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user,
+                                  credentials.ftp_pass, remote_path)
+                ct.update_hash_file(file_path)
+
+        ct.update_hash_file(datafile_with_path)
 
 
-logging.basicConfig(level=logging.DEBUG)
-datafilename = 'OGD-Daten.CSV'
-datafile_with_path = os.path.join(credentials.path_orig, datafilename)
-if ct.has_changed(datafile_with_path):
-    no_file_copy = False
-    if 'no_file_copy' in sys.argv:
-        no_file_copy = True
-        print('Proceeding without copying files to or from working folder...')
-    else:
-        print("Copying file " + datafile_with_path + " to directory " + credentials.path_work)
-        copy2(datafile_with_path, credentials.path_work + datafilename)
-
-    print('Reading data file from ' + credentials.path_work + datafilename + '...')
-    datafile = credentials.path_work + datafilename
-    data = pd.read_csv(datafile, sep=';', na_filter=False, encoding='cp1252', dtype={
-        'Probentyp': 'category',
-        'Probenahmestelle': 'category',
-        'X-Coord': 'category',
-        'Y-Coord': 'category',
-        'Probenahmedauer': 'category',
-        'Reihenfolge': 'category',
-        'Gruppe': 'category',
-        'Auftragnr': 'category',
-        'Probennr': 'category',
-        'Resultatnummer': 'string',
-        'Automatische Auswertung': 'category'
-    })
-
-    print('Calculating new columns...')
-    # replacing spaces with '_' in column names
+def split_into_datasets(data):
+    logging.info('Calculating new columns...')
     data.columns = [column.replace(" ", "_") for column in data.columns]
-    # create new columns
     data['Probenahmedatum_date'] = pd.to_datetime(data['Probenahmedatum'], format='%d.%m.%Y', errors='coerce')
     data['Probenahmejahr'] = data['Probenahmedatum_date'].dt.year
     data.Probenahmejahr = data.Probenahmejahr.fillna(0).astype({'Probenahmejahr': int})
-    # create new column that contains only numeric values of column "Wert"
-    # data['Wert_cleaned_for_num'] = data['Wert'].str.replace('<', '')
     data['Wert_num'] = pd.to_numeric(data['Wert'], errors='coerce')
-    # data = data.drop(columns=['Wert_cleaned_for_num'])
 
-    print('Create independent datasets:')
+    logging.info('Create independent datasets:')
     gew_rhein_rues_fest = data.query('Probenahmestelle == "GEW_RHEIN_RUES" and Probentyp == "FESTSTOFF"')
     gew_rhein_rues_wasser = data.query('Probenahmestelle == "GEW_RHEIN_RUES" and Probentyp == "WASSER"')
     oberflaechengew = data.query('Probentyp == "WASSER" and '
                                  'Probenahmestelle != "GEW_RHEIN_RUES" and '
                                  'Probenahmestelle.str.contains("GEW_")')
     grundwasser = data.query('Probenahmestelle.str.contains("F_")')
-    generated_datasets = [gew_rhein_rues_wasser, gew_rhein_rues_fest, oberflaechengew, grundwasser]
+    return {'oberflaechengew': oberflaechengew, 'grundwasser': grundwasser, 'gew_rhein_rues_fest': gew_rhein_rues_fest, 'gew_rhein_rues_wasser': gew_rhein_rues_wasser}
 
+
+def create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets):
     current_filename = 'gew_rhein_rues_wasser_truncated'
-    print('Creating dataset ' + current_filename + "...")
+    logging.info('Creating dataset ' + current_filename + "...")
     latest_year = gew_rhein_rues_wasser['Probenahmejahr'].max()
     years = [latest_year, latest_year - 1]
     gew_rhein_rues_wasser_truncated = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.isin(years)]
-    generated_datasets.append(gew_rhein_rues_wasser_truncated)
+    generated_datasets[current_filename] = gew_rhein_rues_wasser_truncated
+    return generated_datasets
 
-    year_gew_rhein_rues_wasser = {}
+
+def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets):
     all_years = gew_rhein_rues_wasser['Probenahmejahr'].unique()
     for year in all_years:
-        year_gew_rhein_rues_wasser[year] = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
         current_filename = 'gew_rhein_rues_wasser_' + str(year)
-        print('Creating dataset ' + current_filename + "...")
-        # create variable name for current year
-        dataset_name = 'gew_rhein_rues_wasser_' + str(year)
-        globals()[dataset_name] = year_gew_rhein_rues_wasser[year]
-        generated_datasets.append(globals()[dataset_name])
-        # year_gew_rhein_rues_wasser.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+        logging.info('Creating dataset ' + current_filename + "...")
+        dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
+        generated_datasets[current_filename] = dataset
+    return generated_datasets
 
-    generated_filenames = []
-    for dataset in reversed(generated_datasets):
-        current_filename = namestr(dataset, globals())[0] + '.csv'
-        generated_filenames.append(current_filename)
-        print("Exporting dataset to " + current_filename + '...')
-        dataset.to_csv(credentials.path_work + current_filename, sep=';', encoding='utf-8', index=False)
 
-    if not no_file_copy:
-        ftp_server = credentials.ftp_server
-        ftp_user = credentials.ftp_user
-        ftp_pass = credentials.ftp_pass
-
-        files_to_upload = generated_filenames
-        files_to_upload.append(datafilename)
-        for filename in files_to_upload:
-            if ct.has_changed(credentials.path_work + filename):
-                common.upload_ftp(credentials.path_work + filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
-                ct.update_hash_file(credentials.path_work + filename)
-
-    ct.update_hash_file(datafile_with_path)
-    print('Job successful.')
+if __name__ == "__main__":
+    logging.info(f'Executing {__file__}...')
+    logging.basicConfig(level=logging.DEBUG)
+    main()
+    logging.info('Job successful.')

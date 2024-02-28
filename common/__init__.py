@@ -284,32 +284,33 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
 
 def ods_realtime_push_complete_update(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
     ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key)
-    ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
+    # TODO: Fix delete requests, they are throwing 405 Method Not Allowed
+    # ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
     ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare, push_key)
 
 
 def ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key=''):
     new_rows = change_tracking.find_new_rows(df_old, df_new, id_columns)
-    ods_realtime_push_df(new_rows, url, push_key)
+    batched_ods_realtime_push(new_rows, url, push_key)
 
 
 def ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key=''):
     deleted_rows = change_tracking.find_deleted_rows(df_new, df_old, id_columns)
-    ods_realtime_push_df(deleted_rows, url, push_key, delete=True)
+    batched_ods_realtime_push(deleted_rows, url, push_key, delete=True)
 
 
 def ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
     _, updated_rows = change_tracking.find_modified_rows(df_old, df_new, id_columns, columns_to_compare)
-    ods_realtime_push_df(updated_rows, url, push_key)
+    batched_ods_realtime_push(updated_rows, url, push_key)
 
 
-def batched_ods_realtime_push(df, url, push_key='', chunk_size=1000):
+def batched_ods_realtime_push(df, url, push_key='', chunk_size=1000, delete=False):
     logging.info(f'Pushing a dataframe in chunks of size {chunk_size} to ods...')
     df_chunks = chunked(df.index, chunk_size)
     for df_chunk_indexes in df_chunks:
         logging.info(f'Submitting a data chunk to ODS...')
         df_chunk = df.iloc[df_chunk_indexes]
-        ods_realtime_push_df(df_chunk, url, push_key)
+        ods_realtime_push_df(df_chunk, url, push_key, delete=delete)
 
 
 def ods_realtime_push_df(df, url, push_key='', delete=False):
