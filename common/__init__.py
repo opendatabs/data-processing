@@ -5,16 +5,15 @@ import ftplib
 import time
 import urllib3
 import ssl
-from functools import wraps
 import pandas as pd
 import fnmatch
 import logging
 import dateutil
 from more_itertools import chunked
 
-import common
 from common import credentials
 from common import change_tracking
+from common.retry import retry
 import ods_publish.etl_id as odsp
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -31,51 +30,6 @@ except ImportError:
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
 ftp_errors_to_handle = ftplib.error_temp, ftplib.error_perm, BrokenPipeError, ConnectionResetError, ConnectionRefusedError, EOFError, FileNotFoundError
-
-
-# Source: https://github.com/saltycrane/retry-decorator/blob/master/retry_decorator.py
-# BSD license: https://github.com/saltycrane/retry-decorator/blob/master/LICENSE
-def retry(ExceptionToCheck, tries=4, delay=3, backoff=2, logger=None):
-    """Retry calling the decorated function using an exponential backoff.
-
-    https://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
-    original from: https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
-
-    :param ExceptionToCheck: the exception to check. may be a tuple of
-        exceptions to check
-    :type ExceptionToCheck: Exception or tuple
-    :param tries: number of times to try (not retry) before giving up
-    :type tries: int
-    :param delay: initial delay between retries in seconds
-    :type delay: int
-    :param backoff: backoff multiplier e.g. value of 2 will double the delay
-        each retry
-    :type backoff: int
-    :param logger: logger to use. If None, print
-    :type logger: logging.Logger instance
-    """
-    def deco_retry(f):
-
-        @wraps(f)
-        def f_retry(*args, **kwargs):
-            mtries, mdelay = tries, delay
-            while mtries > 1:
-                try:
-                    return f(*args, **kwargs)
-                except ExceptionToCheck as e:
-                    msg = "%s, Retrying in %d seconds..." % (str(e), mdelay)
-                    if logger:
-                        logger.warning(msg)
-                    else:
-                        print(msg)
-                    time.sleep(mdelay)
-                    mtries -= 1
-                    mdelay *= backoff
-            return f(*args, **kwargs)
-
-        return f_retry  # true decorator
-
-    return deco_retry
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
@@ -222,8 +176,8 @@ def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
 
 def unpublish_ods_dataset(dataset_uid, creds):
     logging.info("Telling OpenDataSoft to unpublish dataset " + dataset_uid + '...')
-    response = common.requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/unpublish',
-                                    headers={'Authorization': f'apikey {creds.api_key}'})
+    response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/unpublish',
+                            headers={'Authorization': f'apikey {creds.api_key}'})
     if not response.ok:
         raise_response_error(response)
 
@@ -236,8 +190,8 @@ def is_unpublished(dataset_uid, creds):
 
 def get_dataset_status(dataset_uid, creds):
     logging.info("Getting status of dataset " + dataset_uid + '...')
-    response = common.requests_get('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/status',
-                                   headers={'Authorization': f'apikey {creds.api_key}'})
+    response = requests_get('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/status',
+                            headers={'Authorization': f'apikey {creds.api_key}'})
     if not response.ok:
         raise_response_error(response)
     return response.json()['published'], response.json()['name'], response.json()['since']

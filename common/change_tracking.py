@@ -1,10 +1,12 @@
 import logging
 import pathlib
+import urllib3
 from hashlib import blake2b
 from filehash import FileHash
 import os
 import time
 import pandas as pd
+from common.retry import retry
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -63,6 +65,7 @@ def get_check_file(filename, folder='', extension='sfv') -> str:
     return check_filename
 
 
+@retry(OSError, tries=6, delay=600, backoff=1)
 def has_changed(filename: str, hash_file_dir='', do_update_hash_file=False, method='hash') -> bool:
     if not os.path.exists(filename):
         raise FileNotFoundError(f'File does not exist: {filename}')
