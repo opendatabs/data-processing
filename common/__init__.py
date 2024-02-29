@@ -11,6 +11,7 @@ import logging
 import dateutil
 from more_itertools import chunked
 
+import common
 from common import credentials
 from common import change_tracking
 from common.retry import retry
