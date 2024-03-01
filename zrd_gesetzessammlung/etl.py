@@ -9,12 +9,12 @@ from zrd_gesetzessammlung import credentials
 
 def main():
     df_tols = get_texts_of_law()
-    path_export = os.path.join(credentials.data_path, '100354_systematics_with_tols.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100354_systematics_with_tols.csv')
     df_tols.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'zrd_gesetzessammlung', '100354')
 
     df_rc = get_recent_changes(process_all=True)
-    path_export = os.path.join(credentials.data_path, '100355_recent_changes.csv')
+    path_export = os.path.join(credentials.data_path, 'export', '100355_recent_changes.csv')
     df_rc.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'zrd_gesetzessammlung', '100355')
 
