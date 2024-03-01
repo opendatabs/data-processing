@@ -4,6 +4,7 @@ import os
 import common
 import common.change_tracking as ct
 from aue_umweltlabor import credentials
+import datetime
 import re
 
 dtypes = {
@@ -47,7 +48,7 @@ def main():
                 logging.info('Uploading ' + file_path + ' to FTP...')
                 remote_path = ''
                 if re.search(r'gew_rhein_rues_wasser_\d{4}\.csv$', filename):
-                    remote_path = 'gew_rhein_rues_wasser_years'
+                    remote_path = 'gew_rhein_rues_wasser_archive'
                 common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user,
                                   credentials.ftp_pass, remote_path)
                 ct.update_hash_file(file_path)
@@ -86,10 +87,13 @@ def create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets):
 def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets):
     all_years = gew_rhein_rues_wasser['Probenahmejahr'].unique()
     for year in all_years:
-        current_filename = 'gew_rhein_rues_wasser_' + str(year)
-        logging.info('Creating dataset ' + current_filename + "...")
+        if year == datetime.datetime.now().year:
+            filename = 'gew_rhein_rues_wasser_current_year'
+        else:
+            filename = 'gew_rhein_rues_wasser_' + str(year)
+        logging.info('Creating dataset ' + filename + "...")
         dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
-        generated_datasets[current_filename] = dataset
+        generated_datasets[filename] = dataset
     return generated_datasets
 
 
