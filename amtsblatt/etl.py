@@ -14,11 +14,28 @@ from amtsblatt import credentials
 
 
 def main():
-    df = iterate_over_years()
-    df = add_columns(df)
-    path_export = os.path.join(credentials.data_path, 'export', '100352_amtsblatt.csv')
-    df.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, 'amtsblatt', '100352')
+    # process the last pages
+    process_everything = False
+    if process_everything:
+        df = iterate_over_years()
+        path_export = os.path.join(credentials.data_path, 'export', '100352_amtsblatt.csv')
+        df.to_csv(path_export, index=False)
+        common.update_ftp_and_odsp(path_export, 'amtsblatt', '100352')
+        return
+    iterate_over_newest_pages()
+
+
+def iterate_over_newest_pages(pages=10):
+    base_url = 'https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS'
+    url = f'{base_url}&pageRequest.page=0'
+    for page in range(pages):
+        logging.info(f'Getting data from {url}...')
+        r = common.requests_get(url)
+        r.raise_for_status()
+        df_curr_page = pd.read_csv(io.StringIO(r.content.decode('utf-8')), sep=';')
+        df_curr_page = add_columns(df_curr_page)
+        common.ods_realtime_push_df(df_curr_page, credentials.push_url)
+        url = f'{base_url}&pageRequest.page={page+1}'
 
 
 def iterate_over_years():
@@ -49,6 +66,8 @@ def iterate_over_pages(year, month):
         df_curr_page = pd.read_csv(io.StringIO(r.content.decode('utf-8')), sep=';')
         if df_curr_page.empty:
             break
+        df_curr_page = add_columns(df_curr_page)
+        common.ods_realtime_push_df(df_curr_page, credentials.push_url)
         df = pd.concat([df, df_curr_page])
         page = page + 1
         next_page = f'{url}&pageRequest.page={page}'
@@ -59,7 +78,6 @@ def add_columns(df):
     df['url_kantonsblatt'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/#!/search/publications/detail/{x}')
     df['url_pdf'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf')
     df['url_xml'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/xml')
-    ''' Leave out for now
     df['content'] = ''
     df['attachments'] = ''
     for index, row in df.iterrows():
@@ -68,8 +86,7 @@ def add_columns(df):
         content = root.find('content')
         attach = root.find('attachments')
         df.at[index, 'content'] = ET.tostring(content, encoding='utf-8') if content is not None else ''
-        df.at[index, 'attachments'] = ET.tostring(attach, encoding='utf-8') if attach is not None else ''$
-    '''
+        df.at[index, 'attachments'] = ET.tostring(attach, encoding='utf-8') if attach is not None else ''
     return df
 
 
