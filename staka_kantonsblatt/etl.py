@@ -6,7 +6,7 @@ import datetime
 import xml.etree.ElementTree as ET
 
 import common
-from amtsblatt import credentials
+from staka_kantonsblatt import credentials
 
 
 # References:
@@ -14,13 +14,13 @@ from amtsblatt import credentials
 
 
 def main():
-    # process the last pages
-    process_everything = False
+    # process the last pages or every available article?
+    process_everything = True
     if process_everything:
         df = iterate_over_years()
-        path_export = os.path.join(credentials.data_path, 'export', '100352_amtsblatt.csv')
+        path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
         df.to_csv(path_export, index=False)
-        common.update_ftp_and_odsp(path_export, 'amtsblatt', '100352')
+        common.update_ftp_and_odsp(path_export, 'staka_kantonsblatt', '100352')
         return
     iterate_over_newest_pages()
 
