@@ -4,7 +4,7 @@ import json
 import pandas as pd
 
 import common
-from zri_gesetzessammlung import credentials
+from zrd_gesetzessammlung import credentials
 
 
 def main():
