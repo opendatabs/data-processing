@@ -4,17 +4,19 @@ import urllib3
 import os
 import pandas as pd
 import common
-import json
+from common import retry
 from requests.auth import HTTPBasicAuth
 from functools import reduce
 from bafu_hydrodaten import credentials
 
 
+@retry(common.http_errors_to_handle, tries=5, delay=60, backoff=2)
 def process_river(river_files, river_name, river_id, variable_names, push_url):
     print('Loading data into data frames...')
     dfs = []
     for file in river_files:
-        response = common.requests_get(f'{credentials.https_url}/{file}', auth=HTTPBasicAuth(credentials.https_user, credentials.https_pass), stream=True)
+        response = common.requests_get(f'{credentials.https_url}/{file}',
+                                       auth=HTTPBasicAuth(credentials.https_user, credentials.https_pass), stream=True)
         df = pd.read_csv(response.raw, parse_dates=True, infer_datetime_format=True)
         dfs.append(df)
     print(f'Merging data frames...')
@@ -51,7 +53,8 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
     print(f'Exporting data to {merged_filename}...')
     merged_df.to_csv(merged_filename, columns=columns_to_export, index=False)
     ftp_remote_dir = credentials.ftp_remote_dir.replace('river_id', river_id)
-    common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+    common.upload_ftp(merged_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      ftp_remote_dir)
     urllib3.disable_warnings()
     # print(f'Retrieving latest record from ODS...')
     # r = common.requests_get(url='https://data.bs.ch/api/records/1.0/search/?dataset=100089&q=&rows=1&sort=timestamp', verify=False)
@@ -84,10 +87,19 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
 
 
 def main():
-    process_river(river_files=credentials.rhein_files, river_name='Rhein', river_id='2289', variable_names={'abfluss': 'BAFU_2289_AbflussRadar', 'pegel': 'BAFU_2289_PegelRadar'}, push_url=credentials.rhein_ods_live_push_api_url)
-    process_river(river_files=credentials.birs_files, river_name='Birs', river_id='2106', variable_names={'abfluss': 'BAFU_2106_AbflussRadar', 'pegel': 'BAFU_2106_PegelRadar', 'temperatur': 'BAFU_2106_Wassertemperatur'}, push_url=credentials.birs_ods_live_push_api_url)
-    process_river(river_files=credentials.wiese_files, river_name='Wiese', river_id='2199', variable_names={'abfluss': 'BAFU_2199_AbflussRadarSchacht', 'pegel': 'BAFU_2199_PegelRadarSchacht'}, push_url=credentials.wiese_ods_live_push_api_url)
-    process_river(river_files=credentials.rhein_klingenthal_files, river_name='Rhein_Klingenthal', river_id='2615', variable_names={'pegel': 'BAFU_2615_PegelPneumatik'}, push_url=credentials.rhein_klingenthal_ods_live_push_api_url)
+    process_river(river_files=credentials.rhein_files, river_name='Rhein', river_id='2289',
+                  variable_names={'abfluss': 'BAFU_2289_AbflussRadar', 'pegel': 'BAFU_2289_PegelRadar'},
+                  push_url=credentials.rhein_ods_live_push_api_url)
+    process_river(river_files=credentials.birs_files, river_name='Birs', river_id='2106',
+                  variable_names={'abfluss': 'BAFU_2106_AbflussRadar', 'pegel': 'BAFU_2106_PegelRadar',
+                                  'temperatur': 'BAFU_2106_Wassertemperatur'},
+                  push_url=credentials.birs_ods_live_push_api_url)
+    process_river(river_files=credentials.wiese_files, river_name='Wiese', river_id='2199',
+                  variable_names={'abfluss': 'BAFU_2199_AbflussRadarSchacht', 'pegel': 'BAFU_2199_PegelRadarSchacht'},
+                  push_url=credentials.wiese_ods_live_push_api_url)
+    process_river(river_files=credentials.rhein_klingenthal_files, river_name='Rhein_Klingenthal', river_id='2615',
+                  variable_names={'pegel': 'BAFU_2615_PegelPneumatik'},
+                  push_url=credentials.rhein_klingenthal_ods_live_push_api_url)
 
 
 if __name__ == "__main__":
