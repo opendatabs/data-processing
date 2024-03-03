@@ -45,8 +45,9 @@ def main():
                     what_changed = make_datasets_public(active_abst, active_files, what_changed)
                     common.ods_realtime_push_df(df_details, credentials.push_url_details_public)
                     common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_public)
+                if data_files_changed:
+                    send_update_email(what_changed)
 
-                send_update_email(what_changed)
     elif active_active_size == 0:
         logging.info(f'No active Abstimmung, nothing to do for the moment. ')
     elif active_active_size > 1:
