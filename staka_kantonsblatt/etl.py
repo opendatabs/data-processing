@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 import datetime
 import xml.etree.ElementTree as ET
+import requests
 
 import common
 from staka_kantonsblatt import credentials
@@ -15,7 +16,7 @@ from staka_kantonsblatt import credentials
 
 def main():
     # process the last pages or every available article?
-    process_everything = False
+    process_everything = True
     if process_everything:
         df = iterate_over_years()
         path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
@@ -81,19 +82,24 @@ def add_columns(df):
     df['content'] = ''
     df['attachments'] = ''
     for index, row in df.iterrows():
-        xml_content = get_content_from_xml(row['url_xml'])
-        root = ET.fromstring(xml_content)
-        content = root.find('content')
-        attach = root.find('attachments')
+        content, attachments = get_content_from_xml(row['url_xml'])
         df.at[index, 'content'] = ET.tostring(content, encoding='utf-8') if content is not None else ''
-        df.at[index, 'attachments'] = ET.tostring(attach, encoding='utf-8') if attach is not None else ''
+        df.at[index, 'attachments'] = ET.tostring(attachments, encoding='utf-8') if attachments is not None else ''
     return df
 
 
 def get_content_from_xml(url):
-    r = common.requests_get(url)
-    r.raise_for_status()
-    return r.text
+    try:
+        r = common.requests_get(url)
+        r.raise_for_status()
+        xml_content = r.text
+        root = ET.fromstring(xml_content)
+        content = root.find('content')
+        attachments = root.find('attachments')
+    except requests.exceptions.HTTPError as err:
+        logging.error(f"HTTP error occurred: {err}")
+        return None, None
+    return content, attachments
 
 
 if __name__ == '__main__':
