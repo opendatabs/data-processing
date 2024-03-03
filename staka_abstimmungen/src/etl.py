@@ -46,7 +46,7 @@ def main():
                     common.ods_realtime_push_df(df_details, credentials.push_url_details_public)
                     common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_public)
 
-            send_update_email(what_changed)
+                send_update_email(what_changed)
     elif active_active_size == 0:
         logging.info(f'No active Abstimmung, nothing to do for the moment. ')
     elif active_active_size > 1:
@@ -83,6 +83,7 @@ def filter_files_by_date(files):
     today = datetime.now().date()
     # Filter out files with a date in the future
     return [file for file in files if parse_date_from_filename(file) and parse_date_from_filename(file) <= today]
+
 
 def send_update_email(what_changed):
     text = ''
