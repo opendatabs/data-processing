@@ -16,7 +16,7 @@ from staka_kantonsblatt import credentials
 
 def main():
     # process the last pages or every available article?
-    process_everything = True
+    process_everything = False
     if process_everything:
         df = iterate_over_years()
         path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
