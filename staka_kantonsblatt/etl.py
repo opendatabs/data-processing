@@ -21,7 +21,7 @@ def main():
         df = iterate_over_years()
         path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
         df.to_csv(path_export, index=False)
-        common.update_ftp_and_odsp(path_export, 'staka_kantonsblatt', '100352')
+        common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100352')
         return
     iterate_over_newest_pages()
 
