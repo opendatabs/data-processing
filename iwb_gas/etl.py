@@ -47,6 +47,7 @@ def main():
         odsp.publish_ods_dataset_by_id('100304')
         ct.update_hash_file(path_export)
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
