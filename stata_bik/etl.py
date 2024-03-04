@@ -21,7 +21,7 @@ def main():
     if embargo > datetime.datetime.now():
         logging.info('Embargo is not over yet.')
         return
-
+    logging.info("Embargo is over in this month")
     common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                         'bik', credentials.data_path, 'bik_full.csv')
     path_import = os.path.join(credentials.data_path, 'bik_full.csv')
