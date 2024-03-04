@@ -15,9 +15,9 @@ def main():
     df_embargo = df_calendar[df_calendar['EMBARGO'].notnull()]['EMBARGO']
     df_embargo = pd.to_datetime(df_embargo, format='%Y-%m-%d %H:%M:%S')
     df_embargo = df_embargo + pd.Timedelta(hours=9)
-    if df_embargo[df_embargo.dt.month == datetime.datetime.now().month].empty:
-        raise ValueError('No embargo date found for this month. Please add it to the calendar.')
-    embargo = df_embargo[df_embargo.dt.month == datetime.datetime.now().month].iloc[0]
+    if df_embargo[(df_embargo.dt.month == datetime.datetime.now().month) & (df_embargo.dt.year == datetime.datetime.now().year)].empty:
+        raise ValueError('No embargo date found for this month and year. Please add it to the calendar.')
+    embargo = df_embargo[(df_embargo.dt.month == datetime.datetime.now().month) & (df_embargo.dt.year == datetime.datetime.now().year)].iloc[0]
     if embargo > datetime.datetime.now():
         logging.info('Embargo is not over yet.')
         return
