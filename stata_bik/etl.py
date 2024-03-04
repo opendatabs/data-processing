@@ -10,7 +10,7 @@ from stata_bik import credentials
 
 
 def main():
-    df_calendar = pd.read_excel(os.path.join(credentials.data_path, 'Kopie von RIK Kalender 2024.xlsx'),
+    df_calendar = pd.read_excel(os.path.join(credentials.data_orig_path, 'RIK Kalender.xlsx'),
                                 sheet_name='Daten LIK 2023', skiprows=2)
     df_embargo = df_calendar[df_calendar['EMBARGO'].notnull()]['EMBARGO']
     df_embargo = pd.to_datetime(df_embargo, format='%Y-%m-%d %H:%M:%S')
