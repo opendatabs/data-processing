@@ -39,12 +39,43 @@ def get_texts_of_law():
     df = df.explode('tols').reset_index()
     df = pd.concat([df.drop(['tols'], axis=1), df['tols'].apply(pd.Series)], axis=1)
 
-    # Drop columns that are redundant since they contain no values
+    # Scrap texts of law
+    for index, row in df[df['original_url_de'].notna()].iterrows():
+        df.at[index, 'text_of_law'] = get_text_of_law(df.at[index, 'original_url_de'])
 
+    # Drop columns that are redundant since they contain no values
     df = df.drop(columns=[0, 'version_inactive_since'])
     # Remove brackets in column children
     df['children'] = df['children'].astype(str).str.replace('[', '').str.replace(']', '')
     return df
+
+
+def get_text_of_law(url):
+    url = url.replace('/de', '/show_as_json').replace('/data/', '/api/de/texts_of_law/')
+    r = common.requests_get(url)
+    r.raise_for_status()
+    text_of_law = r.json()
+    if text_of_law['text_of_law']['selected_version']['json_content']:
+        return extract_html_content(text_of_law['text_of_law']['selected_version']['json_content']['document'])
+    else:
+        return ''
+
+
+# Function to recursively extract HTML content and concatenate it into a single string
+def extract_html_content(data):
+    html_content = ''
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == 'html_content':
+                if isinstance(value, dict):
+                    # Assuming the language of interest is German ('de')
+                    html_content += value.get('de', '') + '\n'
+            else:
+                html_content += extract_html_content(value)
+    elif isinstance(data, list):
+        for item in data:
+            html_content += extract_html_content(item)
+    return html_content
 
 
 # Function to recursively get full title and identifier
