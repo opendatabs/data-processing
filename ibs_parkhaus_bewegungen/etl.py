@@ -1,10 +1,7 @@
 import logging
 import os
 import pathlib
-import zoneinfo
-import zoneinfo
 import pandas as pd
-import xlrd
 import ods_publish.etl_id as odsp
 import common
 from ibs_parkhaus_bewegungen import credentials
