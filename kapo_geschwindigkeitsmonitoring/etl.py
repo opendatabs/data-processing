@@ -52,7 +52,8 @@ def main():
     logging.info(f'{num_ignored} entries ignored due to missing date!')
     df_meta_raw = df_meta_raw[df_meta_raw['Messbeginn'].notna()]
     df_meta_raw['messbeginn_jahr'] = df_meta_raw.Messbeginn.astype(str).str.slice(0, 4).astype(int)
-    df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100097')
+    df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2024,
+                                         np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100358'), '100097')
     df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw[
         'dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
 
@@ -192,6 +193,7 @@ def create_measurements_df(df_meta_raw):
                               password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             odsp.publish_ods_dataset_by_id('100097')
             odsp.publish_ods_dataset_by_id('100200')
+            odsp.publish_ods_dataset_by_id('100358')
             ct.update_hash_file(all_data_filename)
 
         return all_df
