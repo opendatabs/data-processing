@@ -16,9 +16,15 @@ def main():
     for entry in credentials.data_files:
         file_name = os.path.join(credentials.data_file_root, entry['file_name'])
         logging.info(f'Parsing file {file_name}...')
-        df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
+        if file_name.endswith('.xls'):
+            df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, engine='xlrd',
+                               names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
+        else:
+            df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, engine='openpyxl',
+                               names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
         df = df.dropna(subset=['ausfahrten'])
-        df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%d %H:%M:%S').dt.tz_localize(tz='Europe/Zurich', ambiguous=True).dt.tz_convert('UTC')
+        df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%d %H:%M:%S').dt.tz_localize(
+            tz='Europe/Zurich', ambiguous=True).dt.tz_convert('UTC')
         logging.info(f'Adding rows with no data...')
         df = df.set_index('timestamp').asfreq('1H').reset_index()
         df[['einfahrten', 'ausfahrten']] = df[['einfahrten', 'ausfahrten']].fillna(0)
@@ -29,7 +35,8 @@ def main():
     export_filename = os.path.join(pathlib.Path(__file__).parent, 'data', 'parkhaus_bewegungen.csv')
     all_df.to_csv(export_filename, index=False)
     if ct.has_changed(export_filename):
-        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, credentials.ftp_path)
+        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          credentials.ftp_path)
         odsp.publish_ods_dataset_by_id('100198')
         ct.update_hash_file(export_filename)
     pass
