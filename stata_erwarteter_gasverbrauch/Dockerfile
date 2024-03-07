@@ -43,7 +43,7 @@ RUN install2.r \
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_gasverbrauch/Gasverbrauch_OGD.R"]
 
 # Docker commands to create image and run container:
-# cd stata_erwarteter_stromverbrauch
-# docker build -t stromverbrauch .
+# cd stata_erwarteter_gasverbrauch
+# docker build -t gasverbrauch .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/Stromverbrauch:/code/data-processing/stata_erwarteter_stromverbrauch/data/export --name stromverbrauch stromverbrauch
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/Gasverbrauch:/code/data-processing/stata_erwarteter_gasverbrauch/data/export --name gasverbrauch gasverbrauch
