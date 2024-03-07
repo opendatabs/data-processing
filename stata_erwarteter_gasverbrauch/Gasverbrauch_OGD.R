@@ -33,9 +33,6 @@ new_line <- 'Europe%2FBerlin", use_proxy(paste0(pw[system=="internet", login], "
 modified_script <- gsub(old_line, new_line, modified_script, fixed = TRUE)
 
 modified_script <- gsub("100358_gasverbrauch.csv", "data/export/100358_gasverbrauch.csv", modified_script, fixed=TRUE)
-# Remove everything with knitr
-modified_script <- gsub("knitr::", "#knitr::", modified_script, fixed=TRUE)
-modified_script <- gsub("library(knitr)", "#library(knitr)", modified_script, fixed=TRUE)
 
 writeLines(modified_script, "OL_Gasverbrauch.R")
 
