@@ -32,13 +32,13 @@ RUN install2.r \
     data.table \
     dplyr \
     lubridate \
-    knitr \
     highcharter \
     DT \
     caret \
     tibble \
     rsample \
-    jtools
+    jtools \
+    -e knitr
 
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_gasverbrauch/Gasverbrauch_OGD.R"]
 
