@@ -1,0 +1,336 @@
+---
+title: "Erwarteter Gasverbrauch im Kanton Basel-Stadt"
+author: "José A.F. Monteiro, Joëlle Velvart und Tobias Erhardt"
+date: "06.12.2023 (letzte Veränderung am `r format(Sys.time(), '%d.%m.%Y')`)" 
+output: bookdown::html_document2
+---
+
+```{r setup, include = FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, echo=TRUE)
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark=" ")
+})
+```
+
+<br>
+<br>
+
+# Libraries
+
+```{r message=FALSE, warning=FALSE}
+
+library(httr)
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(knitr)
+library(highcharter)
+library(DT)
+library(caret)
+library(tibble) 
+library(rsample)   
+library(jtools)
+
+```
+
+<br>
+<br>
+
+# Daten importieren und vorbereiten
+
+## Meteorologische Daten
+
+```{r message=FALSE, warning=FALSE}
+
+fread("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_previous.csv", sep = ";", colClasses = c("character", "Date", rep("numeric", 10))) %>%
+  mutate(
+    timestamp = as.POSIXct(
+      paste0(substr(date, 1, 4), "-", substr(date, 5, 6), "-", substr(date, 7, 8), " 00:00:00"),
+      format="%Y-%m-%d %H:%M:%S"
+    )
+  ) %>%
+  mutate_at(c("gre000d0", "hto000d0", "nto000d0", "prestad0", "rre150d0", "sre000d0", "tre200d0", "tre200dn", "tre200dx", "ure200d0"), as.numeric) %>%
+  bind_rows(
+    fread("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_current.csv", sep = ";", colClasses = c("character", "Date", rep("numeric", 10))) %>%
+      mutate(
+        timestamp = as.POSIXct(
+          paste0( substr(date, 1, 4), "-", substr(date, 5, 6), "-", substr(date, 7, 8), " 00:00:00"),
+          format="%Y-%m-%d  %H:%M:%S", tz="Europe/Berlin"
+        )
+      ) %>%
+      mutate_at(c("gre000d0", "hto000d0", "nto000d0", "prestad0", "rre150d0", "sre000d0", "tre200d0", "tre200dn", "tre200dx", "ure200d0"), as.numeric)
+  ) %>%
+  relocate(timestamp) %>%
+  select(-c(date, `station/location`)) %>%
+  mutate(
+    year = as.numeric(substr(timestamp, 1, 4)),
+    month = as.numeric(substr(timestamp, 6, 7)),
+    day = as.numeric(substr(timestamp, 9, 10))
+  ) %>%
+  data.frame() %>%
+  assign("meteo", ., inherits = TRUE)
+
+```
+
+<br>
+<br>
+
+
+## Feiertage, Ferien und Veranstaltungen
+
+```{r message=FALSE, warning=FALSE}
+
+httr::GET("https://data.bs.ch/explore/dataset/100074/download/?format=csv&timezone=Europe%2FBerlin") %>%
+  content(., "text") %>%
+  fread(sep=";") %>%
+  select(tag_datum, name, code, kategorie_name) %>%
+  filter(name != "Fasnachtsmontag", name != "Fasnachtsmittwoch", name != "Dies Academicus") %>%
+  filter(!(tag_datum == "2008-05-01 00:00:00" & name == "Tag der Arbeit")) %>% # Tag der Arbeit doubles with Auffahrt
+  filter(kategorie_name %in% c("Feiertag", "Ferien") | code == "herbstm") %>%
+  filter(name != "Semesterferien") %>%
+  assign("rd_veranst", ., inherits = TRUE)
+
+rd_veranst %>%
+  data.frame() %>%
+  mutate(Herbstmesse = if_else(code == "herbstm", "Herbstmesse", "")) %>%
+  select(tag_datum, Herbstmesse) %>%
+  filter(Herbstmesse != "") %>%
+  full_join(
+    rd_veranst %>%
+      mutate(Feiertage = if_else(kategorie_name == "Feiertag", name, "")) %>%
+      select(tag_datum, Feiertage) %>%
+      filter(Feiertage != ""),
+    by = "tag_datum"
+  ) %>%
+  full_join(
+    rd_veranst %>%
+      mutate(Ferien = if_else(kategorie_name == "Ferien", name, "")) %>%
+      select(tag_datum, Ferien) %>%
+      filter(Ferien != ""),
+    by = "tag_datum"
+  ) %>%
+  mutate(timestamp = as.POSIXct(tag_datum, tz="Europe/Berlin")) %>%
+  filter(year(timestamp) > 2011) %>%
+  select(timestamp, Herbstmesse, Feiertage, Ferien) %>%
+  mutate(
+    year = lubridate::year(timestamp), 
+    month = lubridate::month(lubridate::floor_date(timestamp, "month")),
+    day = lubridate::day(lubridate::floor_date(timestamp, "day"))
+  ) %>%
+  data.frame() %>%
+  assign("Veranstaltungen", ., inherits = TRUE)
+
+rm(events, rd_veranst)
+
+```
+
+<br>
+<br>
+
+## Gasverbrauchs-Daten
+
+```{r message=FALSE, warning=FALSE}
+
+httr::GET("https://data.bs.ch/explore/dataset/100304/download/?format=csv&timezone=Europe%2FBerlin")  %>%
+  content(., "text") %>%
+  fread(sep=";") %>%
+  group_by(year, month, day) %>%
+  filter(year > 2011) %>%
+  summarise(Gasverbrauch = sum(value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(timestamp = as.POSIXct(
+    paste0(year, "-", month, "-", day, " 00:00:00"), format="%Y-%m-%d  %H:%M:%S", tz="Europe/Berlin"
+    )
+  ) %>%
+  mutate(Gasverbrauch=Gasverbrauch/1000000) %>%
+  relocate(timestamp) %>%
+  assign("gas_daily", ., inherits = TRUE)
+
+
+```
+
+<br>
+<br>
+
+## Datensätze zusammenfügen
+
+```{r message=FALSE, warning=FALSE}
+meteo %>%
+  full_join(Veranstaltungen %>%
+              select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
+  full_join(gas_daily %>%
+              select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
+  mutate(weekday = lubridate::wday(timestamp, label = TRUE, abbr = TRUE, locale="German_Germany"),
+         daytype = if_else(weekday %in% c("So", "Sa"), "Wochenende", "Werktage")) %>%
+  relocate(timestamp, Gasverbrauch) %>%
+  mutate(HGT = if_else(tre200d0 <= 12, 20-tre200d0, 0)) %>%
+  mutate(Herbstmesse = if_else(is.na(Herbstmesse), "No", Herbstmesse),
+         Feiertage = if_else(is.na(Feiertage), "No", Feiertage),
+         Ferien = if_else(is.na(Ferien), "No", Ferien)) %>%
+  mutate(time = as.Date(timestamp, tz = 'Europe/Berlin')) %>%
+  select(-timestamp) %>%
+  relocate(time) %>%
+  slice(1:(n() - 1)) %>%              # Unvollständigen Tag für den Gasverbrauch entfernen.
+  filter(time >= as.Date("2021-09-01"), !is.na(Gasverbrauch)) %>%
+  assign("Data", ., inherits = TRUE)
+
+# Variable für Energiespar-Kampagnen
+start_date= as.Date("2022-09-01")
+end_date= as.Date("2023-01-31")
+
+Data %>%
+  mutate(time = as.Date(time),
+         Feiertage_dummy = if_else(Feiertage == "No", 0, 1),
+         Ferien_dummy = if_else(Ferien == "No", 0, 1),
+         Herbstmesse_dummy = if_else(Herbstmesse == "No", 0, 1),
+         Wochenende_dummy = if_else(daytype == "Werktage", 0, 1),
+         Energiespar_Kampagnen = ifelse(as.Date(time) %within% interval(start_date, end_date), 1,0),
+         year_month = paste(year, 
+                            formatC(month, width = 2, format = "d", flag = "0"),
+                            sep="-"),
+         Energiespar_Kampagnen_monatlich = ifelse(Energiespar_Kampagnen == 1, as.character(year_month), "0")
+  ) %>% assign("Data_selec", ., inherits = TRUE)
+
+```
+
+<br>
+<br>
+
+# OLS Regression
+
+```{r message=FALSE, warning=FALSE}
+set.seed(1234)
+
+Data_selec_model <- Data_selec %>%
+  filter(time < as.Date("2023-08-01"))
+Data_selec_prognose <- Data_selec %>%
+  filter(time >= as.Date("2023-08-01"))
+
+tab_split <- initial_split(Data_selec_model, prop = .7)
+tab_train <- training(tab_split) 
+tab_test  <- testing(tab_split) 
+
+tab_train %>%
+  mutate(Ettape = "training") %>%
+  bind_rows(tab_test %>%
+              mutate(Ettape = "testing")) %>%
+  bind_rows(Data_selec_prognose %>%
+              mutate(Ettape = "prognose")) %>%
+  arrange(time) -> Data_model_ols
+
+
+model_ols <- lm(Gasverbrauch ~ time + as.factor(month) + factor(weekday, ordered=F) +
+                  as.factor(Ferien_dummy) + as.factor(Feiertage_dummy) + as.factor(Herbstmesse_dummy) +
+                  gre000d0 + tre200d0 + ure200d0 +
+                  Energiespar_Kampagnen +
+                  I(tre200d0^2), data = tab_train)
+
+tab_train %>%
+  mutate(pred = predict(model_ols, tab_train)) %>%
+  select(obs = Gasverbrauch, pred) %>%
+  defaultSummary() %>%
+  c(c(Ettape = "Train"), .) %>%
+  bind_rows(
+    tab_test %>%
+      mutate(pred = predict(model_ols, tab_test)) %>%
+      select(obs = Gasverbrauch, pred) %>%
+      defaultSummary() %>%
+      c(c(Ettape = "Test"), .)
+  ) %>%
+  bind_rows(
+    Data_selec_prognose %>%
+      mutate(pred = predict(model_ols, Data_selec_prognose)) %>%
+      select(obs = Gasverbrauch, pred) %>%
+      defaultSummary() %>%
+      c(c(Ettape = "Prognose"), .)
+  ) -> summary_ols
+
+
+summ(model_ols,
+     model.info	= F,
+     model.fit = F,
+     digits = getOption("jtools-digits", 3),
+     stars = T,
+     robust=T
+
+)
+
+summary_ols %>%
+  as.list() %>%
+  as.tibble() %>%
+  datatable(options=list(dom = 'Brt')) %>%
+  formatStyle( 0, target= 'row', lineHeight='60%') %>%
+  formatRound(columns = c(2:4), digits = 3) 
+
+
+```
+
+<br>
+<br>
+
+```{r}
+
+Data_model_ols %>%
+  bind_cols(
+    predict(model_ols, Data_model_ols, interval = "prediction") 
+  ) %>%
+  slice(1:(n() - 1)) -> Data_model_ols
+
+highchart(type = "stock") %>%
+  hc_add_series(Data_model_ols, "line", hcaes(time, Gasverbrauch), color = "#008AC3",
+                tooltip = list(pointFormat = "Effektiver Gasverbrauch: {point.Gasverbrauch:.2f} GWh",
+                               shared = TRUE),
+                zIndex = 1) %>%
+  hc_xAxis(title = list(text = "")) %>%
+  hc_add_series(Data_model_ols, "line", hcaes(time, fit), color = "#B375AB",
+                tooltip = list(pointFormat = "Erwarteter Gasverbrauch: {point.fit:.2f} GWh",
+                               shared = TRUE),
+                zIndex = 2) %>%
+  hc_add_series(Data_model_ols, type = "arearange",
+                hcaes(x = time, low = lwr, high = upr),
+                zIndex = 0,
+                color = "#E7CEE2",
+                tooltip = list(pointFormat = "95% Konfidenzintervall: {point.lwr:.2f} - {point.upr:.2f} GWh"), shared = TRUE
+  ) %>%
+  hc_yAxis(floor=0, title = list(text = ""), opposite = FALSE) %>%
+  hc_plotOptions(series = list(marker = list(enabled = FALSE))) %>%
+  hc_rangeSelector(selected = 0)
+
+
+```
+
+```{r}
+
+write.csv2(Data_model_ols %>%
+             mutate(vgl_real_minus_forecast = Gasverbrauch - fit) %>%
+             select(
+               time,
+               Gasverbrauch,
+               forecast = fit,
+               vgl_real_minus_forecast,
+               forecast_lowFI = lwr,
+               forecast_highFI = upr,
+               traintestorforecast = Ettape
+             ), 
+           "100353_gasverbrauch.csv", row.names=F, na = "") 
+
+```
+
+<br>
+<br>
+<br>
+
+> **_Hinweis:_**  Je nach Kombination von Betriebssystemen und Versionen von RStudio, R und den verwendeten Pakete können die Ergebnisse leicht von den publizierten Resultaten abweichen. Grund dafür sind Unterschiede am Zufalls-Generator für die Prognose des Modells. Die angewendete Konfiguration lautet:
+
+<br>
+
+```{r }
+
+sessionInfo()
+
+```
+
+
+
+
+
