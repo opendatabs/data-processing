@@ -37,9 +37,8 @@ RUN install2.r \
     caret \
     tibble \
     rsample \
-    jtools
-
-RUN Rscript -e "install.packages('knitr')"
+    jtools \
+    knitr
 
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_gasverbrauch/Gasverbrauch_OGD.R"]
 
