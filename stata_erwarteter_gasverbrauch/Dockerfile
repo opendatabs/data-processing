@@ -1,7 +1,7 @@
 FROM rocker/rstudio:4.2.1
 #FROM rocker/r-base
 ## Using a base image with R4.2.1 and RSTUDIO_VERSION=2022.07.2+576
-WORKDIR /code/data-processing
+WORKDIR /code/data-processing/stata_erwarteter_gasverbrauch
 
 RUN apt-get update && apt-get install -y \
     sudo \
