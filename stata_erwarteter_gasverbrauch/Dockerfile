@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     r-cran-rstan \
     libxml2-dev \
-    default-jdk
+    default-jdk \
+    libglpk-dev
 
 
 ## Explicitly setting my default RStudio Package Manager Repo
