@@ -8,6 +8,7 @@ import common
 import common.change_tracking as ct
 from staka_staatskalender import credentials
 
+
 # References:
 # https://docs.onegovcloud.ch/api/api#agencies-view
 
@@ -44,16 +45,18 @@ def get_agencies(token):
         df.at[index, 'title_full'] = get_full_path(df, index, 'title')
         if not pd.isna(df.at[index, 'parent']) and df.at[index, 'parent_id'] in df.index:
             df.at[df.at[index, 'parent_id'], 'children_id'].append(index)
-
+        if 'lat' in df.at[index, 'geo_location'] and df.at[index, 'geo_location']['lat'] is not None:
+            df.at[index, 'geo_location'] = str(df.at[index, 'geo_location']['lat']) + ',' + \
+                                           str(df.at[index, 'geo_location']['lon'])
+        else:
+            df.at[index, 'geo_location'] = ''
     df['children_id'] = df['children_id'].astype(str).str.replace('[', '').str.replace(']', '')
     df['parent_id'] = df['parent_id'].astype(str).str.replace('.0', '')
     # Create urls to Staatskalender
     df['url_website'] = df['href'].str.replace('/api/agencies/', '/organizations?browse=')
-    df['filter_by_parent'] = f"https://data.bs.ch/explore/dataset/100349?refine.id={df['parent_id']}"
-    df['filtren_by_children'] = f"https://data.bs.ch/explore/dataset/100349?refine.id={df['children_id'].replace(', ', '&refine.id=')}"
-    df['geo_location'] = df['geo_location'].str.replace("{'lon': None, 'lat': None, 'zoom': None}", '')
-    # Replace , 'zoom':(anything) with }
-    df['geo_location'] = df['geo_location'].str.replace(r", 'zoom':.*?}", '}')
+    df['filter_by_parent'] = f"https://data.bs.ch/explore/dataset/100349?refine.id=" + df['parent_id']
+    df['filtren_by_children'] = f"https://data.bs.ch/explore/dataset/100349?refine.id=" + df['children_id'].str.replace(
+        ', ', '&refine.id=')
     path_export = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
     df.to_csv(path_export, index=True)
     return path_export, 'staka/staatskalender', '100349'
@@ -90,7 +93,8 @@ def get_memberships(token):
     df = iterate_over_pages(initial_link, token)
     path_agencies = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
     df_agencies = pd.read_csv(path_agencies)
-    df = df.merge(df_agencies[['href', 'id', 'title', 'title_full']], left_on='agency', right_on='href', suffixes=('', '_org'))
+    df = df.merge(df_agencies[['href', 'id', 'title', 'title_full']], left_on='agency', right_on='href',
+                  suffixes=('', '_org'))
     df['url_memb_website'] = df['href'].str.replace('/api/memberships/', '/membership/')
     df['url_pers_website'] = df['person'].str.replace('/api/people/', '/person/')
     path_export = os.path.join(credentials.data_path, 'export', '100351_staatskalender_mitgliedschaften.csv')
