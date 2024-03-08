@@ -36,7 +36,7 @@ RUN install2.r \
     rsample \
     jtools
 
-CMD ["Rscript", "install_packages('knitr')"]
+RUN Rscript -e "options(warn=2); install.packages('knitr', dependencies=TRUE, verbose=TRUE)"
 
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_gasverbrauch/Gasverbrauch_OGD.R"]
 
