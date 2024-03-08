@@ -54,9 +54,11 @@ def get_agencies(token):
     df['parent_id'] = df['parent_id'].astype(str).str.replace('.0', '')
     # Create urls to Staatskalender
     df['url_website'] = df['href'].str.replace('/api/agencies/', '/organizations?browse=')
-    df['filter_by_parent'] = f"https://data.bs.ch/explore/dataset/100349?refine.id=" + df['parent_id']
-    df['filtren_by_children'] = f"https://data.bs.ch/explore/dataset/100349?refine.id=" + df['children_id'].str.replace(
+    df['filter_by_parent'] = "https://data.bs.ch/explore/dataset/100349?refine.id=" + df['parent_id']
+    df['filtren_by_children'] = "https://data.bs.ch/explore/dataset/100349?refine.id=" + df['children_id'].str.replace(
         ', ', '&refine.id=')
+    df[['filter_by_parent', 'filtren_by_children']] = df[['filter_by_parent', 'filtren_by_children']].fillna(
+        'https://data.bs.ch/explore/dataset/100349?refine.id=')
     path_export = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
     df.to_csv(path_export, index=True)
     return path_export, 'staka/staatskalender', '100349'
