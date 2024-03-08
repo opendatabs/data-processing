@@ -7,7 +7,7 @@ if (file.exists("OL_Gasverbrauch.R")) {
   file.remove("OL_Gasverbrauch.R")
 }
 
-knitr::purl("gasverbrauch/Productiv/OL_Gasverbrauch.Rmd", output = "OL_Gasverbrauch.R")
+knitr::purl("gasverbrauch/Productive/OL_Gasverbrauch.Rmd", output = "OL_Gasverbrauch.R")
 
 fread("pw.txt") -> pw
 
