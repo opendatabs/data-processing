@@ -14,7 +14,7 @@ from staka_staatskalender import credentials
 
 def main():
     token = get_token()
-    args_for_uploads = [get_agencies(token), get_people(token), get_memberships(token)]
+    args_for_uploads = [get_agencies(token), get_memberships(token)]
 
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
@@ -38,13 +38,17 @@ def get_agencies(token):
     df = df.set_index('id')
     df.index = pd.to_numeric(df.index, errors='coerce')
     df['parent_id'] = pd.to_numeric(df['parent_id'], errors='coerce')
+    # Create new column children_id with an empty list
+    df['children_id'] = df.apply(lambda x: [], axis=1)
     for index, row in df.iterrows():
         df.at[index, 'title_full'] = get_full_path(df, index, 'title')
-        df.at[index, 'children_id'] = get_children_id(row['children'], token)
+        if not pd.isna(df.at[index, 'parent']) and df.at[index, 'parent_id'] in df.index:
+            df.at[df.at[index, 'parent_id'], 'children_id'].append(index)
     df['children_id'] = df['children_id'].astype(str).str.replace('[', '').str.replace(']', '')
-    # Load
+    # Create urls to Staatskalender
+    df['url_website'] = df['href'].str.replace('/api/agencies/', '/organizations?browse=')
     path_export = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
-    df.to_csv(path_export, index=False)
+    df.to_csv(path_export, index=True)
     return path_export, 'staka/staatskalender', '100349'
 
 
@@ -66,11 +70,9 @@ def get_children_id(children_url, token):
     return str([int(re.search(r'(\d+)$', item['href']).group()) for item in processed_data])
 
 
-
 def get_people(token):
     initial_link = 'https://staatskalender.bs.ch/api/people?page=0'
     df = iterate_over_pages(initial_link, token)
-    # TODO: Some post-processing if needed
     path_export = os.path.join(credentials.data_path, 'export', '100350_staatskalender_personen.csv')
     df.to_csv(path_export, index=False)
     return path_export, 'staka/staatskalender', '100350'
@@ -79,7 +81,11 @@ def get_people(token):
 def get_memberships(token):
     initial_link = 'https://staatskalender.bs.ch/api/memberships?page=0'
     df = iterate_over_pages(initial_link, token)
-    # TODO: Some post-processing if needed
+    path_agencies = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
+    df_agencies = pd.read_csv(path_agencies)
+    df = df.merge(df_agencies[['href', 'id', 'title', 'title_full']], left_on='agency', right_on='href', suffixes=('', '_org'))
+    df['url_memb_website'] = df['href'].str.replace('/api/memberships/', '/membership/')
+    df['url_pers_website'] = df['person'].str.replace('/api/people/', '/person/')
     path_export = os.path.join(credentials.data_path, 'export', '100351_staatskalender_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
     return path_export, 'staka/staatskalender', '100351'
