@@ -1,6 +1,3 @@
-# install the Prophet R package inside of Docker container:
-# https://github.com/alexeybutyrev/dockerprophet
-
 FROM rocker/rstudio:4.2.1
 #FROM rocker/r-base
 ## Using a base image with R4.2.1 and RSTUDIO_VERSION=2022.07.2+576
@@ -38,6 +35,8 @@ RUN install2.r \
     tibble \
     rsample \
     jtools
+
+CMD ["Rscript", "install_packages('knitr')"]
 
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_gasverbrauch/Gasverbrauch_OGD.R"]
 
