@@ -52,7 +52,7 @@ def main():
     logging.info(f'{num_ignored} entries ignored due to missing date!')
     df_meta_raw = df_meta_raw[df_meta_raw['Messbeginn'].notna()]
     df_meta_raw['messbeginn_jahr'] = df_meta_raw.Messbeginn.astype(str).str.slice(0, 4).astype(int)
-    df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2024,
+    df_meta_raw['dataset_id'] = np.where(df_meta_raw['messbeginn_jahr'] < 2023,
                                          np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100358'), '100097')
     df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw[
         'dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
