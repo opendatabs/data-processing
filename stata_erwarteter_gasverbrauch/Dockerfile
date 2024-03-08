@@ -22,21 +22,7 @@ RUN echo "r <- getOption('repos'); \
 	  r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2024-03-07'; \
 	  options(repos = r);" > ~/.Rprofile
 
-
-RUN install2.r \
-    --skipinstalled \
-    httr \
-    data.table \
-    dplyr \
-    lubridate \
-    highcharter \
-    DT \
-    caret \
-    tibble \
-    rsample \
-    jtools
-
-RUN Rscript -e "options(warn=2); install.packages('knitr', dependencies=TRUE, verbose=TRUE)"
+RUN Rscript -e "install.packages(c('httr', 'data.table', 'dplyr', 'lubridate', 'knitr', 'highcharter', 'DT', 'caret', 'tibble', 'rsample', 'jtools'), dependencies = TRUE)"
 
 CMD ["Rscript", "/code/data-processing/stata_erwarteter_gasverbrauch/Gasverbrauch_OGD.R"]
 
