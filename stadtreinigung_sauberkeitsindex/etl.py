@@ -16,7 +16,7 @@ def main():
         raise RuntimeError('No data retrieved from API.')
     else:
         curr_dir = os.path.dirname(os.path.realpath(__file__))
-        export_filename = f'{curr_dir}/data/data-{datetime.now().strftime('%Y-%m')}.csv'
+        export_filename = f"{curr_dir}/data/data-{datetime.now().strftime('%Y-%m')}.csv"
         with open(export_filename, 'w') as file:
             file.write(r.text)
         if ct.has_changed(export_filename):
