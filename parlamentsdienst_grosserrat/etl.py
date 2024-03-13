@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import logging
-import pathlib
+import ast
 from datetime import datetime
 from io import StringIO
 
@@ -163,7 +163,9 @@ def main():
                         create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre),
                         create_zuweisungen_csv(df_gre, df_ges, df_zuw),
                         create_dokumente_csv(df_adr, df_ges, df_dok),
-                        create_vorgaenge_csv(df_ges, df_vor, df_siz)]
+                        create_vorgaenge_csv(df_ges, df_vor, df_siz),
+                        create_tagesordnung_csv(df_gr_tagesordnung, df_gr_sitzung),
+                        create_traktanden_csv(df_gr_traktanden)]
 
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
@@ -566,17 +568,19 @@ def create_tagesordnung_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_sitzung: pd.
     df['url_geschaeftsverzeichnis'] = PATH_MEDIA_TAGESORDNUNG + 'geschaeftsverzeichnis_' + df['tag1'] + '.pdf'
     df['url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
     df['url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
-    bigger_equal_query = '?q.where.laufnr=laufnr>='
+    tagesordnung_id_refine = '?refine.tagesordnung_idnr='
+    bigger_equal_query = '&q.where.laufnr=laufnr>='
     less_query = '&q.where.laufnr=laufnr<'
-    df['url_gruppentitel_1'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_1_pos'] + np.where(
-        df['gruppentitel_2_pos'].notna(), less_query + df['gruppentitel_2_pos'], '')
-    df['url_gruppentitel_2'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_2_pos'] + np.where(
-        df['gruppentitel_3_pos'].notna(), less_query + df['gruppentitel_3_pos'], '')
-    df['url_gruppentitel_3'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_3_pos'] + np.where(
-        df['gruppentitel_4_pos'].notna(), less_query + df['gruppentitel_4_pos'], '')
-    df['url_gruppentitel_4'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_4_pos'] + np.where(
-        df['gruppentitel_5_pos'].notna(), less_query + df['gruppentitel_5_pos'], '')
-    df['url_gruppentitel_5'] = PATH_DATASET + '100311' + bigger_equal_query + df['gruppentitel_5_pos']
+    df['url_gruppentitel_1'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
+        'gruppentitel_1_pos'] + np.where(df['gruppentitel_2_pos'].notna(), less_query + df['gruppentitel_2_pos'], '')
+    df['url_gruppentitel_2'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
+        'gruppentitel_2_pos'] + np.where(df['gruppentitel_3_pos'].notna(), less_query + df['gruppentitel_3_pos'], '')
+    df['url_gruppentitel_3'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
+        'gruppentitel_3_pos'] + np.where(df['gruppentitel_4_pos'].notna(), less_query + df['gruppentitel_4_pos'], '')
+    df['url_gruppentitel_4'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
+        'gruppentitel_4_pos'] + np.where(df['gruppentitel_5_pos'].notna(), less_query + df['gruppentitel_5_pos'], '')
+    df['url_gruppentitel_5'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
+        'gruppentitel_5_pos']
     # Select relevant columns for publication
     cols_of_interest = ['idnr', 'tag1', 'tag2', 'tag3', 'einleitungstext', 'zwischentext',
                         'gruppentitel_1', 'gruppentitel_1_pos', 'url_gruppentitel_1',
@@ -607,12 +611,34 @@ def create_traktanden_csv(df: pd.DataFrame) -> tuple:
     df['url_dok'] = PATH_DOKUMENT + df['signatur_first']
     df['url_dokument_ods'] = PATH_DATASET + '100313/?refine.signatur_dok=' + df['signatur_first']
 
+    # Extend Abstimmung into several columns:
+    def safe_literal_eval(val):
+        try:
+            return ast.literal_eval(val)
+        except (ValueError, SyntaxError):
+            return np.nan
+
+    df['Abst_dict'] = df['Abstimmung'].str.replace('.pdf', '').apply(safe_literal_eval)
+    df_expanded = pd.json_normalize(df['Abst_dict'])
+    df_expanded.columns = [f'Abstimmung{i}' for i in range(len(df_expanded.columns))]
+    df_expanded = df_expanded.map(transform_value)
+    df = df.drop(columns=['Abst_dict'])
+    df = pd.concat([df, df_expanded], axis=1)
+
     logging.info(f'Creating dataset "Grosser Rat: Traktanden"...')
     path_export = os.path.join(credentials.data_path, 'export', '100348_gr_traktanden.csv')
     df.to_csv(path_export, index=False)
     # Returning the path where the created CSV-file is stored
     # and two string identifiers which are needed to update the file in the FTP server and in ODSP
     return path_export, 'parlamentsdienst/grosser_rat', '100348'
+
+
+# Transform Abstimmungs-IDS from GRBS-Abst-YYYYMMDD-HHMMSS-TXXX-YY-ZZZZZZZ to ZZZZZZZ-YYYYMMDD-HHMMSS
+def transform_value(value):
+    if pd.isnull(value):
+        return value  # Return NaN as is
+    parts = value.split('-')
+    return f'https://grosserrat.bs.ch/?anr={parts[-1]}-{parts[2]}-{parts[3]}'
 
 
 def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
