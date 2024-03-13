@@ -22,7 +22,7 @@ def main():
         if ct.has_changed(export_filename):
             common.upload_ftp(export_filename, common_cred.ftp_server, common_cred.ftp_user, common_cred.ftp_pass,
                               'stadtreinigung/sauberkeitsindex')
-            odsp.publish_ods_dataset_by_id('')
+            odsp.publish_ods_dataset_by_id('100288')
             ct.update_hash_file(export_filename)
 
 
