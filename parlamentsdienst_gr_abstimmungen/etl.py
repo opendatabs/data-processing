@@ -218,35 +218,6 @@ def handle_congress_center_polls(df_unique_session_dates):
         df_poll_counts_pivot = df_poll_counts_pivot.fillna(0)
         df = df.merge(df_poll_counts_pivot, how='left', on=['file_name', 'Current Voting ID'])
 
-        '''
-        {
-            "session_date": "20141119",
-            "Abst_Nr": "745", "Datum": "2014-11-19",
-            "Zeit": "09:24:56.000",
-            "Anz_J": "39",
-            "Anz_N": "47",
-            "Anz_E": "6",
-            "Anz_A": "7",
-            "Anz_P": "1",
-            "Typ": "Abstimmung",
-            "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises",
-            "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100",
-            "Sitz_Nr": "1",
-            "Mitglied_Name": "Greuter, Beatriz",
-            "Fraktion": "SP",
-            "Mitglied_Name_Fraktion": "Greuter, Beatriz (SP)",
-            "Datenstand_text": "2022-03-17T12:19:35+01:00",
-            "Entscheid_Mitglied": "J",
-            "Traktandum": 16,
-            "Subtraktandum": 3,
-            "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16",
-            "Mitglied_Nachname": "Greuter",
-            "Mitglied_Vorname": "Beatriz",
-            "GR_uni_nr": "2880",
-            "GR_url": "https://grosserrat.bs.ch/?mnr=2880",
-            "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
-        }
-        '''
         columns_to_export = ["session_date", "Abst_Nr", "Datum", "Zeit", "Anz_J", "Anz_N", "Anz_E", "Anz_A", "Anz_P",
                              "Typ", "Geschaeft", "Zeitstempel_text", "Sitz_Nr", "Mitglied_Name", "Fraktion",
                              "Mitglied_Name_Fraktion", "Datenstand_text", "Entscheid_Mitglied", "Traktandum",
@@ -327,35 +298,6 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
 
         curr_poll_df = df_merge2
 
-        '''
-        {
-            "session_date": "20141119",
-            "Abst_Nr": "745", "Datum": "2014-11-19",
-            "Zeit": "09:24:56.000",
-            "Anz_J": "39",
-            "Anz_N": "47",
-            "Anz_E": "6",
-            "Anz_A": "7",
-            "Anz_P": "1",
-            "Typ": "Abstimmung",
-            "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises",
-            "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100",
-            "Sitz_Nr": "1",
-            "Mitglied_Name": "Greuter, Beatriz",
-            "Fraktion": "SP",
-            "Mitglied_Name_Fraktion": "Greuter, Beatriz (SP)",
-            "Datenstand_text": "2022-03-17T12:19:35+01:00",
-            "Entscheid_Mitglied": "J",
-            "Traktandum": 16,
-            "Subtraktandum": 3,
-            "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16",
-            "Mitglied_Nachname": "Greuter",
-            "Mitglied_Vorname": "Beatriz",
-            "GR_uni_nr": "2880",
-            "GR_url": "https://grosserrat.bs.ch/?mnr=2880",
-            "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
-        }
-        '''
         common.batched_ods_realtime_push(curr_poll_df, credentials.push_url)
 
         export_filename_csv = local_file.replace('data_orig', 'data').replace('.xml', '.csv')
@@ -526,35 +468,7 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
                     ct.update_hash_file(local_file)
             # TODO: Figure out how to handle ungültig with json-System
             curr_poll_df = df_unique_session_dates.merge(curr_poll_df, on=['session_date'], how='inner')
-            '''
-            {
-                "session_date": "20141119",
-                "Abst_Nr": "745", "Datum": "2014-11-19",
-                "Zeit": "09:24:56.000",
-                "Anz_J": "39",
-                "Anz_N": "47",
-                "Anz_E": "6",
-                "Anz_A": "7",
-                "Anz_P": "1",
-                "Typ": "Abstimmung",
-                "Geschaeft": "Anzug Otto Schmid und Konsorten betreffend befristetes, kostenloses U-Abo bei freiwilliger Abgabe des F\u00fchrerausweises",
-                "Zeitstempel_text": "2014-11-19T09:24:56.000000+0100",
-                "Sitz_Nr": "1",
-                "Mitglied_Name": "Greuter, Beatriz",
-                "Fraktion": "SP",
-                "Mitglied_Name_Fraktion": "Greuter, Beatriz (SP)",
-                "Datenstand_text": "2022-03-17T12:19:35+01:00",
-                "Entscheid_Mitglied": "J",
-                "Traktandum": 16,
-                "Subtraktandum": 3,
-                "tagesordnung_link": "https:\/\/data.bs.ch\/explore\/dataset\/100190\/table\/?refine.datum=2014-11-19&refine.traktand=16",
-                "Mitglied_Nachname": "Greuter",
-                "Mitglied_Vorname": "Beatriz",
-                "GR_uni_nr": "2880",
-                "GR_url": "https://grosserrat.bs.ch/?mnr=2880",
-                "GR_url_ods": "https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=2880"
-            }
-            '''
+
             common.ods_realtime_push_df(curr_poll_df, credentials.push_url)
             all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
             ct.update_hash_file(json_ls_file)
