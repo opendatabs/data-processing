@@ -51,7 +51,10 @@ def main():
         df = take_out_measured_data(df)
         df = df.reset_index(drop=True)
         logging.info('define df_export and uplad to ftp')
-        df_export = df[['timestamp', 'Wasserstand', 'Abfluss', 'methode', 'ausgegeben_an', 'meteolauf', 'gemessene_werten_bis']]
+        df_export = df[['timestamp', 'Wasserstand', 'Abfluss', 'methode',
+                        'ausgegeben_an', 'meteolauf', 'gemessene_werten_bis',
+                        'H_min', 'H_p25', 'H_p50', 'H_p75', 'H_max',
+                        'Q_min', 'Q_p25', 'Q_p50', 'Q_p75', 'Q_max']]
         export_filename = os.path.join(os.path.dirname(__file__), 'data/vorhersagen/export', f'{river}_Vorhersagen.csv')
         df_export.to_csv(export_filename, index=False, sep=';')
         if ct.has_changed(export_filename):
