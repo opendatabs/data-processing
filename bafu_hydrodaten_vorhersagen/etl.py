@@ -96,7 +96,7 @@ def extract_data(river, method):
         for line in lines[14::]:
             file.write(line)
             file.write(b'\n')
-    df = pd.read_table(path_to_file, delim_whitespace=True)
+    df = pd.read_table(path_to_file, sep='\s+')
     df['methode'] = method
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
@@ -120,7 +120,7 @@ def get_quantiles(river, method, url):
         for line in lines[14::]:
             file.write(line)
             file.write(b'\n')
-    return pd.read_table(path_to_file, delim_whitespace=True)
+    return pd.read_table(path_to_file, sep='\s+')
 
 def take_out_measured_data(df):
     for idx in df.index:
