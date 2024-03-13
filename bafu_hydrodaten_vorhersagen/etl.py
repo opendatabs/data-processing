@@ -88,22 +88,41 @@ def extract_data(river, method):
     gemessen_info = str(lines[8])
     gemessen = get_date_time(gemessen_info)
     curr_dir = os.path.dirname(os.path.realpath(__file__))
-    with open(f'{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt', mode='wb') as file:
+    path_to_file = f'{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt'
+    with open(path_to_file, mode='wb') as file:
         for line in lines[14::]:
             file.write(line)
             file.write(b'\n')
-    df = pd.read_table(f'{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt', delim_whitespace=True)
+    df = pd.read_table(path_to_file, delim_whitespace=True)
     df['methode'] = method
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
     df['gemessene_werten_bis'] = gemessen
+    if 'ctrl' in method:
+        df_quant = get_quantiles(river, method, url)
+        df = pd.merge(df, df_quant[['dd', 'mm', 'yyyy', 'hh',
+                                    'H_min', 'H_p25', 'H_p50', 'H_p75', 'H_max',
+                                    'Q_min', 'Q_p25', 'Q_p50', 'Q_p75', 'Q_max']],
+                      on=['dd', 'mm', 'yyyy', 'hh'], how='left')
     return df
 
 
+def get_quantiles(river, method, url):
+    url = url.replace('_Ctrl', '')
+    req = common.requests_get(url, auth=HTTPBasicAuth(credentials.https_user, credentials.https_pass))
+    lines = req.content.splitlines()
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    path_to_file = f'{curr_dir}/data/vorhersagen/latest_data/quant_{method}_{river}_table.txt'
+    with open(path_to_file, mode='wb') as file:
+        for line in lines[14::]:
+            file.write(line)
+            file.write(b'\n')
+    return pd.read_table(path_to_file, delim_whitespace=True)
+
 def take_out_measured_data(df):
-    for ix in df.index:
-        if df['timestamp'][ix] <= df['gemessene_werten_bis'][ix]:
-            df.loc[ix, 'methode'] = 'gemessen'
+    for idx in df.index:
+        if df['timestamp'][idx] <= df['gemessene_werten_bis'][idx]:
+            df.loc[idx, 'methode'] = 'gemessen'
         df = df.drop_duplicates(subset=['methode', 'timestamp'])
     return df
 
