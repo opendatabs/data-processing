@@ -73,9 +73,9 @@ def add_columns(df):
     df['url_kantonsblatt'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/#!/search/publications/detail/{x}')
     df['url_pdf'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf')
     df['url_xml'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/xml')
+    '''
     df['content'] = ''
     df['attachments'] = ''
-    '''
     for index, row in df.iterrows():
         content, attachments = get_content_from_xml(row['url_xml'])
         df.at[index, 'content'] = ET.tostring(content, encoding='utf-8') if content is not None else ''
