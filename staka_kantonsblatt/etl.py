@@ -15,15 +15,10 @@ from staka_kantonsblatt import credentials
 
 
 def main():
-    # process the last pages or every available article?
-    process_everything = False
-    if process_everything:
-        df = iterate_over_years()
-        path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
-        df.to_csv(path_export, index=False)
-        common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100352')
-        return
-    iterate_over_newest_pages()
+    df = iterate_over_years()
+    path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
+    df.to_csv(path_export, index=False)
+    common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100352')
 
 
 def iterate_over_newest_pages(pages=10):
@@ -68,7 +63,6 @@ def iterate_over_pages(year, month):
         if df_curr_page.empty:
             break
         df_curr_page = add_columns(df_curr_page)
-        common.ods_realtime_push_df(df_curr_page, credentials.push_url)
         df = pd.concat([df, df_curr_page])
         page = page + 1
         next_page = f'{url}&pageRequest.page={page}'
@@ -81,10 +75,12 @@ def add_columns(df):
     df['url_xml'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/xml')
     df['content'] = ''
     df['attachments'] = ''
+    '''
     for index, row in df.iterrows():
         content, attachments = get_content_from_xml(row['url_xml'])
         df.at[index, 'content'] = ET.tostring(content, encoding='utf-8') if content is not None else ''
         df.at[index, 'attachments'] = ET.tostring(attachments, encoding='utf-8') if attachments is not None else ''
+    '''
     return df
 
 
