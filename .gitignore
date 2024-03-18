@@ -26,6 +26,7 @@ __pycache__/
 **/*.shx
 **/*.prj
 **/*.cpg
+**/*.json
 /aue_fischereistatistik/**/*.geojson
 /bachapp/**/*.geojson
 /gsv_covid19_hosp/*.html
