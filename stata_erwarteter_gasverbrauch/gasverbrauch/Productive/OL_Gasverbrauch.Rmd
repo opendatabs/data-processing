@@ -1,6 +1,6 @@
 ---
 title: "Erwarteter Gasverbrauch im Kanton Basel-Stadt"
-author: "José A.F. Monteiro, Joëlle Velvart und Tobias Erhardt"
+authors: "José A.F. Monteiro, Joëlle Velvart und Tobias Erhardt"
 date: "06.12.2023 (letzte Veränderung am `r format(Sys.time(), '%d.%m.%Y')`)" 
 output: bookdown::html_document2
 ---
