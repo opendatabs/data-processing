@@ -1,6 +1,6 @@
 ---
-title: "Erwarteter Gasverbrauch im Kanton Basel-Stadt"
-authors: "José A.F. Monteiro, Joëlle Velvart und Tobias Erhardt"
+title: "Erwarteter Gasverbrauch im Versorgungsgebiet von IWB"
+author: "José A.F. Monteiro, Joëlle Velvart und Tobias Erhardt"
 date: "06.12.2023 (letzte Veränderung am `r format(Sys.time(), '%d.%m.%Y')`)" 
 output: bookdown::html_document2
 ---
@@ -136,13 +136,13 @@ httr::GET("https://data.bs.ch/explore/dataset/100304/download/?format=csv&timezo
   fread(sep=";") %>%
   group_by(year, month, day) %>%
   filter(year > 2011) %>%
-  summarise(Gasverbrauch = sum(value, na.rm = T)) %>%
+  summarise(gasverbrauch = sum(value, na.rm = T)) %>%
   ungroup() %>%
   mutate(timestamp = as.POSIXct(
     paste0(year, "-", month, "-", day, " 00:00:00"), format="%Y-%m-%d  %H:%M:%S", tz="Europe/Berlin"
     )
   ) %>%
-  mutate(Gasverbrauch=Gasverbrauch/1000000) %>%
+  mutate(gasverbrauch=gasverbrauch/1000000) %>%
   relocate(timestamp) %>%
   assign("gas_daily", ., inherits = TRUE)
 
@@ -162,7 +162,7 @@ meteo %>%
               select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
   mutate(weekday = lubridate::wday(timestamp, label = TRUE, abbr = TRUE, locale="German_Germany"),
          daytype = if_else(weekday %in% c("So", "Sa"), "Wochenende", "Werktage")) %>%
-  relocate(timestamp, Gasverbrauch) %>%
+  relocate(timestamp, gasverbrauch) %>%
   mutate(HGT = if_else(tre200d0 <= 12, 20-tre200d0, 0)) %>%
   mutate(Herbstmesse = if_else(is.na(Herbstmesse), "No", Herbstmesse),
          Feiertage = if_else(is.na(Feiertage), "No", Feiertage),
@@ -171,7 +171,7 @@ meteo %>%
   select(-timestamp) %>%
   relocate(time) %>%
   slice(1:(n() - 1)) %>%              # Unvollständigen Tag für den Gasverbrauch entfernen.
-  filter(time >= as.Date("2021-09-01"), !is.na(Gasverbrauch)) %>%
+  filter(time >= as.Date("2021-09-01"), !is.na(gasverbrauch)) %>%
   assign("Data", ., inherits = TRUE)
 
 # Variable für Energiespar-Kampagnen
@@ -211,15 +211,15 @@ tab_train <- training(tab_split)
 tab_test  <- testing(tab_split) 
 
 tab_train %>%
-  mutate(Ettape = "training") %>%
+  mutate(Ettape = "Train") %>%
   bind_rows(tab_test %>%
-              mutate(Ettape = "testing")) %>%
+              mutate(Ettape = "Test")) %>%
   bind_rows(Data_selec_prognose %>%
-              mutate(Ettape = "prognose")) %>%
+              mutate(Ettape = "Prognose")) %>%
   arrange(time) -> Data_model_ols
 
 
-model_ols <- lm(Gasverbrauch ~ time + as.factor(month) + factor(weekday, ordered=F) +
+model_ols <- lm(gasverbrauch ~ time + as.factor(month) + factor(weekday, ordered=F) +
                   as.factor(Ferien_dummy) + as.factor(Feiertage_dummy) + as.factor(Herbstmesse_dummy) +
                   gre000d0 + tre200d0 + ure200d0 +
                   Energiespar_Kampagnen +
@@ -227,20 +227,20 @@ model_ols <- lm(Gasverbrauch ~ time + as.factor(month) + factor(weekday, ordered
 
 tab_train %>%
   mutate(pred = predict(model_ols, tab_train)) %>%
-  select(obs = Gasverbrauch, pred) %>%
+  select(obs = gasverbrauch, pred) %>%
   defaultSummary() %>%
   c(c(Ettape = "Train"), .) %>%
   bind_rows(
     tab_test %>%
       mutate(pred = predict(model_ols, tab_test)) %>%
-      select(obs = Gasverbrauch, pred) %>%
+      select(obs = gasverbrauch, pred) %>%
       defaultSummary() %>%
       c(c(Ettape = "Test"), .)
   ) %>%
   bind_rows(
     Data_selec_prognose %>%
       mutate(pred = predict(model_ols, Data_selec_prognose)) %>%
-      select(obs = Gasverbrauch, pred) %>%
+      select(obs = gasverbrauch, pred) %>%
       defaultSummary() %>%
       c(c(Ettape = "Prognose"), .)
   ) -> summary_ols
@@ -277,8 +277,8 @@ Data_model_ols %>%
   slice(1:(n() - 1)) -> Data_model_ols
 
 highchart(type = "stock") %>%
-  hc_add_series(Data_model_ols, "line", hcaes(time, Gasverbrauch), color = "#008AC3",
-                tooltip = list(pointFormat = "Effektiver Gasverbrauch: {point.Gasverbrauch:.2f} GWh",
+  hc_add_series(Data_model_ols, "line", hcaes(time, gasverbrauch), color = "#008AC3",
+                tooltip = list(pointFormat = "Effektiver Gasverbrauch: {point.gasverbrauch:.2f} GWh",
                                shared = TRUE),
                 zIndex = 1) %>%
   hc_xAxis(title = list(text = "")) %>%
@@ -302,10 +302,10 @@ highchart(type = "stock") %>%
 ```{r}
 
 write.csv2(Data_model_ols %>%
-             mutate(vgl_real_minus_forecast = Gasverbrauch - fit) %>%
+             mutate(vgl_real_minus_forecast = gasverbrauch - fit) %>%
              select(
                time,
-               Gasverbrauch,
+               gasverbrauch,
                forecast = fit,
                vgl_real_minus_forecast,
                forecast_lowFI = lwr,
