@@ -23,7 +23,7 @@ def main():
     df.reset_index(drop=True, inplace=True)
 
     path_export = os.path.join(credentials.data_path, 'export', '1003xx_swisslos_fonds.csv')
-    df.to_excel(path_export, index=False)
+    df.to_csv(path_export, index=False)
 
 
 if __name__ == "__main__":
