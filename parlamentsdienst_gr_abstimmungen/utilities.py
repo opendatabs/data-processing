@@ -60,12 +60,15 @@ def get_trakt_names(session_day):
         raise ValueError(f'No session found for date {session_day}')
     logging.info(f'Found closest session date {closest_session_path} for date {session_day}')
     # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
-    csv_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path,
-                                   credentials.data_path, 'BSGR_AGENDA.csv')
+    agenda_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path,
+                                      credentials.data_path, 'BSGR_AGENDA.csv')
+    members_file = common.download_ftp([], ftp['server'], ftp['user'], ftp['password'], closest_session_path,
+                                       credentials.data_path, 'BSGR_MEMBERS.csv')
     # if csv_file is empty, raise error
-    if len(csv_file) == 0:
+    if len(agenda_file) == 0:
         raise ValueError(f'No BSGR_Agenda.csv found for date {session_day}')
-    return pd.read_csv(csv_file[0]['local_file'], delimiter=';')
+    return pd.read_csv(agenda_file[0]['local_file'], delimiter=';', dtype=str), pd.read_csv(
+        members_file[0]['local_file'], delimiter=';')
 
 
 def simplify_filename_json(filename, remote_file):
@@ -184,7 +187,8 @@ def fill_values_from_dataframe(df: pd.DataFrame, df_lookup: pd.DataFrame, index,
     df.loc[index, 'GR_uni_nr'] = df_lookup.loc[index_lookup, 'uni_nr']
     df.loc[index, 'GR_url'] = df_lookup.loc[index_lookup, 'url']
     df.loc[index, 'GR_url_ods'] = '' if df_lookup.loc[index_lookup, 'name'] == 'Vakanz' else \
-        'https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' + df_lookup.loc[index_lookup, 'uni_nr'].astype(int).astype(str)
+        'https://data.bs.ch/explore/dataset/100307/?refine.uni_nr=' + df_lookup.loc[index_lookup, 'uni_nr'].astype(
+            int).astype(str)
     return df
 
 
@@ -238,6 +242,7 @@ def get_closest_name_from_member_dataset(df: pd.DataFrame, surname_first=False):
     lookup_table.to_csv(path_lookup_table, index=False)
     return df
 
+
 def add_seat_99(df):
     # Create a new row
     new_row = {'Sitz_Nr': '99', 'Mitglied_Name_Fraktion': 'NN NN (GLP)'}
@@ -255,3 +260,11 @@ def add_seat_99(df):
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
     return df
+
+
+# Transform Abstimmungs-IDS from GRBS-Abst-YYYYMMDD-HHMMSS-TXXX-YY-ZZZZZZZ to ZZZZZZZ-YYYYMMDD-HHMMSS
+def transform_value(value):
+    if pd.isnull(value):
+        return value  # Return NaN as is
+    parts = value.split('-')
+    return f'{parts[-1]}-{parts[2]}-{parts[3]}'

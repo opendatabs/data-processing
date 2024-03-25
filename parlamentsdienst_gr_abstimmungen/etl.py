@@ -208,7 +208,7 @@ def handle_congress_center_polls(df_unique_session_dates):
 
             # Find the corresponding row in df_summary
             idx = df_poll_counts_pivot[(df_poll_counts_pivot['file_name'] == file_name) & (
-                        df_poll_counts_pivot['Current Voting ID'] == voting_id)].index
+                    df_poll_counts_pivot['Current Voting ID'] == voting_id)].index
 
             # Update 'Anz_A' and 'Anz_P' in df_summary based on the presence of 'P'
             if has_p:
@@ -292,11 +292,9 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
         df_merge1.loc[df_merge1.Sitz_Nr == '182', 'Sitz_Nr'] = '60'
         # Remove test polls: (a) polls outside of session days
         # --> done by inner-joining session calendar with abstimmungen
-        df_merge2 = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
+        curr_poll_df = df_unique_session_dates.merge(df_merge1, on=['session_date'], how='inner')
         # Remove test polls: (b) polls during session day but with a certain poll type
         # ("Testabstimmung" or similar) --> none detected in whole archive
-
-        curr_poll_df = df_merge2
 
         common.batched_ods_realtime_push(curr_poll_df, credentials.push_url)
 
@@ -388,15 +386,17 @@ def calc_traktanden_from_pdf_filenames(df_trakt):
         df_trakt[['Abst', 'Abst_Nr', 'session_date', 'Zeit', 'Traktandum', 'Subtraktandum',
                   '_Abst_Typ']] = df_trakt.remote_file.str.split('_', expand=True)
         df_trakt[['Abst_Typ', 'file_ext']] = df_trakt['_Abst_Typ'].str.split('.', expand=True)
+        df_trakt['url_abstimmung_dok'] = ('http://abstimmungen.grosserrat-basel.ch/archiv/'
+                                          + df_trakt.remote_path + '/' + df_trakt.remote_file)
         # Remove spaces in filename, get rid of leading zeros.
         df_trakt.Abst_Nr = df_trakt.Abst_Nr.str.replace(' ', '').astype(int).astype(str)
         df_trakt.Traktandum = df_trakt.Traktandum.astype(int)
         # Get rid of some rogue text and leading zeros
-        # todo: Keep this as text in order not to fail on live imports?
         df_trakt.Subtraktandum = (
             df_trakt.Subtraktandum.replace('Interpellationen Nr', '0', regex=False).replace('Interpellation Nr', '0',
                                                                                             regex=False).astype(int))
-        df_trakt = df_trakt[['session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
+        df_trakt = df_trakt[
+            ['url_abstimmung_dok', 'session_date', 'Abst_Nr', 'Traktandum', 'Subtraktandum', 'Abst_Typ']]
     return df_trakt
 
 
@@ -421,22 +421,22 @@ def handle_polls_json(process_archive=False, df_unique_session_dates=None):
         for remote_file in dir_ls:
             remote_path = remote_file['remote_file']
             session_date = datetime.strptime(remote_path[-8:], '%Y%m%d')
-            df_name_trakt = get_trakt_names(session_date)
+            df_name_trakt, df_members = get_trakt_names(session_date)
             poll_df = handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archive, remote_path,
-                                                      df_name_trakt)
+                                                      df_name_trakt, df_members)
             all_df = pd.concat(objs=[all_df, poll_df], sort=False)
         df_to_return = all_df
     else:
         remote_path = sorted([x['remote_file'] for x in dir_ls])[-1]
         now_in_switzerland = datetime.now()
-        df_name_trakt = get_trakt_names(now_in_switzerland)
+        df_name_trakt, df_members = get_trakt_names(now_in_switzerland)
         df_to_return = handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archive, remote_path,
-                                                       df_name_trakt)
+                                                       df_name_trakt, df_members)
 
     return df_to_return
 
 
-def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archive, remote_path, df_name_trakt):
+def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archive, remote_path, df_name_trakt, df_members):
     json_ls_file = credentials.ftp_ls_file.replace('.json', f'_json_{remote_path.replace("/", "_")}.json')
     json_ls = get_ftp_ls(remote_path=remote_path, pattern='*.json', file_name=json_ls_file, ftp=ftp)
     all_df = pd.DataFrame()
@@ -450,7 +450,7 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
                 local_file = file['local_file']
                 logging.info(f'Processing file {i} of {len(json_files)}: {local_file}...')
                 if process_archive or ct.has_changed(local_file):
-                    df_single_trakt = calc_details_from_single_json_file(local_file, df_name_trakt)
+                    df_single_trakt = calc_details_from_single_json_file(local_file, df_name_trakt, df_members)
 
                     # Simplify fie name to allow saving into FTP-Server
                     simplified_file_name = simplify_filename_json(local_file, file['remote_file'])
@@ -475,7 +475,7 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
     return all_df
 
 
-def calc_details_from_single_json_file(local_file, df_name_trakt):
+def calc_details_from_single_json_file(local_file, df_name_trakt, df_members):
     with open(local_file, "r", encoding="utf-8") as json_file:
         data = json.load(json_file)
         df_json = pd.json_normalize(data, record_path=['voting_data', 'individual_votes'],
@@ -492,11 +492,19 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
         {'0': 'Anwesenheit', '1': 'Ad Hoc einfaches Mehr', '2': 'Ad Hoc 2/3 Mehr', '3': 'Eventual Abstimmung',
          '4': 'Schlussabstimmung', '5': 'Quorum erfassen'})
     df_json['Geschaeft'] = df_json['agenda_item_uid'].map(df_name_trakt.set_index('Agenda_UID')['Traktandentitel'])
+    df_json['laufnr_ges'] = df_json['agenda_item_uid'].map(df_name_trakt.set_index('Agenda_UID')['Geschäfts_UID'])
+    df_json['signatur_ges'] = df_json['agenda_item_uid'].map(df_name_trakt.set_index('Agenda_UID')['Geschäftsnummer'])
+    df_json['signatur_dok'] = df_json['agenda_item_uid'].map(df_name_trakt.set_index('Agenda_UID')['Dokumentennummer'])
+    df_json['url_ges'] = 'https://grosserrat.bs.ch/?gnr=' + df_json['signatur_ges']
+    df_json['url_geschaeft_ods'] = 'https://data.bs.ch/explore/dataset/100311/?refine.signatur_ges=' + df_json['signatur_ges']
+    df_json['url_dokument_ods'] = 'https://data.bs.ch/explore/dataset/100313/?refine.signatur_dok=' + df_json['signatur_dok']
     df_json['Zeitstempel_text'] = df_json['started'].str.replace('Z', '+0000', regex=False)
     df_json['Zeitstempel'] = pd.to_datetime(df_json['Zeitstempel_text'])
+    df_json['Mitglied_Anrede'] = np.where(df_json['sex'] == 'w', 'Frau', 'Herr')
     df_json['Mitglied_Name'] = df_json['first_name'] + ' ' + df_json['last_name']
     df_json = get_closest_name_from_member_dataset(df_json)
     df_json['Mitglied_Name_Fraktion'] = df_json['Mitglied_Name'] + ' (' + df_json['Fraktion'] + ')'
+    df_json['Mitglied_Funktion'] = df_json['person_uid'].map(df_members.set_index('Person_UID')['Funktion_detail'])
     df_json.to_csv(f'{credentials.local_data_path}/temp_df_json.csv')
     df_json['Datenstand_text'] = df_json['created'].str.replace('Z', '+0000', regex=False)
     df_json['Datenstand'] = pd.to_datetime(df_json['Datenstand_text'])
@@ -507,14 +515,18 @@ def calc_details_from_single_json_file(local_file, df_name_trakt):
     df_json['Anz_A'] = 100 - (df_json['Anz_J'] + df_json['Anz_N'] + df_json['Anz_E'] + df_json['Anz_P'])
     df_json[['Traktandum', 'Subtraktandum']] = (
         df_json['agenda_number'].str.replace('T', '', regex=False).str.split('-', expand=True))
+    df_json['anr'] = df_json['protocol'].str.replace('.pdf', '').map(transform_value)
+    df_json['url_abstimmung_dok'] = 'https://grosserrat.bs.ch/?anr=' + df_json['anr']
     df_json['tagesordnung_link'] = (
             'https://data.bs.ch/explore/dataset/100190/table/?refine.datum=' + df_json.Datum + '&refine.traktand='
             + df_json.Traktandum.astype(int).astype(str))
     return df_json[
         ['session_date', 'Abst_Nr', 'Datum', 'Zeit', 'Anz_J', 'Anz_N', 'Anz_E', 'Anz_A', 'Anz_P', 'Typ', 'Geschaeft',
-         'Zeitstempel', 'Zeitstempel_text', 'Sitz_Nr', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion',
+         'laufnr_ges', 'signatur_ges', 'signatur_dok', 'url_ges', 'url_geschaeft_ods', 'url_dokument_ods',
+         'Zeitstempel', 'Zeitstempel_text',
+         'Sitz_Nr', 'Mitglied_Anrede', 'Mitglied_Name', 'Fraktion', 'Mitglied_Name_Fraktion', 'Mitglied_Funktion',
          'Datenstand', 'Datenstand_text', 'Entscheid_Mitglied', 'Traktandum', 'Subtraktandum', 'tagesordnung_link',
-         "Mitglied_Vorname", "Mitglied_Nachname", "GR_uni_nr", "GR_url", "GR_url_ods"]]
+         "Mitglied_Vorname", "Mitglied_Nachname", "GR_uni_nr", "GR_url", "GR_url_ods", "anr", "url_abstimmung_dok"]]
 
 
 def main():
@@ -527,7 +539,7 @@ def main():
     # Uncomment to process poll data from old system (xml files)
     # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
     # Uncomment to process older poll data
-    # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
+    # poll_dfs.append(handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json')
 
     if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_dfs.append(
