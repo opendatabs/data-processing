@@ -18,8 +18,7 @@ def main():
     filename = os.path.join(os.path.dirname(__file__), 'data',
                             f"{df_export.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv")
     df_export.to_csv(filename, index=False)
-    common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                      'tba/wiese/temperatur')
+    common.update_ftp_and_odsp(filename, 'tba/wiese/temperatur', '100269')
 
     pass
 
