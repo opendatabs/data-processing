@@ -91,7 +91,8 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
         stat_dfs = []
         for folder in messdaten_folders:
             if any(os.listdir(folder)):
-                df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsaetze)
+                df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder,
+                                                                                          df_einsatz_days, df_einsaetze)
                 messdaten_dfs.append(df_all_pro_standort)
                 stat_dfs.append(df_stat_pro_standort)
             else:
@@ -101,7 +102,8 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
         export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
         all_df.to_csv(export_file_all, index=False)
         if ct.has_changed(export_file_all):
-            common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
+            common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                              'kapo/smileys/all_data')
             any_changes = True
             csv_to_sqlite(curr_dir, export_file_all)
             ct.update_hash_file(export_file_all)
@@ -110,7 +112,8 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
         export_file_stat = os.path.join(curr_dir, 'data', 'all_stat.csv')
         stat_df.to_csv(export_file_stat, index=False)
         if ct.has_changed(export_file_stat):
-            common.upload_ftp(export_file_stat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/all_data')
+            common.upload_ftp(export_file_stat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                              'kapo/smileys/all_data')
             any_changes = True
             ct.update_hash_file(export_file_stat)
         ct.update_hash_file(list_path)
@@ -142,7 +145,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df['Messung_Timestamp'] = pd.to_datetime(df.Messung_Datum + 'T' + df.Messung_Zeit, format='%d.%m.%yT%H:%M:%S')
         df['is_dt'] = df['Messung_Timestamp'].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
         df.loc[df['is_dt'], 'Messung_Timestamp'] = df['Messung_Timestamp'] - pd.Timedelta(hours=1)
-        df.Messung_Timestamp = df.Messung_Timestamp.dt.tz_localize('Europe/Zurich', ambiguous=np.array(~df['is_dt']), nonexistent=timedelta(hours=-1))
+        df.Messung_Timestamp = df.Messung_Timestamp.dt.tz_localize('Europe/Zurich', ambiguous=np.array(~df['is_dt']),
+                                                                   nonexistent=timedelta(hours=-1))
         df.Messung_Datum = df.Messung_Timestamp.dt.date
         df.Messung_Zeit = df.Messung_Timestamp.dt.time
         df['id_standort'] = id_standort
@@ -150,13 +154,17 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df['day_str'] = day_str
         df['V_Delta'] = df.V_Ausfahrt - df.V_Einfahrt
         # Determining Zyklus and Smiley_Nr of measurement
-        df_m1 = pd.merge(df_einsatz_days, df, how='right', on=['id_standort', 'day_str']).drop(columns=['datum_aktiv', 'day_str'])
-        df_m = pd.merge(df_m1, df_einsatze, how='left', left_on=['id_standort', 'Zyklus'], right_on=['id_Standort', 'Zyklus'])
+        df_m1 = pd.merge(df_einsatz_days, df, how='right', on=['id_standort', 'day_str']).drop(
+            columns=['datum_aktiv', 'day_str'])
+        df_m = pd.merge(df_m1, df_einsatze, how='left', left_on=['id_standort', 'Zyklus'],
+                        right_on=['id_Standort', 'Zyklus'])
         df_m = df_m.drop(columns=['id_Standort', 'is_dt'])
-        df_m['Phase'] = np.where((df_m.Messung_Timestamp < df_m.Start_Vormessung) | (df_m.Start_Vormessung.isna()), 'Vor Vormessung',
+        df_m['Phase'] = np.where((df_m.Messung_Timestamp < df_m.Start_Vormessung) | (df_m.Start_Vormessung.isna()),
+                                 'Vor Vormessung',
                                  np.where(df_m.Messung_Timestamp < df_m.Start_Betrieb, 'Vormessung',
                                           np.where(df_m.Messung_Timestamp < df_m.Start_Nachmessung, 'Betrieb',
-                                                   np.where(df_m.Messung_Timestamp < df_m.Ende, 'Nachmessung', 'Nach Ende')))
+                                                   np.where(df_m.Messung_Timestamp < df_m.Ende, 'Nachmessung',
+                                                            'Nach Ende')))
                                  )
         logging.info(f'Removing measurements with phase "Vor Vormessung"...')
         df_m = df_m[df_m.Phase != 'Vor Vormessung']
@@ -165,12 +173,14 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
         df_m.to_csv(export_file_single, index=False)
         if ct.has_changed(export_file_single):
-            common.upload_ftp(export_file_single, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'kapo/smileys/data')
+            common.upload_ftp(export_file_single, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                              'kapo/smileys/data')
             ct.update_hash_file(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
     if len(df_all_pro_standort.id_standort.unique()) > 1:
-        raise RuntimeError(f'More than 1 ({df_all_pro_standort.id_standort.unique()}) idstandort found in 1 data folder ({folder}!)')
+        raise RuntimeError(
+            f'More than 1 ({df_all_pro_standort.id_standort.unique()}) idstandort found in 1 data folder ({folder}!)')
 
     # Calculate statistics for this data folder
     dfs_stat_pro_standort = []
@@ -194,7 +204,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             'Phase': 'Gesamt' if len(phase) > 1 else phase[0],
             'idstandort': id_standort,
             'Strassenname': strassenname,
-            'Messbeginn_Phase': df_phase['Start_Vormessung'].iloc[0] if len(phase) > 1 else df_phase[f'Start_{phase[0]}'].iloc[0],
+            'Messbeginn_Phase': df_phase['Start_Vormessung'].iloc[0] if len(phase) > 1 else
+            df_phase[f'Start_{phase[0]}'].iloc[0],
             'V_max': max(df_all_v.V),
             'V_min': min(df_all_v.V),
             'V_50': np.median(df_all_v.V),
@@ -205,7 +216,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
             'Anzahl_Messungen': anz_messungen,
             'Messdauer_h': messdauer_h,
             'dtv': dtv,
-            'link_einzelmessungen': f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}' if len(phase) > 1 else f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}&refine.phase={phase[0]}',
+            'link_einzelmessungen': f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}' if len(
+                phase) > 1 else f'https://data.bs.ch/explore/dataset/100268/table/?refine.id_standort={id_standort}&refine.zyklus={zyklus}&refine.phase={phase[0]}',
             'geo_point_2d': coord
         }
         df_stat_pro_standort = pd.DataFrame([stat_pro_standort])
@@ -215,11 +227,13 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
 
 
 def parse_einsatzplaene(curr_dir):
-    einsatzplan_files = glob.glob(os.path.join(curr_dir, 'data_orig', 'Einsatzplan', 'Zyklus_*.xlsx'))
+    einsatzplan_files = glob.glob(
+        os.path.join(curr_dir, 'data_orig', 'Einsatzplan', 'Zyklus_[0-9][0-9]_20[0-9][0-9].xlsx'))
     einsatzplan_dfs = []
     for f in einsatzplan_files:
         # Throws error with openpyxl versions bigger than 3.0.10 since files are filtered
-        df = pd.read_excel(f, parse_dates=['Datum_VM', 'Datum_SB', 'Datum_NM', 'Datum_Ende'], engine='openpyxl', skiprows=1)
+        df = pd.read_excel(f, parse_dates=['Datum_VM', 'Datum_SB', 'Datum_NM', 'Datum_Ende'], engine='openpyxl',
+                           skiprows=1)
         df.replace(['', ' ', 'nan nan'], np.nan, inplace=True)
         df = df.dropna(subset=['Smiley-Nr.'])
         filename = os.path.basename(f)
@@ -228,15 +242,20 @@ def parse_einsatzplaene(curr_dir):
         df['Zyklus'] = zyklus
         df['Jahr'] = jahr
         # Iterate over Phase and new column names
-        for ph, col in [('VM', 'Start_Vormessung'), ('SB', 'Start_Betrieb'), ('NM', 'Start_Nachmessung'), ('Ende', 'Ende')]:
+        for ph, col in [('VM', 'Start_Vormessung'), ('SB', 'Start_Betrieb'), ('NM', 'Start_Nachmessung'),
+                        ('Ende', 'Ende')]:
             logging.info(f'Localizing timestamp in col {col}...')
             # Add time to date
-            df[col] = df[f'Datum_{ph}'] + pd.to_timedelta(pd.to_datetime(df[f'Uhrzeit_{ph}'], format='%H:%M:%S').dt.time.astype(str))
+            df[col] = df[f'Datum_{ph}'] + pd.to_timedelta(
+                pd.to_datetime(df[f'Uhrzeit_{ph}'], format='%H:%M:%S').dt.time.astype(str))
             df.drop(columns=[f'Datum_{ph}', f'Uhrzeit_{ph}'], inplace=True)
             df['is_dt'] = df[col].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
             df.loc[df['is_dt'], col] = df[col] - pd.Timedelta(hours=1)
-            df[col] = df[col].dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent='NaT').drop(columns=['is_dt'])
-        df = df[['id_Standort', 'Strassenname', 'Geschwindigkeit', 'Halterung', 'Ort', 'Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende', 'Zyklus', 'Jahr']]
+            df[col] = df[col].dt.tz_localize('Europe/Zurich', ambiguous='infer', nonexistent='NaT').drop(
+                columns=['is_dt'])
+        df = df[
+            ['id_Standort', 'Strassenname', 'Geschwindigkeit', 'Halterung', 'Ort', 'Start_Vormessung', 'Start_Betrieb',
+             'Start_Nachmessung', 'Ende', 'Zyklus', 'Jahr']]
         df = df.rename(columns={'Ort': 'Ort_Abkuerzung', 'Jahr': 'Messung_Jahr'})
         df['Ort'] = np.where(df.Ort_Abkuerzung == 'BS', 'Basel',
                              np.where(df.Ort_Abkuerzung == 'Bt', 'Bettingen',
@@ -250,7 +269,8 @@ def main():
     curr_dir = os.path.dirname(os.path.realpath(__file__))
     logging.info(f'Parsing Einsatzplaene...')
     df_einsaetze = parse_einsatzplaene(curr_dir)
-    req = common.requests_get('https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp?lang=de&timezone=Europe%2FBerlin')
+    req = common.requests_get(
+        'https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp?lang=de&timezone=Europe%2FBerlin')
     shp_path = os.path.join(curr_dir, 'data', 'Smiley-Standorte')
     zip_file = io.BytesIO(req.content)
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
@@ -261,10 +281,13 @@ def main():
     df_einsaetze = pd.merge(df_einsaetze, shp_coords_df[['idstandort', 'coords']],
                             how='left', left_on='id_Standort', right_on='idstandort').drop(columns=['idstandort'])
     logging.info(f'Creating df_einsatz_days with one row per day and standort_id...')
-    df_einsaetze['geo_point_2d'] = df_einsaetze.coords.apply(lambda x: f'{x[0][1]}, {x[0][0]}')
+    df_einsaetze['geo_point_2d'] = df_einsaetze[df_einsaetze['coords'].notna()]['coords'].apply(
+        lambda x: f'{x[0][1]}, {x[0][0]}')
     df_einsaetze = df_einsaetze.drop(columns=['coords'])
     df_einsaetze = df_einsaetze.dropna(subset=['Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende'])
-    df_einsatz_days = pd.concat([pd.DataFrame({'id_standort': row.id_Standort, 'Zyklus': row.Zyklus, 'datum_aktiv': pd.date_range(row.Start_Vormessung, row.Ende, freq='D', normalize=True)})  # , 'Start_Vormessung': row.Start_Vormessung, 'Start_Betrieb': row.Start_Betrieb, 'Start_Nachmessung': row.Start_Nachmessung, 'Ende': row.Ende})
+    df_einsatz_days = pd.concat([pd.DataFrame({'id_standort': row.id_Standort, 'Zyklus': row.Zyklus,
+                                               'datum_aktiv': pd.date_range(row.Start_Vormessung, row.Ende, freq='D',
+                                                                            normalize=True)})
                                  for i, row in df_einsaetze.iterrows()], ignore_index=True)
     df_einsatz_days['day_str'] = df_einsatz_days.datum_aktiv.dt.strftime('%y%m%d')
     logging.info(f'Parsing Messdaten...')
