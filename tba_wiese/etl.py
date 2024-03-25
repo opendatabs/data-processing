@@ -15,12 +15,12 @@ def main():
     df['timestamp_text'] = df.timestamp.dt.strftime('%Y-%m-%dT%H:%M:%S%z')
     df_export = df[['timestamp_text', 'temperatur']]
 
-    filename = os.path.join(os.path.dirname(__file__), 'data', f"{df_export.loc[0].timestamp_text.replace(':',' - ').replace(' ', '')}.csv")
+    filename = os.path.join(os.path.dirname(__file__), 'data',
+                            f"{df_export.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv")
     df_export.to_csv(filename, index=False)
-    common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'tba/wiese/temperatur')
+    common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      'tba/wiese/temperatur')
 
-    # {"timestamp_text": "2023-01-24T06:16:15+0000", "temperatur": "4.69"}
-    r = common.ods_realtime_push_df(df_export, credentials.ods_push_url)
     pass
 
 
