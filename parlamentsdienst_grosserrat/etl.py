@@ -30,7 +30,7 @@ PATH_DOKUMENT = 'https://grosserrat.bs.ch/?dnr='
 PATH_MEDIA = 'https://grosserrat.bs.ch/media/files'
 PATH_MEDIA_TAGESORDNUNG = f'{PATH_MEDIA}/tagesordnungen/'
 PATH_MEDIA_RATSPROTOKOLLE = f'{PATH_MEDIA}/ratsprotokolle/'
-PATH_MEDIA_AUDIO = 'protokolle.grosserrat.bs.ch/'
+PATH_MEDIA_AUDIO = 'http://protokolle.grosserrat-basel.ch//'
 PATH_DATASET = 'https://data.bs.ch/explore/dataset/'
 
 # Unix timestamps that mark the maximum and minimum possible timestamp
