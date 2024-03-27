@@ -27,7 +27,10 @@ PATH_GR_TRAKTANDEN = StringIO(common.requests_get(f'{PATH_GR}gr_tagesordnung_pos
 PATH_PERSONEN = 'https://grosserrat.bs.ch/?mnr='
 PATH_GESCHAEFT = 'https://grosserrat.bs.ch/?gnr='
 PATH_DOKUMENT = 'https://grosserrat.bs.ch/?dnr='
-PATH_MEDIA_TAGESORDNUNG = 'https://grosserrat.bs.ch/media/files/tagesordnungen/'
+PATH_MEDIA = 'https://grosserrat.bs.ch/media/files'
+PATH_MEDIA_TAGESORDNUNG = f'{PATH_MEDIA}/tagesordnungen/'
+PATH_MEDIA_RATSPROTOKOLLE = f'{PATH_MEDIA}/ratsprotokolle/'
+PATH_MEDIA_AUDIO = 'protokolle.grosserrat.bs.ch/'
 PATH_DATASET = 'https://data.bs.ch/explore/dataset/'
 
 # Unix timestamps that mark the maximum and minimum possible timestamp
@@ -106,6 +109,8 @@ DF_MEMBERS_MISSING = pd.DataFrame(MEMBERS_MISSING)
 
 REPLACE_STATUS_CODES_GES = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung'}
 REPLACE_STATUS_CODES_ZUW = {'A': 'Abgeschlossen', 'B': 'In Bearbeitung', 'X': 'Abgebrochen', 'F': 'Fertig'}
+REPLACE_STATUS_CODES_TRAKT = {'0': 'offen', '1': 'erledigt', '2': 'verschoben', '3': '2. Lesung',
+                              '4': 'neu', '5': 'abgesetzt', '6': 'zurückgezogen', '7': 'in Behandlung'}
 
 
 def main():
@@ -164,8 +169,7 @@ def main():
                         create_zuweisungen_csv(df_gre, df_ges, df_zuw),
                         create_dokumente_csv(df_adr, df_ges, df_dok),
                         create_vorgaenge_csv(df_ges, df_vor, df_siz),
-                        create_tagesordnung_csv(df_gr_tagesordnung, df_gr_sitzung),
-                        create_traktanden_csv(df_gr_traktanden)]
+                        create_traktanden_csv(df_gr_tagesordnung, df_gr_traktanden, df_gr_sitzung)]
 
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
@@ -551,65 +555,66 @@ def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.
     return path_export, 'parlamentsdienst/grosser_rat', '100314'
 
 
-def create_tagesordnung_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_sitzung: pd.DataFrame) -> tuple:
-    df = pd.merge(df_gr_tagesordnung, df_gr_sitzung, left_on='gr_sitzung_idnr', right_on='idnr')
+def create_traktanden_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_traktanden: pd.DataFrame,
+                          df_gr_sitzung: pd.DataFrame) -> tuple:
+    transformed_columns = ['idnr', 'gr_sitzung_idnr', 'einleitungstext', 'zwischentext',
+                           'gruppennummer', 'gruppentitel', 'gruppentitel_pos', 'gruppentitel_next_pos']
+    transformed_df = pd.DataFrame(columns=transformed_columns)
 
-    # Rename columns for clarity
+    # Finding out how many gruppentitel there are
+    max_gruppentitel = max(int(col.split('_')[1]) for col in df_gr_tagesordnung.columns if 'gruppentitel_' in col)
+
+    # Transforming the dataframe to have one row per gruppentitel
+    for index, row in df_gr_tagesordnung.iterrows():
+        for i in range(1, max_gruppentitel + 1):
+            gruppentitel = row[f'gruppentitel_{i}']
+            gruppentitel_pos = row[f'gruppentitel_{i}_pos']
+            gruppentitel_next_pos = row[f'gruppentitel_{i + 1}_pos'] if i < max_gruppentitel else '0'
+
+            # Skip rows where gruppentitel is empty
+            if pd.notna(gruppentitel) and gruppentitel != "":
+                new_row = {
+                    'idnr': row['idnr'],
+                    'gr_sitzung_idnr': row['gr_sitzung_idnr'],
+                    'einleitungstext': row['einleitungstext'],
+                    'zwischentext': row['zwischentext'],
+                    'gruppennummer': i,
+                    'gruppentitel': gruppentitel,
+                    'gruppentitel_pos': gruppentitel_pos,
+                    'gruppentitel_next_pos': gruppentitel_next_pos
+                }
+                transformed_df = pd.concat([transformed_df, pd.DataFrame([new_row])], ignore_index=True)
+    # Replace 0 in gruppentitel_next_pos with a big number
+    transformed_df['gruppentitel_next_pos'] = transformed_df['gruppentitel_next_pos'].replace('0', '999999').fillna(
+        '999999')
+
+    df = pd.merge(transformed_df, df_gr_sitzung, left_on='gr_sitzung_idnr', right_on='idnr')
     df = df.drop(columns=['idnr_y']).rename(columns={'idnr_x': 'idnr'})
 
-    # Replace 0 in columns gruppentitel_1_pos and gruppentitel_2_pos until gruppentitel_5_pos with NaN
-    df.loc[:, 'gruppentitel_1_pos':'gruppentitel_5_pos'] = df.loc[:, 'gruppentitel_1_pos':'gruppentitel_5_pos'].replace(
-        '0', np.nan)
+    df_merge1 = pd.merge(df, df_gr_traktanden, left_on='idnr', right_on='tagesordnung_idnr')
+    df_merge1 = df_merge1.drop(columns=['idnr_x']).rename(columns={'idnr_y': 'traktanden_idnr'})
+
+    # laufnr must be greater than or equal to gruppentitel_pos and
+    # less than gruppentitel_next_pos,
+    # unless gruppentitel_next_pos is 0, in which case only the first condition should apply
+    condition = ((df_merge1['laufnr'].astype(int) >= df_merge1['gruppentitel_pos'].astype(int)) &
+                 (df_merge1['laufnr'].astype(int) < df_merge1['gruppentitel_next_pos'].astype(int)))
+    df_merge1 = df_merge1[condition].reset_index(drop=True)
+
+    # Some do not belong to a group at all. Add them with the gruppentitel-columns empty
+    df_trakt_missing = df_gr_traktanden[~df_gr_traktanden['idnr'].isin(df_merge1['traktanden_idnr'])]
+    df_to_merge = df[['idnr', 'gr_sitzung_idnr', 'versand', 'tag1', 'text1', 'tag2', 'text2', 'tag3', 'text3',
+                      'bemerkung', 'einleitungstext', 'zwischentext']].drop_duplicates()
+    df_merge2 = pd.merge(df_to_merge, df_trakt_missing, left_on='idnr', right_on='tagesordnung_idnr', how='right')
+    df_merge2 = df_merge2.drop(columns=['idnr_x']).rename(columns={'idnr_y': 'traktanden_idnr'})
+
+    df = pd.concat([df_merge1, df_merge2], ignore_index=True)
+
     # Replace 0000-00-00 in columns tag1 until tag3 with NaN
     df.loc[:, 'tag1':'tag3'] = df.loc[:, 'tag1':'tag3'].replace('0000-00-00', np.nan)
 
-    # Create url's
-    df['url_tagesordnung_dok'] = PATH_MEDIA_TAGESORDNUNG + 'tagesordnung_' + df['tag1'] + '.pdf'
-    df['url_geschaeftsverzeichnis'] = PATH_MEDIA_TAGESORDNUNG + 'geschaeftsverzeichnis_' + df['tag1'] + '.pdf'
-    df['url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
-    df['url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
-    tagesordnung_id_refine = '?refine.tagesordnung_idnr='
-    bigger_equal_query = '&q.where.laufnr=laufnr>='
-    less_query = '&q.where.laufnr=laufnr<'
-    df['url_gruppentitel_1'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
-        'gruppentitel_1_pos'] + np.where(df['gruppentitel_2_pos'].notna(), less_query + df['gruppentitel_2_pos'], '')
-    df['url_gruppentitel_2'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
-        'gruppentitel_2_pos'] + np.where(df['gruppentitel_3_pos'].notna(), less_query + df['gruppentitel_3_pos'], '')
-    df['url_gruppentitel_3'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
-        'gruppentitel_3_pos'] + np.where(df['gruppentitel_4_pos'].notna(), less_query + df['gruppentitel_4_pos'], '')
-    df['url_gruppentitel_4'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
-        'gruppentitel_4_pos'] + np.where(df['gruppentitel_5_pos'].notna(), less_query + df['gruppentitel_5_pos'], '')
-    df['url_gruppentitel_5'] = PATH_DATASET + '100348' + tagesordnung_id_refine + df['idnr'] + bigger_equal_query + df[
-        'gruppentitel_5_pos']
-    # Select relevant columns for publication
-    cols_of_interest = ['idnr', 'tag1', 'tag2', 'tag3', 'einleitungstext', 'zwischentext',
-                        'gruppentitel_1', 'gruppentitel_1_pos', 'url_gruppentitel_1',
-                        'gruppentitel_2', 'gruppentitel_2_pos', 'url_gruppentitel_2',
-                        'gruppentitel_3', 'gruppentitel_3_pos', 'url_gruppentitel_3',
-                        'gruppentitel_4', 'gruppentitel_4_pos', 'url_gruppentitel_4',
-                        'gruppentitel_5', 'gruppentitel_5_pos', 'url_gruppentitel_5',
-                        'url_tagesordnung_dok', 'url_geschaeftsverzeichnis', 'url_sammelmappe', 'url_alle_dokumente']
-    df = df[cols_of_interest]
-
-    logging.info(f'Creating dataset "Grosser Rat: Tagesordnungen"...')
-    path_export = os.path.join(credentials.data_path, 'export', '100347_gr_tagesordnungen.csv')
-    df.to_csv(path_export, index=False)
-    # Returning the path where the created CSV-file is stored
-    # and two string identifiers which are needed to update the file in the FTP server and in ODSP
-    return path_export, 'parlamentsdienst/grosser_rat', '100347'
-
-
-def create_traktanden_csv(df: pd.DataFrame) -> tuple:
-    # Everything that starts in the form XX.XXXX.XX is a Signatur
-    df['signatur_first'] = df['signatur'].str.extract(r'(\d{2}\.\d{4}\.\d{2})')
-
-    # Create url's
-    df['url_tagesordnung'] = PATH_DATASET + '100347/?refine.idnr=' + df['tagesordnung_idnr']
-    df['url_kommission'] = PATH_DATASET + '100310/?refine.kurzname=' + df['kommission']
-    df['url_ges'] = PATH_GESCHAEFT + df['signatur_first'].str[:7]
-    df['url_geschaeft_ods'] = PATH_DATASET + '100311/?refine.signatur_ges=' + df['signatur_first'].str[:7]
-    df['url_dok'] = PATH_DOKUMENT + df['signatur_first']
-    df['url_dokument_ods'] = PATH_DATASET + '100313/?refine.signatur_dok=' + df['signatur_first']
+    # Replace status with their corresponding text
+    df['status'] = df['status'].replace(REPLACE_STATUS_CODES_TRAKT)
 
     # Extend Abstimmung into several columns:
     def safe_literal_eval(val):
@@ -618,12 +623,62 @@ def create_traktanden_csv(df: pd.DataFrame) -> tuple:
         except (ValueError, SyntaxError):
             return np.nan
 
-    df['Abst_dict'] = df['Abstimmung'].str.replace('.pdf', '').apply(safe_literal_eval)
-    df_expanded = pd.json_normalize(df['Abst_dict'])
-    df_expanded.columns = [f'Abstimmung{i}' for i in range(len(df_expanded.columns))]
-    df_expanded = df_expanded.map(transform_value)
-    df = df.drop(columns=['Abst_dict'])
-    df = pd.concat([df, df_expanded], axis=1)
+    df['anr'] = df['Abstimmung'].str.replace('.pdf', '').apply(safe_literal_eval)
+    df['anr'] = pd.json_normalize(df['anr']).map(transform_value).apply(lambda x: ','.join(x.dropna().astype(str)),
+                                                                        axis=1)
+
+    # Create url's
+    df['url_tagesordnung_dok'] = PATH_MEDIA_TAGESORDNUNG + 'tagesordnung_' + df['tag1'] + '.pdf'
+    df['url_geschaeftsverzeichnis'] = PATH_MEDIA_TAGESORDNUNG + 'geschaeftsverzeichnis_' + df['tag1'] + '.pdf'
+    df['url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
+    df['url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
+    df['url_vollprotokoll'] = PATH_MEDIA_RATSPROTOKOLLE + 'vollprotokoll_' + df['tag1'] + '.pdf'
+    # Only the system before 2024-07-01 has this URL for the audio and video protocols
+    for tag in ['tag1', 'tag2', 'tag3']:
+        df.loc[pd.to_datetime(df[tag]) < pd.to_datetime(
+            '2024-07-01'), f'url_audioprotokoll_{tag}'] = PATH_MEDIA_AUDIO + '?sitzung=' + df[tag]
+    df['url_kommission'] = PATH_DATASET + '100310/?refine.kurzname=' + df['kommission']
+    df['url_ges'] = ''
+    df['url_geschaeft_ods'] = ''
+    df['url_dok'] = ''
+    df['url_dokument_ods'] = ''
+    df['url_abstimmungen'] = ''
+    for index, row in df.iterrows():
+        if isinstance(row['signatur'], str) and '.' in row['signatur']:
+            df.at[index, 'url_ges'] = ''
+            df.at[index, 'url_geschaeft_ods'] = f'{PATH_DATASET}100311/?'
+            df.at[index, 'url_dok'] = ''
+            df.at[index, 'url_dokument_ods'] = f'{PATH_DATASET}100313/?'
+            signaturen = row['signatur'].split(',')
+            for signatur in signaturen:
+                signatur_parts = signatur.split('.')
+                df.at[index, 'url_ges'] += f"{PATH_GESCHAEFT}{'.'.join(signatur_parts[:2])} ,"
+                df.at[index, 'url_geschaeft_ods'] += f"refine.signatur_ges={'.'.join(signatur_parts[:2])}&"
+                df.at[index, 'url_dok'] += f"{PATH_DOKUMENT}{signatur} ,"
+                df.at[index, 'url_dokument_ods'] += f"refine.signatur_dok={signatur}&"
+            # remove last char of every url
+            df.at[index, 'url_ges'] = df.at[index, 'url_ges'][:-1]
+            df.at[index, 'url_geschaeft_ods'] = df.at[index, 'url_geschaeft_ods'][:-1]
+            df.at[index, 'url_dok'] = df.at[index, 'url_dok'][:-1]
+            df.at[index, 'url_dokument_ods'] = df.at[index, 'url_dokument_ods'][:-1]
+        if isinstance(row['anr'], str) and '-' in row['anr']:
+            df.at[index, 'url_abstimmungen'] = f'{PATH_DATASET}100186/?'
+            anrs = row['anr'].split(',')
+            for anr in anrs:
+                df.at[index, 'url_abstimmungen'] += f"refine.anr={anr}&"
+            # remove last char of url
+            df.at[index, 'url_abstimmungen'] = df.at[index, 'url_abstimmungen'][:-1]
+
+    # Select relevant columns for publication
+    cols_of_interest = ['tagesordnung_idnr', 'versand', 'tag1', 'text1', 'tag2', 'text2', 'tag3', 'text3', 'bemerkung',
+                        'url_tagesordnung_dok', 'url_geschaeftsverzeichnis', 'url_sammelmappe', 'url_alle_dokumente',
+                        'url_vollprotokoll', 'url_audioprotokoll_tag1', 'url_audioprotokoll_tag2', 'url_audioprotokoll_tag3',
+                        'einleitungstext', 'zwischentext', 'gruppennummer', 'gruppentitel', 'gruppentitel_pos',
+                        'traktanden_idnr', 'laufnr', 'laufnr_2', 'status', 'titel', 'kommission', 'url_kommission',
+                        'departement', 'signatur', 'url_ges', 'url_geschaeft_ods', 'url_dok', 'url_dokument_ods',
+                        'Abstimmung', 'anr', 'url_abstimmungen']
+
+    df = df[cols_of_interest]
 
     logging.info(f'Creating dataset "Grosser Rat: Traktanden"...')
     path_export = os.path.join(credentials.data_path, 'export', '100348_gr_traktanden.csv')
@@ -638,7 +693,7 @@ def transform_value(value):
     if pd.isnull(value):
         return value  # Return NaN as is
     parts = value.split('-')
-    return f'https://grosserrat.bs.ch/?anr={parts[-1]}-{parts[2]}-{parts[3]}'
+    return f'{parts[-1]}-{parts[2]}-{parts[3]}'
 
 
 def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
