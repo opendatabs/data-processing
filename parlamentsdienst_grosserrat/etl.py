@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import logging
 import ast
+import requests
 from datetime import datetime
 from io import StringIO
 
@@ -161,15 +162,7 @@ def main():
     df_gr_traktanden = common.pandas_read_csv(PATH_GR_TRAKTANDEN, encoding='utf-8', dtype=str)
 
     # Perform data processing and CSV file creation functions
-    args_for_uploads = [create_mitglieder_csv(df_adr, df_mit),
-                        create_mitgliedschaften_csv(df_adr, df_mit, df_gre),
-                        create_interessensbindungen_csv(df_adr, df_intr),
-                        create_gremien_csv(df_gre, df_mit),
-                        create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre),
-                        create_zuweisungen_csv(df_gre, df_ges, df_zuw),
-                        create_dokumente_csv(df_adr, df_ges, df_dok),
-                        create_vorgaenge_csv(df_ges, df_vor, df_siz),
-                        create_traktanden_csv(df_gr_tagesordnung, df_gr_traktanden, df_gr_sitzung)]
+    args_for_uploads = [create_traktanden_csv(df_gr_tagesordnung, df_gr_traktanden, df_gr_sitzung)]
 
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
@@ -632,7 +625,8 @@ def create_traktanden_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_traktanden: pd
     df['url_geschaeftsverzeichnis'] = PATH_MEDIA_TAGESORDNUNG + 'geschaeftsverzeichnis_' + df['tag1'] + '.pdf'
     df['url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
     df['url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
-    df['url_vollprotokoll'] = PATH_MEDIA_RATSPROTOKOLLE + 'vollprotokoll_' + df['tag1'] + '.pdf'
+    df.loc[pd.to_datetime(df['tag1']) < pd.to_datetime(
+            '2024-01-01'), 'url_vollprotokoll'] = PATH_MEDIA_RATSPROTOKOLLE + 'vollprotokoll_' + df['tag1'] + '.pdf'
     # Only the system before 2023-07-01 has this URL for the audio and video protocols
     for tag in ['tag1', 'tag2', 'tag3']:
         df.loc[pd.to_datetime(df[tag]) < pd.to_datetime(
@@ -672,7 +666,8 @@ def create_traktanden_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_traktanden: pd
     # Select relevant columns for publication
     cols_of_interest = ['tagesordnung_idnr', 'versand', 'tag1', 'text1', 'tag2', 'text2', 'tag3', 'text3', 'bemerkung',
                         'url_tagesordnung_dok', 'url_geschaeftsverzeichnis', 'url_sammelmappe', 'url_alle_dokumente',
-                        'url_vollprotokoll', 'url_audioprotokoll_tag1', 'url_audioprotokoll_tag2', 'url_audioprotokoll_tag3',
+                        'url_vollprotokoll', 'url_audioprotokoll_tag1', 'url_audioprotokoll_tag2',
+                        'url_audioprotokoll_tag3',
                         'einleitungstext', 'zwischentext', 'gruppennummer', 'gruppentitel', 'gruppentitel_pos',
                         'traktanden_idnr', 'laufnr', 'laufnr_2', 'status', 'titel', 'kommission', 'url_kommission',
                         'departement', 'signatur', 'url_ges', 'url_geschaeft_ods', 'url_dok', 'url_dokument_ods',
