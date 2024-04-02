@@ -1,7 +1,9 @@
 import os
 import io
+import ast
 import logging
 import pandas as pd
+import numpy as np
 import datetime
 import xml.etree.ElementTree as ET
 import requests
@@ -16,6 +18,10 @@ from staka_kantonsblatt import credentials
 
 def main():
     df = iterate_over_years()
+    # Get codes for the rubric
+    df_rubric, df_subRubric = get_rubric_from_api()
+    df = df.merge(df_rubric, how='left', on='rubric')
+    df = df.merge(df_subRubric, how='left', on='subRubric')
     path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100352')
@@ -73,15 +79,23 @@ def add_columns(df):
     df['url_kantonsblatt'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/#!/search/publications/detail/{x}')
     df['url_pdf'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf')
     df['url_xml'] = df['id'].apply(lambda x: f'https://www.kantonsblatt.ch/api/v1/publications/{x}/xml')
-    '''
-    df['content'] = ''
-    df['attachments'] = ''
-    for index, row in df.iterrows():
-        content, attachments = get_content_from_xml(row['url_xml'])
-        df.at[index, 'content'] = ET.tostring(content, encoding='utf-8') if content is not None else ''
-        df.at[index, 'attachments'] = ET.tostring(attachments, encoding='utf-8') if attachments is not None else ''
-    '''
     return df
+
+
+def get_rubric_from_api():
+    url = 'https://www.kantonsblatt.ch/api/v1/rubrics'
+    r = common.requests_get(url)
+    r.raise_for_status()
+    df = pd.read_json(io.StringIO(r.content.decode('utf-8')))
+    df = df.rename(columns={'code': 'rubric'})
+    df = pd.concat([df[['rubric', 'subRubrics']], pd.json_normalize(df['name'])], axis=1)
+    df_rubric = df.rename(columns={'en': 'rubric_en', 'de': 'rubric_de', 'fr': 'rubric_fr',
+                                   'it': 'rubric_it'})[['rubric', 'rubric_en', 'rubric_de', 'rubric_fr', 'rubric_it']]
+    df = df.explode('subRubrics').reset_index(drop=True)
+    df = pd.json_normalize(df['subRubrics'])[['code', 'name.en', 'name.de', 'name.fr', 'name.it']]
+    df_subRubric = df.rename(columns={'code': 'subRubric', 'name.en': 'subRubric_en', 'name.de': 'subRubric_de',
+                                      'name.fr': 'subRubric_fr', 'name.it': 'subRubric_it'})
+    return df_rubric, df_subRubric
 
 
 def get_content_from_xml(url):
