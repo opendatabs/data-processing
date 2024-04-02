@@ -1,9 +1,7 @@
 import os
 import io
-import ast
 import logging
 import pandas as pd
-import numpy as np
 import datetime
 import xml.etree.ElementTree as ET
 import requests
