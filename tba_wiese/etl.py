@@ -46,7 +46,8 @@ def upload_backup():
                                   f'tba/wiese/temperatur/{folder}')
             common.upload_ftp(filepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               f'tba/wiese/temperatur/{folder}')
-    pass
+        date = date + pd.DateOffset(months=1)
+    quit()
 
 
 if __name__ == "__main__":
