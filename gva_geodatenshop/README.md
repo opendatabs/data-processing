@@ -8,7 +8,7 @@
 - Copy contents of column "ordnerpfad" into clipboard. 
 
 ### Define Column "Publizierende Organisation"
-- Open File `Publizierende_organisation.csv` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
+- Open File `Publizierende_organisation.csv` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\harvesters\GVA` in Excel.
 - Search worksheet for the value of "kontakt_dienststelle" in clipboard. 
 - If not found, add a new row that defines the top-level organisation of the "kontakt_dienststelle" of the dataset to be published.
 - "herausgeber" is the responsible "Dienststelle"
