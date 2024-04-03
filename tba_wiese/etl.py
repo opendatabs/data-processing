@@ -39,13 +39,6 @@ def upload_backup():
             file_path = file['local_file']
             df = pd.read_csv(file_path)
             common.ods_realtime_push_df(df, credentials.ods_push_url)
-            filename = f"{df.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv"
-            filepath = os.path.join(os.path.dirname(__file__), 'data', filename)
-            df.to_csv(filepath, index=False)
-            common.ensure_ftp_dir(credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                                  f'tba/wiese/temperatur/{folder}')
-            common.upload_ftp(filepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              f'tba/wiese/temperatur/{folder}')
         date = date + pd.DateOffset(months=1)
     quit()
 
