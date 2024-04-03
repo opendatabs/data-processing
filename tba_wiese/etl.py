@@ -29,17 +29,23 @@ def main():
 
 def upload_backup():
     data_path = os.path.join(pathlib.Path(__file__).parent.absolute(), 'data')
-    for file in os.listdir(data_path):
-        df = pd.read_csv(os.path.join(data_path, file))
-        common.ods_realtime_push_df(df, credentials.ods_push_url)
-        filename = f"{df.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv"
-        folder = filename[:7]
-        filepath = os.path.join(os.path.dirname(__file__), 'data', filename)
-        df.to_csv(filepath, index=False)
-        common.ensure_ftp_dir(credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+    # Iterate over month starting from january 2023 to now with while loop
+    date = pd.Timestamp('2023-01-01')
+    while date < pd.Timestamp.now():
+        folder = date.strftime('%Y-%m')
+        list_files = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                         f'tba/wiese/temperatur/{folder}', data_path, '*.csv')
+        for file in list_files:
+            file_path = file['local_file']
+            df = pd.read_csv(file_path)
+            common.ods_realtime_push_df(df, credentials.ods_push_url)
+            filename = f"{df.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv"
+            filepath = os.path.join(os.path.dirname(__file__), 'data', filename)
+            df.to_csv(filepath, index=False)
+            common.ensure_ftp_dir(credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                  f'tba/wiese/temperatur/{folder}')
+            common.upload_ftp(filepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               f'tba/wiese/temperatur/{folder}')
-        common.upload_ftp(filepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          f'tba/wiese/temperatur/{folder}')
     pass
 
 

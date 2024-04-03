@@ -12,6 +12,7 @@ def main():
     for file in os.listdir(data_path):
         df = pd.read_csv(os.path.join(data_path, file))
         df['timestamp_text'] = pd.to_datetime(df.timestamp_text, format="%Y-%d-%mT%H:%M:%S%z").dt.strftime('%Y-%m-%dT%H:%M:%S%z')
+        common.ods_realtime_push_df(df, credentials.ods_push_url)
         filename = f"{df.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv"
         folder = filename[:7]
         filepath = os.path.join(os.path.dirname(__file__), 'data', filename)
