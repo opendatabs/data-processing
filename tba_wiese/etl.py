@@ -11,7 +11,7 @@ def main():
     r = common.requests_get(url=credentials.url, auth=(credentials.username, credentials.password))
     data = r.json()
     df = pd.DataFrame.from_dict([data])[['datum', 'temperatur']]
-    df['timestamp'] = pd.to_datetime(df.datum, dayfirst=True).dt.tz_localize(ZoneInfo('Etc/GMT-1')).dt.tz_convert('UTC')
+    df['timestamp'] = pd.to_datetime(df.datum, format="%Y-%m-%d %H:%M:%S").dt.tz_localize(ZoneInfo('Etc/GMT-1')).dt.tz_convert('UTC')
     df['timestamp_text'] = df.timestamp.dt.strftime('%Y-%m-%dT%H:%M:%S%z')
     df_export = df[['timestamp_text', 'temperatur']]
 
