@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import logging
 import ast
-import requests
 from datetime import datetime
 from io import StringIO
 
