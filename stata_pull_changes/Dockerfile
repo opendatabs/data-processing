@@ -1,3 +1,4 @@
+FROM ubuntu:latest
 WORKDIR /code
 CMD ["/bin/bash", "/code/data-processing/stata_pull_changes/pull_changes.sh"]
 
