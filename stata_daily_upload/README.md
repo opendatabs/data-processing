@@ -94,10 +94,18 @@ Below is an example:
 ~~~
 2021-10-22T09:00
  ~~~
-- The data processing job must be enhanced to use the embargo function:
-~~~
-common.is_embargo_over(data_file_path)
-~~~
+- The `stata_daily_uploads.json`-file must be enhanced to use the embargo function:
+
+```json
+[
+    {
+        "file": "dummy_file.csv",
+        "dest_dir": "dummy_directory",
+        "ods_id": "dummy_id",
+        "embargo": true
+    },
+```
+
 - Always update the embargo file before uploading new data!
 
 ### `make_public_embargo`-Feature
