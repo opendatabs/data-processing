@@ -20,6 +20,8 @@ To understand how to effectively configure and utilize `stata_daily_upload`, pro
 
 Setting up and managing the `stata_daily_uploads.json` is a critical part of ensuring that your datasets are uploaded correctly. This guide will walk you through adding new entries to the configuration file.
 
+The file is resided in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\harvesters\StatA`
+
 ## How to Add a New Entry
 
 1. **Comma Delimiter**: Ensure there's a comma `,` after the last entry. 
@@ -58,7 +60,7 @@ Setting up and managing the `stata_daily_uploads.json` is a critical part of ens
 
 ### Example Entry Structure
 
-Below is an example taken from the `dummy_stata_daily_uploads.json` file:
+Below is an example:
 
 ```json
 [
