@@ -126,6 +126,8 @@ def make_dataframe_rsv():
     df_rsv['Datum'] = pd.to_datetime(df_rsv['KW'].astype(str) + '_' + df_rsv['weekday'].astype(str),
                                      format='%Y_%W_%w')
     df_rsv['KW'] = df_rsv['KW'].str.split('_').str[1]
+    # Calculate mean by dividing by 7
+    df_rsv['7t_mean_RSV'] = df_rsv['KW_Anz_pos_RSV_USB'] / 7
     df_rsv = df_rsv.drop(columns=['weekday'])
     return df_rsv
 

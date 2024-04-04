@@ -36,5 +36,6 @@
     "InfA_BS+BL": "1",
     "InfB_BS+BL": "1",
     "7t_median_InfA": "1",
-    "7t_median_InfB": "1"
+    "7t_median_InfB": "1",
+    "7t_mean_RSV": "1"
 }
