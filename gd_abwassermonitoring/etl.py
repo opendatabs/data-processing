@@ -108,10 +108,34 @@ def make_df_infl_bs_bl():
     return df_infl
 
 
+def make_dataframe_rsv():
+    path_fortlaufend = credentials.path_RSV_USB_fortlaufend
+    df_fortlaufend = pd.read_excel(path_fortlaufend)
+    df_fortlaufend = df_fortlaufend.rename(columns={'Datum RSV Nachweis (Kalenderwoche)': 'KW'})['KW']
+    # Group by "KW" and save the count into "Anz_pos_RSV_USB"
+    df_fortlaufend = df_fortlaufend.value_counts().reset_index()
+    df_fortlaufend = df_fortlaufend.rename(columns={'count': 'KW_Anz_pos_RSV_USB'})
+    df_fortlaufend['KW'] = df_fortlaufend['KW'].str.replace('KW', '2024_')
+    path_retro = credentials.path_RSV_USB_retrospektiv
+    df_retro = pd.read_excel(path_retro)
+    df_retro = df_retro.rename(columns={'RSV positiv (Anzahl)': 'KW_Anz_pos_RSV_USB'})
+    df_rsv = pd.concat([df_retro, df_fortlaufend]).reset_index(drop=True)
+    # Extend df to have every value exist 7 times and create a column with the values 1 to 7
+    df_rsv = df_rsv.loc[df_rsv.index.repeat(7)].reset_index(drop=True)
+    df_rsv['weekday'] = df_rsv.groupby('KW').cumcount()
+    df_rsv['Datum'] = pd.to_datetime(df_rsv['KW'].astype(str) + '_' + df_rsv['weekday'].astype(str),
+                                     format='%Y_%W_%w')
+    df_rsv['KW'] = df_rsv['KW'].str.split('_').str[1]
+    df_rsv = df_rsv.drop(columns=['weekday'])
+    return df_rsv
+
+
 def merge_dataframes():
     df_infl = make_df_infl_bs_bl()
+    df_rsv = make_dataframe_rsv()
     df_abwasser = make_dataframe_abwasser()
     merged_df = pd.merge(df_abwasser, df_infl, on='Datum', how='outer')
+    merged_df = pd.merge(merged_df, df_rsv, on='Datum', how='left')
     return merged_df
 
 
@@ -121,47 +145,6 @@ def calculate_columns(df):
     df["7t_median_InfA"] = df['InfA_BS+BL'].rolling(window=7).median()
     df["7t_median_InfB"] = df['InfB_BS+BL'].rolling(window=7).median()
     return df
-
-
-# Realtime API bootstrap data for dataset 100302:
-#
-# {"Datum": "2021-08-12",
-# "Sample Ba-Nr.": "dito wie 15.4.",
-# "InfA (gc/PCR)": "1.0",
-# "InfB (gc/PCR)": "1.0",
-# "InfA (gc/PCR)2": "43.5",
-# "InfB (gc/PCR)2": "233.0",
-# "RSV (gc/PCR)": "287.0",
-# "InfA (gc/L)": "17400.0",
-# "InfB (gc/L)": "93200.0",
-# "RSV (gc/L)": "114800.0",
-# "InfA (gc/L) 7-d median": "33000.0",
-# "InfB (gc/L) 7-d median": "143600.0",
-# "RSV (gc/L) 7-d median": "114800.0",
-# "InfA (gc /100'000 P)": "528021378465.64966",
-# "InfB (gc/100'000 P)": "2828252440976.928",
-# "RSV (gc /100'000 P)": "3483727255623.9414",
-# "InfA (gc/100'000 P) 7-d median": "608804679610.9795",
-# "InfB (gc/100'000 P) 7-d median": "3739980264850.316",
-# "RSV (gc/100'000 P) 7-d median": "4243964845324.804",
-# "InfA (gc/PMMoV)": "7.357293868921777",
-# "InfB (gc/PMMoV)": "0.0003940803382663848",
-# "RSV (gc /PMMoV)": "0.0004854122621564482",
-# "InfA (gc/PMMoV) 7-d median": "7.357293868921777",
-# "InfB (gc/PMMoV) 7-d median":" 0.0004042848141146818",
-# "RSV (gc/PMMoV) 7-d median": "0.0004516698172652804",
-# "monthly RSV cases (USB/UKBB, in- & outpatients) ": "1",
-# "Anz_pos_A_BS": "1",
-# "Anz_pos_B_BS": "1",
-# "Anz_pos_H1_BS": "1",
-# "Anz.pos.A_BL": "1",
-# "Anz.pos.B_BL": "1",
-# "Anz.pos.all_BL": "1",
-# "InfA_BS+BL": "1",
-# "InfB_BS+BL": "1",
-# "7t_median_InfA": "1",
-# "7t_median_InfB": "1"}
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
