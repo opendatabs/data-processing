@@ -48,3 +48,4 @@ __pycache__/
 /zrd_gesetzessammlung/data/*.json
 !/zefix_handelsregister/data/shp_bs/*
 !/gva_geodatenshop/schema_files/*.csv
+/stata_pull_changes/set_proxy.sh
