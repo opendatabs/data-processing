@@ -1,0 +1,13 @@
+name;label;description
+Id_Wiederverwendungsstelle;ID;Eindeutiger Identifikator
+Kategorie;Kategorie;Kategorie der Wiederverwendungsstelle
+Name;Name;
+Beschreibung;Beschreibung;
+Adresse;Adresse;
+Postleitzahl;Postleitzahl
+Ortschaft;Gemeinde
+Telefon;Telefon
+Oeffnungszeit;Öffnungzeiten
+Link;Link
+Zuestaendigkeit;Zuständigkeit
+Geometrie;Geopoint
