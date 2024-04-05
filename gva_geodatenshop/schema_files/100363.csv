@@ -1,13 +1,13 @@
 name;label;description
-Id_Wiederverwendungsstelle;ID;Eindeutiger Identifikator
-Kategorie;Kategorie;Kategorie der Wiederverwendungsstelle
-Name;Name;Name
-Beschreibung;Beschreibung;Beschreibung
-Adresse;Adresse;Adresse
-Postleitzahl;PLZ;Postleitzahl
-Ortschaft;Gemeinde;Gemeinde
-Telefon;Telefon;Telefon
-Oeffnungszeit;Öffnungzeiten;Öffnungzeiten
-Link;Link;Link
-Zuestaendigkeit;Zuständigkeit;Zuständigkeit
+ID_WIEDERV;ID;Eindeutiger Identifikator
+KATEGORIE;Kategorie;Kategorie der Wiederverwendungsstelle
+NAME;Name
+BESCHREIBU;Beschreibung
+ADRESSE;Adresse
+PLZ;PLZ;Postleitzahl
+ORTSCHAFT;Gemeinde
+TELEFON;Telefon
+OEFFNUNGSZ;Öffnungzeiten
+LINK;Link
+ZUSTAENDIG;Zuständigkeit
 Geometrie;Geopoint;Geopunkt
