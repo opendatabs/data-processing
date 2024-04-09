@@ -25,11 +25,10 @@ def download_spatial_descriptors(ods_id):
     return gdf.to_crs('EPSG:2056')  # Change to a suitable projected CRS
 
 
-def create_diff_files(path_to_file):
+def create_diff_files(df_new):
     logging.info('Creating diff files...')
     # Load last version of the file
     path_to_last = os.path.join(credentials.data_path, 'parkflaechen_last_version.csv')
-    df_new = pd.read_csv(path_to_file)
     if os.path.exists(path_to_last):
         df_last = pd.read_csv(path_to_last)
         # Find new rows if any
@@ -95,23 +94,23 @@ def main():
         df_tarif = pd.read_csv(os.path.join(credentials.data_path, 'tarif_subzonen.csv'))
         gdf = gdf.merge(df_tarif, left_on='tarif_code', right_on='TARIF_C1', how='left')
         gdf = gdf.rename(columns={'SOPFG_GEB': 'sopfg_geb', 'GEBPFLICHT': 'gebpflicht',
-                                  'MAXPARKZ': 'maxparkz', 'KEINL': 'keinl'})
+                                  'MAXPARKZ': 'maxparkz', 'KEINL': 'keinl'}).drop(columns=['TARIF_C1'])
         gdf['tarif_gebiet'] = gdf['tarif_code'].str[:1]
 
         columns_of_interest = ['id', 'anzahl_parkfelder', 'typ', 'tarif_gebiet', 'sopfg_geb',
                                'tarif_id', 'tarif_code', 'gebpflicht', 'maxparkz', 'keinl',
                                'id_parkuhr', 'mob_nr', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name', 'strasse']
-        gdf = gdf[columns_of_interest]
-
+        gdf_export = gdf[columns_of_interest]
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
         logging.info(f'Exporting data to {path_export}...')
-        gdf.to_csv(path_export, index=False)
-        if ct.has_changed(path_export):
-            create_diff_files(path_export)
+        gdf_export.to_csv(path_export, index=False)
+        if True or ct.has_changed(path_export):
             common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'mobilitaet/parkflaechen')
             odsp.publish_ods_dataset_by_id('100329')
             ct.update_hash_file(path_export)
+
+            create_diff_files(gdf)
 
 
 if __name__ == "__main__":
