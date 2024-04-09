@@ -85,13 +85,22 @@ def main():
         gdf['bez_id'] = gdf['centroid'].apply(lambda x: gdf_bezirke[gdf_bezirke.contains(x)]['bez_id'].values[0])
         gdf['bez_name'] = gdf['centroid'].apply(lambda x: gdf_bezirke[gdf_bezirke.contains(x)]['bez_name'].values[0])
 
+        # Filter on PLZ that start with 40 (Basel)
+        gdf = gdf[gdf['plz'].str.startswith('40')]
+
         gdf['geometry'] = gdf['geometry'].to_crs('EPSG:4326')
         gdf['centroid'] = gdf['centroid'].to_crs('EPSG:4326')
 
-        columns_of_interest = ['id', 'gilt_von', 'anzahl_parkfelder', 'typ', 'strasse', 'tarif_id', 'tarif_code',
-                               'id_parkuhr', 'mob_nr', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name']
-        # Filter on PLZ that start with 40 (Basel)
-        gdf = gdf[gdf['plz'].str.startswith('40')]
+        logging.info("Merge with tarif_subzonen to decode tarif codes...")
+        df_tarif = pd.read_csv(os.path.join(credentials.data_path, 'tarif_subzonen.csv'))
+        gdf = gdf.merge(df_tarif, left_on='tarif_code', right_on='TARIF_C1', how='left')
+        gdf = gdf.rename(columns={'SOPFG_GEB': 'sopfg_geb', 'GEBPFLICHT': 'gebpflicht',
+                                  'MAXPARKZ': 'maxparkz', 'KEINL': 'keinl'})
+        gdf['tarif_gebiet'] = gdf['tarif_code'].str[:1]
+
+        columns_of_interest = ['id', 'anzahl_parkfelder', 'typ', 'tarif_gebiet', 'sopfg_geb',
+                               'tarif_id', 'tarif_code', 'gebpflicht', 'maxparkz', 'keinl',
+                               'id_parkuhr', 'mob_nr', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name', 'strasse']
         gdf = gdf[columns_of_interest]
 
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
