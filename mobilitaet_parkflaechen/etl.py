@@ -89,7 +89,7 @@ def main():
         gdf['centroid'] = gdf['centroid'].to_crs('EPSG:4326')
 
         columns_of_interest = ['id', 'gilt_von', 'anzahl_parkfelder', 'typ', 'strasse', 'tarif_id', 'tarif_code',
-                               'id_parkuhr', 'mob_nr', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name', 'centroid']
+                               'id_parkuhr', 'mob_nr', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name']
         # Filter on PLZ that start with 40 (Basel)
         gdf = gdf[gdf['plz'].str.startswith('40')]
         gdf = gdf[columns_of_interest]
