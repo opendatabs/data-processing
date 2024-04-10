@@ -107,7 +107,7 @@ def main():
             odsp.publish_ods_dataset_by_id('100329')
             ct.update_hash_file(path_export)
         path_to_new = os.path.join(credentials.data_path, 'parkflaechen_new_version.csv')
-        gdf_export.to_csv(path_to_new, index=False)
+        gdf.to_csv(path_to_new, index=False)
         if ct.has_changed(path_to_new):
             create_diff_files(path_to_new)
             ct.update_hash_file(path_to_new)
