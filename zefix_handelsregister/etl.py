@@ -5,6 +5,7 @@ import logging
 import pathlib
 import pandas as pd
 import urllib.request
+import datetime
 from SPARQLWrapper import SPARQLWrapper, JSON
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
@@ -39,6 +40,43 @@ def main():
                           f'zefix_handelsregister')
         odsp.publish_ods_dataset_by_id('100330')
         ct.update_hash_file(path_export)
+        create_diff_files(path_export)
+
+
+def create_diff_files(path_to_new):
+    logging.info('Creating diff files...')
+    # Load last version of the file
+    df_new = pd.read_csv(path_to_new)
+    path_to_last = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'parkflaechen_last_version.csv')
+    if os.path.exists(path_to_last):
+        df_last = pd.read_csv(path_to_last)
+        # Find new rows if any
+        new_rows = ct.find_new_rows(df_last, df_new, 'id')
+        path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'diff_files',
+                                   f'parkflaechen_new_{datetime.date.today()}.csv')
+        upload_rows_to_ftp(new_rows, path_export)
+        # Find modified rows if any
+        deprecated_rows, updated_rows = ct.find_modified_rows(df_last, df_new, 'id')
+        path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'diff_files',
+                                   f'parkflaechen_deprecated_{datetime.date.today()}.csv')
+        upload_rows_to_ftp(deprecated_rows, path_export)
+        path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'diff_files',
+                                   f'parkflaechen_updated_{datetime.date.today()}.csv')
+        upload_rows_to_ftp(updated_rows, path_export)
+        # Find deleted rows if any
+        deleted_rows = ct.find_deleted_rows(df_last, df_new, 'id')
+        path_export = os.path.join(pathlib.Path(__file__).parents[0], 'data', 'diff_files',
+                                   f'parkflaechen_deleted_{datetime.date.today()}.csv')
+        upload_rows_to_ftp(deleted_rows, path_export)
+    # Save new version of the file as the last version
+    df_new.to_csv(path_to_last, index=False)
+
+
+def upload_rows_to_ftp(df, path_export):
+    if len(df) > 0:
+        df.to_csv(path_export, index=False)
+        common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          f'zefix_handelsregister/diff_files')
 
 
 def get_data_of_all_cantons():
