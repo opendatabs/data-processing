@@ -25,9 +25,10 @@ def download_spatial_descriptors(ods_id):
     return gdf.to_crs('EPSG:2056')  # Change to a suitable projected CRS
 
 
-def create_diff_files(df_new):
+def create_diff_files(path_to_new):
     logging.info('Creating diff files...')
     # Load last version of the file
+    df_new = pd.read_csv(path_to_new)
     path_to_last = os.path.join(credentials.data_path, 'parkflaechen_last_version.csv')
     if os.path.exists(path_to_last):
         df_last = pd.read_csv(path_to_last)
@@ -52,7 +53,7 @@ def create_diff_files(df_new):
             path_export = os.path.join(credentials.data_path, 'diff_files',
                                        f'parkflaechen_deleted_{datetime.date.today()}.csv')
             deleted_rows.to_csv(path_export, index=False)
-    # Save current version of the as the last version
+    # Save new version of the file as the last version
     df_new.to_csv(path_to_last, index=False)
 
 
@@ -100,13 +101,16 @@ def main():
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
         logging.info(f'Exporting data to {path_export}...')
         gdf_export.to_csv(path_export, index=False)
-        if True or ct.has_changed(path_export):
+        if ct.has_changed(path_export):
             common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'mobilitaet/parkflaechen')
             odsp.publish_ods_dataset_by_id('100329')
             ct.update_hash_file(path_export)
-
-            create_diff_files(gdf)
+        path_to_new = os.path.join(credentials.data_path, 'parkflaechen_new_version.csv')
+        gdf_export.to_csv(path_to_new, index=False)
+        if ct.has_changed(path_to_new):
+            create_diff_files(path_to_new)
+            ct.update_hash_file(path_to_new)
 
 
 if __name__ == "__main__":
