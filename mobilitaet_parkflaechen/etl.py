@@ -34,28 +34,24 @@ def create_diff_files(df_new):
         # Find new rows if any
         new_rows = ct.find_new_rows(df_last, df_new, 'id')
         if len(new_rows) > 0:
-            path_export = os.path.join(credentials.data_path, f'parkflaechen_new_{datetime.date.today()}.csv')
+            path_export = os.path.join(credentials.data_path, 'diff_files',
+                                       f'parkflaechen_new_{datetime.date.today()}.csv')
             new_rows.to_csv(path_export, index=False)
-            common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'mobilitaet/parkflaechen/diff_files')
         # Find modified rows if any
         deprecated_rows, updated_rows = ct.find_modified_rows(df_last, df_new, 'id')
         if len(deprecated_rows) > 0:
-            path_export = os.path.join(credentials.data_path, f'parkflaechen_deprecated_{datetime.date.today()}.csv')
+            path_export = os.path.join(credentials.data_path, 'diff_files',
+                                       f'parkflaechen_deprecated_{datetime.date.today()}.csv')
             deprecated_rows.to_csv(path_export, index=False)
-            common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'mobilitaet/parkflaechen/diff_files')
-            path_export = os.path.join(credentials.data_path, f'parkflaechen_updated_{datetime.date.today()}.csv')
+            path_export = os.path.join(credentials.data_path, 'diff_files',
+                                       f'parkflaechen_updated_{datetime.date.today()}.csv')
             updated_rows.to_csv(path_export, index=False)
-            common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'mobilitaet/parkflaechen/diff_files')
         # Find deleted rows if any
         deleted_rows = ct.find_deleted_rows(df_last, df_new, 'id')
         if len(deleted_rows) > 0:
-            path_export = os.path.join(credentials.data_path, f'parkflaechen_deleted_{datetime.date.today()}.csv')
+            path_export = os.path.join(credentials.data_path, 'diff_files',
+                                       f'parkflaechen_deleted_{datetime.date.today()}.csv')
             deleted_rows.to_csv(path_export, index=False)
-            common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'mobilitaet/parkflaechen/diff_files')
     # Save current version of the as the last version
     df_new.to_csv(path_to_last, index=False)
 
@@ -99,7 +95,7 @@ def main():
 
         columns_of_interest = ['id', 'anzahl_parkfelder', 'typ', 'tarif_gebiet', 'sopfg_geb',
                                'tarif_id', 'tarif_code', 'gebpflicht', 'maxparkz', 'keinl',
-                               'id_parkuhr', 'mob_nr', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name', 'strasse']
+                               'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name', 'strasse']
         gdf_export = gdf[columns_of_interest]
         path_export = os.path.join(credentials.data_path, 'export', '100329_parkflaechen.csv')
         logging.info(f'Exporting data to {path_export}...')
