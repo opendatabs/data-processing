@@ -96,20 +96,6 @@ def get_rubric_from_api():
     return df_rubric, df_subRubric
 
 
-def get_content_from_xml(url):
-    try:
-        r = common.requests_get(url)
-        r.raise_for_status()
-        xml_content = r.text
-        root = ET.fromstring(xml_content)
-        content = root.find('content')
-        attachments = root.find('attachments')
-    except requests.exceptions.HTTPError as err:
-        logging.error(f"HTTP error occurred: {err}")
-        return None, None
-    return content, attachments
-
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     main()

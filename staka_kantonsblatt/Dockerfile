@@ -6,7 +6,8 @@ RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
 RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-CMD ["python3", "-m", "staka_kantonsblatt.etl"]
+CMD ["python3", "-m", "staka_kantonsblatt.src.etl"]
+CMD ["python3", "-m", "staka_kantonsblatt.src.etl_baupub"]
 
 # Docker commands to create image and run container:
 # cd staka_kantonsblatt
