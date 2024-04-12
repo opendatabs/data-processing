@@ -4,9 +4,9 @@ schultyp;Schultyp;Art des Schulhauses
 name;Adresse;
 funktion;Funktion;Funktion der Schule
 strasse;Strasse;Strassenname des Schulhauses
-hausnr;Hausnummer;Hausnummer des Schulhauses
+hausnummer;Hausnummer;Hausnummer des Schulhauses
 plz;PLZ;Postleitzahl des Schulhauses
-ort;Ortschaft;Ortschaftsname des Schulhauses
+ortschaft;Ortschaft;Ortschaftsname des Schulhauses
 telefon;Telefon;
 fax;Fax;
 link;Link;Internetadresse des Schulhauses
