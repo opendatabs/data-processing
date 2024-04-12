@@ -1,0 +1,14 @@
+name;label;description
+schulstand;Schulstandort;Bezeichnung des Schulstandorts
+schultyp;Schultyp;Art des Schulhauses
+name;Adresse;
+funktion;Funktion;Funktion der Schule
+strasse;Strasse;Strassenname des Schulhauses
+hausnummer;Hausnummer;Hausnummer des Schulhauses
+plz;PLZ;Postleitzahl des Schulhauses
+ortschaft;Ortschaft;Ortschaftsname des Schulhauses
+telefon;Telefon;
+fax;Fax;
+link;Link;
+pdf_report;PDF-Report;PDF-Report des Schulhauses
+geometrie;Geometrie;Punktgeometrie
