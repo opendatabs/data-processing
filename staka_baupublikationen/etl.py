@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import requests
 
 import common
-from staka_kantonsblatt import credentials
+from staka_baupublikationen import credentials
 
 
 # References:
