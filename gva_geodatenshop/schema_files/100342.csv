@@ -2,7 +2,7 @@ name;label;description
 schulstand;Schulstandort;Bezeichnung des Schulstandorts
 schultyp;Schultyp;Art des Schulhauses
 strasse;Strasse;Strassenname des Schulhauses
-hausnummer;Hausnummer;Hausnummer des Schulhauses
+hausnr;Hausnummer;Hausnummer des Schulhauses
 plz;PLZ;Postleitzahl des Schulhauses
-ortschaft;Ortschaft;Ortschaftsname des Schulhauses
+ort;Ortschaft;Ortschaftsname des Schulhauses
 link;Link;Internetadresse des Schulhauses
