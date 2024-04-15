@@ -20,17 +20,24 @@ def main():
         df_all = process_data_from_2018(directories, df_2017)
         df_export = transform_for_export(df_all)
         big_bussen = os.path.join(credentials.export_path, 'big_bussen.csv')
+        new_plz = os.path.join(credentials.export_path, 'new_plz.csv')
         plz = os.path.join(credentials.export_path, 'plz.csv')
         if ct.has_changed(big_bussen):
+            text = f"The exported file {big_bussen} has changed, please check.\n"
+            text += "It contains new values with Bussen > 300 CHF."
+            msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
+            send_email(msg)
             ct.update_hash_file(big_bussen)
-            text = f"The exported file {big_bussen} has changed, please check."
+        if ct.has_changed(new_plz):
+            text = f"The exported file {plz} has changed, please check.\n"
+            df_plz = pd.read_csv(plz)
+            text += f"PLZ before: {df_plz['Ü-Ort PLZ'].to_list()}\n"
+            df_new_plz = pd.read_csv(new_plz)
+            text += f"PLZ after: {df_new_plz['Ü-Ort PLZ'].to_list()}"
             msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
             send_email(msg)
-        if ct.has_changed(plz):
-            ct.update_hash_file(plz)
-            text = f"The exported file {plz} has changed, please check."
-            msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
-            send_email(msg)
+            df_plz.to_csv(os.path.join(credentials.export_path, 'plz.csv'))
+            ct.update_hash_file(new_plz)
         export_path = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
         logging.info(f'Exporting data to {export_path}...')
         df_export.to_csv(export_path, index=False)
@@ -118,7 +125,7 @@ def transform_for_export(df_all):
     logging.info('Exporting data for high Bussen, and for all found PLZ...')
     df_bussen_big.to_csv(os.path.join(credentials.export_path, 'big_bussen.csv'))
     df_plz = pd.DataFrame(sorted(df_export['Ü-Ort PLZ'].unique()), columns=['Ü-Ort PLZ'])
-    df_plz.to_csv(os.path.join(credentials.export_path, 'plz.csv'))
+    df_plz.to_csv(os.path.join(credentials.export_path, 'new_plz.csv'))
     return df_export
 
 
