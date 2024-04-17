@@ -10,22 +10,21 @@ from common import change_tracking as ct
 
 def main():
     dfs = []
-    for entry in credentials.data_files:
-        file_name = os.path.join(credentials.data_file_root, entry['file_name'])
+    # Iterate over credentials.data_file_root and read the data files
+    for file in os.listdir(credentials.data_file_root):
+        file_name = os.path.join(credentials.data_file_root, file)
         logging.info(f'Parsing file {file_name}...')
-        if file_name.endswith('.xls'):
-            df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, engine='xlrd',
-                               names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
-        else:
-            df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, engine='openpyxl',
-                               names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
+        engine = "openpyxl" if file_name.endswith('.xlsx') else "xlrd"
+        df = pd.read_excel(file_name, skiprows=7, usecols='A:D', header=None, engine=engine,
+                           names=['title', 'timestamp_text', 'einfahrten', 'ausfahrten'])
         df = df.dropna(subset=['ausfahrten'])
         df['timestamp'] = pd.to_datetime(df.timestamp_text, format='%Y-%m-%d %H:%M:%S').dt.tz_localize(
             tz='Europe/Zurich', ambiguous=True).dt.tz_convert('UTC')
         logging.info(f'Adding rows with no data...')
         df = df.set_index('timestamp').asfreq('1H').reset_index()
+        df['timestamp_text'] = df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df[['einfahrten', 'ausfahrten']] = df[['einfahrten', 'ausfahrten']].fillna(0)
-        df.title = entry['title']
+        df.title = pd.read_excel(file_name, skiprows=1, usecols='A', header=None, engine=engine).iloc[0, 0]
         dfs.append(df)
     all_df = pd.concat(dfs)
     all_df = all_df.convert_dtypes()
