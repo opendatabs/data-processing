@@ -26,7 +26,7 @@ def main():
             text = f"The exported file {big_bussen} has changed, please check.\n"
             text += "It contains new values with Bussen > 300 CHF."
             msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
-            send_email(msg)
+            common.send_email(msg)
             ct.update_hash_file(big_bussen)
         if ct.has_changed(new_plz):
             text = f"The exported file {plz} has changed, please check.\n"
@@ -35,7 +35,7 @@ def main():
             df_new_plz = pd.read_csv(new_plz)
             text += f"PLZ after: {df_new_plz['Ü-Ort PLZ'].to_list()}"
             msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
-            send_email(msg)
+            common.send_email(msg)
             df_plz.to_csv(os.path.join(credentials.export_path, 'plz.csv'))
             ct.update_hash_file(new_plz)
         export_path = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD.csv')
@@ -45,18 +45,6 @@ def main():
                           credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
         odsp.publish_ods_dataset_by_id('100058')
         ct.update_hash_file(list_path)
-
-
-def send_email(msg):
-    # initialize connection to email server
-    host = credentials.email_server
-    smtp = smtplib.SMTP(host)
-
-    # send email
-    smtp.sendmail(from_addr=credentials.email,
-                  to_addrs=credentials.email_receivers,
-                  msg=msg.as_string())
-    smtp.quit()
 
 
 def process_data_2017():

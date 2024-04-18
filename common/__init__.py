@@ -9,6 +9,7 @@ import pandas as pd
 import fnmatch
 import logging
 import dateutil
+import smtplib
 from more_itertools import chunked
 
 from common import credentials
@@ -390,6 +391,18 @@ def get_text_from_url(url):
     req = requests_get(url)
     req.raise_for_status()
     return io.StringIO(req.text)
+
+
+def send_email(msg):
+    # initialize connection to email server
+    host = credentials.email_server
+    smtp = smtplib.SMTP(host)
+
+    # send email
+    smtp.sendmail(from_addr=credentials.email,
+                  to_addrs=credentials.email_receivers,
+                  msg=msg.as_string())
+    smtp.quit()
 
 
 def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str, ftp_server=credentials.ftp_server,

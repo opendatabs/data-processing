@@ -37,7 +37,8 @@ def future_abfuhrtermine():
     if ct.has_changed(path_export):
         common.update_ftp_and_odsp(path_export, 'tba/abfuhrtermine', '100096')
         text = f"New Abfuhrtermine (dataset 100096) available for the year {max_year}.\n"
-        text += f"The new data can be found here: https://data-bs.ch/stata/tba/abfuhrtermine/Abfuhrtermine_{max_year}.csv"
+        text += f"The new data can be found here: https://data-bs.ch/stata/tba/abfuhrtermine/Abfuhrtermine_{max_year}.csv\n"
+        text += "Kind regards, \nYour automated Open Data Basel-Stadt Python Job"
         msg = email_message(subject=f"Abfuhrtermine {max_year}", text=text, img=None, attachment=None)
         common.send_email(msg)
         ct.update_hash_file(path_export)

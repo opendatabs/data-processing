@@ -54,7 +54,7 @@ def main():
                f"Rows with datum_urnengang in {dates_not_listed} have therefore not been pushed. \n\n" \
                f"Kind regards, \nYour automated Open Data Basel-Stadt Python Job"
         msg = email_message(subject="Warning Briefliche Stimmabgaben", text=text, img=None, attachment=None)
-        send_email(msg)
+        common.send_email(msg)
     # upload csv files
     logging.info(f'upload csv file to {credentials.path_export_file_publ}')
     df_publ.to_csv(credentials.path_export_file_publ, index=False)
@@ -66,16 +66,6 @@ def main():
         push_url = credentials.ods_live_realtime_push_url_publ
         push_key = credentials.ods_live_realtime_push_key_publ
         common.ods_realtime_push_df(df_publ, url=push_url, push_key=push_key)
-
-def send_email(msg):
-    # initialize connection to email server
-    host = credentials.email_server
-    smtp = smtplib.SMTP(host)
-    # send email
-    smtp.sendmail(from_addr=credentials.email,
-                  to_addrs=credentials.email_receivers,
-                  msg=msg.as_string())
-    smtp.quit()
 
 
 def get_data_2020():
