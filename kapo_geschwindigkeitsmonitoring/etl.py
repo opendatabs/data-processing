@@ -10,6 +10,7 @@ import psycopg2 as pg
 from charset_normalizer import from_path
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
+import sqlite3
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -195,6 +196,12 @@ def create_measurements_df(df_meta_raw):
             odsp.publish_ods_dataset_by_id('100200')
             odsp.publish_ods_dataset_by_id('100358')
             ct.update_hash_file(all_data_filename)
+
+        db_filename = all_data_filename.replace('.csv', '.db')
+        logging.info(f'Saving into sqlite db {db_filename}...')
+        conn = sqlite3.connect(db_filename)
+        all_df.to_sql(name=db_filename.replace('.db', ''), con=conn, if_exists='replace', )
+        common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
         return all_df
 
