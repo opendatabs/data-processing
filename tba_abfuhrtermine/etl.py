@@ -42,6 +42,7 @@ def future_abfuhrtermine():
         common.send_email(msg)
         ct.update_hash_file(path_export)
 
+
 def abfuhrtermine_2020_2023():
     csv_path = os.path.join(credentials.data_orig_path, 'csv')
     for csv_file in os.listdir(csv_path):
@@ -76,6 +77,7 @@ def append_columns(df):
     df['dayofweek'] = df['termin'].dt.dayofweek
     df['termin'] = df['termin'].dt.strftime('%d.%m.%Y')
     return df.merge(download_abfuhrzonen(), on='zone', how='left')
+
 
 def download_abfuhrzonen():
     url_to_shp = f'https://data.bs.ch/explore/dataset/100095/download/?format=csv&timezone=Europe/Zurich&lang=de'
