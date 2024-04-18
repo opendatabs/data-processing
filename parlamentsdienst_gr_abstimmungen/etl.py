@@ -478,6 +478,10 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
 def calc_details_from_single_json_file(local_file, df_name_trakt, df_members):
     with open(local_file, "r", encoding="utf-8") as json_file:
         data = json.load(json_file)
+        # Check if the file is a valid JSON file
+        if 'voting_data' not in data or 'individual_votes' not in data:
+            logging.error(f'File {local_file} is not a valid JSON file')
+            return pd.DataFrame()
         df_json = pd.json_normalize(data, record_path=['voting_data', 'individual_votes'],
                                     meta=['voting_number', 'voting_date', 'voting_time', 'yes_votes', 'no_votes',
                                           'abstained_votes', 'started', 'created', 'protocol', 'voting_type',
