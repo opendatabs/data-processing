@@ -49,6 +49,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     print(f'Saving into sqlite db {db_filename}...')
     conn = sqlite3.connect(db_filename)
     data.to_sql(name=db_filename.replace('.db', ''), con=conn, if_exists='replace', )
+    common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
     # group by SiteName, get latest rows (data is already sorted by date and time) so that ODS limit
     # of 250K is not exceeded
