@@ -91,6 +91,3 @@ if __name__ == "__main__":
     logging.info(f'Executing {__file__}...')
     main()
     logging.info(f'Job successful!')
-
-
-
