@@ -1,0 +1,7 @@
+name;label;description
+idquartier;ID Quartier;Eindeutiger Identifikator des Quartiers
+viertel;Viertel;Name des Wohnviertels
+preis;Preis;Durchschnittlicher Quadratmeterpreis in CHF (Median)
+start_dat;Startdatum;Start der Berechnungsperiode
+end_dat;Enddatum;Ende der Berechnungsperiode
+anzahl_ver;Anzahl Verkäufe;Anzahl der Verkäufe in der Berechnungsperiode
