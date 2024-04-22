@@ -1,6 +1,6 @@
 name;label;description
 idquartier;ID Quartier;Eindeutiger Identifikator des Quartiers
-viertel;Viertel;Name des Wohnviertels
+viertel;Viertel;Name des Wohnviertels (Riehen ist in 6 Wohnviertel unterteilt, die jeweils mit A,B,C,D,E und F gekennzeichnet sind)
 preis;Preis;Durchschnittlicher Quadratmeterpreis in CHF (Median)
 start_dat;Startdatum;Start der Berechnungsperiode
 end_dat;Enddatum;Ende der Berechnungsperiode
