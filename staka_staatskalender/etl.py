@@ -58,6 +58,7 @@ def get_agencies(token):
         'parent_id']
     df.loc[df['children_id'] != '', 'filter_by_children'] = "https://data.bs.ch/explore/dataset/100349?refine.id=" + \
                                                               df['children_id'].str.replace(', ', '&refine.id=')
+    df['url_to_membs'] = "https://data.bs.ch/explore/dataset/100351?refine.id=" + df.index.astype(str)
     path_export = os.path.join(credentials.data_path, 'export', '100349_staatskalender_organisationen.csv')
     df.to_csv(path_export, index=True)
     return path_export, 'staka/staatskalender', '100349'
