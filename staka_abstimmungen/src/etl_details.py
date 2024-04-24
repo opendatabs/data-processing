@@ -145,9 +145,16 @@ def calculate_details(data_file_names):
     # add Wahllokal_ID
     path_wahllokale = os.path.join(pathlib.Path(__file__).parents[1], 'data/Wahllokale.csv')
     df_wahllokale = pd.read_csv(path_wahllokale, encoding='unicode_escape')
-    df_wahllokale.rename(columns={'Wahllok_Name':'Wahllok_name'}, inplace=True)
+    df_wahllokale.rename(columns={'Wahllok_Name': 'Wahllok_name'}, inplace=True)
     concatenated_df = pd.merge(concatenated_df, df_wahllokale, on=['Wahllok_name'], how='inner')
     return abst_date, concatenated_df
+
+
+def merge_with_wahllokale(df):
+    path_wahllokale = os.path.join(pathlib.Path(__file__).parents[1], 'data/Wahllokale_Vorschlag.csv')
+    df_wahllokale = pd.read_csv(path_wahllokale, encoding='cp1252')
+    df = df.merge(df_wahllokale, on='Wahllok_name', how='left')
+    return df
 
 
 if __name__ == "__main__":

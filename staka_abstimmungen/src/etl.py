@@ -9,7 +9,7 @@ import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 import pandas as pd
 from staka_abstimmungen import credentials
-from staka_abstimmungen.src.etl_details import calculate_details
+from staka_abstimmungen.src.etl_details import calculate_details, merge_with_wahllokale
 from staka_abstimmungen.src.etl_kennzahlen import calculate_kennzahlen
 import smtplib
 
@@ -20,7 +20,8 @@ def main():
     if push_past_abstimmungen:
         push_past_abstimmungen_to_ods()
     logging.info(f'Reading control.csv...')
-    df = pd.read_csv(os.path.join(credentials.path, 'control.csv'), sep=';', parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])
+    df = pd.read_csv(os.path.join(credentials.path, 'control.csv'), sep=';',
+                     parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])
     active_abst = df.query('Active == True').copy(deep=True)
     active_active_size = active_abst.Active.size
     what_changed = {'updated_ods_datasets': [], 'datasets_changed_to_public': [], 'send_update_email': False}
@@ -57,9 +58,9 @@ def main():
 
 def push_past_abstimmungen_to_ods():
     path_data_processing_output = os.path.join(credentials.path, 'data-processing-output')
-    files_details = glob.glob(os.path.join(path_data_processing_output, 'Abstimmungen_Details_*.csv'))
+    files_details = glob.glob(os.path.join(path_data_processing_output, 'Abstimmungen_Details_??????????.csv'))
     files_details = filter_files_by_date(files_details)
-    files_kennz = glob.glob(os.path.join(path_data_processing_output, 'Abstimmungen_*.csv'))
+    files_kennz = glob.glob(os.path.join(path_data_processing_output, 'Abstimmungen_??????????.csv'))
     files_kennz = filter_files_by_date(files_kennz)
     for file in files_details:
         df_details = pd.read_csv(file)
@@ -113,7 +114,8 @@ def send_update_email(what_changed):
 
 def make_datasets_public(active_abst, active_files, what_changed):
     vorlage_in_filename = [f for f in active_files if 'Vorlage' in f]
-    logging.info(f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: setting live ods datasets to public...')
+    logging.info(
+        f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: setting live ods datasets to public...')
     if len(vorlage_in_filename) == 0:
         for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Details_Live[0]]:
             policy_changed, r = odsp.ods_set_general_access_policy(ods_id, 'domain')
@@ -125,12 +127,12 @@ def make_datasets_public(active_abst, active_files, what_changed):
 def publish_datasets(active_abst, details_changed, kennz_changed, what_changed):
     if kennz_changed:
         logging.info(f'Kennzahlen have changed, publishing datasets (Test and live)...')
-        for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Kennzahlen_Test[0]]:             
+        for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Kennzahlen_Test[0]]:
             odsp.publish_ods_dataset_by_id(ods_id)
-            what_changed['updated_ods_datasets'].append(ods_id)        
+            what_changed['updated_ods_datasets'].append(ods_id)
     if details_changed:
         logging.info(f'Details have changed, publishing datasets (Test and live)...')
-        for ods_id in [active_abst.ODS_id_Details_Live[0], active_abst.ODS_id_Details_Test[0]]: 
+        for ods_id in [active_abst.ODS_id_Details_Live[0], active_abst.ODS_id_Details_Test[0]]:
             odsp.publish_ods_dataset_by_id(ods_id)
             what_changed['updated_ods_datasets'].append(ods_id)
     return what_changed
@@ -138,7 +140,8 @@ def publish_datasets(active_abst, details_changed, kennz_changed, what_changed):
 
 def calculate_and_upload(active_files):
     details_abst_date, df_details = calculate_details(active_files)
-    details_export_file_name = os.path.join(credentials.path, 'data-processing-output', f'Abstimmungen_Details_{details_abst_date}.csv')
+    details_export_file_name = os.path.join(credentials.path, 'data-processing-output',
+                                            f'Abstimmungen_Details_{details_abst_date}.csv')
     details_changed = upload_ftp_if_changed(df_details, details_export_file_name)
 
     kennz_abst_date, df_kennz = calculate_kennzahlen(active_files)
@@ -179,7 +182,8 @@ def upload_ftp_if_changed(df, file_name):
     df.to_csv(file_name, index=False)
     has_changed = ct.has_changed(file_name)
     if has_changed:
-        common.upload_ftp(file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
+        common.upload_ftp(file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          'wahlen_abstimmungen/abstimmungen')
     return has_changed
 
 

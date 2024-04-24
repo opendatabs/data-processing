@@ -1,0 +1,22 @@
+{
+    "id": "2020-09-27_01_11",
+    "Wahllok_name": "Bahnhof SBB",
+    "Stimmr_Anz": 700,
+    "Eingel_Anz": 700,
+    "Leer_Anz": 13,
+    "Unguelt_Anz": 1,
+    "Guelt_Anz": 686,
+    "Ja_Anz": 115,
+    "Nein_Anz": 571,
+    "Abst_Titel": "«Begrenzungsinitiative»",
+    "Abst_Art": "national",
+    "Abst_Datum": "2020-09-27",
+    "Result_Art": "Schlussresultate",
+    "Abst_ID": 1,
+    "anteil_ja_stimmen": 0.16763848396501457,
+    "abst_typ": "Abstimmung ohne Gegenvorschlag / Stichfrage",
+    "Abst_ID_Titel": "1: «Begrenzungsinitiative»",
+    "wahllok_id": 1,
+    "gemein_id": 1,
+    "gemein_name": "Basel"
+}
