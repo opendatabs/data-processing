@@ -16,10 +16,16 @@ from staka_kantonsblatt import credentials
 
 def main():
     df = iterate_over_years()
-    # Get codes for the rubric
+    # Get names for the rubric codes
     df_rubric, df_subRubric = get_rubric_from_api()
     df = df.merge(df_rubric, how='left', on='rubric')
     df = df.merge(df_subRubric, how='left', on='subRubric')
+    # Get names for the tenant codes
+    tenant_code_to_name = get_tenants_from_api()
+    df['primaryTenantName'] = df['primaryTenantCode'].map(tenant_code_to_name)
+    df['secondaryTenantsTenantName'] = df.loc[
+        df['secondaryTenantsTenantCode'].notna(), 'secondaryTenantsTenantCode'].str.split(',').apply(
+        lambda x: ','.join([tenant_code_to_name.get(y) for y in x]))
     path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100352')
@@ -35,7 +41,7 @@ def iterate_over_newest_pages(pages=10):
         df_curr_page = pd.read_csv(io.StringIO(r.content.decode('utf-8')), sep=';')
         df_curr_page = add_columns(df_curr_page)
         common.ods_realtime_push_df(df_curr_page, credentials.push_url)
-        url = f'{base_url}&pageRequest.page={page+1}'
+        url = f'{base_url}&pageRequest.page={page + 1}'
 
 
 def iterate_over_years():
@@ -54,7 +60,7 @@ def iterate_over_years():
 def iterate_over_pages(year, month):
     base_url = f'https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS'
     start_date = f'&publicationDate.start={year}-{month}-01'
-    end_date = f'&publicationDate.end={year}-{month+1}-01' if month < 12 else f'&publicationDate.end={year+1}-01-01'
+    end_date = f'&publicationDate.end={year}-{month + 1}-01' if month < 12 else f'&publicationDate.end={year + 1}-01-01'
     url = f'{base_url}{start_date}{end_date}'
     page = 0
     next_page = f'{url}&pageRequest.page={page}'
@@ -94,6 +100,14 @@ def get_rubric_from_api():
     df_subRubric = df.rename(columns={'code': 'subRubric', 'name.en': 'subRubric_en', 'name.de': 'subRubric_de',
                                       'name.fr': 'subRubric_fr', 'name.it': 'subRubric_it'})
     return df_rubric, df_subRubric
+
+
+def get_tenants_from_api():
+    url = 'https://www.kantonsblatt.ch/api/v1/tenants'
+    r = common.requests_get(url)
+    r.raise_for_status()
+    tenants = r.json()
+    return {tenant['id']: tenant['title']['de'] for tenant in tenants}
 
 
 if __name__ == '__main__':
