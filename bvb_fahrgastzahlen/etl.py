@@ -1,45 +1,35 @@
-import pandas as pd
-import openpyxl
+import pandas as pd 
 from datetime import datetime
 import logging
-import os
-import pathlib
-from common import change_tracking as ct
-import common
-import ods_publish.etl_id as odsp
-from bvb_fahrgastzahlen import credentials
+import locale
 
 
 def main():
-    sheets = pd.read_excel(os.path.join(pathlib.Path(__file__).parent, 'data_orig/fahrgast.xlsx')
-                           , sheet_name=None , engine='openpyxl',  header=None)
-    dat_sheet_names = []
-    for key in sheets:
-        if key.startswith('Zeitreihe'):
-             dat_sheet_names.append(key)
-    dat_sheets = []
-    for sheet_name in dat_sheet_names:
-        zeitreihe_x = pd.read_excel(os.path.join(pathlib.Path(__file__).parent, 'data_orig/fahrgast.xlsx'),
-                                    sheet_name=sheet_name , engine='openpyxl', header=None).T
-        new_header = zeitreihe_x.iloc[0]
-        zeitreihe_x=zeitreihe_x[1:]
-        zeitreihe_x.columns=new_header
-        zeitreihe_x["Date"]=sheet_name.strip('Zeitreihe ')
-        zeitreihe_x["Kalenderwoche"]=zeitreihe_x["Kalenderwoche"].str.strip('KW')
-        def year_week(y,w):
-                return datetime.strptime(f'{y} {w} 1', '%G %V %u')
-        zeitreihe_x["Datum"]=zeitreihe_x.apply(lambda row: year_week(row.Date, row.Kalenderwoche), axis=1)
-        dat_sheets.append(zeitreihe_x)
-    fahrgast = pd.concat(dat_sheets)#.reset_index(drop=True) #Dateien werden zusammengeführt und Index (erste Spalte) wird korrigiert
-    fahrgast = fahrgast [["Datum", "Fahrgäste (Einsteiger)", "Kalenderwoche"]]
-    fahrgast = fahrgast.rename(columns={"Datum": 'startdatum_woche'})
-    export_filename = os.path.join(pathlib.Path(__file__).parent, 'data/bvb_fahrgastzahlen.csv')
-    fahrgast.to_csv(export_filename, index = False)
-    if ct.has_changed(export_filename):
-        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          'bvb/fahrgastzahlen')
-        odsp.publish_ods_dataset_by_id('100075')
-        ct.update_hash_file(export_filename)
+     BVB_Fahrgast()
+
+def BVB_Fahrgast():
+      # für deutsche Sprache 
+      locale.setlocale(locale.LC_TIME, "de_DE")
+
+      # letztes Update von BVB merken
+      df_orig = pd.read_excel('data_orig/BVB-Fahrgast_240409.xlsx',sheet_name='Monatswerte')
+      S_1 = df_orig.iloc[-1].dropna()
+      BVB_update= datetime.strptime(S_1.index[-1],'%B').month
+
+
+      # OGD Update
+      df_pro = pd.read_excel('data/BVB_to-upload.xlsx')
+      last_update= df_pro.iloc[-1]['Startdatum Kalenderwoche/Monat'].month
+     
+      if last_update > BVB_update:
+          print('Error(wrong file)')
+      elif last_update == BVB_update:
+          pass
+      else:
+        month_begin = datetime.now().strftime('%Y-'+ str(BVB_update).zfill(2) +'-01 00:00:00')
+        df_pro.loc[len(df_pro)] = ['Monat',month_begin, S_1.iloc[-1], None, month_begin]
+        df_pro.to_excel('data/export/100075_BVB_Fahrgastzahlen.xlsx', index=False)
+      return
 
 
 if __name__ == "__main__":
