@@ -1,5 +1,16 @@
 FROM python:3.11-bullseye
 WORKDIR /code/data-processing
+
+# Installieren von locale-gen und dem deutschen Locale um die Monate auf Deutsch zu lesen
+RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
+    && sed -i -e 's/# de_DE.UTF-8 UTF-8/de_DE.UTF-8 UTF-8/' /etc/locale.gen \
+    && locale-gen
+
+# Setzen des Locale
+ENV LANG de_DE.UTF-8  
+ENV LANGUAGE de_DE:de  
+ENV LC_ALL de_DE.UTF-8
+
 #ARG HTTPS_PROXY
 #ENV HTTPS_PROXY=$HTTPS_PROXY
 RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
