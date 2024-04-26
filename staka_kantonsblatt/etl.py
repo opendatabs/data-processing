@@ -3,8 +3,6 @@ import io
 import logging
 import pandas as pd
 import datetime
-import xml.etree.ElementTree as ET
-import requests
 
 import common
 from staka_kantonsblatt import credentials
@@ -26,6 +24,17 @@ def main():
     df['secondaryTenantsTenantName'] = df.loc[
         df['secondaryTenantsTenantCode'].notna(), 'secondaryTenantsTenantCode'].str.split(',').apply(
         lambda x: ','.join([tenant_code_to_name.get(y) for y in x]))
+    df = anonymize_data(df)
+    columns_of_interest = ['id', 'rubric', 'rubric_de' 'subRubric', 'subRubric_de', 'language', 'registrationOfficeId',
+                           'registrationOfficeDisplayName', 'registrationOfficeStreet',
+                           'registrationOfficeStreetNumber', 'registrationOfficeSwissZipCode', 'registrationOfficeTown',
+                           'registrationOfficeContainsPostOfficeBox', 'registrationOfficePostOfficeBoxNumber',
+                           'registrationOfficePostOfficeBoxSwissZipCode', 'registrationOfficePostOfficeBoxTown',
+                           'publicationNumber', 'publicationState', 'publicationDate', 'expirationDate',
+                           'primaryTenantCode', 'onBehalfOf', 'legalRemedy', 'cantons', 'secondaryTenantsTenantCode',
+                           'secondaryTenantsPublicationDate', 'repeatedPublicationsPublicationNumber',
+                           'repeatedPublicationsPublicationDate', 'url_kantonsblatt', 'url_pdf', 'url_xml']
+    df = df[columns_of_interest]
     path_export = os.path.join(credentials.data_path, 'export', '100352_kantonsblatt.csv')
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100352')
@@ -108,6 +117,48 @@ def get_tenants_from_api():
     r.raise_for_status()
     tenants = r.json()
     return {tenant['id']: tenant['title']['de'] for tenant in tenants}
+
+
+def anonymize_data(df):
+    # Anonymize the data of the registration offices and the on behalf of
+    df_reg_office = pd.read_excel(os.path.join(credentials.data_path, 'lookup_table_registration_office.xlsx'),
+                                  dtype={'registrationOfficeDisplayName': str, 'anonymize': bool})
+    df = df.merge(df_reg_office, how='left', on='registrationOfficeDisplayName')
+    df.loc[df['registrationOfficeDisplayName'].notna() & df['anonymize'], 'registrationOfficeDisplayName'] = ''
+    df.loc[df['registrationOfficeDisplayName'].notna() & df['anonymize'].isna(), 'registrationOfficeDisplayName'] = ''
+    new_values_reg_office = df.loc[
+        df['registrationOfficeDisplayName'].notna() & df['anonymize'].isna(), 'registrationOfficeDisplayName'].unique()
+    df = df.drop(columns='anonymize')
+    df_reg_office = pd.concat([df_reg_office, pd.DataFrame({'registrationOfficeDisplayName': new_values_reg_office,
+                                                            'anonymize': True})])
+    df_reg_office.to_excel(os.path.join(credentials.data_path, 'lookup_table_registration_office.xlsx'), index=False)
+
+    df_on_behalf = pd.read_excel(os.path.join(credentials.data_path, 'lookup_table_on_behalf.xlsx'),
+                                 dtype={'onBehalfOf': str, 'anonymize': bool})
+    df = df.merge(df_on_behalf, how='left', on='onBehalfOf')
+    df.loc[df['onBehalfOf'].notna() & df['anonymize'], 'onBehalfOf'] = ''
+    df.loc[df['onBehalfOf'].notna() & df['anonymize'].isna(), 'onBehalfOf'] = ''
+    new_values_on_behalf = df.loc[df['onBehalfOf'].notna() & df['anonymize'].isna(), 'onBehalfOf'].unique()
+    df = df.drop(columns='anonymize')
+    df_on_behalf = pd.concat([df_on_behalf, pd.DataFrame({'onBehalfOf': new_values_on_behalf, 'anonymize': True})])
+    df_on_behalf.to_excel(os.path.join(credentials.data_path, 'lookup_table_on_behalf.xlsx'), index=False)
+
+    # Send an e-mail with new values
+    if new_values_on_behalf.size > 0 or new_values_reg_office.size > 0:
+        text = "New values have been added to the lookup tables for the anonymization (and set to True by default) " \
+               "of the registration offices and the on behalf of. The new values are:\n\n"
+        if new_values_reg_office.size > 0:
+            text += "Registration offices:\n"
+            for value in new_values_reg_office:
+                text += f" - {value}\n"
+        if new_values_on_behalf.size > 0:
+            text += f"On behalf of:\n"
+            for value in new_values_on_behalf:
+                text += f" - {value}\n"
+        text += "\bKind regards, \nYour automated Open Data Basel-Stadt Python Job"
+        msg = common.email_message(subject="New values for anonymization", text=text, img=None, attachment=None)
+        common.send_email(msg)
+    return df
 
 
 if __name__ == '__main__':
