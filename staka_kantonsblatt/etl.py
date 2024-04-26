@@ -25,7 +25,7 @@ def main():
         df['secondaryTenantsTenantCode'].notna(), 'secondaryTenantsTenantCode'].str.split(',').apply(
         lambda x: ','.join([tenant_code_to_name.get(y) for y in x]))
     df = anonymize_data(df)
-    columns_of_interest = ['id', 'rubric', 'rubric_de' 'subRubric', 'subRubric_de', 'language', 'registrationOfficeId',
+    columns_of_interest = ['id', 'rubric', 'rubric_de', 'subRubric', 'subRubric_de', 'language', 'registrationOfficeId',
                            'registrationOfficeDisplayName', 'registrationOfficeStreet',
                            'registrationOfficeStreetNumber', 'registrationOfficeSwissZipCode', 'registrationOfficeTown',
                            'registrationOfficeContainsPostOfficeBox', 'registrationOfficePostOfficeBoxNumber',
