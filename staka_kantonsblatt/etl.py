@@ -31,7 +31,8 @@ def main():
                            'registrationOfficeContainsPostOfficeBox', 'registrationOfficePostOfficeBoxNumber',
                            'registrationOfficePostOfficeBoxSwissZipCode', 'registrationOfficePostOfficeBoxTown',
                            'publicationNumber', 'publicationState', 'publicationDate', 'expirationDate',
-                           'primaryTenantCode', 'onBehalfOf', 'legalRemedy', 'cantons', 'secondaryTenantsTenantCode',
+                           'primaryTenantCode', 'primaryTenantName', 'onBehalfOf', 'legalRemedy', 'cantons',
+                           'secondaryTenantsTenantCode', 'secondaryTenantsTenantName',
                            'secondaryTenantsPublicationDate', 'repeatedPublicationsPublicationNumber',
                            'repeatedPublicationsPublicationDate', 'url_kantonsblatt', 'url_pdf', 'url_xml']
     df = df[columns_of_interest]
