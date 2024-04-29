@@ -125,20 +125,24 @@ def remove_entries(df):
     entries_to_remove_file = os.path.join(credentials.data_path, 'kantonsblatt_entries_to_remove_from_ODS.xlsx')
     new_values = {}
     df_sheets = {}
+    logging.info(f'Reading Excel file {entries_to_remove_file}...')
     for sheet in ['registrationOfficeDisplayName', 'onBehalfOf']:
         df_lookup = pd.read_excel(entries_to_remove_file, sheet_name=sheet, dtype={sheet: str, 'remove': bool})
         df = df.merge(df_lookup, how='left', on=sheet)
         df.loc[df[sheet].notna() & df['remove'], sheet] = ''
         df.loc[df[sheet].notna() & df['remove'].isna(), sheet] = ''
         new_values[sheet] = df.loc[df[sheet].notna() & df['remove'].isna(), sheet].unique()
+        logging.info(f'New values for {sheet}: {new_values[sheet]}')
         df_sheets[sheet] = pd.concat([df_lookup, pd.DataFrame({sheet: new_values, 'remove': True})])
         df = df.drop(columns='remove')
 
     # Send an e-mail with new values
-    if new_values['registrationOfficeDisplayName'] or new_values['onBehalfOf']:
+    if 'registrationOfficeDisplayName' in new_values or 'onBehalfOf' in new_values:
+        logging.info(f'Writing Excel file {entries_to_remove_file}...')
         with pd.ExcelWriter(entries_to_remove_file) as writer:
             for sheet in df_sheets:
                 df_sheets[sheet].to_excel(writer, sheet_name=sheet, index=False)
+        logging.info('Sending e-mail...')
         text = "The dataset of the Kantonsblatt (https://data.bs.ch/explore/dataset/100352) " \
                "has two columns, 'registrationOfficeDisplayName' and 'onBehalfOf'" \
                "which can contain names of persons. If there is a new value, it is removed by default.\n\n" \
