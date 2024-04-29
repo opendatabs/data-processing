@@ -24,7 +24,7 @@ def main():
     df['secondaryTenantsTenantName'] = df.loc[
         df['secondaryTenantsTenantCode'].notna(), 'secondaryTenantsTenantCode'].str.split(',').apply(
         lambda x: ','.join([tenant_code_to_name.get(y) for y in x]))
-    df = anonymize_data(df)
+    df = remove_entries(df)
     columns_of_interest = ['id', 'rubric', 'rubric_de', 'subRubric', 'subRubric_de', 'language', 'registrationOfficeId',
                            'registrationOfficeDisplayName', 'registrationOfficeStreet',
                            'registrationOfficeStreetNumber', 'registrationOfficeSwissZipCode', 'registrationOfficeTown',
@@ -120,44 +120,44 @@ def get_tenants_from_api():
     return {tenant['id']: tenant['title']['de'] for tenant in tenants}
 
 
-def anonymize_data(df):
-    # Anonymize the data of the registration offices and the on behalf of
-    df_reg_office = pd.read_excel(os.path.join(credentials.data_path, 'lookup_table_registration_office.xlsx'),
-                                  dtype={'registrationOfficeDisplayName': str, 'anonymize': bool})
-    df = df.merge(df_reg_office, how='left', on='registrationOfficeDisplayName')
-    df.loc[df['registrationOfficeDisplayName'].notna() & df['anonymize'], 'registrationOfficeDisplayName'] = ''
-    df.loc[df['registrationOfficeDisplayName'].notna() & df['anonymize'].isna(), 'registrationOfficeDisplayName'] = ''
-    new_values_reg_office = df.loc[
-        df['registrationOfficeDisplayName'].notna() & df['anonymize'].isna(), 'registrationOfficeDisplayName'].unique()
-    df = df.drop(columns='anonymize')
-    df_reg_office = pd.concat([df_reg_office, pd.DataFrame({'registrationOfficeDisplayName': new_values_reg_office,
-                                                            'anonymize': True})])
-    df_reg_office.to_excel(os.path.join(credentials.data_path, 'lookup_table_registration_office.xlsx'), index=False)
-
-    df_on_behalf = pd.read_excel(os.path.join(credentials.data_path, 'lookup_table_on_behalf.xlsx'),
-                                 dtype={'onBehalfOf': str, 'anonymize': bool})
-    df = df.merge(df_on_behalf, how='left', on='onBehalfOf')
-    df.loc[df['onBehalfOf'].notna() & df['anonymize'], 'onBehalfOf'] = ''
-    df.loc[df['onBehalfOf'].notna() & df['anonymize'].isna(), 'onBehalfOf'] = ''
-    new_values_on_behalf = df.loc[df['onBehalfOf'].notna() & df['anonymize'].isna(), 'onBehalfOf'].unique()
-    df = df.drop(columns='anonymize')
-    df_on_behalf = pd.concat([df_on_behalf, pd.DataFrame({'onBehalfOf': new_values_on_behalf, 'anonymize': True})])
-    df_on_behalf.to_excel(os.path.join(credentials.data_path, 'lookup_table_on_behalf.xlsx'), index=False)
+def remove_entries(df):
+    # Remove the data of the registration offices and the on behalf of that contain names of persons
+    entries_to_remove_file = os.path.join(credentials.data_path, 'kantonsblatt_entries_to_remove_from_ODS.xlsx')
+    new_values = {}
+    df_sheets = {}
+    for sheet in ['registrationOfficeDisplayName', 'onBehalfOf']:
+        df_lookup = pd.read_excel(entries_to_remove_file, sheet_name=sheet, dtype={sheet: str, 'remove': bool})
+        df = df.merge(df_lookup, how='left', on=sheet)
+        df.loc[df[sheet].notna() & df['remove'], sheet] = ''
+        df.loc[df[sheet].notna() & df['remove'].isna(), sheet] = ''
+        new_values[sheet] = df.loc[df[sheet].notna() & df['remove'].isna(), sheet].unique()
+        df_sheets[sheet] = pd.concat([df_lookup, pd.DataFrame({sheet: new_values, 'remove': True})])
+        df = df.drop(columns='remove')
 
     # Send an e-mail with new values
-    if new_values_on_behalf.size > 0 or new_values_reg_office.size > 0:
-        text = "New values have been added to the lookup tables for the anonymization (and set to True by default) " \
-               "of the registration offices and the on behalf of. The new values are:\n\n"
-        if new_values_reg_office.size > 0:
-            text += "Registration offices:\n"
-            for value in new_values_reg_office:
+    if new_values['registrationOfficeDisplayName'] or new_values['onBehalfOf']:
+        with pd.ExcelWriter(entries_to_remove_file) as writer:
+            for sheet in df_sheets:
+                df_sheets[sheet].to_excel(writer, sheet_name=sheet, index=False)
+        text = "The dataset of the Kantonsblatt (https://data.bs.ch/explore/dataset/100352) " \
+               "has two columns, 'registrationOfficeDisplayName' and 'onBehalfOf'" \
+               "which can contain names of persons. If there is a new value, it is removed by default.\n\n" \
+               "Please check if the new values are names of persons and if they should be removed. " \
+               "If not, please change the boolean flag in the Excel file " \
+               f"(located here {credentials.excel_path_for_mail}) " \
+               "so they are added again in the next run of the job.\n\n" \
+               "The new values are:\n"
+        if new_values['registrationOfficeDisplayName']:
+            text += "Registration offices (found in the sheet 'registrationOfficeDisplayName'):\n"
+            for value in new_values['registrationOfficeDisplayName']:
                 text += f" - {value}\n"
-        if new_values_on_behalf.size > 0:
-            text += f"On behalf of:\n"
-            for value in new_values_on_behalf:
+        if new_values['onBehalfOf'].size > 0:
+            text += f"On behalf of (found in the sheet 'onBehalfOf'):\n"
+            for value in new_values['onBehalfOf']:
                 text += f" - {value}\n"
         text += "\bKind regards, \nYour automated Open Data Basel-Stadt Python Job"
-        msg = common.email_message(subject="New values for anonymization", text=text, img=None, attachment=None)
+        msg = common.email_message(subject="Data removed from Kantonsblatt (100352). Please check if person data.",
+                                   text=text, img=None, attachment=None)
         common.send_email(msg)
     return df
 
