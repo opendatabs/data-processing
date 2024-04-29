@@ -1,12 +1,12 @@
 from datetime import datetime
 import os
+
+import pandas as pd
+
 import common
 import logging
 from stadtreinigung_sauberkeitsindex import credentials
-from common import credentials as common_cred
 from requests.auth import HTTPBasicAuth
-import ods_publish.etl_id as odsp
-from common import change_tracking as ct
 
 
 def main():
@@ -16,14 +16,18 @@ def main():
         raise RuntimeError('No data retrieved from API.')
     else:
         curr_dir = os.path.dirname(os.path.realpath(__file__))
-        export_filename = f"{curr_dir}/data/data-{datetime.now().strftime('%Y-%m')}.csv"
+        export_filename = f"{curr_dir}/data/data_{datetime.now().strftime('%Y-%m')}.csv"
         with open(export_filename, 'w') as file:
             file.write(r.text)
-        if ct.has_changed(export_filename):
-            common.upload_ftp(export_filename, common_cred.ftp_server, common_cred.ftp_user, common_cred.ftp_pass,
-                              'stadtreinigung/sauberkeitsindex')
-            odsp.publish_ods_dataset_by_id('100288')
-            ct.update_hash_file(export_filename)
+        df = add_datenstand(export_filename)
+        df.to_csv(export_filename, index=False)
+        common.update_ftp_and_odsp(export_filename, 'stadtreinigung/sauberkeitsindex', '100288')
+
+
+def add_datenstand(path_csv):
+    df = pd.read_csv(path_csv, encoding='cp1252', sep=';')
+    df['datenstand'] = pd.to_datetime(path_csv.split('/')[-1].split('.')[0].split('_')[1])
+    return df
 
 
 if __name__ == "__main__":
