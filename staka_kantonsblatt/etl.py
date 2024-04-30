@@ -130,8 +130,8 @@ def remove_entries(df):
         df_lookup = pd.read_excel(entries_to_remove_file, sheet_name=sheet, dtype={sheet: str, 'remove': bool})
         df = df.merge(df_lookup, how='left', on=sheet)
         df.loc[df[sheet].notna() & df['remove'], sheet] = ''
-        df.loc[df[sheet].notna() & df['remove'].isna(), sheet] = ''
         new_values[sheet] = df.loc[df[sheet].notna() & df['remove'].isna(), sheet].unique()
+        df.loc[df[sheet].notna() & df['remove'].isna(), sheet] = ''
         logging.info(f'New values for {sheet}: {new_values[sheet]}')
         df_sheets[sheet] = pd.concat([df_lookup, pd.DataFrame({sheet: new_values, 'remove': True})])
         df = df.drop(columns='remove')
