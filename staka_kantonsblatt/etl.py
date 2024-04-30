@@ -151,11 +151,11 @@ def remove_entries(df):
                f"(located here {credentials.excel_path_for_mail}) " \
                "so they are added again in the next run of the job.\n\n" \
                "The new values are:\n"
-        if new_values['registrationOfficeDisplayName']:
+        if 'registrationOfficeDisplayName' in new_values:
             text += "Registration offices (found in the sheet 'registrationOfficeDisplayName'):\n"
             for value in new_values['registrationOfficeDisplayName']:
                 text += f" - {value}\n"
-        if new_values['onBehalfOf'].size > 0:
+        if 'onBehalfOf' in new_values:
             text += f"On behalf of (found in the sheet 'onBehalfOf'):\n"
             for value in new_values['onBehalfOf']:
                 text += f" - {value}\n"
