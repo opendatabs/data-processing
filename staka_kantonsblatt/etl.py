@@ -137,7 +137,8 @@ def remove_entries(df):
                                  'registrationOfficePostOfficeBoxNumber']
             df.loc[df['remove'] | df['remove'].isna(), columns_to_remove] = ''
         logging.info(f'New values for {sheet}: {new_values[sheet]}')
-        df_sheets[sheet] = pd.concat([df_lookup, pd.DataFrame({sheet: new_values, 'remove': True})])
+        df_new_values = pd.DataFrame({sheet: new_values[sheet], 'remove': [True] * len(new_values[sheet])})
+        df_sheets[sheet] = pd.concat([df_lookup, df_new_values])
         df = df.drop(columns='remove')
 
     # Send an e-mail with new values
