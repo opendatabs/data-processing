@@ -143,14 +143,17 @@ def remove_entries(df):
             for sheet in df_sheets:
                 df_sheets[sheet].to_excel(writer, sheet_name=sheet, index=False)
         logging.info('Sending e-mail...')
-        text = "The dataset of the Kantonsblatt (https://data.bs.ch/explore/dataset/100352) " \
-               "has two columns, 'registrationOfficeDisplayName' and 'onBehalfOf'" \
-               "which can contain names of persons. If there is a new value, it is removed by default.\n\n" \
-               "Please check if the new values are names of persons and if they should be removed. " \
-               "If not, please change the boolean flag in the Excel file " \
-               f"(located here {credentials.excel_path_for_mail}) " \
-               "so they are added again in the next run of the job.\n\n" \
-               "The new values are:\n"
+        text = """
+        The dataset of the Kantonsblatt (https://data.bs.ch/explore/dataset/100352) 
+        has two columns, 'registrationOfficeDisplayName' and 'onBehalfOf' 
+        which can contain names of persons. If there is a new value, it is removed by default.
+
+        Please check if the new values are names of persons and if they should be removed. 
+        If not, please change the boolean flag in the Excel file 
+        so they are added again in the next run of the job.
+
+        The new values are:\n
+        """
         if 'registrationOfficeDisplayName' in new_values:
             text += "Registration offices (found in the sheet 'registrationOfficeDisplayName'):\n"
             for value in new_values['registrationOfficeDisplayName']:
@@ -159,7 +162,8 @@ def remove_entries(df):
             text += f"On behalf of (found in the sheet 'onBehalfOf'):\n"
             for value in new_values['onBehalfOf']:
                 text += f" - {value}\n"
-        text += "\bKind regards, \nYour automated Open Data Basel-Stadt Python Job"
+        text += f"The Excel-File is located here:\n {credentials.excel_path_for_mail}\n"
+        text += "\nKind regards, \nYour automated Open Data Basel-Stadt Python Job"
         msg = common.email_message(subject="Data removed from Kantonsblatt (100352). Please check if person data.",
                                    text=text, img=None, attachment=None)
         common.send_email(msg)

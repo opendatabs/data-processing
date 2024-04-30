@@ -301,7 +301,7 @@ def collapse_multilevel_column_names(df: pd.DataFrame, sep='_'):
 def email_message(subject="Python Notification", text="", img=None, attachment=None):
     # build message contents
     msg = MIMEMultipart()
-    msg['Subject'] = subject  # add in the subject
+    msg['Subject'] = f"[Automated Message] {subject}"  # add in the subject
     # msg.attach(MIMEText(text))  # add text contents
     msg.attach(MIMEText(text, 'plain', 'utf-8'))  # add plain text contents
 
