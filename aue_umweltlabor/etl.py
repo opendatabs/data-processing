@@ -84,15 +84,19 @@ def create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets):
     return generated_datasets
 
 
-def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets):
+def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets, realtime_push_all_years=False):
     all_years = gew_rhein_rues_wasser['Probenahmejahr'].unique()
     for year in all_years:
         if year == datetime.datetime.now().year:
             filename = 'gew_rhein_rues_wasser_current_year'
+            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
+            common.batched_ods_realtime_push(dataset, credentials.push_url)
         else:
             filename = 'gew_rhein_rues_wasser_' + str(year)
+            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
+            if realtime_push_all_years:
+                common.batched_ods_realtime_push(dataset, credentials.push_url)
         logging.info('Creating dataset ' + filename + "...")
-        dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
         generated_datasets[filename] = dataset
     return generated_datasets
 
