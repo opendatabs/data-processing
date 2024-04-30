@@ -25,14 +25,14 @@ dtypes = {
 def main():
     datafilename = 'OGD-Daten.CSV'
     datafile_with_path = os.path.join(credentials.path_orig, datafilename)
-    if True or ct.has_changed(datafile_with_path):
+    if ct.has_changed(datafile_with_path):
         logging.info('Reading data file from ' + datafile_with_path + '...')
         data = pd.read_csv(datafile_with_path, sep=';', na_filter=False, encoding='cp1252', dtype=dtypes)
 
         generated_datasets = split_into_datasets(data)
         gew_rhein_rues_wasser = generated_datasets['gew_rhein_rues_wasser']
         generated_datasets = create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets)
-        generated_datasets = create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets, realtime_push_all_years=True)
+        generated_datasets = create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets)
 
         for dataset_name, dataset in generated_datasets.items():
             current_filename = dataset_name + '.csv'
