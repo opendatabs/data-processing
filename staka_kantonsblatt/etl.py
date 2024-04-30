@@ -132,6 +132,10 @@ def remove_entries(df):
         df.loc[df[sheet].notna() & df['remove'], sheet] = ''
         new_values[sheet] = df.loc[df[sheet].notna() & df['remove'].isna(), sheet].unique()
         df.loc[df[sheet].notna() & df['remove'].isna(), sheet] = ''
+        if sheet == 'registrationOfficeDisplayName':
+            columns_to_remove = ['registrationOfficeStreet', 'registrationOfficeStreetNumber',
+                                 'registrationOfficePostOfficeBoxNumber']
+            df.loc[df['remove'] | df['remove'].isna(), columns_to_remove] = ''
         logging.info(f'New values for {sheet}: {new_values[sheet]}')
         df_sheets[sheet] = pd.concat([df_lookup, pd.DataFrame({sheet: new_values, 'remove': True})])
         df = df.drop(columns='remove')
