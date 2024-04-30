@@ -122,7 +122,7 @@ def get_tenants_from_api():
 
 def remove_entries(df):
     # Remove the data of the registration offices and the on behalf of that contain names of persons
-    entries_to_remove_file = os.path.join(credentials.data_path, 'kantonsblatt_entries_to_remove_from_ODS.xlsx')
+    entries_to_remove_file = os.path.join(credentials.data_path, 'kantonsblatt_entries_to_remove_from_OGD.xlsx')
     new_values = {}
     df_sheets = {}
     logging.info(f'Reading Excel file {entries_to_remove_file}...')
