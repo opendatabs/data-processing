@@ -89,11 +89,11 @@ def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets, real
     for year in all_years:
         if year == datetime.datetime.now().year:
             filename = 'gew_rhein_rues_wasser_current_year'
-            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
+            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)].reset_index(drop=True)
             common.batched_ods_realtime_push(dataset, credentials.push_url)
         else:
             filename = 'gew_rhein_rues_wasser_' + str(year)
-            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
+            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)].reset_index(drop=True)
             if realtime_push_all_years:
                 common.batched_ods_realtime_push(dataset, credentials.push_url)
         logging.info('Creating dataset ' + filename + "...")
