@@ -11,8 +11,7 @@ def main():
     df = transform_the_file(df)
     path_export = os.path.join(credentials.path_new, 'BVB_monthly.csv')
     save_the_file(df=df, directory=path_export)
-    common.update_ftp_and_odsp(path_export, 'BVB_monthly.csv',
-                               'bvb/fahrgastzahlen', '100075')
+    common.update_ftp_and_odsp(path_export, 'bvb/fahrgastzahlen', '100075')
     
 
 def get_the_new_file(directory, sheet_name):
