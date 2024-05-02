@@ -7,12 +7,12 @@ from bvb_fahrgastzahlen import credentials
 
 
 def main():
-    df = get_the_new_file(directory = credentials.path_orig, sheet_name='Monatswerte')
-
+    df = get_the_new_file(directory=credentials.path_orig, sheet_name='Monatswerte')
     df = transform_the_file(df)
-
-    save_the_file(df = df, directory = os.path.join(credentials.path_new, 'BVB_monthly.csv'))
-    common.update_ftp_and_odsp(credentials.path_new, 'export', '100075')
+    path_export = os.path.join(credentials.path_new, 'BVB_monthly.csv')
+    save_the_file(df=df, directory=path_export)
+    common.update_ftp_and_odsp(path_export, 'BVB_monthly.csv',
+                               'bvb/fahrgastzahlen', '100075')
     
 
 def get_the_new_file(directory, sheet_name):
@@ -50,10 +50,10 @@ def transform_the_file(df):
 
     df = df.sort_values(["Year", "Month"])
     df.insert(2, 'Granularität', 'Monat')
-    df.insert(3, 'Startdatum Kalenderwoche/Monat', df['Year'].astype(str) + '-' +  df['Month'] + '-01')
+    df.insert(3, 'Startdatum Kalenderwoche/Monat', df['Year'].astype(str) + '-' + df['Month'] + '-01')
     
     df['Kalenderwoche'] = ''
-    df['Datum der Monatswerte'] =df['Year'].astype(str) + '-' +  df['Month'] + '-01'
+    df['Datum der Monatswerte'] = df['Year'].astype(str) + '-' + df['Month'] + '-01'
 
     df = df.drop(['Year', 'Month'], axis=1)
     
@@ -64,7 +64,7 @@ def transform_the_file(df):
 
 def save_the_file(df, directory):
     # transform the file to csv and save it
-    df=  df.to_csv(directory, index=0)
+    df = df.to_csv(directory, index=0)
 
 
 if __name__ == "__main__":
