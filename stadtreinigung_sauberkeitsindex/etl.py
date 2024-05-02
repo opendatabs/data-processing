@@ -21,7 +21,7 @@ def main():
             file.write(r.text)
         df = add_datenstand(export_filename)
         df.to_csv(export_filename, index=False)
-        common.update_ftp_and_odsp(export_filename, 'stadtreinigung/sauberkeitsindex', '100288')
+        common.update_ftp_and_odsp(export_filename, 'stadtreinigung/sauberkeitsindex/roh', '100288')
 
 
 def add_datenstand(path_csv):
