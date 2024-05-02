@@ -127,7 +127,7 @@ def remove_entries(df):
     df_sheets = {}
     logging.info(f'Reading Excel file {entries_to_remove_file}...')
     for sheet in ['registrationOfficeDisplayName', 'onBehalfOf']:
-        df_lookup = pd.read_excel(entries_to_remove_file, sheet_name=sheet, dtype={sheet: str, 'remove': bool})
+        df_lookup = pd.read_excel(entries_to_remove_file, sheet_name=sheet, dtype={'remove': bool, sheet: str})
         df = df.merge(df_lookup, how='left', on=sheet)
         df.loc[df[sheet].notna() & df['remove'], sheet] = ''
         new_values[sheet] = df.loc[df[sheet].notna() & df['remove'].isna(), sheet].unique()
@@ -137,12 +137,15 @@ def remove_entries(df):
                                  'registrationOfficePostOfficeBoxNumber']
             df.loc[df['remove'] | df['remove'].isna(), columns_to_remove] = ''
         logging.info(f'New values for {sheet}: {new_values[sheet]}')
-        df_new_values = pd.DataFrame({sheet: new_values[sheet], 'remove': [True] * len(new_values[sheet])})
+        df_new_values = pd.DataFrame(
+            {'date_added': [datetime.datetime.now()] * len(new_values[sheet]),
+             'checked_by': '', 'double_checked_by': '', 'remove': [True] * len(new_values[sheet]),
+             sheet: new_values[sheet]})
         df_sheets[sheet] = pd.concat([df_lookup, df_new_values])
         df = df.drop(columns='remove')
 
     # Send an e-mail with new values
-    if 'registrationOfficeDisplayName' in new_values or 'onBehalfOf' in new_values:
+    if len(new_values['registrationOfficeDisplayName']) + len(new_values['onBehalfOf']) > 0:
         logging.info(f'Writing Excel file {entries_to_remove_file}...')
         with pd.ExcelWriter(entries_to_remove_file) as writer:
             for sheet in df_sheets:
@@ -157,11 +160,11 @@ def remove_entries(df):
         text += "so they are added again in the next run of the job.\n\n"
 
         text += "The new values are:\n"
-        if 'registrationOfficeDisplayName' in new_values:
+        if len(new_values['registrationOfficeDisplayName']) > 0:
             text += "\nRegistration offices (found in the sheet 'registrationOfficeDisplayName'):\n"
             for value in new_values['registrationOfficeDisplayName']:
                 text += f" - {value}\n"
-        if 'onBehalfOf' in new_values:
+        if len(new_values['onBehalfOf']) > 0:
             text += f"\nOn behalf of (found in the sheet 'onBehalfOf'):\n"
             for value in new_values['onBehalfOf']:
                 text += f" - {value}\n"

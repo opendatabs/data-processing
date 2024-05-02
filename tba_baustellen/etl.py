@@ -1,13 +1,9 @@
 import common
 import logging
 from tba_baustellen import credentials
-from requests.auth import HTTPBasicAuth
 import os
 from datetime import datetime
-from common import credentials as common_cred
 from requests.auth import HTTPBasicAuth
-import ods_publish.etl_id as odsp
-from common import change_tracking as ct
 import pandas as pd
 
 
@@ -18,10 +14,25 @@ def main():
         raise RuntimeError('No data retrieved from API.')
     else:
         df = pd.read_json(r.text)
-        df_export = df[['id', 'projekt_name', 'projekt_beschrieb', 'projekt_info', 'projekt_link', 'datum_von', 'datum_bis']]
+        df_export = df[['id', 'projekt_name', 'projekt_beschrieb', 'projekt_info', 'projekt_link',
+                        'datum_bis', 'datum_von', 'dokument1', 'dokument2', 'dokument3']]
         df_export.datum_von = pd.to_datetime(df_export['datum_von'], format='%d.%m.%Y', errors='raise').dt.strftime('%Y-%m-%d')
         df_export.datum_bis = pd.to_datetime(df_export['datum_bis'], format='%d.%m.%Y', errors='raise').dt.strftime('%Y-%m-%d')
         df_export['allmendbewilligungen'] = "https://data.bs.ch/explore/dataset/100018/table/?refine.belgartbez=Baustelle&q=begehrenid=" + df_export.id.astype(str)
+
+        url = f'https://data.bs.ch/explore/dataset/100018/download'
+        params = {
+            'format': 'shp',
+            'timezone': 'Europe/Zurich',
+            'refine.belgartbez': 'Baustelle',
+            # TODO: Weitere params hinzufügen
+            'apikey': credentials.api_key
+        }
+        r2 = common.requests_get(url, params=params)
+
+        # TODO: Shapefile downloaden und in GeoDataFrame umwandeln
+        # TODO: Geoshapes von allen gleichen Baustellen joinen
+        # TODO: Merge mit df_export um Spalte mit Geoshapes zu erstellen
 
         # data_allm = []
         # for index, row in df_export.iterrows():
@@ -36,11 +47,7 @@ def main():
         curr_dir = os.path.dirname(os.path.realpath(__file__))
         export_filename = f"{curr_dir}/data/baustellen.csv"
         df_export.to_csv(export_filename, index=False)
-        if ct.has_changed(export_filename):
-            common.upload_ftp(export_filename, common_cred.ftp_server, common_cred.ftp_user, common_cred.ftp_pass,
-                              'tba/baustellen')
-            odsp.publish_ods_dataset_by_id('100359')
-            ct.update_hash_file(export_filename)
+        common.update_ftp_and_odsp(export_filename, 'tba/baustellen', '100359')
 
 
 if __name__ == "__main__":
