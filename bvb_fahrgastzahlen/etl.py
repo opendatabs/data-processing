@@ -7,7 +7,8 @@ from bvb_fahrgastzahlen import credentials
 
 
 def main():
-    df = get_the_new_file(directory=credentials.path_orig, sheet_name='Monatswerte')
+    df = get_the_new_file(directory = credentials.path_orig, sheet_name='Monatswerte')
+
     df = transform_the_file(df)
     path_export = os.path.join(credentials.path_new, 'BVB_monthly.csv')
     save_the_file(df=df, directory=path_export)
@@ -54,7 +55,7 @@ def transform_the_file(df):
     df.insert(3, 'Startdatum Kalenderwoche/Monat', df['Year'].astype(str) + '-' + df['Month'] + '-01')
 
     df['Kalenderwoche'] = ''
-    df['Datum der Monatswerte'] = df['Year'].astype(str) + '-' + df['Month'] + '-01'
+    df['Datum der Monatswerte'] =df['Year'].astype(str) + '-' +  df['Month'] + '-01'
 
     df = df.drop(['Year', 'Month'], axis=1)
 
@@ -65,7 +66,7 @@ def transform_the_file(df):
 
 def save_the_file(df, directory):
     # transform the file to csv and save it
-    df = df.to_csv(directory, index=0)
+    df=  df.to_csv(directory, index=0)
 
 
 if __name__ == "__main__":
