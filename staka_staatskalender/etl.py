@@ -99,6 +99,7 @@ def get_memberships(token):
                   suffixes=('', '_org'))
     df['url_memb_website'] = df['href'].str.replace('/api/memberships/', '/membership/')
     df['url_pers_website'] = df['person'].str.replace('/api/people/', '/person/')
+    df['url_to_orgs'] = "https://data.bs.ch/explore/dataset/100349?refine.id=" + df['id'].astype(str)
     path_export = os.path.join(credentials.data_path, 'export', '100351_staatskalender_mitgliedschaften.csv')
     df.to_csv(path_export, index=False)
     return path_export, 'staka/staatskalender', '100351'
