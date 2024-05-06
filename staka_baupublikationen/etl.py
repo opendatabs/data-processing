@@ -21,7 +21,8 @@ def main():
         df_content = add_content_to_row(row)
         all_data.append(df_content)
 
-    final_df = pd.concat(all_data, ignore_index=True)  # Concatenate all dataframes
+    df = pd.concat(all_data, ignore_index=True)  # Concatenate all dataframes
+    final_df = get_columns_of_interest(df)
     path_export = os.path.join(credentials.data_path, 'export', '100366_kantonsblatt_bauplikationen.csv')
     final_df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100366')
@@ -97,6 +98,30 @@ def xml_to_dataframe(root):
 
     df = pd.DataFrame(expanded_data)
     return df
+
+
+def get_columns_of_interest(df):
+    # Replace columns names so it's easier to understand
+    df.columns = df.columns.str.replace('_legalEntity_multi_companies_', '_')
+    df.columns = df.columns.str.replace('_multi_companies_', '_')
+    columns_of_interest = ['publicationArea_selectType', 'buildingContractor_legalEntity_selectType',
+                           'buildingContractor_noUID', 'buildingContractor_company_name',
+                           'buildingContractor_company_uid', 'buildingContractor_company_uidOrganisationId',
+                           'buildingContractor_company_uidOrganisationIdCategorie', 'buildingContractor_company_legalForm',
+                           'buildingContractor_company_address_street', 'buildingContractor_company_address_houseNumber',
+                           'buildingContractor_company_address_swissZipCode', 'buildingContractor_company_address_town',
+                           'buildingContractor_company_customAddress', 'buildingContractor_company_address_addressLine1',
+                           'delegation_selectType', 'projectFramer_selectType', 'projectFramer_legalEntity_selectType',
+                           'projectFramer_noUID', 'projectFramer_company_name', 'projectFramer_company_uid',
+                           'projectFramer_company_uidOrganisationId', 'projectFramer_company_uidOrganisationIdCategorie',
+                           'projectFramer_company_legalForm', 'projectFramer_company_address_street',
+                           'projectFramer_company_address_houseNumber', 'projectFramer_company_address_swissZipCode',
+                           'projectFramer_company_address_town',
+                           'projectDescription', 'projectLocation_address_street', 'projectLocation_address_houseNumber',
+                           'projectLocation_address_town', 'projectFramer_company_customAddress',
+                           'projectFramer_company_address_addressLine1', 'districtCadastre_relation_section',
+                           'districtCadastre_relation_plot', 'locationCirculationOffice', 'entryDeadline', 'id', 'url_xml']
+    return df[columns_of_interest]
 
 
 if __name__ == '__main__':
