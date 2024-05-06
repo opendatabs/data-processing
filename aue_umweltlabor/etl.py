@@ -28,6 +28,9 @@ def main():
     if ct.has_changed(datafile_with_path):
         logging.info('Reading data file from ' + datafile_with_path + '...')
         data = pd.read_csv(datafile_with_path, sep=';', na_filter=False, encoding='cp1252', dtype=dtypes)
+        logging.info('Reading gew_rhein_rues_wasser data for realtime push...')
+        gew_rhein_rues_wasser_last = pd.read_csv(os.path.join(credentials.path_work, 'gew_rhein_rues_wasser.csv'),
+                                                 sep=';', na_filter=False, encoding='utf-8', dtype=dtypes)
 
         generated_datasets = split_into_datasets(data)
         gew_rhein_rues_wasser = generated_datasets['gew_rhein_rues_wasser']
@@ -53,6 +56,18 @@ def main():
                                   credentials.ftp_pass, remote_path)
                 ct.update_hash_file(file_path)
 
+        # Real Time Push gew_rhein_rues_wasser
+        realtime_push_all_years = False
+        if realtime_push_all_years:
+            df_to_push = gew_rhein_rues_wasser.copy().reset_index(drop=True)
+            df_to_push['Probenahmedatum_date'] = df_to_push['Probenahmedatum_date'].astype(str)
+            common.batched_ods_realtime_push(df_to_push, credentials.push_url)
+        else:
+            gew_rhein_rues_wasser_new = pd.read_csv(os.path.join(credentials.path_work, 'gew_rhein_rues_wasser.csv'),
+                                                    sep=';', na_filter=False, encoding='utf-8', dtype=dtypes)
+            common.ods_realtime_push_complete_update(gew_rhein_rues_wasser_last, gew_rhein_rues_wasser_new,
+                                                     'Resultatnummer', credentials.push_url)
+
         ct.update_hash_file(datafile_with_path)
 
 
@@ -71,7 +86,10 @@ def split_into_datasets(data):
                                  'Probenahmestelle != "GEW_RHEIN_RUES" and '
                                  'Probenahmestelle.str.contains("GEW_")')
     grundwasser = data.query('Probenahmestelle.str.contains("F_")')
-    return {'oberflaechengew': oberflaechengew, 'grundwasser': grundwasser, 'gew_rhein_rues_fest': gew_rhein_rues_fest, 'gew_rhein_rues_wasser': gew_rhein_rues_wasser}
+    return {'oberflaechengew': oberflaechengew,
+            'grundwasser': grundwasser,
+            'gew_rhein_rues_fest': gew_rhein_rues_fest,
+            'gew_rhein_rues_wasser': gew_rhein_rues_wasser}
 
 
 def create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets):
@@ -84,23 +102,15 @@ def create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets):
     return generated_datasets
 
 
-def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets, realtime_push_all_years=False):
+def create_dataset_for_each_year(gew_rhein_rues_wasser, generated_datasets):
     all_years = gew_rhein_rues_wasser['Probenahmejahr'].unique()
     for year in all_years:
         if year == datetime.datetime.now().year:
             filename = 'gew_rhein_rues_wasser_current_year'
-            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)].reset_index(drop=True)
-            df_to_push = dataset.copy()
-            df_to_push['Probenahmedatum_date'] = df_to_push['Probenahmedatum_date'].astype(str)
-            common.batched_ods_realtime_push(df_to_push, credentials.push_url)
         else:
             filename = 'gew_rhein_rues_wasser_' + str(year)
-            dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)].reset_index(drop=True)
-            if realtime_push_all_years:
-                df_to_push = dataset.copy()
-                df_to_push['Probenahmedatum_date'] = df_to_push['Probenahmedatum_date'].astype(str)
-                common.batched_ods_realtime_push(df_to_push, credentials.push_url)
         logging.info('Creating dataset ' + filename + "...")
+        dataset = gew_rhein_rues_wasser[gew_rhein_rues_wasser.Probenahmejahr.eq(year)]
         generated_datasets[filename] = dataset
     return generated_datasets
 
