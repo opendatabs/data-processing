@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
 import os
+import shutil
 import common
 import common.change_tracking as ct
 from aue_umweltlabor import credentials
@@ -29,9 +30,8 @@ def main():
         logging.info('Reading data file from ' + datafile_with_path + '...')
         data = pd.read_csv(datafile_with_path, sep=';', na_filter=False, encoding='cp1252', dtype=dtypes)
         logging.info('Reading gew_rhein_rues_wasser data for realtime push...')
-        gew_rhein_rues_wasser_last = pd.read_csv(os.path.join(credentials.path_work, 'gew_rhein_rues_wasser.csv'),
+        gew_rhein_rues_wasser_last = pd.read_csv(os.path.join(credentials.path_work, 'gew_rhein_rues_wasser_last.csv'),
                                                  sep=';', na_filter=False, encoding='utf-8', dtype=dtypes)
-
         generated_datasets = split_into_datasets(data)
         gew_rhein_rues_wasser = generated_datasets['gew_rhein_rues_wasser']
         generated_datasets = create_truncated_dataset(gew_rhein_rues_wasser, generated_datasets)
@@ -40,8 +40,8 @@ def main():
         for dataset_name, dataset in generated_datasets.items():
             current_filename = dataset_name + '.csv'
             logging.info("Exporting dataset to " + current_filename + '...')
-            dataset.to_csv(os.path.join(credentials.path_work, current_filename), sep=';', encoding='utf-8',
-                           index=False)
+            dataset.to_csv(os.path.join(credentials.path_work, current_filename),
+                           sep=';', encoding='utf-8', index=False)
 
         files_to_upload = [name + '.csv' for name in generated_datasets.keys()]
         files_to_upload.append(datafilename)
@@ -71,6 +71,8 @@ def main():
                 'Probenahmedatum_date'].astype(str)
             common.ods_realtime_push_complete_update(gew_rhein_rues_wasser_last, gew_rhein_rues_wasser_new,
                                                      'Resultatnummer', credentials.push_url)
+            shutil.copy(os.path.join(credentials.path_work, 'gew_rhein_rues_wasser.csv'),
+                        os.path.join(credentials.path_work, 'gew_rhein_rues_wasser_last.csv'))
 
         ct.update_hash_file(datafile_with_path)
 
