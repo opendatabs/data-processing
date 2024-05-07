@@ -65,6 +65,10 @@ def main():
         else:
             gew_rhein_rues_wasser_new = pd.read_csv(os.path.join(credentials.path_work, 'gew_rhein_rues_wasser.csv'),
                                                     sep=';', na_filter=False, encoding='utf-8', dtype=dtypes)
+            gew_rhein_rues_wasser_last['Probenahmedatum_date'] = gew_rhein_rues_wasser_last[
+                'Probenahmedatum_date'].astype(str)
+            gew_rhein_rues_wasser_new['Probenahmedatum_date'] = gew_rhein_rues_wasser_new[
+                'Probenahmedatum_date'].astype(str)
             common.ods_realtime_push_complete_update(gew_rhein_rues_wasser_last, gew_rhein_rues_wasser_new,
                                                      'Resultatnummer', credentials.push_url)
 
