@@ -156,7 +156,7 @@ def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
         while not is_unpublished(dataset_uid, creds):
             logging.info('Waiting 10 seconds before checking if dataset is unpublished...')
             time.sleep(10)
-    response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish',
+    response = requests_post(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/publish/',
                             headers={'Authorization': f'apikey {creds.api_key}'})
 
     if not response.ok:
@@ -211,9 +211,9 @@ def raise_response_error(response):
 
 def get_ods_uid_by_id(ods_id, creds):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
-    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"',
+    response = requests_get(url=f'https://data.bs.ch/api/automation/v1.0/datasets/?dataset_id="{ods_id}"',
                             headers={'Authorization': f'apikey {creds.api_key}'})
-    return response.json()['datasets'][0]['dataset_uid']
+    return response.json()['datasets'][0]['uid']
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
@@ -246,16 +246,19 @@ def ods_realtime_push_complete_update(df_old, df_new, id_columns, url, columns_t
 
 def ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key=''):
     new_rows = change_tracking.find_new_rows(df_old, df_new, id_columns)
+    new_rows = new_rows.reset_index(drop=True)
     batched_ods_realtime_push(new_rows, url, push_key)
 
 
 def ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key=''):
     deleted_rows = change_tracking.find_deleted_rows(df_new, df_old, id_columns)
+    deleted_rows = deleted_rows.reset_index(drop=True)
     batched_ods_realtime_push(deleted_rows, url, push_key, delete=True)
 
 
 def ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
     _, updated_rows = change_tracking.find_modified_rows(df_old, df_new, id_columns, columns_to_compare)
+    updated_rows = updated_rows.reset_index(drop=True)
     batched_ods_realtime_push(updated_rows, url, push_key)
 
 
