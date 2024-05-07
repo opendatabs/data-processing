@@ -622,8 +622,10 @@ def create_traktanden_csv(df_gr_tagesordnung: pd.DataFrame, df_gr_traktanden: pd
     # Create url's
     df['url_tagesordnung_dok'] = PATH_MEDIA_TAGESORDNUNG + 'tagesordnung_' + df['tag1'] + '.pdf'
     df['url_geschaeftsverzeichnis'] = PATH_MEDIA_TAGESORDNUNG + 'geschaeftsverzeichnis_' + df['tag1'] + '.pdf'
-    df['url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
-    df['url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
+    df.loc[pd.to_datetime(df['tag1']) > pd.to_datetime(
+            '2014-06-01'), 'url_sammelmappe'] = PATH_MEDIA_TAGESORDNUNG + 'sammelmappe_to_' + df['tag1'] + '.pdf'
+    df.loc[pd.to_datetime(df['tag1']) > pd.to_datetime(
+        '2014-06-01'), 'url_alle_dokumente'] = PATH_MEDIA_TAGESORDNUNG + 'alle_dokumente_to_' + df['tag1'] + '.zip'
     df.loc[pd.to_datetime(df['tag1']) < pd.to_datetime(
             '2024-01-01'), 'url_vollprotokoll'] = PATH_MEDIA_RATSPROTOKOLLE + 'vollprotokoll_' + df['tag1'] + '.pdf'
     # Only the system before 2023-07-01 has this URL for the audio and video protocols
