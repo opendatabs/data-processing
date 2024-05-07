@@ -156,7 +156,7 @@ def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
         while not is_unpublished(dataset_uid, creds):
             logging.info('Waiting 10 seconds before checking if dataset is unpublished...')
             time.sleep(10)
-    response = requests_post(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/publish/',
+    response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish',
                             headers={'Authorization': f'apikey {creds.api_key}'})
 
     if not response.ok:
@@ -211,9 +211,9 @@ def raise_response_error(response):
 
 def get_ods_uid_by_id(ods_id, creds):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
-    response = requests_get(url=f'https://data.bs.ch/api/automation/v1.0/datasets/?dataset_id="{ods_id}"',
+    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"',
                             headers={'Authorization': f'apikey {creds.api_key}'})
-    return response.json()['datasets'][0]['uid']
+    return response.json()['datasets'][0]['dataset_uid']
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
