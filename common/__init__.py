@@ -142,9 +142,9 @@ def ensure_ftp_dir(server, user, password, folder):
 
 # Tell Opendatasoft to (re-)publish datasets
 # How to get the dataset_uid from ODS:
-# curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/management/v2/datasets/?where=datasetid='100001' -u username@bs.ch:password123
+# curl --proxy https://USER:PASSWORD@PROXYSERVER:PORT -i https://data.bs.ch/api/automation/v1.0/datasets/?dataset_id='100001' -u username@bs.ch:password123
 # Or without proxy via terminal:
-# curl -i "https://data.bs.ch/api/management/v2/datasets/?where=datasetid=100001" -u username@bs.ch:password123
+# curl -i "https://data.bs.ch/api/automation/v1.0/datasets/?dataset_id="100001" -u username@bs.ch:password123
 
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
@@ -156,8 +156,8 @@ def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
         while not is_unpublished(dataset_uid, creds):
             logging.info('Waiting 10 seconds before checking if dataset is unpublished...')
             time.sleep(10)
-    response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/publish',
-                            headers={'Authorization': f'apikey {creds.api_key}'})
+    response = requests_post(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/publish',
+                             headers={'Authorization': f'apikey {creds.api_key}'})
 
     if not response.ok:
         raise_response_error(response)
@@ -177,25 +177,25 @@ def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
 
 def unpublish_ods_dataset(dataset_uid, creds):
     logging.info("Telling OpenDataSoft to unpublish dataset " + dataset_uid + '...')
-    response = requests_put('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/unpublish',
-                            headers={'Authorization': f'apikey {creds.api_key}'})
+    response = requests_post(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/unpublish',
+                             headers={'Authorization': f'apikey {creds.api_key}'})
     if not response.ok:
         raise_response_error(response)
 
 
 def is_unpublished(dataset_uid, creds):
     logging.info("Checking if dataset " + dataset_uid + ' is unpublished...')
-    published, name, _ = get_dataset_status(dataset_uid, creds)
-    return not published and name == 'idle'
+    published, status, _ = get_dataset_status(dataset_uid, creds)
+    return not published and status == 'idle'
 
 
 def get_dataset_status(dataset_uid, creds):
     logging.info("Getting status of dataset " + dataset_uid + '...')
-    response = requests_get('https://data.bs.ch/api/management/v2/datasets/' + dataset_uid + '/status',
+    response = requests_get('https://data.bs.ch/api/automation/v1.0/datasets/' + dataset_uid + '/status',
                             headers={'Authorization': f'apikey {creds.api_key}'})
     if not response.ok:
         raise_response_error(response)
-    return response.json()['published'], response.json()['name'], response.json()['since']
+    return response.json()['is_published'], response.json()['status'], response.json()['since']
 
 
 def raise_response_error(response):
@@ -211,9 +211,9 @@ def raise_response_error(response):
 
 def get_ods_uid_by_id(ods_id, creds):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
-    response = requests_get(url=f'https://data.bs.ch/api/management/v2/datasets/?where=datasetid="{ods_id}"',
+    response = requests_get(url=f'https://data.bs.ch/api/automation/v1.0/datasets/?where=datasetid="{ods_id}"',
                             headers={'Authorization': f'apikey {creds.api_key}'})
-    return response.json()['datasets'][0]['dataset_uid']
+    return response.json()['results'][0]['uid']
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
