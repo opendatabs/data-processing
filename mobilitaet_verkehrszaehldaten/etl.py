@@ -81,6 +81,15 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
 
+    # Create a separate dataset per ZST_NR
+    all_sites = data.ZST_NR.unique()
+    for site in all_sites:
+        site_data = data[data.ZST_NR.eq(site)]
+        current_filename = os.path.join(dest_path, 'sites', str(site) + '_' + filename)
+        print(f'Saving {current_filename}...')
+        site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+        generated_filenames.append(current_filename)
+
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
 
@@ -101,7 +110,8 @@ def main():
             if not no_file_copy:
                 for file in file_names:
                     if ct.has_changed(file):
-                        common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+                        common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                          'sites' if 'sites' in file else '')
                         ct.update_hash_file(file)
             ct.update_hash_file(datafile_with_path)
 
