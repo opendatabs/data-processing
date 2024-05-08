@@ -82,9 +82,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         generated_filenames.append(current_filename)
 
     # Create a separate dataset per ZST_NR
-    all_sites = data.ZST_NR.unique()
+    all_sites = data.Zst_id.unique()
     for site in all_sites:
-        site_data = data[data.ZST_NR.eq(site)]
+        site_data = data[data.Zst_id.eq(site)]
         current_filename = os.path.join(dest_path, 'sites', str(site) + '_' + filename)
         print(f'Saving {current_filename}...')
         site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
