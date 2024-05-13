@@ -211,7 +211,7 @@ def raise_response_error(response):
 
 def get_ods_uid_by_id(ods_id, creds):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
-    response = requests_get(url=f'https://data.bs.ch/api/automation/v1.0/datasets/?where=datasetid="{ods_id}"',
+    response = requests_get(url=f'https://data.bs.ch/api/automation/v1.0/datasets/?dataset_id="{ods_id}"',
                             headers={'Authorization': f'apikey {creds.api_key}'})
     return response.json()['results'][0]['uid']
 
