@@ -191,7 +191,7 @@ def is_unpublished(dataset_uid, creds):
 
 def get_dataset_status(dataset_uid, creds):
     logging.info("Getting status of dataset " + dataset_uid + '...')
-    response = requests_get('https://data.bs.ch/api/automation/v1.0/datasets/' + dataset_uid + '/status',
+    response = requests_get(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/status',
                             headers={'Authorization': f'apikey {creds.api_key}'})
     if not response.ok:
         raise_response_error(response)
