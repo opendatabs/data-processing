@@ -23,7 +23,7 @@ class AuthHmacMetosGet(AuthBase):
 
     def __call__(self, request):
         date_stamp = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
-        logging.info("timestamp: ", date_stamp)
+        logging.info(f"timestamp:  {date_stamp}")
         request.headers['Date'] = date_stamp
         msg = (self._method + self._apiRoute + date_stamp + self._publicKey).encode(encoding='utf-8')
         h = HMAC.new(self._privateKey.encode(encoding='utf-8'), msg, SHA256)
