@@ -129,10 +129,9 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
         old_col = merged[f'{col}_old']
         new_col = merged[f'{col}_new']
         if new_col.dtype == 'category':
-            logging.info(new_col.cat.categories)
-            logging.info(old_col.cat.categories)
-            logging.info(new_col.cat.ordered)
-            logging.info(old_col.cat.ordered)
+            common_categories = sorted(set(new_col.cat.categories.tolist() + old_col.cat.categories.tolist()))
+            new_col = new_col.cat.set_categories(common_categories)
+            old_col = old_col.cat.set_categories(common_categories)
         mask[col] = ~((old_col == new_col) | (pd.isna(old_col) & pd.isna(new_col)))
     modified_rows = merged[mask.any(axis=1)]
     logging.info(f'Found {len(modified_rows)} modified rows:')
