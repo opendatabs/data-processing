@@ -38,7 +38,6 @@ def download_spatial_descriptors(url):
 
 
 def main():
-    df_allm = download_spatial_descriptors('https://data.bs.ch/explore/dataset/100018/download')
     r = common.requests_get(url=credentials.url, auth=HTTPBasicAuth(credentials.user, credentials.pw))
     if len(r.text) == 0:
         logging.error('No data retrieved from API!')
@@ -51,11 +50,10 @@ def main():
         df_export.datum_von = pd.to_datetime(df_export['datum_von'], format='%d.%m.%Y', errors='raise').dt.strftime('%Y-%m-%d')
         df_export.datum_bis = pd.to_datetime(df_export['datum_bis'], format='%d.%m.%Y', errors='raise').dt.strftime('%Y-%m-%d')
         df_export['allmendbewilligungen'] = "https://data.bs.ch/explore/dataset/100018/table/?refine.belgartbez=Baustelle&q=begehrenid=" + df_export.id.astype(str)
+    df_allm = download_spatial_descriptors('https://data.bs.ch/explore/dataset/100018/download')
     # alle Daten rausnehmen
-    df_allm = df_allm.merge(df_export, how='inner', left_on='begehrenid', right_on='id')
-    print(len(df_allm))
-    # die GeoShape Spalte in df_export hinzufügen
-    df_export['GeoShape'] = df_allm['begehrenid']
+    df_export = df_export.merge(df_allm, how='left', left_on='id', right_on='begehrenid')
+    df_export = df_export.drop(columns=['begehrenid'])
     export_filename = f"{CURR_DIR}/data/baustellen.csv"
     df_export.to_csv(export_filename, index=False)
     common.update_ftp_and_odsp(export_filename, 'tba/baustellen', '100359')
