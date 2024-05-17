@@ -90,13 +90,18 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
         messdaten_dfs = []
         stat_dfs = []
         for folder in messdaten_folders:
-            if any(os.listdir(folder)):
-                df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder,
-                                                                                          df_einsatz_days, df_einsaetze)
-                messdaten_dfs.append(df_all_pro_standort)
-                stat_dfs.append(df_stat_pro_standort)
-            else:
+            if not any(os.listdir(folder)):
                 logging.info(f'No data in folder {folder}...')
+                continue
+            id_standort = int(os.path.basename(folder).split('_')[0])
+            if id_standort not in df_einsaetze.id_Standort.values:
+                logging.warning(f'Data in the folder {folder}, but either id_standort {id_standort} '
+                                'not in Einsatzplan or with non-valid values!')
+                continue
+            df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days,
+                                                                                      df_einsaetze, id_standort)
+            messdaten_dfs.append(df_all_pro_standort)
+            stat_dfs.append(df_stat_pro_standort)
 
         all_df = pd.concat(messdaten_dfs)
         export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
@@ -130,11 +135,10 @@ def is_dt(datetime, timezone):
         return False
 
 
-def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze):
+def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze, id_standort):
     logging.info(f'Working through folder {folder}...')
     # Go recursively into folders until TXT files are found
     tagesdaten_files = glob.glob(os.path.join(folder, '**', '*.TXT'), recursive=True)
-    id_standort = int(os.path.basename(folder).split('_')[0])
     messdaten_dfs_pro_standort = []
     for f in tagesdaten_files:
         logging.info(f'Parsing Messdaten File {f}...')
@@ -184,12 +188,10 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
 
     # Calculate statistics for this data folder
     dfs_stat_pro_standort = []
-    at_least_one_phase = False
     for phase in [['Vormessung'], ['Betrieb'], ['Nachmessung'], ['Vormessung', 'Betrieb', 'Nachmessung']]:
         df_phase = df_all_pro_standort[df_all_pro_standort['Phase'].isin(phase)]
         if df_phase.empty:
             continue
-        at_least_one_phase = True
         min_timestamp = df_phase.Messung_Timestamp.min()
         max_timestamp = df_phase.Messung_Timestamp.max()
         messdauer_h = (max_timestamp - min_timestamp) / pd.Timedelta(hours=1)
@@ -224,9 +226,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         }
         df_stat_pro_standort = pd.DataFrame([stat_pro_standort])
         dfs_stat_pro_standort.append(df_stat_pro_standort)
-    df_stats_pro_standort = pd.DataFrame()
-    if not at_least_one_phase:
-        df_stats_pro_standort = pd.concat(dfs_stat_pro_standort)
+    df_stats_pro_standort = pd.concat(dfs_stat_pro_standort)
     return df_all_pro_standort, df_stats_pro_standort
 
 
@@ -274,7 +274,7 @@ def main():
     logging.info(f'Parsing Einsatzplaene...')
     df_einsaetze = parse_einsatzplaene(curr_dir)
     req = common.requests_get(
-        'https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp?lang=de&timezone=Europe%2FBerlin')
+        'https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp')
     shp_path = os.path.join(curr_dir, 'data', 'Smiley-Standorte')
     zip_file = io.BytesIO(req.content)
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
