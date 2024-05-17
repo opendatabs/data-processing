@@ -4,6 +4,8 @@ import logging
 import pandas as pd
 import xml.etree.ElementTree as ET
 import requests
+import zipfile
+import geopandas as gpd
 
 import common
 from staka_baupublikationen import credentials
@@ -22,9 +24,10 @@ def main():
         all_data.append(df_content)
 
     df = pd.concat(all_data, ignore_index=True)  # Concatenate all dataframes
-    final_df = get_columns_of_interest(df)
+    df = get_columns_of_interest(df)
+    df = get_parzellen(df)
     path_export = os.path.join(credentials.data_path, 'export', '100366_kantonsblatt_bauplikationen.csv')
-    final_df.to_csv(path_export, index=False)
+    df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/kantonsblatt', '100366')
 
 
@@ -111,18 +114,60 @@ def get_columns_of_interest(df):
                            'buildingContractor_company_legalForm', 'buildingContractor_company_address_street',
                            'buildingContractor_company_address_houseNumber',
                            'buildingContractor_company_address_swissZipCode', 'buildingContractor_company_address_town',
-                           'buildingContractor_company_customAddress', 'buildingContractor_company_address_addressLine1',
+                           'buildingContractor_company_customAddress',
+                           'buildingContractor_company_address_addressLine1',
                            'delegation_selectType', 'projectFramer_selectType', 'projectFramer_legalEntity_selectType',
                            'projectFramer_noUID', 'projectFramer_company_name', 'projectFramer_company_uid',
-                           'projectFramer_company_uidOrganisationId', 'projectFramer_company_uidOrganisationIdCategorie',
+                           'projectFramer_company_uidOrganisationId',
+                           'projectFramer_company_uidOrganisationIdCategorie',
                            'projectFramer_company_legalForm', 'projectFramer_company_address_street',
                            'projectFramer_company_address_houseNumber', 'projectFramer_company_address_swissZipCode',
                            'projectFramer_company_address_town',
-                           'projectDescription', 'projectLocation_address_street', 'projectLocation_address_houseNumber',
+                           'projectDescription', 'projectLocation_address_street',
+                           'projectLocation_address_houseNumber',
                            'projectLocation_address_town', 'projectFramer_company_customAddress',
                            'projectFramer_company_address_addressLine1', 'districtCadastre_relation_section',
-                           'districtCadastre_relation_plot', 'locationCirculationOffice', 'entryDeadline', 'id', 'url_xml']
+                           'districtCadastre_relation_plot', 'locationCirculationOffice', 'entryDeadline', 'id',
+                           'url_xml']
     return df[columns_of_interest]
+
+
+# Function to correct the parzellennummer i.e. 48 to 0048
+def correct_parzellennummer(parzellennummer):
+    parts = parzellennummer.split(',')
+    parts = [part.strip() for part in parts]
+    corrected = [num.zfill(4) for num in parts]
+    return ','.join(corrected)
+
+
+# Function to get the geometry for each parzellennummer
+def get_geometry(gdf, row):
+    parzellennummer = row['districtCadastre_relation_plot']
+    section = row['districtCadastre_relation_section']
+    numbers = parzellennummer.split(',')
+    filtered_gdf = gdf[(gdf['parzellennu'].isin(numbers)) & (gdf['r1_sektion'] == section)]
+    geometries = filtered_gdf['geometry']
+    if len(geometries) == 1:
+        return geometries.iloc[0]
+    else:
+        return geometries.unary_union
+
+
+def get_parzellen(df):
+    # Download the dataset
+    url_parzellen = 'https://data.bs.ch/explore/dataset/100201/download/?format=shp'
+    r = common.requests_get(url_parzellen)
+    # Unpack zip file
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    z.extractall(os.path.join(credentials.data_path, '100201'))
+    # Read shapefile
+    path_to_shp = os.path.join(credentials.data_path, '100201', f'100201.shp')
+    gdf = gpd.read_file(path_to_shp, encoding='utf-8')
+    df.loc[df['districtCadastre_relation_plot'].isna(), 'districtCadastre_relation_plot'] = ''
+    df['districtCadastre_relation_plot'] = df['districtCadastre_relation_plot'].astype(str)
+    df['districtCadastre_relation_plot'] = df['districtCadastre_relation_plot'].apply(correct_parzellennummer)
+    df['geometry'] = df.apply(lambda x: get_geometry(gdf, x), axis=1)
+    return df
 
 
 if __name__ == '__main__':
