@@ -6,10 +6,10 @@ import xml.etree.ElementTree as ET
 import requests
 import zipfile
 import geopandas as gpd
+from urllib.parse import urlencode
 
 import common
 from staka_baupublikationen import credentials
-
 
 # References:
 # https://www.amtsblattportal.ch/docs/api/
@@ -167,6 +167,11 @@ def get_parzellen(df):
     df['districtCadastre_relation_plot'] = df['districtCadastre_relation_plot'].astype(str)
     df['districtCadastre_relation_plot'] = df['districtCadastre_relation_plot'].apply(correct_parzellennummer)
     df['geometry'] = df.apply(lambda x: get_geometry(gdf, x), axis=1)
+    df['url_parzellen'] = df.apply(lambda row: 'https://data.bs.ch/explore/dataset/100201/table/?' +
+                                               urlencode({'refine.r1_sektion': row['districtCadastre_relation_section'],
+                                                          'q': 'parzellennummer: ' + ' OR '.join(
+                                                              row['districtCadastre_relation_plot'].split(','))}),
+                                   axis=1)
     return df
 
 
