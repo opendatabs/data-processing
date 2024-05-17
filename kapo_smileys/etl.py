@@ -184,10 +184,12 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
 
     # Calculate statistics for this data folder
     dfs_stat_pro_standort = []
+    at_least_one_phase = False
     for phase in [['Vormessung'], ['Betrieb'], ['Nachmessung'], ['Vormessung', 'Betrieb', 'Nachmessung']]:
         df_phase = df_all_pro_standort[df_all_pro_standort['Phase'].isin(phase)]
         if df_phase.empty:
             continue
+        at_least_one_phase = True
         min_timestamp = df_phase.Messung_Timestamp.min()
         max_timestamp = df_phase.Messung_Timestamp.max()
         messdauer_h = (max_timestamp - min_timestamp) / pd.Timedelta(hours=1)
@@ -222,7 +224,9 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         }
         df_stat_pro_standort = pd.DataFrame([stat_pro_standort])
         dfs_stat_pro_standort.append(df_stat_pro_standort)
-    df_stats_pro_standort = pd.concat(dfs_stat_pro_standort)
+    df_stats_pro_standort = pd.DataFrame()
+    if not at_least_one_phase:
+        df_stats_pro_standort = pd.concat(dfs_stat_pro_standort)
     return df_all_pro_standort, df_stats_pro_standort
 
 
