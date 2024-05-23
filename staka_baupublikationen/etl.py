@@ -50,8 +50,8 @@ def add_content_to_row(row):
     content, _ = get_content_from_xml(row['url_xml'])
     df_content = xml_to_dataframe(content)
     row['content'] = ET.tostring(content, encoding='utf-8')
-    row['url_kantonsblatt_ods'] = 'https://data.bs.ch/explore/dataset/100352/table/?q=%23exact(id,%22' + row[
-        'id'] + ' %22)'
+    row['url_kantonsblatt_ods'] = 'https://data.bs.ch/explore/dataset/100352/table/?q=%23exact(id,' + row[
+        'id'] + ')&'
     for col in row.index:
         if col in df_content.columns:
             # Combine existing DataFrame column with value from row, if it exists
