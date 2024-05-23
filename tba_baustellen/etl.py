@@ -61,7 +61,7 @@ def main():
     df_export = df_export.drop(columns=['begehrenid'])
     export_filename = f"{CURR_DIR}/data/baustellen.csv"
     df_export.to_csv(export_filename, index=False)
-    common.update_ftp_and_odsp(export_filename, 'tba/baustellen', '100359')
+    common.update_ftp_and_odsp(export_filename, 'tba/baustellen', '100335')
 
 
 if __name__ == "__main__":
