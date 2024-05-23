@@ -160,6 +160,7 @@ def calculate_details(data_file_names):
         2) + '_' + concatenated_df['wahllok_id'].astype(str)
     return abst_date, concatenated_df
 
+
 if __name__ == "__main__":
     print(f'Executing {__file__}...')
     main()

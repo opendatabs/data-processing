@@ -219,7 +219,7 @@ def calculate_kennzahlen(data_file_names):
     # print(f'Calculating Stimmbeteiligung...')
     # concatenated_df['Stimmbet'] = concatenated_df['Eingel_Anz'] / concatenated_df['Stimmber_Anz']
     concatenated_df['id'] = concatenated_df['Abst_Datum'] + '_' + concatenated_df['Abst_ID'].astype(str).str.zfill(
-        2) + '_' + concatenated_df['Gemein_ID'].astype(str).str.zfill(2)
+        2) + '_' + concatenated_df['Gemein_ID'].astype(int).astype(str).str.zfill(2)
     return abst_date, concatenated_df
 
 
