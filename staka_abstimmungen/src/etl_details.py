@@ -15,7 +15,8 @@ def main():
     print(f'Exporting to {export_file_name}...')
     concatenated_df.to_csv(export_file_name, index=False)
 
-    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'wahlen_abstimmungen/abstimmungen')
+    common.upload_ftp(export_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      'wahlen_abstimmungen/abstimmungen')
     print('Job successful!')
 
 
@@ -42,10 +43,13 @@ def calculate_details(data_file_names):
                             'Riehen brieflich Stimmende', 'Bettingen Gemeindehaus', 'Bettingen brieflich Stimmende',
                             'Persönlich an der Urne Stimmende AS', 'Brieflich Stimmende AS']
 
-        valid_wahllokale_ab_20230618 = ['Bahnhof SBB', 'Rathaus', 'Polizeiwache Clara', 'Basel briefl. & elektr. Stimmende (Total)',
-                            'Riehen Gemeindehaus',
-                            'Riehen briefl. & elektr. Stimmende (Total)', 'Bettingen Gemeindehaus', 'Bettingen briefl. & elektr. Stimmende (Total)',
-                            'Persönlich an der Urne Stimmende AS', 'Brieflich Stimmende AS', 'Elektronisch Stimmende AS']
+        valid_wahllokale_ab_20230618 = ['Bahnhof SBB', 'Rathaus', 'Polizeiwache Clara',
+                                        'Basel briefl. & elektr. Stimmende (Total)',
+                                        'Riehen Gemeindehaus',
+                                        'Riehen briefl. & elektr. Stimmende (Total)', 'Bettingen Gemeindehaus',
+                                        'Bettingen briefl. & elektr. Stimmende (Total)',
+                                        'Persönlich an der Urne Stimmende AS', 'Brieflich Stimmende AS',
+                                        'Elektronisch Stimmende AS']
 
         dat_sheets = []
         for sheet_name in dat_sheet_names:
@@ -92,7 +96,7 @@ def calculate_details(data_file_names):
             df['Abst_Art'] = abst_type
             df['Abst_Datum'] = abst_date
             df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
-            df['abst_typ'] = ''
+            df['abst_typ'] = 'Abstimmung ohne Gegenvorschlag / Stichfrage'
 
             df.Guelt_Anz.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
@@ -109,13 +113,18 @@ def calculate_details(data_file_names):
                                    'ohne gültige Antwort.2': 'Sti_OGA_Anz'}, inplace=True)
 
                 print(f'Calculating anteil_ja_stimmen for Gegenvorschlag case...')
-                for column in [df.Ja_Anz, df.Nein_Anz, df.Gege_Ja_Anz, df.Gege_Nein_Anz, df.Sti_Initiative_Anz, df.Sti_Gegenvorschlag_Anz]:
+                for column in [df.Ja_Anz, df.Nein_Anz, df.Gege_Ja_Anz, df.Gege_Nein_Anz, df.Sti_Initiative_Anz,
+                               df.Sti_Gegenvorschlag_Anz]:
                     column.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
                 df['anteil_ja_stimmen'] = df.Ja_Anz / (df.Ja_Anz + df.Nein_Anz)
                 df['gege_anteil_ja_Stimmen'] = df.Gege_Ja_Anz / (df.Gege_Ja_Anz + df.Gege_Nein_Anz)
-                df['sti_anteil_init_stimmen'] = df.Sti_Initiative_Anz / (df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz)
-                columns_to_keep = columns_to_keep + ['Gege_Ja_Anz', 'Gege_Nein_Anz', 'Sti_Initiative_Anz', 'Sti_Gegenvorschlag_Anz', 'gege_anteil_ja_Stimmen', 'sti_anteil_init_stimmen', 'Init_OGA_Anz', 'Gege_OGA_Anz', 'Sti_OGA_Anz']
+                df['sti_anteil_init_stimmen'] = df.Sti_Initiative_Anz / (
+                            df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz)
+                columns_to_keep = columns_to_keep + ['Gege_Ja_Anz', 'Gege_Nein_Anz', 'Sti_Initiative_Anz',
+                                                     'Sti_Gegenvorschlag_Anz', 'gege_anteil_ja_Stimmen',
+                                                     'sti_anteil_init_stimmen', 'Init_OGA_Anz', 'Gege_OGA_Anz',
+                                                     'Sti_OGA_Anz']
             else:
                 print(f'Adding data for case that is not with Gegenvorschlag...')
                 result_type = df_meta.columns[8]
@@ -147,15 +156,9 @@ def calculate_details(data_file_names):
     df_wahllokale = pd.read_csv(path_wahllokale, encoding='unicode_escape')
     df_wahllokale.rename(columns={'Wahllok_Name': 'Wahllok_name'}, inplace=True)
     concatenated_df = pd.merge(concatenated_df, df_wahllokale, on=['Wahllok_name'], how='inner')
+    concatenated_df['id'] = concatenated_df['Abst_Datum'] + '_' + concatenated_df['Abst_ID'].astype(str).str.zfill(
+        2) + '_' + concatenated_df['wahllok_id'].astype(str)
     return abst_date, concatenated_df
-
-
-def merge_with_wahllokale(df):
-    path_wahllokale = os.path.join(pathlib.Path(__file__).parents[1], 'data/Wahllokale_Vorschlag.csv')
-    df_wahllokale = pd.read_csv(path_wahllokale, encoding='cp1252')
-    df = df.merge(df_wahllokale, on='Wahllok_name', how='left')
-    return df
-
 
 if __name__ == "__main__":
     print(f'Executing {__file__}...')
