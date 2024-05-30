@@ -13,7 +13,7 @@ from bafu_hydrodaten_vorhersagen import credentials
 
 
 rivers = ['Rhein', 'Birs']
-methods = ['ICON-CH1-EPS ctrl', 'ICON-CH2-EPS ctrl', 'IFS']
+methods = ['ICON-CH1-EPS', 'ICON-CH2-EPS', 'IFS']
 dict_id = {
     'Rhein': '100271',
     'Birs': '100272'
@@ -121,6 +121,7 @@ def get_quantiles(river, method, url):
             file.write(line)
             file.write(b'\n')
     return pd.read_table(path_to_file, sep='\s+')
+
 
 def take_out_measured_data(df):
     for idx in df.index:
