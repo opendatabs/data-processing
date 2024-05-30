@@ -13,7 +13,7 @@ from bafu_hydrodaten_vorhersagen import credentials
 
 
 rivers = ['Rhein', 'Birs']
-methods = ['COSMO-1E ctrl', 'COSMO-2E ctrl', 'IFS']
+methods = ['ICON-CH1-EPS ctrl', 'ICON-CH2-EPS ctrl', 'IFS']
 dict_id = {
     'Rhein': '100271',
     'Birs': '100272'
