@@ -101,7 +101,7 @@ def extract_data(river, method):
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
     df['gemessene_werten_bis'] = gemessen
-    if 'ctrl' in method:
+    if 'ICON' in method:
         df_quant = get_quantiles(river, method, url)
         df = pd.merge(df, df_quant[['dd', 'mm', 'yyyy', 'hh',
                                     'H_min', 'H_p25', 'H_p50', 'H_p75', 'H_max',
