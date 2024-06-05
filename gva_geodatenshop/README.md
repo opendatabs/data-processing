@@ -1,6 +1,12 @@
 # Harvester for GVA Gedodata files
 
 ## Publish existing GVA datasets
+
+### Description of the files
+- `ogd_datensaetze.csv`: This file lists the datasets that are available for publication as OGD.
+- `Publizierende_organisation.csv`: This file contains the responsible "Dienststelle" (department or organization).
+- `Metadata.xlsx`: This file contains the remaining metadata for one or more datasets.
+
 ### Identify dataset to publish in `ogd_datensaetze.csv`
 - GVA exports all available geo datasets every morning into `{File Server Root}\PD\PD-StatA-FST-OGD-Data-GVA\ogd_datensaetze.csv`.
 - Open in Excel and find the dataset to be published as OGD.
