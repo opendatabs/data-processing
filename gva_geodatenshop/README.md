@@ -39,7 +39,7 @@
 ### Deployment and harvesting
 - Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started.
 - After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.xlsx` accordingly.
-- Manually change ODS id of newly datasets. 
+- Manually change ODS id of newly datasets. To do this, you have to depublish the dataset first.
 - Newly created datasets are not auto-published, but remain private until published in ODS. 
 - Changes in datasets that have been published in ODS before are automatically published when the ODS harvester has finished running.
 - Repeat until happy with the results ;-)
