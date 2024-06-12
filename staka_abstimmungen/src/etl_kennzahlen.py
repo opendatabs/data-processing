@@ -84,7 +84,7 @@ def calculate_kennzahlen(data_file_names):
             df['Abst_Art'] = abst_type
             df['Abst_Datum'] = abst_date
             df['Abst_ID'] = sheet_name[sheet_name.find('DAT ') + 4]
-            df['abst_typ'] = ''
+            df['abst_typ'] = 'Abstimmung ohne Gegenvorschlag / Stichfrage'
 
             df.Guelt_Anz.replace(0, pd.NA, inplace=True)
 
@@ -218,6 +218,8 @@ def calculate_kennzahlen(data_file_names):
     concatenated_df['Abst_ID_Titel'] = concatenated_df['Abst_ID'].astype(str) + ': ' + concatenated_df['Abst_Titel']
     # print(f'Calculating Stimmbeteiligung...')
     # concatenated_df['Stimmbet'] = concatenated_df['Eingel_Anz'] / concatenated_df['Stimmber_Anz']
+    concatenated_df['id'] = concatenated_df['Abst_Datum'] + '_' + concatenated_df['Abst_ID'].astype(str).str.zfill(
+        2) + '_' + concatenated_df['Gemein_ID'].astype(int).astype(str).str.zfill(2)
     return abst_date, concatenated_df
 
 

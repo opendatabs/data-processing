@@ -9,7 +9,7 @@ import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 import pandas as pd
 from staka_abstimmungen import credentials
-from staka_abstimmungen.src.etl_details import calculate_details, merge_with_wahllokale
+from staka_abstimmungen.src.etl_details import calculate_details
 from staka_abstimmungen.src.etl_kennzahlen import calculate_kennzahlen
 import smtplib
 

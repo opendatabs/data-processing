@@ -7,6 +7,7 @@ import pandas as pd
 import geopandas as gpd
 import zipfile
 import io
+from datetime import datetime
 # import matplotlib.pyplot as plt
 
 
@@ -14,11 +15,15 @@ CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def download_spatial_descriptors(url):
+    # The Allmendbewilligung needs to be in a range of 10 years
+    now = datetime.now()
+    year_plus_10 = now.year + 10
+    today = datetime.now().strftime('%Y-%m-%d')
+    ten_years_later = datetime(year_plus_10, now.month, now.day).strftime('%Y-%m-%d')
     params = {
-            'format': 'shp',
-            'refine.belgartbez': 'Baustelle',
-            'apikey': credentials.api_key,
-        }
+        "refine": 'belgartbez:"Baustelle"',
+        "qv1": f'(datum_bis>="{today}") AND (datum_von<="{ten_years_later}")'
+    }
     r2 = common.requests_get(url, params=params)
     z = zipfile.ZipFile(io.BytesIO(r2.content))
     # Extrahiere alle Dateien in einen temporären Ordner
@@ -50,13 +55,13 @@ def main():
         df_export.datum_von = pd.to_datetime(df_export['datum_von'], format='%d.%m.%Y', errors='raise').dt.strftime('%Y-%m-%d')
         df_export.datum_bis = pd.to_datetime(df_export['datum_bis'], format='%d.%m.%Y', errors='raise').dt.strftime('%Y-%m-%d')
         df_export['allmendbewilligungen'] = "https://data.bs.ch/explore/dataset/100018/table/?refine.belgartbez=Baustelle&q=begehrenid=" + df_export.id.astype(str)
-    df_allm = download_spatial_descriptors('https://data.bs.ch/explore/dataset/100018/download')
-    # alle Daten rausnehmen
+    df_allm = download_spatial_descriptors('https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018/exports/shp')
+    df_allm['begehrenid'] = df_allm['begehrenid'].astype('int64')
     df_export = df_export.merge(df_allm, how='left', left_on='id', right_on='begehrenid')
     df_export = df_export.drop(columns=['begehrenid'])
     export_filename = f"{CURR_DIR}/data/baustellen.csv"
     df_export.to_csv(export_filename, index=False)
-    common.update_ftp_and_odsp(export_filename, 'tba/baustellen', '100359')
+    common.update_ftp_and_odsp(export_filename, 'tba/baustellen', '100335')
 
 
 if __name__ == "__main__":

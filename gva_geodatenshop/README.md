@@ -1,6 +1,12 @@
 # Harvester for GVA Gedodata files
 
 ## Publish existing GVA datasets
+
+### Description of the files
+- `ogd_datensaetze.csv`: This file lists the datasets that are available for publication as OGD.
+- `Publizierende_organisation.csv`: This file contains the responsible "Dienststelle" (department or organization).
+- `Metadata.xlsx`: This file contains the remaining metadata for one or more datasets.
+
 ### Identify dataset to publish in `ogd_datensaetze.csv`
 - GVA exports all available geo datasets every morning into `{File Server Root}\PD\PD-StatA-FST-OGD-Data-GVA\ogd_datensaetze.csv`.
 - Open in Excel and find the dataset to be published as OGD.
@@ -15,7 +21,7 @@
 - Save, check for unwanted changes using a diff tool, fix if necessary. 
 
 ### Fill out file `Metadata.xlsx`
-- Open file `Metadata.xlsx` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\harvesters\GVA` in Excel.
+- Open file `Metadata.xlsx` located in `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\harvesters\GVA` in Excel.
 - Add a new row, paste contents of column "ordnerpfad" copied from the selected row in File `ogd_datensaetze.csv`. 
 - Set "import" to "True". 
 - Column "shapes": Define which shp files shape(s) should be imported. Leave empty to import all shapes to explore the shapes in ODS before publication. Each shape will be imported as a new ODS dataset. Do not add file extension. Multiple shapes can be separated with semicolon. Do not add a semicolon at the end of a list of shape names. If empty, all shapes will be imported. 
@@ -27,13 +33,13 @@
 - Column "keyword": Semicolon-separated list of keywords to be used in ODS.
 - Column "dcat_ap_ch.domain": Used if the dataset should be assigned to an opendata.swiss suborganisation. 
 - Column "dcat.accrualperiodicity": Accrual periodicity as described [here](https://handbook.opendata.swiss/de/content/glossar/bibliothek/dcat-ap-ch.html?highlight=accrual)
-- Column "schema_file": Set "True" if a (schema file)[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file] is provided in the [schema_files](./schema_files/) folder. Schema files must be named `{ods_id}.csv`. 
+- Column "schema_file": Set "True" if a (schema file)[[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file]](https://userguide.opendatasoft.com/l/en/article/wsyubsjp1m-ftp-with-meta-csv-harvester#schema_csv_file) is provided in the [schema_files](./schema_files/) folder. Schema files must be named `{ods_id}.csv`. 
 - Column "dcat.issued": Date string in the form "JJJJ-MM-TT" to be used as issued date in ODS and opendata.swiss.
   
 ### Deployment and harvesting
 - Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started.
 - After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.xlsx` accordingly.
-- Manually change ODS id of newly datasets. 
+- Manually change ODS id of newly datasets. To do this, you have to depublish the dataset first.
 - Newly created datasets are not auto-published, but remain private until published in ODS. 
 - Changes in datasets that have been published in ODS before are automatically published when the ODS harvester has finished running.
 - Repeat until happy with the results ;-)

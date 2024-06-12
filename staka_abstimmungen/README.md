@@ -1,7 +1,7 @@
 # Documentation for the Job "staka_abstimmungen"
 
 ## What does this job do?
-- The Airflow DAG is runs regularly (e.g. every 2 minutes, see https://github.com/opendatabs/docker-airflow/blob/master/dags/staka_abstimmungen.py) and calls etl_auto.sh, which in turn starts the Python program src/etl.py
+- The Airflow DAG is runs regularly (e.g. every 2 minutes, see [https://github.com/opendatabs/docker-airflow/blob/master/dags/staka_abstimmungen.py](https://github.com/opendatabs/dags-airflow2/blob/main/staka_abstimmungen.py)) and calls etl_auto.sh, which in turn starts the Python program src/etl.py
 - etl.py does the following: 
   - It reads control.csv, which contains one line per Abstimmungs-Sonntag, with the following columns (all timestampos are in "Europe/Zurich" timezone: 
     - `Active`: Should this line be taken into account

@@ -13,7 +13,7 @@ from bafu_hydrodaten_vorhersagen import credentials
 
 
 rivers = ['Rhein', 'Birs']
-methods = ['COSMO-1E ctrl', 'COSMO-2E ctrl', 'IFS']
+methods = ['ICON-CH1-EPS', 'ICON-CH2-EPS', 'IFS']
 dict_id = {
     'Rhein': '100271',
     'Birs': '100272'
@@ -101,7 +101,7 @@ def extract_data(river, method):
     df['ausgegeben_an'] = ausgabe
     df['meteolauf'] = meteolauf
     df['gemessene_werten_bis'] = gemessen
-    if 'ctrl' in method:
+    if 'ICON' in method:
         df_quant = get_quantiles(river, method, url)
         df = pd.merge(df, df_quant[['dd', 'mm', 'yyyy', 'hh',
                                     'H_min', 'H_p25', 'H_p50', 'H_p75', 'H_max',
@@ -121,6 +121,7 @@ def get_quantiles(river, method, url):
             file.write(line)
             file.write(b'\n')
     return pd.read_table(path_to_file, sep='\s+')
+
 
 def take_out_measured_data(df):
     for idx in df.index:

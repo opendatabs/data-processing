@@ -14,7 +14,7 @@ from common import change_tracking as ct
 
 
 def download_spatial_descriptors(ods_id):
-    url_to_shp = f'https://data.bs.ch/explore/dataset/{ods_id}/download/?format=shp&timezone=Europe/Berlin&lang=de'
+    url_to_shp = f'https://data.bs.ch/explore/dataset/{ods_id}/download/?format=shp'
     r = common.requests_get(url_to_shp)
     # Unpack zip file
     z = zipfile.ZipFile(io.BytesIO(r.content))
