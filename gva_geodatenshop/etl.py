@@ -63,6 +63,15 @@ def open_csv(file_path):
     logging.info(f'Reading data file form {file_path}...')
     enc = get_encoding(file_path)
     return pd.read_csv(file_path, sep=';', na_filter=False, encoding=enc)
+# Function to create Map_links
+def create_map_links(geometry):
+    lat, lon = geometry.y, geometry.x
+    google_maps_link = f'https://www.google.com/maps?q={lat},{lon}'
+    apple_maps_link = f'http://maps.apple.com/?q={lat},{lon}'
+    google_maps_route = f'https://www.google.com/maps/dir/?api=1&destination={lat},{lon}'
+    apple_maps_route = f'http://maps.apple.com/?daddr={lat},{lon}'
+    
+    return google_maps_link, apple_maps_link, google_maps_route, apple_maps_route
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
@@ -90,6 +99,7 @@ for index, row in joined_data.iterrows():
         # create a temporary folder for data processing
         temp_folder_path = os.path.join(credentials.path_root,'data','tempo_folder')
         os.makedirs(temp_folder_path, exist_ok=True)
+        #make a copy of all files in temporary folder 
         [shutil.copy(os.path.join(path, files), os.path.join(temp_folder_path, files)) for files in os.listdir(path)]
         # How many unique shp files are there?
         shpfiles = glob.glob(os.path.join(path, '*.shp')) 
@@ -103,17 +113,20 @@ for index, row in joined_data.iterrows():
             shpfile = shpfiles[shp_number]
             # read the shape file
             gdf = gpd.read_file(shpfile)
+            # make a copy of data frame to protect the unchanged data
             gdf_transformed = gdf.copy()
             # check whether the data is a geo point or geo shape 
             geometry_types = gdf.iloc[0]['geometry'].geom_type
+            # if geo point, create a Map_links 
             if geometry_types== 'Point':
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
-               # Function to create links
-                def create_map_link(geometry):
-                    return f'https://www.google.com/maps?q={geometry.y},{geometry.x}'
-                gdf_transformed['Map_Link'] = gdf_transformed['geometry'].apply(create_map_link) 
-                gdf['Map_Link'] = gdf_transformed['Map_Link']
-                gdf.to_file(shpfile)       
+               
+                gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
+                gdf_transformed.apply(lambda row: create_map_links(row['geometry']), axis=1, result_type='expand')
+                gdf[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
+                gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']]
+                gdf.to_file(shpfile) 
+                print(gdf.iloc[1,['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']])      
             # Create zip file containing all necessary files for each Shape
             shppath, shpfilename = os.path.split(shpfile)
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
