@@ -161,7 +161,15 @@ def main():
     df_gr_traktanden = common.pandas_read_csv(PATH_GR_TRAKTANDEN, encoding='utf-8', dtype=str)
 
     # Perform data processing and CSV file creation functions
-    args_for_uploads = [create_traktanden_csv(df_gr_tagesordnung, df_gr_traktanden, df_gr_sitzung)]
+    args_for_uploads = [create_mitglieder_csv(df_adr, df_mit),
+                        create_mitgliedschaften_csv(df_adr, df_mit, df_gre),
+                        create_interessensbindungen_csv(df_adr, df_intr),
+                        create_gremien_csv(df_gre, df_mit),
+                        create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre),
+                        create_zuweisungen_csv(df_gre, df_ges, df_zuw),
+                        create_dokumente_csv(df_adr, df_ges, df_dok),
+                        create_vorgaenge_csv(df_ges, df_vor, df_siz),
+                        create_traktanden_csv(df_gr_tagesordnung, df_gr_traktanden, df_gr_sitzung)]
 
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
