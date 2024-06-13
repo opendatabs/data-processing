@@ -9,6 +9,10 @@ from charset_normalizer import from_path
 import common
 from common import change_tracking as ct
 from gva_geodatenshop import credentials
+import geopandas as gpd
+import shutil
+
+
 
 
 # Returns value from geocat
@@ -59,6 +63,15 @@ def open_csv(file_path):
     logging.info(f'Reading data file form {file_path}...')
     enc = get_encoding(file_path)
     return pd.read_csv(file_path, sep=';', na_filter=False, encoding=enc)
+# Function to create Map_links
+def create_map_links(geometry):
+    lat, lon = geometry.y, geometry.x
+    google_maps_link = f'https://www.google.com/maps?q={lat},{lon}'
+    apple_maps_link = f'http://maps.apple.com/?q={lat},{lon}'
+    google_maps_route = f'https://www.google.com/maps/dir/?api=1&destination={lat},{lon}'
+    apple_maps_route = f'http://maps.apple.com/?daddr={lat},{lon}'
+    
+    return google_maps_link, apple_maps_link, google_maps_route, apple_maps_route
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
@@ -83,9 +96,13 @@ for index, row in joined_data.iterrows():
     if row['import'] is True and row['art'] == 'Vektor':  # and (str(row['ordnerpfad'])) in required_topics
         # Get files from folder
         files = os.listdir(path)
-
+        # create a temporary folder for data processing
+        temp_folder_path = os.path.join(credentials.path_root,'data','tempo_folder')
+        os.makedirs(temp_folder_path, exist_ok=True)
+        #make a copy of all files in temporary folder 
+        [shutil.copy(os.path.join(path, files), os.path.join(temp_folder_path, files)) for files in os.listdir(path)]
         # How many unique shp files are there?
-        shpfiles = glob.glob(os.path.join(path, '*.shp'))
+        shpfiles = glob.glob(os.path.join(path, '*.shp')) 
         logging.info(str(len(shpfiles)) + ' shp files in ' + path)
 
         # Which shapes need to be imported to ods?
@@ -94,6 +111,22 @@ for index, row in joined_data.iterrows():
         # Iterate over shapefiles - we need the shp_number to map custom titles and descriptions to the correct shapefile
         for shp_number in range(0, len(shpfiles)):
             shpfile = shpfiles[shp_number]
+            # read the shape file
+            gdf = gpd.read_file(shpfile)
+            # make a copy of data frame to protect the unchanged data
+            gdf_transformed = gdf.copy()
+            # check whether the data is a geo point or geo shape 
+            geometry_types = gdf.iloc[0]['geometry'].geom_type
+            # if geo point, create a Map_links 
+            if geometry_types== 'Point':
+                gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
+               
+                gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
+                gdf_transformed.apply(lambda row: create_map_links(row['geometry']), axis=1, result_type='expand')
+                gdf[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
+                gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']]
+                gdf.to_file(shpfile) 
+                print(gdf.iloc[1,['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']])      
             # Create zip file containing all necessary files for each Shape
             shppath, shpfilename = os.path.split(shpfile)
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
@@ -120,14 +153,14 @@ for index, row in joined_data.iterrows():
                 # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 logging.info('Finding Files to add to zip')
                 # Include all files with shpfile's name
-                files_to_zip = glob.glob(os.path.join(path, shpfilename_noext + '.*'))
+                files_to_zip = glob.glob(os.path.join(temp_folder_path, shpfilename_noext + '.*'))
                 for file_to_zip in files_to_zip:
                     # Do not add the zip file into the zip file...
                     if not file_to_zip.endswith('.zip'):
+                        # add only shp file from
                         zipf.write(file_to_zip, os.path.split(file_to_zip)[1])
                         pass
                 zipf.close()
-
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 if ct.has_changed(zipfilepath) and (not no_file_copy):
@@ -262,7 +295,7 @@ for index, row in joined_data.iterrows():
             # Load metadata from geocat.ch
             # Add entry to harvester file
             # FTP upload file
-
+        shutil.rmtree(temp_folder_path)
 # Save harvester file
 if len(metadata_for_ods) > 0:
     ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
