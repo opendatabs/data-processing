@@ -125,8 +125,7 @@ for index, row in joined_data.iterrows():
                 gdf_transformed.apply(lambda row: create_map_links(row['geometry']), axis=1, result_type='expand')
                 gdf[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
                 gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']]
-                gdf.to_file(shpfile) 
-                print(gdf.iloc[1,['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']])      
+                gdf.to_file(shpfile)
             # Create zip file containing all necessary files for each Shape
             shppath, shpfilename = os.path.split(shpfile)
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
