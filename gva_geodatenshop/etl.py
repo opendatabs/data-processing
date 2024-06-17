@@ -13,8 +13,6 @@ import geopandas as gpd
 import shutil
 
 
-
-
 # Returns value from geocat
 def geocat_value(key):
     if str(key) != '':
@@ -63,15 +61,15 @@ def open_csv(file_path):
     logging.info(f'Reading data file form {file_path}...')
     enc = get_encoding(file_path)
     return pd.read_csv(file_path, sep=';', na_filter=False, encoding=enc)
+
+
 # Function to create Map_links
 def create_map_links(geometry):
     lat, lon = geometry.y, geometry.x
-    google_maps_link = f'https://www.google.com/maps?q={lat},{lon}'
-    apple_maps_link = f'http://maps.apple.com/?q={lat},{lon}'
-    google_maps_route = f'https://www.google.com/maps/dir/?api=1&destination={lat},{lon}'
-    apple_maps_route = f'http://maps.apple.com/?daddr={lat},{lon}'
-    
-    return google_maps_link, apple_maps_link, google_maps_route, apple_maps_route
+    google_maps_link = f'https://www.google.com/maps/dir/?api=1&destination={lat},{lon}'
+    apple_maps_link = f'http://maps.apple.com/?daddr={lat},{lon}'
+
+    return google_maps_link, apple_maps_link
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
@@ -97,12 +95,12 @@ for index, row in joined_data.iterrows():
         # Get files from folder
         files = os.listdir(path)
         # create a temporary folder for data processing
-        temp_folder_path = os.path.join(credentials.path_root,'data','tempo_folder')
+        temp_folder_path = os.path.join(credentials.path_root, 'data', 'tempo_folder')
         os.makedirs(temp_folder_path, exist_ok=True)
-        #make a copy of all files in temporary folder 
+        # make a copy of all files in temporary folder
         [shutil.copy(os.path.join(path, files), os.path.join(temp_folder_path, files)) for files in os.listdir(path)]
         # How many unique shp files are there?
-        shpfiles = glob.glob(os.path.join(path, '*.shp')) 
+        shpfiles = glob.glob(os.path.join(path, '*.shp'))
         logging.info(str(len(shpfiles)) + ' shp files in ' + path)
 
         # Which shapes need to be imported to ods?
@@ -111,24 +109,26 @@ for index, row in joined_data.iterrows():
         # Iterate over shapefiles - we need the shp_number to map custom titles and descriptions to the correct shapefile
         for shp_number in range(0, len(shpfiles)):
             shpfile = shpfiles[shp_number]
-            # read the shape file
+            # Create zip file containing all necessary files for each Shape
+            shppath, shpfilename = os.path.split(shpfile)
+            shpfilename_noext, shpext = os.path.splitext(shpfilename)
+
+            # read the shape file in GVA folder
             gdf = gpd.read_file(shpfile)
             # make a copy of data frame to protect the unchanged data
             gdf_transformed = gdf.copy()
             # check whether the data is a geo point or geo shape 
             geometry_types = gdf.iloc[0]['geometry'].geom_type
             # if geo point, create a Map_links 
-            if geometry_types== 'Point':
+            if geometry_types == 'Point':
+                logging.info(f"Create Map urls for {shpfilename_noext}")
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
-               
-                gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
-                gdf_transformed.apply(lambda row: create_map_links(row['geometry']), axis=1, result_type='expand')
-                gdf[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']] = \
-                gdf_transformed[['Google Maps', 'Apple Maps', 'Google_drive_to', 'Apple_drive_to']]
-                gdf.to_file(shpfile)
-            # Create zip file containing all necessary files for each Shape
-            shppath, shpfilename = os.path.split(shpfile)
-            shpfilename_noext, shpext = os.path.splitext(shpfilename)
+
+                gdf_transformed[['Google Maps', 'Apple Maps']] = \
+                    gdf_transformed.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
+                gdf[['Google Maps', 'Apple Maps']] = \
+                    gdf_transformed[['Google Maps', 'Apple Maps']]
+                gdf.to_file(temp_folder_path)
 
             # Determine shp_to_load_number - the index of the current shape that should be loaded to ods
             shp_to_load_number = 0
@@ -144,7 +144,7 @@ for index, row in joined_data.iterrows():
                 logging.info('Preparing shape ' + shpfilename_noext + '...')
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace(credentials.path_orig, '')
-                folder_flat = folder.replace('/', '__'). replace('\\', '__')
+                folder_flat = folder.replace('/', '__').replace('\\', '__')
                 zipfilepath_relative = os.path.join('data', folder_flat + '__' + shpfilename_noext + '.zip')
                 zipfilepath = os.path.join(credentials.path_root, zipfilepath_relative)
                 logging.info('Creating zip file ' + zipfilepath)
@@ -163,7 +163,8 @@ for index, row in joined_data.iterrows():
                 # Upload zip file to ftp server
                 ftp_remote_dir = 'harvesters/GVA/data'
                 if ct.has_changed(zipfilepath) and (not no_file_copy):
-                    common.upload_ftp(zipfilepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_remote_dir)
+                    common.upload_ftp(zipfilepath, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                      ftp_remote_dir)
                     ct.update_hash_file(zipfilepath)
 
                 # Load metadata from geocat.ch
@@ -222,13 +223,17 @@ for index, row in joined_data.iterrows():
                     if row['schema_file'] == 'True':
                         schema_file = f'{ods_id}.csv'
 
-
                 # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
-                geocat_description_textgroup = metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText']['gmd:textGroup']
-                geocat_description = geocat_description_textgroup[0]['gmd:LocalisedCharacterString']['#text'] if isinstance(geocat_description_textgroup, list) else geocat_description_textgroup['gmd:LocalisedCharacterString']['#text']
+                geocat_description_textgroup = \
+                metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText'][
+                    'gmd:textGroup']
+                geocat_description = geocat_description_textgroup[0]['gmd:LocalisedCharacterString'][
+                    '#text'] if isinstance(geocat_description_textgroup, list) else \
+                geocat_description_textgroup['gmd:LocalisedCharacterString']['#text']
                 # Check if a description to the current shape is given in Metadata.csv
                 description_list = str(row['beschreibung']).split(';')
-                description = description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
+                description = description_list[shp_to_load_number] if len(
+                    description_list) - 1 >= shp_to_load_number else ""
 
                 dcat_ap_ch_domain = ''
                 if str(row['dcat_ap_ch.domain']) != '':
@@ -237,11 +242,12 @@ for index, row in joined_data.iterrows():
                 # Add entry to harvester file
                 metadata_for_ods.append({
                     'ods_id': ods_id,
-                    'name':  geocat_uid + ':' + shpfilename_noext,
+                    'name': geocat_uid + ':' + shpfilename_noext,
                     'title': title,
                     'description': description if len(description) > 0 else geocat_description,
                     # Only add nonempty strings as references
-                    'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),  # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
+                    'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),
+                    # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
                     'theme': str(row['theme']),
                     'keyword': str(row['keyword']),
                     'dcat_ap_ch.domain': dcat_ap_ch_domain,
@@ -259,11 +265,13 @@ for index, row in joined_data.iterrows():
                     #                                   'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
                     #                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
                     # 'dcat.created': geocat_value('geocat_created'),
-                    'dcat.created': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
-                                                'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
-                    'dcat.creator': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                                                'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.1.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                                                'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
+                    'dcat.created': geocat_try([
+                                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
+                                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text']),
+                    'dcat.creator': geocat_try([
+                                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.1.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
+                                                   'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text']),
                     'dcat.accrualperiodicity': row['dcat.accrualperiodicity'],
                     # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
                     # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
@@ -303,7 +311,8 @@ if len(metadata_for_ods) > 0:
 
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
         logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
-        common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+        common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          'harvesters/GVA')
         ct.update_hash_file(ods_metadata_filename)
 
     # Upload each schema_file
@@ -313,7 +322,8 @@ if len(metadata_for_ods) > 0:
             schemafile_with_path = os.path.join(credentials.path_root, 'schema_files', schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
                 logging.info(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
-                common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'harvesters/GVA')
+                common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user,
+                                  credentials.ftp_pass, 'harvesters/GVA')
                 ct.update_hash_file(schemafile_with_path)
 
 else:
