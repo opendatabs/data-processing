@@ -65,10 +65,18 @@ def open_csv(file_path):
 
 # Function to create Map_links
 def create_map_links(geometry):
-    lat, lon = geometry.y, geometry.x
+    # check whether the data is a geo point or geo shape
+    logging.info(f'the type of the geometry is {geometry.geom_type}')
+   # geometry_types = gdf.iloc[0][geometry].geom_type
+    if geometry.geom_type == 'Polygon':
+        centroid = geometry.centroid
+    else:
+         centroid = geometry
+
+     #  create a Map_links
+    lat, lon = centroid.y, centroid.x
     google_maps_link = f'https://www.google.com/maps/dir/?api=1&destination={lat},{lon}'
     apple_maps_link = f'http://maps.apple.com/?daddr={lat},{lon}'
-
     return google_maps_link, apple_maps_link
 
 
@@ -119,16 +127,11 @@ for index, row in joined_data.iterrows():
                 gdf = gpd.read_file(shpfile)
                 # make a copy of data frame to protect the unchanged data
                 gdf_transformed = gdf.copy()
-                # check whether the data is a geo point or geo shape
-                geometry_types = gdf.iloc[0]['geometry'].geom_type
-                # if geo point, create a Map_links
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
                 gdf_transformed[['Google Maps', 'Apple Maps']] = \
                     gdf_transformed.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
-                gdf[['Google Maps', 'Apple Maps']] = \
-                    gdf_transformed[['Google Maps', 'Apple Maps']]
+                gdf[['Google Maps', 'Apple Maps']] = gdf_transformed[['Google Maps', 'Apple Maps']]
                 gdf.to_file(os.path.join(temp_folder_path, shpfilename))
-
             # Determine shp_to_load_number - the index of the current shape that should be loaded to ods
             shp_to_load_number = 0
             if len(shapes_to_load) == 0:
