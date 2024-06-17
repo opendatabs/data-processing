@@ -113,17 +113,16 @@ for index, row in joined_data.iterrows():
             shppath, shpfilename = os.path.split(shpfile)
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
 
-            # read the shape file in GVA folder
-            gdf = gpd.read_file(shpfile)
-            # make a copy of data frame to protect the unchanged data
-            gdf_transformed = gdf.copy()
-            # check whether the data is a geo point or geo shape 
-            geometry_types = gdf.iloc[0]['geometry'].geom_type
-            # if geo point, create a Map_links 
-            if geometry_types == 'Point':
+            if row['create_map_urls'] == 'True':
                 logging.info(f"Create Map urls for {shpfilename_noext}")
+                # read the shape file in GVA folder
+                gdf = gpd.read_file(shpfile)
+                # make a copy of data frame to protect the unchanged data
+                gdf_transformed = gdf.copy()
+                # check whether the data is a geo point or geo shape
+                geometry_types = gdf.iloc[0]['geometry'].geom_type
+                # if geo point, create a Map_links
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
-
                 gdf_transformed[['Google Maps', 'Apple Maps']] = \
                     gdf_transformed.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
                 gdf[['Google Maps', 'Apple Maps']] = \
