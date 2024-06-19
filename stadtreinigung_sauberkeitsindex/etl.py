@@ -20,7 +20,7 @@ def main():
         with open(export_filename, 'w') as file:
             file.write(r.text)
         df = add_datenstand(export_filename)
-        df.to_csv(export_filename, index=False)
+        df.to_csv(export_filename, encoding='cp1252', index=False)
         common.update_ftp_and_odsp(export_filename, 'stadtreinigung/sauberkeitsindex/roh', '100288')
 
 
