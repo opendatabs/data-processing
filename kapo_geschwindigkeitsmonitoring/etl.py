@@ -60,7 +60,7 @@ def main():
 
     df_metadata = create_metadata_per_location_df(df_meta_raw)
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
-    df_measurements = create_measurements_df(df_meta_raw)
+    df_measurements = create_measurements_df(df_meta_raw, df_metadata_per_direction)
     # year_file_names = create_measures_per_year(df_measurements)
 
 
@@ -89,12 +89,14 @@ def create_metadata_per_location_df(df):
 def create_metadata_per_direction_df(df_metadata):
     logging.info(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
     # Manual stacking of the columns for Richtung 1 and 2
-    df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1']]
+    df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
+                                'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung1 = df_richtung1.rename(
         columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85',
                  'Ue_Quote_1': 'Ue_Quote'})
     df_richtung1['Richtung ID'] = 1
-    df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2']]
+    df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2' ,
+                                'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung2 = df_richtung2.rename(
         columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85',
                  'Ue_Quote_2': 'Ue_Quote'})
@@ -102,7 +104,8 @@ def create_metadata_per_direction_df(df_metadata):
     df_richtung = pd.concat([df_richtung1, df_richtung2])
     df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
     # Changing column order
-    df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote']]
+    df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote',
+                               'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
@@ -115,7 +118,7 @@ def create_metadata_per_direction_df(df_metadata):
     return df_richtung
 
 
-def create_measurements_df(df_meta_raw):
+def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     dfs = []
     new_df = []
     files_to_upload = []
