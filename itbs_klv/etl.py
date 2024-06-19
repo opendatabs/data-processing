@@ -39,16 +39,16 @@ def get_leistungen():
     df_leist = pd.read_excel(all_leistungen_path, engine='openpyxl')
     df_leist = df_leist[df_leist['Aktiv'] == 'Aktiv']
     # TODO: keine == Keine == NaN alles zu Keine machen
-    columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Dienststelle',
-                           'Weitere Gliederung OE', 'Identifikations Nr.', 'Kantonaler Name',
-                           'Ergebnis', 'Kurze Beschreibung', 'DienststelleAdresse',
+    columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Diensstelle',
+                           'Weitere Gliederung OE', 'Identifikationsnummer', 'Name',
+                           'Ergebnis', 'Beschreibung', 'Strasse', 'Hausnummer', 'Postleitzahl', 'Ort',
                            'Empfänger der Leistung', 'Aktivität Leistungserbringer',
                            'Aktivität Leistungsempfänger', 'Vorbedingungen',
-                           'Rechtliche Grundlagen', 'Digitalisierungsgrad', 'Kurzbeschrieb Ablauf',
-                           'ArtDerDienstleistungserbringung', 'Frist', 'Dauer',
-                           'Erforderliche Dokumente', 'Formulare', 'E-Rechnung',
-                           'Weitere beteiligte Stellen', 'Gebühr', 'DepartementId',
-                           'DienststelleId', 'Webseite', 'Schlagworte']
+                           'Rechtliche Grundlage', 'Digitalisierungsgrad', 'Kurzbeschrieb Ablauf',
+                           'Kontaktaufnahme via', 'Frist', 'Dauer',
+                           'Erforderliche Dokumente', 'Formulare', 'elektr. Bezahlmöglichkeit',
+                           'Weitere beteiligte Stellen', 'Gebühren', 'DepartementId',
+                           'DienststelleId', 'Web Adresse', 'Schlagworte']
     return df_leist[columns_of_interest]
 
 
