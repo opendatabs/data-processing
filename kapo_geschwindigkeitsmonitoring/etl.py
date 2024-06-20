@@ -160,10 +160,12 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize(
                     'Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
                 dfs.append(raw_df)
+                # todo: Check why new_df is necessary
+                new_df.append(raw_df)
+                raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
                 raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
-                new_df.append(raw_df)
 
     for obj in files_to_upload:
         if ct.has_changed(filename=obj['filename'], method='hash'):
