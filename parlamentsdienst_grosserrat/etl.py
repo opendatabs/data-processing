@@ -5,6 +5,7 @@ import logging
 import ast
 from datetime import datetime
 from io import StringIO
+import time
 
 from parlamentsdienst_grosserrat import credentials
 import common
@@ -186,8 +187,10 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     # Rename columns for clarity
     df = df.rename(columns={'beginn': 'gr_beginn', 'ende': 'gr_ende'})
 
+    # Get current date's Unix timestamp
+    current_unix_timestamp = int(time.time())
     # Check if the membership is currently active in Grosser Rat
-    df['ist_aktuell_grossrat'] = df['gr_ende'].apply(lambda end: 'Ja' if end == UNIX_TS_MAX else 'Nein')
+    df['ist_aktuell_grossrat'] = df['gr_ende'].apply(lambda end: 'Ja' if int(end) > current_unix_timestamp else 'Nein')
 
     # Create url's
     df['url'] = PATH_PERSONEN + df['uni_nr']
