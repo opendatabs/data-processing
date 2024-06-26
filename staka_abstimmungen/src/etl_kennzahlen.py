@@ -174,8 +174,6 @@ def calculate_kennzahlen(data_file_names):
         df_kennz = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, skiprows=skip_rows, index_col=None)
         df_kennz.rename(columns={'Unnamed: 0': 'empty',
                                  'Unnamed: 1': 'Gemein_Name',
-                                 '\nStimmberechtigte': 'Stimmber_Anz',
-                                 'Stimmberechtigte': 'Stimmber_Anz',
                                  'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  '\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  'Stimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
