@@ -19,6 +19,7 @@ def main():
     logging.info(f'Pushing abstimmungen from the past to ods? {push_past_abstimmungen}')
     if push_past_abstimmungen:
         push_past_abstimmungen_to_ods()
+        return
     logging.info(f'Reading control.csv...')
     df = pd.read_csv(os.path.join(credentials.path, 'control.csv'), sep=';',
                      parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])

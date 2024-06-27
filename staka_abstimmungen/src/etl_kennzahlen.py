@@ -168,13 +168,14 @@ def calculate_kennzahlen(data_file_names):
         skip_rows = None
         for index, row in df_kennz_sheet.iterrows():
             # Check if the row contains table headers
-            if '\nStimmberechtigte' in row.values:
+            if 'Stimmberechtigte' in row.values or '\nStimmberechtigte' in row.values:
                 skip_rows = index + 1  # Set the table start index
         print(f'Reading data from {kennz_sheet_name}, skipping first {skip_rows} rows...')
         df_kennz = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, skiprows=skip_rows, index_col=None)
         df_kennz.rename(columns={'Unnamed: 0': 'empty',
                                  'Unnamed: 1': 'Gemein_Name',
                                  'Durchschnittliche\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
+                                 'Durchschnittliche\nCleaning up Gemeinde names ': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  '\nStimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  'Stimmbeteiligung': 'Durchschn_Stimmbet_pro_Abst_Art',
                                  'Durchschnittlicher Anteil der brieflich Stimmenden': 'Durchschn_Briefl_Ant_pro_Abst_Art',
