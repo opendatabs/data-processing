@@ -75,9 +75,8 @@ def create_map_links(geometry):
 
      #  create a Map_links
     lat, lon = centroid.y, centroid.x
-    google_maps_link = f'https://www.google.com/maps/dir/?api=1&destination={lat},{lon}'
-    apple_maps_link = f'http://maps.apple.com/?daddr={lat},{lon}'
-    return google_maps_link, apple_maps_link
+    Map_links = f'https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}'
+    return Map_links
 
 
 data = open_csv(os.path.join(credentials.path_orig, 'ogd_datensaetze.csv'))
@@ -128,9 +127,9 @@ for index, row in joined_data.iterrows():
                 # make a copy of data frame to protect the unchanged data
                 gdf_transformed = gdf.copy()
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
-                gdf_transformed[['Google Maps', 'Apple Maps']] = \
+                gdf_transformed['Map Links'] = \
                     gdf_transformed.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
-                gdf[['Google Maps', 'Apple Maps']] = gdf_transformed[['Google Maps', 'Apple Maps']]
+                gdf['Map Links'] = gdf_transformed['Map Links']
                 gdf.to_file(os.path.join(temp_folder_path, shpfilename))
             # Determine shp_to_load_number - the index of the current shape that should be loaded to ods
             shp_to_load_number = 0
