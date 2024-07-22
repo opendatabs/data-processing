@@ -1,0 +1,17 @@
+name;label;description
+idgebaeude;Id_Gebäude;Identifikator des Gebäudes
+gebaeudenr;Gebäudenummer;GWR-Nummer des Gebäudes
+pv_best_ei;Photovoltaik Beste Eignung;Dachfläche mit bester Eignung für Photovoltaik in m2 (> 1100 kWh/m2a und 10m2 Mindestfläche)
+pv_gute_ei;Photovoltaik Gute Eignung;Dachfläche mit guter Eignung für Photovoltaik in m2 (800 bis 1100 kWh/m2a und 10m2 Mindestfläche)
+f_gute_ei;Fassade Gute Eignung;Fassadenfläche mit guter Eignung für Photovoltaik in m2 (>600kWh/m2a)
+st_best_ei;Solarthermie Beste Eignung;Dachfläche mit bester Eignung für Solarthermie in m2 (> 1100 kWh/m2a und 5m2 Mindestfläche)
+st_gute_ei;Solarthermie Gute Eignung;Dachfläche mit guter Eignung für Solarthermie in m2 (800 bis 1100 kWh/m2a und 5m2 Mindestfläche)
+pv_ertrg_j;Photovoltaik Ertrag Jahr;Möglicher Stromertrag pro Jahr für Dachflächen mit Photovoltaik in kWh
+pv_ertrg_w;Photovoltaik Ertrag Winter;Möglicher Stromertrag pro Winterhalbjahr für Dachflächen mit Photovoltaik in kWh 
+pv_ertrg_s;Photovoltaik Ertrag Sommer;Möglicher Stromertrag pro Sommerhalbjahr für Dachflächen mit Photovoltaik in kWh 
+f_ertrg_j;Fassade Ertrag Jahr;Möglicher Stromertrag pro Jahr für Fassadenflächen mit Photovoltaik in kWh
+f_ertrg_w;Fassade Ertrag Winter;Möglicher Stromertrag pro Winterhalbjahr für Fassadenflächen mit Photovoltaik in kWh
+f_ertrg_s;Fassade Ertrag Sommer;Möglicher Stromertrag pro Sommerhalbjahr für Fassadenflächen mit Photovoltaik in kWh
+st_ertrg_j;Solarthermie Ertrag Jahr;Möglicher Wärmeertrag pro Jahr für Dachflächen mit Solarthermie in kWh
+st_ertrg_w;Solarthermie Ertrag Winter;Möglicher Wärmeertrag pro Winterhalbjahr für Dachflächen mit Solarthermie in kWh
+st_ertrg_s;Solarthermie Ertrag Sommer;Möglicher Wärmeertrag pro Sommerhalbjahr für Dachflächen mit Solarthermie in kWh
