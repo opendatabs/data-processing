@@ -205,7 +205,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         db_filename = all_data_filename.replace('.csv', '.db')
         logging.info(f'Saving into sqlite db {db_filename}...')
         conn = sqlite3.connect(db_filename)
-        all_df.to_sql(name=db_filename.replace('.db', ''), con=conn, if_exists='replace', )
+        all_df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
         common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
         return all_df
