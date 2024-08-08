@@ -89,6 +89,11 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         print(f'Saving {current_filename}...')
         site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
+        # Also save it to Excel-File
+        current_filename = os.path.join(dest_path, 'sites', str(site) + '_' + filename.replace('.csv', '.xlsx'))
+        print(f'Saving {current_filename}...')
+        site_data.to_excel(current_filename, index=False)
+        generated_filenames.append(current_filename)
 
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
