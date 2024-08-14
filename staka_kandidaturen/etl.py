@@ -9,8 +9,19 @@ import ods_publish.etl_id as odsp
 
 
 def main():
+    # Grossratswahlen 2024
+    # TODO
+
+    # Regierungsratswahlen 2024
+    # TODO
+
+    # Regierungspräsidiumswahlen 2024
+    # TODO
+
+    # Don't run since already done
+    """
     # Regierungsrat-Ersatzwahl 2024
-    df_rr = process_regierungsrat()
+    df_rr = process_regierungsrat_ersatz()
     path_export = os.path.join(credentials.path_data, '100333_kandidaturen_regierungsrat_ersatz.csv')
     df_rr.to_csv(path_export, index=False)
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -18,7 +29,7 @@ def main():
     odsp.publish_ods_dataset_by_id('100333')
 
     # Regierungspräsidium-Ersatzwahl 2024
-    df_rp = process_regierungsrat(which='RP')
+    df_rp = process_regierungsrat_ersatz(which='RP')
     path_export = os.path.join(credentials.path_data, '100334_kandidaturen_regierungspraesidium_ersatz.csv')
     df_rp.to_csv(path_export, index=False)
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -40,6 +51,7 @@ def main():
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       '/wahlen_abstimmungen/wahlen/sr/kandidaturen_2023')
     odsp.publish_ods_dataset_by_id('100317')
+    """
 
 
 def process_nationalrat() -> pd.DataFrame:
@@ -119,7 +131,7 @@ def process_staenderat() -> pd.DataFrame:
     return df_all_kand
 
 
-def process_regierungsrat(which='RR'):
+def process_regierungsrat_ersatz(which='RR'):
     xlsx = os.path.join(credentials.path_orig, f"{which}_für_OGD.xlsx")
 
     df = pd.DataFrame(index=None)
