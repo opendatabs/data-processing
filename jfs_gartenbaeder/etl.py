@@ -42,7 +42,7 @@ def main():
         "St. Jakob Sportbad",
         "St. Jakob Familienbad"
     ]
-
+    print(df.head())
     # Filtering the data frame rows
     df = df[df['Name'].apply(lambda x: any(pool in x for pool in desired_pools))]
     # Extract only the numbers from the 'Temperatur' column
