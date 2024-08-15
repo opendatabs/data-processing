@@ -57,7 +57,7 @@ def main():
 
 def convert_datetime(datum_str):
     try:
-        datum = datetime.strptime(datum_str, "Mi. %d.%m.%Y, %H:%M Uhr")
+        datum = datetime.strptime(datum_str, "%a. %d.%m.%Y, %H:%M Uhr")
         datum = datum.strftime("%Y-%m-%d T%H:%M:%S")
         return datum
     except ValueError:
