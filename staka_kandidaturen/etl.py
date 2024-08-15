@@ -4,24 +4,38 @@ import logging
 
 from staka_kandidaturen import credentials
 import common
-import common.change_tracking as ct
 import ods_publish.etl_id as odsp
 
 
 def main():
     # Grossratswahlen 2024
-    # TODO
+    df_gr = process_grossrat()
+    path_export = os.path.join(credentials.path_data, 'export', '100385_kandidaturen_grossrat.csv')
+    df_gr.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100385')
 
     # Regierungsratswahlen 2024
-    # TODO
+    df_rr = process_regierungsrat()
+    path_export = os.path.join(credentials.path_data, '100386_kandidaturen_regierungsrat.csv')
+    df_rr.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/rr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100386')
 
     # Regierungspräsidiumswahlen 2024
-    # TODO
+    df_rp = process_regierungsrat(which='RP')
+    path_export = os.path.join(credentials.path_data, '100387_kandidaturen_regierungspraesidium.csv')
+    df_rp.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/rr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100387')
 
     # Don't run since already done
     """
     # Regierungsrat-Ersatzwahl 2024
-    df_rr = process_regierungsrat_ersatz()
+    df_rr = process_regierungsrat()
     path_export = os.path.join(credentials.path_data, '100333_kandidaturen_regierungsrat_ersatz.csv')
     df_rr.to_csv(path_export, index=False)
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -29,7 +43,7 @@ def main():
     odsp.publish_ods_dataset_by_id('100333')
 
     # Regierungspräsidium-Ersatzwahl 2024
-    df_rp = process_regierungsrat_ersatz(which='RP')
+    df_rp = process_regierungsrat(which='RP')
     path_export = os.path.join(credentials.path_data, '100334_kandidaturen_regierungspraesidium_ersatz.csv')
     df_rp.to_csv(path_export, index=False)
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -131,7 +145,7 @@ def process_staenderat() -> pd.DataFrame:
     return df_all_kand
 
 
-def process_regierungsrat_ersatz(which='RR'):
+def process_regierungsrat(which='RR'):
     xlsx = os.path.join(credentials.path_orig, f"{which}_für_OGD.xlsx")
 
     df = pd.DataFrame(index=None)
@@ -143,6 +157,24 @@ def process_regierungsrat_ersatz(which='RR'):
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
     df['listen_nr'] = df['listen_nr'].apply(lambda x: x.zfill(2))
     df = df.drop(columns=['zeilen_nr'])
+    return df
+
+
+def process_grossrat():
+    df = pd.DataFrame(index=None)
+    wahlkreise = [('GBO', 'Grossbasel-Ost'), ('GBW', 'Grossbasel-West'), ('KB', 'Kleinbasel'),
+                  ('RI', 'Riehen'), ('BE', 'Bettingen')]
+
+    for wahlkreis in wahlkreise:
+        xlsx = os.path.join(credentials.path_orig, f"{wahlkreis[0]}_für_OGD.xlsx")
+        for sheet_name in pd.ExcelFile(xlsx).sheet_names:
+            df_list = pd.read_excel(xlsx, sheet_name=sheet_name, skiprows=2, dtype=str)
+            df_list.columns = ['listen_nr', 'listenkurzbezeichnung', 'listenbezeichnung', 'kand_nr',
+                               'name', 'vorname', 'bisher', 'geschlecht', 'jahrgang', 'zusatz']
+            df_list['wahlkreis'] = wahlkreis[1]
+            df_list['name_vorname'] = df_list['name'] + ', ' + df_list['vorname']
+            df = pd.concat([df, df_list])
+
     return df
 
 
