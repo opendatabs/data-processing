@@ -46,8 +46,8 @@ def main():
     # Filtering the data frame rows
     df = df[df['Name'].apply(lambda x: any(pool in x for pool in desired_pools))]
     # Extract only the numbers from the 'Temperatur' column
-    df['Temperatur'] = df['Temperatur'].str.extract(r'(\d+)').astype(int)
-    df.loc[7,'Zeitpunkt'] = df.loc[8,'Zeitpunkt'] 
+    df['Temperatur'] = df['Temperatur'].str.extract(r'(\d+)').astype(float)
+    df.loc[7, 'Zeitpunkt'] = df.loc[8, 'Zeitpunkt']
     # Apply the function to the 'Zeitpunkt' column
     df['Zeitpunkt'] = df['Zeitpunkt'].apply(convert_datetime)
     path_export = os.path.join(credentials.path_new, '100384_gartenbaeder_tempe.csv')
