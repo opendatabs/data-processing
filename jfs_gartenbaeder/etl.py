@@ -7,7 +7,6 @@ from jfs_gartenbaeder import credentials
 from datetime import datetime
 
 
-
 def main():
     # URL the website
     url = "https://www.ed-baeder.ch/"
@@ -42,7 +41,6 @@ def main():
         "St. Jakob Sportbad",
         "St. Jakob Familienbad"
     ]
-    print(df.head())
     # Filtering the data frame rows
     df = df[df['Name'].apply(lambda x: any(pool in x for pool in desired_pools))]
     # Extract only the numbers from the 'Temperatur' column
@@ -56,13 +54,10 @@ def main():
 
 
 def convert_datetime(datum_str):
-    try:
-        datum = datetime.strptime(datum_str, "%a. %d.%m.%Y, %H:%M Uhr")
-        datum = datum.strftime("%Y-%m-%d T%H:%M:%S")
-        return datum
-    except ValueError:
-        # Return the original value if it cannot be converted
-        return datum_str
+    datum = datetime.strptime(datum_str[4:-4], "%d.%m.%Y, %H:%M")
+    datum = datum.strftime("%Y-%m-%dT%H:%M:%S")
+    return datum
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
