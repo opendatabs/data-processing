@@ -41,8 +41,19 @@ def main():
         "St. Jakob Sportbad",
         "St. Jakob Familienbad"
     ]
+    coordinates = {
+        "Bachgraben Sportbad": '47.561690, 7.556763',
+        "Bachgraben Familienbad": '47.562072, 7.557569',
+        "Hallenbad Eglisee": '47.57049183751048, 7.614780096716555',
+        "Eglisee Familienbad": '47.570688, 7.613675',
+        "Eglisee Frauenbad": '47.570848, 7.615430',
+        "St. Jakob Sportbad": '47.539657, 7.620622',
+        "St. Jakob Familienbad": '47.538282, 7.620919'
+    }
     # Filtering the data frame rows
     df_aktuell = df_aktuell[df_aktuell['Name'].apply(lambda x: any(pool in x for pool in desired_pools))]
+    # Map coordinates to names
+    df_aktuell['Koordinaten'] = df_aktuell['Name'].map(coordinates)
     # Extract only the numbers from the 'Temperatur' column
     df_aktuell['Temperatur'] = df_aktuell['Temperatur'].str.extract(r'(\d+)').astype(float)
     df_aktuell.loc[7, 'Zeitpunkt'] = df_aktuell.loc[8, 'Zeitpunkt']
