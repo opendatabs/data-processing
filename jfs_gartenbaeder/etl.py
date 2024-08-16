@@ -44,7 +44,7 @@ def main():
     coordinates = {
         "Bachgraben Sportbad": '47.561690, 7.556763',
         "Bachgraben Familienbad": '47.562072, 7.557569',
-        "Hallenbad Eglisee": '47.57049183751048, 7.614780096716555',
+        "Hallenbad Eglisee": '47.570491, 7.614780',
         "Eglisee Familienbad": '47.570688, 7.613675',
         "Eglisee Frauenbad": '47.570848, 7.615430',
         "St. Jakob Sportbad": '47.539657, 7.620622',
