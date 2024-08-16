@@ -71,6 +71,7 @@ def main():
                         common.credentials.ftp_user, common.credentials.ftp_pass,
                         '/jfs/gartenbaeder', credentials.path_new, '')
     df = pd.read_csv(os.path.join(credentials.path_new, '100384_gartenbaeder_temp_alle.csv'))
+    df['Koordinaten'] = df['Name'].map(coordinates)
     df = pd.concat([df, df_aktuell])
     df = df.drop_duplicates()
     path_export = os.path.join(credentials.path_new, '100384_gartenbaeder_temp_alle.csv')
