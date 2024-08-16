@@ -47,7 +47,7 @@ def main():
     df['Temperatur'] = df['Temperatur'].str.extract(r'(\d+)').astype(float)
     df.loc[7, 'Zeitpunkt'] = df.loc[8, 'Zeitpunkt']
     # Apply the function to the 'Zeitpunkt' column
-    df['Zeitpunkt'] = df['Zeitpunkt'].apply(convert_datetime)
+    df['Zeitpunkt'] = pd.to_datetime(df['Zeitpunkt'].apply(convert_datetime)).dt.tz_localize('Europe/Zurich')
     path_export = os.path.join(credentials.path_new, '100384_gartenbaeder_tempe.csv')
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100384')
