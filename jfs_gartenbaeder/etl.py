@@ -55,6 +55,7 @@ def main():
     df_aktuell.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100388')
 
+    # Download the whole time series from the FTP server and merge it with the current data
     common.download_ftp(['100384_gartenbaeder_temp_alle.csv'], common.credentials.ftp_server,
                         common.credentials.ftp_user, common.credentials.ftp_pass,
                         '/jfs/gartenbaeder', credentials.path_new, '')
