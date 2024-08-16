@@ -1,6 +1,6 @@
 import common
 import logging
-from tba_sprayschaeden  import credentials
+from tba_sprayereien import credentials
 import os
 from requests.auth import HTTPBasicAuth
 import pandas as pd
@@ -29,8 +29,8 @@ def main():
         gdf['bez_id'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_bezirke, 'bez_id'))
         gdf['bez_name'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_bezirke, 'bez_name'))
         gdf['geometry'] = gdf['geometry'].to_crs('EPSG:4326')
-        export_path = os.path.join(credentials.data_path, 'ods_id.csv')
-        gdf.to_csv(export_path, index=False)
+        path_export = os.path.join(credentials.data_path, 'export', '100389_sprayereien.csv')
+        gdf.to_csv(path_export, index=False)
 
 
 def download_spatial_descriptors(ods_id):
@@ -46,6 +46,7 @@ def get_first_value(x, gdf, column_name):
                 return matches.iloc[0]
             else:
                 return None  # Or another default value, e.g. np.nan
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
