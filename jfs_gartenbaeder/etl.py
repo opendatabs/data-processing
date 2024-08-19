@@ -64,10 +64,20 @@ def main():
         "St. Jakob Sportbad": '47.539657, 7.620622',
         "St. Jakob Familienbad": '47.538282, 7.620919'
     }
+    links_to_sportanlagen = {
+        "Bachgraben Sportbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:295",
+        "Bachgraben Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:295",
+        "Hallenbad Eglisee": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:47",
+        "Eglisee Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:38",
+        "Eglisee Frauenbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:38",
+        "St. Jakob Sportbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:157",
+        "St. Jakob Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:157"
+    }
     # Filtering the data frame rows
     df_aktuell = df_aktuell[df_aktuell['Name'].apply(lambda x: any(pool in x for pool in desired_pools))]
     # Map coordinates to names
     df_aktuell['Koordinaten'] = df_aktuell['Name'].map(coordinates)
+    df_aktuell['URL_Sportanlage'] = df_aktuell['Name'].map(links_to_sportanlagen)
     # Extract only the numbers from the 'Temperatur' column
     df_aktuell['Temperatur'] = df_aktuell['Temperatur'].str.extract(r'(\d+)').astype(float)
     df_aktuell.loc[7, 'Zeitpunkt'] = df_aktuell.loc[8, 'Zeitpunkt']
@@ -79,6 +89,7 @@ def main():
     path_export = os.path.join(credentials.path_new, '100388_gartenbaeder_temp_live.csv')
     df_aktuell.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100388')
+    df_aktuell = df_aktuell.drop(columns=['URL_Sportanlage'])
 
     # Download the whole time series from the FTP server and merge it with the current data
     common.download_ftp(['100384_gartenbaeder_temp_alle.csv'], common.credentials.ftp_server,
