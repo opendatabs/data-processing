@@ -171,6 +171,7 @@ def process_grossrat():
             df_list = pd.read_excel(xlsx, sheet_name=sheet_name, skiprows=2, dtype=str)
             df_list.columns = ['listen_nr', 'listenkurzbezeichnung', 'listenbezeichnung', 'kand_nr',
                                'name', 'vorname', 'bisher', 'geschlecht', 'jahrgang', 'zusatz']
+            df_list['listen_nr'] = df_list['listen_nr'].astype(str).apply(lambda x: x.zfill(2))
             df_list['wahlkreis'] = wahlkreis[1]
             df_list['name_vorname'] = df_list['name'] + ', ' + df_list['vorname']
             df = pd.concat([df, df_list])
