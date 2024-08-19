@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 from io import StringIO
 
+pandas.set_option('display.max_columns', None)
 
 def realtime_push_past_measures(sensornr10=False):
     if not sensornr10:
