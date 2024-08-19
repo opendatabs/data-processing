@@ -93,6 +93,7 @@ def process(file, x_coords_1416):
         common.upload_ftp(value_filename, credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up,
                           '/'.join([credentials.ftp_path_up, 'values', f'SensorNr_{sensornr_filter}']))
         if sensornr_filter == 10:
+            print(df_filter[value_columns].head())
             common.batched_ods_realtime_push(df_filter[value_columns].reset_index(), credentials.push_url_wasserstand)
         exported_files.append(value_filename)
 
