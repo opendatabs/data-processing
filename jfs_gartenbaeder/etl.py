@@ -27,7 +27,21 @@ def main():
 
             # Add the data to the list
             data.append([name, temp, time])
-
+    # Check the data
+    print(data[1:12])
+    # It must look like this
+    # [['Bachgraben Sportbad', '24 °C', 'Mo. 19.08.2024, 06:00 Uhr'],
+    # ['Bachgraben Familienbad', '26 °C', 'Mo. 19.08.2024, 10:00 Uhr'],
+    # ['Gartenbad Bachgrabenheute offen bis:', '20:30\xa0Uhr', ''],
+    # ['Hallenbad Eglisee', '23 °C', 'Mo. 19.08.2024, 10:00 Uhr'],
+    # ['Eglisee Familienbad', '23 °C', 'Mo. 19.08.2024, 10:00 Uhr'], 
+    # ['Eglisee Frauenbad', '26 °C', 'Mo. 19.08.2024, 10:00 Uhr'], 
+    # ['St. Jakob Sportbad', '26 °C', 'Becken beheizt'], 
+    # ['St. Jakob Familienbad', '23 °C', 'Mo. 19.08.2024, 00:00 Uhr'], 
+    # ['', 'Planschbecken', 'Geöffnet'], 
+    # ['', 'Lehrschwimm\xadbecken', 'Ab 15 Uhr geöffnet'], 
+    # ['', 'Gartenbad', 'Bis 18. August Hauptsaison und Frühschwimmen. \r\nÖffnung 07:00 Montag bis Freitag, das Frühschwimmen findet nur im Sportbecken statt.\r\nAm Abend Schliessung um 21:00.']]
+    
     # Creat data Frame
     df_aktuell = pd.DataFrame(data, columns=['Name', 'Temperatur', 'Zeitpunkt'])
 
