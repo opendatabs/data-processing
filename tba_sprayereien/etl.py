@@ -29,6 +29,11 @@ def main():
         gdf['bez_id'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_bezirke, 'bez_id'))
         gdf['bez_name'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_bezirke, 'bez_name'))
         gdf['geometry'] = gdf['geometry'].to_crs('EPSG:4326')
+        # ---->  print(gdf.iloc[4407])
+        # Removing the microseconds
+        gdf['erfassungszeit'] = gdf['erfassungszeit'].str.split('.').str[0]
+        # Adding the time zone
+        gdf['erfassungszeit'] = pd.to_datetime(gdf['erfassungszeit']).dt.tz_localize('Europe/Zurich')
         path_export = os.path.join(credentials.data_path, 'export', '100389_sprayereien.csv')
         gdf.to_csv(path_export, index=False)
 
@@ -53,3 +58,4 @@ if __name__ == "__main__":
     logging.info(f'Executing {__file__}...')
     main()
     logging.info('Job successful!')
+    
