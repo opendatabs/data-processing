@@ -12,17 +12,19 @@ from io import StringIO
 
 pd.set_option('display.max_columns', None)
 
-def realtime_push_past_measures(sensornr10=False):
-    if not sensornr10:
-        logging.info('No sensor specified for realtime pushing of past measures, skipping...')
-    else:
+
+def realtime_push_past_measures(sensornr=''):
+    if sensornr == '10' or sensornr == '20':
         file_list = common.download_ftp([], credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up,
-                                        f'{credentials.ftp_path_up}/values/SensorNr_10',
-                                        os.path.join(credentials.data_path, 'values', 'SensorNr_10'), '*.csv')
+                                        f'{credentials.ftp_path_up}/values/SensorNr_{sensornr}',
+                                        os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr}'), '*.csv')
         sorted_file_list = sorted(file_list, key=lambda x: x['remote_file'])
         for file in sorted_file_list:
             df = pd.read_csv(file['local_file'])
-            common.batched_ods_realtime_push(df, credentials.push_url_wasserstand)
+            common.batched_ods_realtime_push(df, (
+                credentials.push_url_wasserstand if sensornr == '10' else credentials.push_url_temperatur))
+    else:
+        logging.info('No sensor specified for realtime pushing of past measures, skipping...')
 
 
 def list_files():
@@ -93,10 +95,10 @@ def process(file, x_coords_1416):
         df_filter[value_columns].to_csv(value_filename, index=False)
         common.upload_ftp(value_filename, credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up,
                           '/'.join([credentials.ftp_path_up, 'values', f'SensorNr_{sensornr_filter}']))
-        if sensornr_filter == 10:
-            # Convert timestamp to string for realtime push
-            df_filter['timestamp'] = df_filter['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
-            common.batched_ods_realtime_push(df_filter[value_columns].reset_index(), credentials.push_url_wasserstand)
+        # Convert timestamp to string for realtime push
+        df_filter['timestamp'] = df_filter['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
+        common.batched_ods_realtime_push(df_filter[value_columns].reset_index(),
+                                            (credentials.push_url_wasserstand if sensornr_filter == 10 else credentials.push_url_temperatur))
         exported_files.append(value_filename)
 
         if export_stats:
@@ -154,7 +156,7 @@ def main():
         process(file['local_file'], x_coord_1416)
         files.append(file)
     if len(files_to_process) > 0:
-        for ods_id in ['100179', '100180', '100181']:
+        for ods_id in ['100180', '100181']:
             odsp.publish_ods_dataset_by_id(ods_id)
             pass
     for file in files:
