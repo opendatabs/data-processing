@@ -8,9 +8,6 @@ from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
 from zoneinfo import ZoneInfo
 import numpy as np
-from io import StringIO
-
-pd.set_option('display.max_columns', None)
 
 
 def realtime_push_past_measures(sensornr=''):
