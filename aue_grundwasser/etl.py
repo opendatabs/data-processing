@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 from io import StringIO
 
+pd.set_option('display.max_columns', None)
 
 def realtime_push_past_measures(sensornr10=False):
     if not sensornr10:
@@ -93,7 +94,9 @@ def process(file, x_coords_1416):
         common.upload_ftp(value_filename, credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up,
                           '/'.join([credentials.ftp_path_up, 'values', f'SensorNr_{sensornr_filter}']))
         if sensornr_filter == 10:
-            common.batched_ods_realtime_push(df_filter, credentials.push_url_wasserstand)
+            # Convert timestamp to string for realtime push
+            df_filter['timestamp'] = df_filter['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
+            common.batched_ods_realtime_push(df_filter[value_columns].reset_index(), credentials.push_url_wasserstand)
         exported_files.append(value_filename)
 
         if export_stats:

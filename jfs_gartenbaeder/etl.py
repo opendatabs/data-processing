@@ -85,7 +85,7 @@ def convert_datetime(datum_str):
         datum = datum.strftime("%Y-%m-%dT%H:%M:%S")
         return datum
     except ValueError:
-        return 'NaT'
+        return pd.NaT
 
 
 if __name__ == "__main__":
