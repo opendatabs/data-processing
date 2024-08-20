@@ -27,22 +27,8 @@ def main():
 
             # Add the data to the list
             data.append([name, temp, time])
-    # Check the data
-    print(data[1:12])
-    # It must look like this
-    # [['Bachgraben Sportbad', '24 °C', 'Mo. 19.08.2024, 06:00 Uhr'],
-    # ['Bachgraben Familienbad', '26 °C', 'Mo. 19.08.2024, 10:00 Uhr'],
-    # ['Gartenbad Bachgrabenheute offen bis:', '20:30\xa0Uhr', ''],
-    # ['Hallenbad Eglisee', '23 °C', 'Mo. 19.08.2024, 10:00 Uhr'],
-    # ['Eglisee Familienbad', '23 °C', 'Mo. 19.08.2024, 10:00 Uhr'], 
-    # ['Eglisee Frauenbad', '26 °C', 'Mo. 19.08.2024, 10:00 Uhr'], 
-    # ['St. Jakob Sportbad', '26 °C', 'Becken beheizt'], 
-    # ['St. Jakob Familienbad', '23 °C', 'Mo. 19.08.2024, 00:00 Uhr'], 
-    # ['', 'Planschbecken', 'Geöffnet'], 
-    # ['', 'Lehrschwimm\xadbecken', 'Ab 15 Uhr geöffnet'], 
-    # ['', 'Gartenbad', 'Bis 18. August Hauptsaison und Frühschwimmen. \r\nÖffnung 07:00 Montag bis Freitag, das Frühschwimmen findet nur im Sportbecken statt.\r\nAm Abend Schliessung um 21:00.']]
-    
-    # Creat data Frame
+
+    # Create data Frame
     df_aktuell = pd.DataFrame(data, columns=['Name', 'Temperatur', 'Zeitpunkt'])
 
     # List of desired swimming pools
@@ -80,7 +66,8 @@ def main():
     df_aktuell['URL_Sportanlage'] = df_aktuell['Name'].map(links_to_sportanlagen)
     # Extract only the numbers from the 'Temperatur' column
     df_aktuell['Temperatur'] = df_aktuell['Temperatur'].str.extract(r'(\d+)').astype(float)
-    df_aktuell.loc[7, 'Zeitpunkt'] = df_aktuell.loc[8, 'Zeitpunkt']
+    st_jakob_zeitpunkt = df_aktuell.loc[df_aktuell['Name'] == "St. Jakob Familienbad", 'Zeitpunkt'].values[0]
+    df_aktuell.loc[df_aktuell['Name'] == "St. Jakob Sportbad", 'Zeitpunkt'] = st_jakob_zeitpunkt
     # Apply the function to the 'Zeitpunkt' column
     df_aktuell['Zeitpunkt'] = pd.to_datetime(df_aktuell['Zeitpunkt'].apply(convert_datetime)).dt.tz_localize(
         'Europe/Zurich')
