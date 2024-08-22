@@ -6,15 +6,37 @@ from staka_kandidaturen import credentials
 import common
 import ods_publish.etl_id as odsp
 
+ALTERSGRUPPEN = ['18-24 Jahre', '25-29 Jahre', '30-39 Jahre', '40-49 Jahre', '50-59 Jahre', '60 Jahre und älter']
+
 
 def main():
     # Grossratswahlen 2024
-    df_gr = process_grossrat()
+    df_gr_2024 = process_grossrat()
     path_export = os.path.join(credentials.path_data, 'export', '100385_kandidaturen_grossrat.csv')
-    df_gr.to_csv(path_export, index=False)
+    df_gr_2024.to_csv(path_export, index=False)
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
     odsp.publish_ods_dataset_by_id('100385')
+
+    # Grossratswahlen 2020
+    df_gr_2020 = process_grossrat_2020()
+    df_gr_2020['wahljahr'] = '2020'
+    df_gr_2024['wahljahr'] = '2024'
+    df_subset = df_gr_2024[['wahljahr', 'wahlkreis', 'listen_nr', 'listenkurzbezeichnung',
+                            'kand_nr', 'name', 'vorname', 'name_vorname', 'berufscode', 'beruf', 'zusatz']]
+    df_gr_alle = pd.concat([df_gr_2020, df_gr_2024])
+    path_export = os.path.join(credentials.path_data, 'export', '100390_kandidaturen_grossrat.csv')
+    df_gr_alle.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100390')
+
+    df_altersgruppen = calculate_altersgruppen(df_gr_2020, df_gr_2024)
+    path_export = os.path.join(credentials.path_data, 'export', '100392_altersgruppen_grossrat.csv')
+    df_altersgruppen.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100392')
 
     # Regierungsratswahlen 2024
     df_rr = process_regierungsrat()
@@ -88,9 +110,11 @@ def process_nationalrat() -> pd.DataFrame:
             entries_per_kand = {
                 'listenbezeichnung': df_with_header.iloc[(0, 0)],
                 'hlv_mit': hlvs,
-                'hlv_link': float('NaN') if isinstance(hlvs, float) else f"https://data.bs.ch/explore/dataset/100316/?refine.listen_nr={'&refine.listen_nr='.join([list_party.split('_')[0]] + hlvs.split(', '))}",
+                'hlv_link': float('NaN') if isinstance(hlvs,
+                                                       float) else f"https://data.bs.ch/explore/dataset/100316/?refine.listen_nr={'&refine.listen_nr='.join([list_party.split('_')[0]] + hlvs.split(', '))}",
                 'ulv_mit': ulvs,
-                'ulv_link': float('NaN') if isinstance(ulvs, float) else f"https://data.bs.ch/explore/dataset/100316/?refine.listen_nr={'&refine.listen_nr='.join([list_party.split('_')[0]] + ulvs.split(', '))}",
+                'ulv_link': float('NaN') if isinstance(ulvs,
+                                                       float) else f"https://data.bs.ch/explore/dataset/100316/?refine.listen_nr={'&refine.listen_nr='.join([list_party.split('_')[0]] + ulvs.split(', '))}",
                 'kand_nr': row.kand_nr,
                 'bisher': row.bisher,
                 'name_vorname': f"{row['name']}, {row.vorname}",
@@ -165,6 +189,13 @@ def process_grossrat():
     wahlkreise = [('GBO', 'Grossbasel-Ost'), ('GBW', 'Grossbasel-West'), ('KB', 'Kleinbasel'),
                   ('RI', 'Riehen'), ('BE', 'Bettingen')]
 
+    df_berufe = pd.read_csv(os.path.join(credentials.path_orig, 'Berufe_2024.csv'), sep=';', dtype=str)
+    df_beruf_berufsgruppen = pd.read_csv(os.path.join(credentials.path_orig, 'Beruf_Berufsgruppe.csv'), sep=';',
+                                         dtype=str)
+    df_berufsgruppen = pd.read_csv(os.path.join(credentials.path_orig, 'Berufsgruppen.csv'), sep=';', dtype=str)
+    df_berufe = pd.merge(df_berufe, df_beruf_berufsgruppen, on='beruf', how='left')
+    df_berufe = pd.merge(df_berufe, df_berufsgruppen, on='berufscode', how='left')
+
     for wahlkreis in wahlkreise:
         xlsx = os.path.join(credentials.path_orig, f"{wahlkreis[0]}_für_OGD.xlsx")
         for sheet_name in pd.ExcelFile(xlsx).sheet_names:
@@ -174,9 +205,46 @@ def process_grossrat():
             df_list['listen_nr'] = df_list['listen_nr'].astype(str).apply(lambda x: x.zfill(2))
             df_list['wahlkreis'] = wahlkreis[1]
             df_list['name_vorname'] = df_list['name'] + ', ' + df_list['vorname']
+            df_list['altersgruppe'] = pd.cut(2024 - df_list['jahrgang'].astype(int), [17, 24, 29, 39, 49, 59, 100],
+                                                labels=ALTERSGRUPPEN)
+            df_beruf_wahlkreis = df_berufe[df_berufe['wahlkreis'] == wahlkreis[1]].drop(columns=['wahlkreis'])
+            df_list = pd.merge(df_list, df_beruf_wahlkreis, on='kand_nr', how='left')
             df = pd.concat([df, df_list])
-
     return df
+
+
+def process_grossrat_2020():
+    df_resultat = pd.read_csv(os.path.join(credentials.path_orig, 'Schlussresultat2020.csv'), sep=';', dtype=str)
+    df = df_resultat[
+        ['Wahlkreisbezeichnung', 'Listennummer', 'Parteikurzbezeichnung', 'Parteibezeichnung', 'Kandidaten-Nr', 'Name',
+         'Vorname', 'bisher', 'Geschlecht', 'Jahrgang', 'Beruf']]
+    df = df.rename(columns={'Wahlkreisbezeichnung': 'wahlkreis', 'Listennummer': 'listen_nr',
+                            'Parteikurzbezeichnung': 'listenkurzbezeichnung', 'Parteibezeichnung': 'listenbezeichnung',
+                            'Kandidaten-Nr': 'kand_nr', 'Name': 'name', 'Vorname': 'vorname',
+                            'Geschlecht': 'geschlecht', 'Jahrgang': 'jahrgang', 'Beruf': 'zusatz'})
+    df['bisher'] = df['bisher'].replace({'nicht amtierend': ''})
+    df['kand_nr'] = df['kand_nr'].apply(lambda x: f"{x[:2]}.{x[2:]}")
+    df['name_vorname'] = df['name'] + ', ' + df['vorname']
+    df['geschlecht'] = df['geschlecht'].replace({'M': 'm', 'F': 'f'})
+    df['altersgruppe'] = pd.cut(2020 - df['jahrgang'].astype(int), [17, 24, 29, 39, 49, 59, 100],
+                                   labels=ALTERSGRUPPEN)
+    return df
+
+
+def calculate_altersgruppen(df_gr_2020, df_gr_2024):
+    df_altersgruppen = pd.DataFrame(index=None,
+                                       columns=['wahljahr', 'listenkurzbezeichnung', 'geschlecht', 'altersgruppe', 'anzahl', 'anteil'])
+    for wahljahr in ['2020', '2024']:
+        df = df_gr_2020 if wahljahr == '2020' else df_gr_2024
+        for liste in df['listenkurzbezeichnung'].unique():
+            for geschlecht in ['m', 'f']:
+                for altersgruppe in ALTERSGRUPPEN:
+                    anzahl = df[(df['listenkurzbezeichnung'] == liste) & (df['geschlecht'] == geschlecht) & (
+                            df['altersgruppe'] == altersgruppe)].shape[0]
+                    df_altersgruppen = pd.concat([df_altersgruppen, pd.DataFrame(
+                        [[wahljahr, liste, geschlecht, altersgruppe, anzahl, anzahl / df.shape[0]]],
+                        columns=df_altersgruppen.columns)])
+    return df_altersgruppen
 
 
 if __name__ == '__main__':
