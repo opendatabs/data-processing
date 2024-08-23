@@ -22,8 +22,6 @@ def main():
     df_gr_2020 = process_grossrat_2020()
     df_gr_2020['wahljahr'] = '2020'
     df_gr_2024['wahljahr'] = '2024'
-    df_subset = df_gr_2024[['wahljahr', 'wahlkreis', 'listen_nr', 'listenkurzbezeichnung',
-                            'kand_nr', 'name', 'vorname', 'name_vorname', 'berufscode', 'beruf', 'zusatz']]
     df_gr_alle = pd.concat([df_gr_2020, df_gr_2024])
     path_export = os.path.join(credentials.path_data, 'export', '100390_kandidaturen_grossrat.csv')
     df_gr_alle.to_csv(path_export, index=False)
@@ -31,12 +29,21 @@ def main():
                       '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
     odsp.publish_ods_dataset_by_id('100390')
 
+    # Altersgruppen Grossrat
     df_altersgruppen = calculate_altersgruppen(df_gr_2020, df_gr_2024)
     path_export = os.path.join(credentials.path_data, 'export', '100392_altersgruppen_grossrat.csv')
     df_altersgruppen.to_csv(path_export, index=False)
     common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
     odsp.publish_ods_dataset_by_id('100392')
+
+    # Berufsgruppen Grossrat
+    df_berufsgruppen = calculate_berufsgruppen()
+    path_export = os.path.join(credentials.path_data, 'export', '100394_berufsgruppen_grossrat.csv')
+    df_berufsgruppen.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100394')
 
     # Regierungsratswahlen 2024
     df_rr = process_regierungsrat()
@@ -189,11 +196,8 @@ def process_grossrat():
     wahlkreise = [('GBO', 'Grossbasel-Ost'), ('GBW', 'Grossbasel-West'), ('KB', 'Kleinbasel'),
                   ('RI', 'Riehen'), ('BE', 'Bettingen')]
 
-    df_berufe = pd.read_csv(os.path.join(credentials.path_orig, 'Berufe_2024.csv'), sep=';', dtype=str)
-    df_beruf_berufsgruppen = pd.read_csv(os.path.join(credentials.path_orig, 'Beruf_Berufsgruppe.csv'), sep=';',
-                                         dtype=str)
+    df_berufe = pd.read_excel(os.path.join(credentials.path_orig, 'Berufe_GR.xlsx'), dtype=str)
     df_berufsgruppen = pd.read_csv(os.path.join(credentials.path_orig, 'Berufsgruppen.csv'), sep=';', dtype=str)
-    df_berufe = pd.merge(df_berufe, df_beruf_berufsgruppen, on='beruf', how='left')
     df_berufe = pd.merge(df_berufe, df_berufsgruppen, on='berufscode', how='left')
 
     for wahlkreis in wahlkreise:
@@ -206,8 +210,10 @@ def process_grossrat():
             df_list['wahlkreis'] = wahlkreis[1]
             df_list['name_vorname'] = df_list['name'] + ', ' + df_list['vorname']
             df_list['altersgruppe'] = pd.cut(2024 - df_list['jahrgang'].astype(int), [17, 24, 29, 39, 49, 59, 100],
-                                                labels=ALTERSGRUPPEN)
-            df_beruf_wahlkreis = df_berufe[df_berufe['wahlkreis'] == wahlkreis[1]].drop(columns=['wahlkreis'])
+                                             labels=ALTERSGRUPPEN)
+            df_beruf_wahlkreis = df_berufe[df_berufe['wahlkreis'] == wahlkreis[1]].drop(
+                columns=['wahljahr', 'wahlkreis', 'listen_nr', 'listenkurzbezeichnung',
+                         'name', 'vorname', 'name_vorname', 'geschlecht', 'jahrgang', 'bisher', 'zusatz'])
             df_list = pd.merge(df_list, df_beruf_wahlkreis, on='kand_nr', how='left')
             df = pd.concat([df, df_list])
     return df
@@ -227,24 +233,67 @@ def process_grossrat_2020():
     df['name_vorname'] = df['name'] + ', ' + df['vorname']
     df['geschlecht'] = df['geschlecht'].replace({'M': 'm', 'F': 'f'})
     df['altersgruppe'] = pd.cut(2020 - df['jahrgang'].astype(int), [17, 24, 29, 39, 49, 59, 100],
-                                   labels=ALTERSGRUPPEN)
+                                labels=ALTERSGRUPPEN)
     return df
 
 
 def calculate_altersgruppen(df_gr_2020, df_gr_2024):
-    df_altersgruppen = pd.DataFrame(index=None,
-                                       columns=['wahljahr', 'listenkurzbezeichnung', 'geschlecht', 'altersgruppe', 'anzahl', 'anteil'])
+    df_altersgruppen = pd.DataFrame(columns=['wahljahr', 'listenkurzbezeichnung', 'geschlecht', 'altersgruppe',
+                                             'anzahl', 'anteil', 'anteil_altersgruppe',
+                                             'anteil_liste'])
+
     for wahljahr in ['2020', '2024']:
         df = df_gr_2020 if wahljahr == '2020' else df_gr_2024
+        anzahl_wahljahr = df.shape[0]
+
         for liste in df['listenkurzbezeichnung'].unique():
+            anzahl_wahljahr_liste = df[df['listenkurzbezeichnung'] == liste].shape[0]
+
             for geschlecht in ['m', 'f']:
                 for altersgruppe in ALTERSGRUPPEN:
+                    anzahl_wahljahr_altersgruppe = df[df['altersgruppe'] == altersgruppe].shape[0]
                     anzahl = df[(df['listenkurzbezeichnung'] == liste) & (df['geschlecht'] == geschlecht) & (
                             df['altersgruppe'] == altersgruppe)].shape[0]
-                    df_altersgruppen = pd.concat([df_altersgruppen, pd.DataFrame(
-                        [[wahljahr, liste, geschlecht, altersgruppe, anzahl, anzahl / df.shape[0]]],
-                        columns=df_altersgruppen.columns)])
+
+                    # Ensure that we always have the right number of columns and data matches the structure
+                    row = {
+                        'wahljahr': wahljahr,
+                        'listenkurzbezeichnung': liste,
+                        'geschlecht': geschlecht,
+                        'altersgruppe': altersgruppe,
+                        'anzahl': anzahl,
+                        'anteil': anzahl / anzahl_wahljahr,
+                        'anteil_altersgruppe': anzahl / anzahl_wahljahr_altersgruppe,
+                        'anteil_liste': anzahl / anzahl_wahljahr_liste
+                    }
+
+                    # Append row to DataFrame
+                    df_altersgruppen = pd.concat([df_altersgruppen, pd.DataFrame([row])], ignore_index=True)
+
+    df_frauen = df_altersgruppen[df_altersgruppen['geschlecht'] == 'f']
+    df_frauen_sum = df_frauen.groupby(['wahljahr', 'listenkurzbezeichnung'])['anteil_liste'].sum().reset_index()
+    df_frauen_sum['frauenanteil_liste'] = df_frauen_sum.groupby('wahljahr')['anteil_liste'].rank(ascending=False, method='min')
+    # Merge the ranking back into the original DataFrame
+    df_altersgruppen = df_altersgruppen.merge(
+        df_frauen_sum[['wahljahr', 'listenkurzbezeichnung', 'frauenanteil_liste']],
+        on=['wahljahr', 'listenkurzbezeichnung'], how='left')
+    df_altersgruppen['frauenanteil_liste'] = df_altersgruppen['frauenanteil_liste'].astype(int).astype(
+        str).str.zfill(2) + '. ' + df_altersgruppen['listenkurzbezeichnung'].astype(str)
     return df_altersgruppen
+
+
+def calculate_berufsgruppen():
+    df_berufsgruppe = pd.DataFrame(index=None, columns=['wahljahr', 'berufsgruppe', 'anzahl', 'anteil'])
+    df_berufsgruppen_zut = pd.read_csv(os.path.join(credentials.path_orig, 'Berufsgruppen.csv'), sep=';', dtype=str)
+    for wahljahr in ['2020', '2024']:
+        df_berufe = pd.read_excel(os.path.join(credentials.path_orig, 'Berufe_GR.xlsx'), dtype=str, sheet_name=wahljahr)
+        df_berufe = df_berufe['berufscode'].value_counts().reset_index()
+        df_berufe = pd.merge(df_berufe, df_berufsgruppen_zut, on='berufscode', how='left')[['berufsgruppe', 'count']]
+        df_berufe = df_berufe.rename(columns={'count': 'anzahl'})
+        df_berufe['wahljahr'] = wahljahr
+        df_berufe['anteil'] = df_berufe['anzahl'] / df_berufe['anzahl'].sum()
+        df_berufsgruppe = pd.concat([df_berufsgruppe, df_berufe])
+    return df_berufsgruppe
 
 
 if __name__ == '__main__':
