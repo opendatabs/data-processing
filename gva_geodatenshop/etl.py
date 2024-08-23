@@ -19,7 +19,8 @@ def geocat_value(key):
         pathlist = key.split('.')
         tmp = metadata
         for x in pathlist:
-            # handle indexing into lists within the dictionary
+            if isinstance(tmp, list):
+                tmp = tmp[0]  # Take the first element if tmp is a list
             tmp = tmp[int(x) if x.isdigit() else x]
         return tmp
     else:
