@@ -37,6 +37,14 @@ def main():
                       '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
     odsp.publish_ods_dataset_by_id('100392')
 
+    # Häufigkeit Kandidaturen
+    df_haeufigkeit = calculate_haeufigkeit()
+    path_export = os.path.join(credentials.path_data, 'export', '100393_haeufigkeit_kandidaturen.csv')
+    df_haeufigkeit.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/gr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100393')
+
     # Berufsgruppen Grossrat
     df_berufsgruppen = calculate_berufsgruppen()
     path_export = os.path.join(credentials.path_data, 'export', '100394_berufsgruppen_grossrat.csv')
@@ -272,7 +280,8 @@ def calculate_altersgruppen(df_gr_2020, df_gr_2024):
 
     df_frauen = df_altersgruppen[df_altersgruppen['geschlecht'] == 'f']
     df_frauen_sum = df_frauen.groupby(['wahljahr', 'listenkurzbezeichnung'])['anteil_liste'].sum().reset_index()
-    df_frauen_sum['frauenanteil_liste'] = df_frauen_sum.groupby('wahljahr')['anteil_liste'].rank(ascending=False, method='min')
+    df_frauen_sum['frauenanteil_liste'] = df_frauen_sum.groupby('wahljahr')['anteil_liste'].rank(ascending=False,
+                                                                                                 method='min')
     # Merge the ranking back into the original DataFrame
     df_altersgruppen = df_altersgruppen.merge(
         df_frauen_sum[['wahljahr', 'listenkurzbezeichnung', 'frauenanteil_liste']],
@@ -294,6 +303,89 @@ def calculate_berufsgruppen():
         df_berufe['anteil'] = df_berufe['anzahl'] / df_berufe['anzahl'].sum()
         df_berufsgruppe = pd.concat([df_berufsgruppe, df_berufe])
     return df_berufsgruppe
+
+
+def calculate_haeufigkeit():
+    # Load 2024 data
+    df_2024 = pd.read_excel(os.path.join(credentials.path_orig, 'Kand_GR_2024_mit_dmnr.xlsx'))
+
+    # Load historical data
+    historical_years = [2020, 2016, 2012, 2008]
+    historical_data = {}
+    for year in historical_years:
+        historical_data[year] = pd.read_excel(os.path.join(credentials.path_orig, 'GR-Kandidaturen-safe.xlsx'),
+                                              sheet_name=str(year))
+
+    # Initialize result dictionary
+    result = {
+        'Häufigkeit': [],
+        'Kandidaturen': [],
+        'Gewählt': [],
+        'Anzahl': []
+    }
+
+    # Iterate over each candidate in 2024
+    for index, row in df_2024.iterrows():
+        dmnr_2024 = row['dm-nr']
+        candidacies = ['2024']
+        elected = False
+
+        # Check each historical year
+        for year in historical_years:
+            df_year = historical_data[year]
+            candidate = df_year[df_year['dm-nr'] == dmnr_2024]
+            if not candidate.empty:
+                candidacies.append(str(year))
+                if candidate['wahl'].isin([3, 4, 7, 9]).any():
+                    elected = True
+
+        # Create candidacies string
+        candidacy_str = f"Kandidatur {', '.join(candidacies)}"
+        if len(candidacies) == 1:
+            candidacy_str = "Erstmals Kandidierende seit 2008"
+
+        # Append results
+        result['Häufigkeit'].append(len(candidacies))
+        result['Kandidaturen'].append(candidacy_str)
+        result['Gewählt'].append('Gewählt' if elected else 'Nicht Gewählt')
+        result['Anzahl'].append(1)
+
+    # Create result dataframe
+    result_df = pd.DataFrame(result)
+
+    # Group by and aggregate
+    final_df = result_df.groupby(['Häufigkeit', 'Kandidaturen', 'Gewählt']).sum().reset_index()
+
+    # Define all possible combinations of Häufigkeit, Kandidaturen, and Gewählt
+    all_combinations = []
+    for freq in range(1, 6):  # Häufigkeit can range from 1 to 5
+        for years in [['2024'],
+                      ['2024', '2020'], ['2024', '2016'], ['2024', '2012'], ['2024', '2008'],
+                      ['2024', '2020', '2016'], ['2024', '2020', '2012'], ['2024', '2020', '2008'],
+                      ['2024', '2016', '2012'], ['2024', '2016', '2008'], ['2024', '2012', '2008'],
+                      ['2024', '2020', '2016', '2012'], ['2024', '2020', '2016', '2008'],
+                      ['2024', '2020', '2012', '2008'], ['2024', '2016', '2012', '2008'],
+                      ['2024', '2020', '2016', '2012', '2008']]:
+            if len(years) == freq:
+                candidacy_str = f"Kandidatur {', '.join(years)}"
+                if len(years) == 1:
+                    candidacy_str = "Erstmals Kandidierende seit 2008"
+                all_combinations.append((freq, candidacy_str, 'Nicht Gewählt'))
+                all_combinations.append((freq, candidacy_str, 'Gewählt'))
+
+    # Create a DataFrame with all combinations
+    combinations_df = pd.DataFrame(all_combinations, columns=['Häufigkeit', 'Kandidaturen', 'Gewählt'])
+
+    # Merge final_df with combinations_df to include all possible combinations
+    final_df = pd.merge(combinations_df, final_df, how='left', on=['Häufigkeit', 'Kandidaturen', 'Gewählt'])
+
+    # Fill missing values in 'Anzahl' with 0
+    final_df['Anzahl'] = final_df['Anzahl'].fillna(0)
+
+    # Drop the extra columns from the merge
+    final_df = final_df[['Häufigkeit', 'Kandidaturen', 'Gewählt', 'Anzahl']]
+
+    return final_df
 
 
 if __name__ == '__main__':
