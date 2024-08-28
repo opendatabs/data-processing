@@ -7,6 +7,7 @@ import common
 import logging
 from stadtreinigung_sauberkeitsindex import credentials
 from requests.auth import HTTPBasicAuth
+from charset_normalizer import from_path
 
 
 def main():
@@ -25,7 +26,9 @@ def main():
 
 
 def add_datenstand(path_csv):
-    df = pd.read_csv(path_csv, encoding='cp1252', sep=';')
+    result = from_path(path_csv)
+    enc = result.best().encoding
+    df = pd.read_csv(path_csv, encoding=enc, sep=';')
     df['datenstand'] = pd.to_datetime(path_csv.split('/')[-1].split('.')[0].split('_')[1])
     return df
 
