@@ -44,5 +44,9 @@
 - Changes in datasets that have been published in ODS before are automatically published when the ODS harvester has finished running.
 - Repeat until happy with the results ;-)
 
+### Inform Key People at [https://geo.bs.ch](https://geo.bs.ch) and Data Owners
+- Contact the relevant key person at [https://geo.bs.ch](https://geo.bs.ch) (via phone/Teams or in person) about our intent to publish some of the data harvested from their portal and the planned publication date on [https://data.bs.ch](https://data.bs.ch). 
+- Discuss whether they will inform the respective data owners about the upcoming publication of their data on [https://data.bs.ch](https://data.bs.ch), or whether we should do this ourselves. By default, we do this ourselves via (phone/Teams or in person). 
+
 ### Publishing Dataset
 - Follow standard procedures to prepare dataset(s) for publication in ODS
