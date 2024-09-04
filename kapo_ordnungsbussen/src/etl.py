@@ -1,8 +1,15 @@
 import logging
 import os
 import smtplib
-
+import time
+import json
 import pandas as pd
+
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+from rapidfuzz import process
+import geopandas as gpd
+from shapely.geometry import Point
 
 import common
 import ods_publish.etl_id as odsp
@@ -18,7 +25,8 @@ def main():
     if ct.has_changed(list_path):
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
-        df_export = transform_for_export(df_all)
+        df_export, df_all = transform_for_export(df_all)
+        df_all = append_coordinates(df_all)
         big_bussen = os.path.join(credentials.export_path, 'big_bussen.csv')
         new_plz = os.path.join(credentials.export_path, 'new_plz.csv')
         plz = os.path.join(credentials.export_path, 'plz.csv')
@@ -44,6 +52,11 @@ def main():
         common.upload_ftp(export_path, credentials.ftp_server,
                           credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
         odsp.publish_ods_dataset_by_id('100058')
+        export_path_all = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD_all.csv')
+        logging.info(f'Exporting all data to {export_path_all}...')
+        df_all.to_csv(export_path_all, index=False)
+        common.upload_ftp(export_path_all, credentials.ftp_server,
+                          credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
         ct.update_hash_file(list_path)
 
 
@@ -86,6 +99,18 @@ def transform_for_export(df_all):
 
     logging.info('Cleaning up data for export...')
     df_all['Laufnummer'] = range(1, 1 + len(df_all))
+    df_all['BuZi Text'] = df_all['BuZi Text'].str.replace('"', '\'')
+    # Remove newline, carriage return, and tab, see https://stackoverflow.com/a/67541987
+    df_all['BuZi Text'] = df_all['BuZi Text'].str.replace(r'\r+|\n+|\t+', '', regex=True)
+
+    df_bussen_big = df_all.query('`Bussen-Betrag` > 300')
+
+    df_all = df_all.query('`Bussen-Betrag` > 0')
+    df_all = df_all.query('`Bussen-Betrag` <= 300')
+    logging.info('Exporting data for high Bussen, and for all found PLZ...')
+    df_bussen_big.to_csv(os.path.join(credentials.export_path, 'big_bussen.csv'))
+    df_plz = pd.DataFrame(sorted(df_all['Ü-Ort PLZ'].unique()), columns=['Ü-Ort PLZ'])
+    df_plz.to_csv(os.path.join(credentials.export_path, 'new_plz.csv'))
     df_export = df_all[['Laufnummer',
                         'KAT BEZEICHNUNG',
                         'Wochentag',
@@ -102,19 +127,104 @@ def transform_for_export(df_all):
                         'BuZi Text',
                         ]]
     df_export = df_export.copy()
-    df_export['BuZi Text'] = df_export['BuZi Text'].str.replace('"', '\'')
-    # Remove newline, carriage return, and tab, see https://stackoverflow.com/a/67541987
-    df_export['BuZi Text'] = df_export['BuZi Text'].str.replace(r'\r+|\n+|\t+', '', regex=True)
+    return df_export, df_all
 
-    df_bussen_big = df_export.query('`Bussen-Betrag` > 300')
 
-    df_export = df_export.query('`Bussen-Betrag` > 0')
-    df_export = df_export.query('`Bussen-Betrag` <= 300')
-    logging.info('Exporting data for high Bussen, and for all found PLZ...')
-    df_bussen_big.to_csv(os.path.join(credentials.export_path, 'big_bussen.csv'))
-    df_plz = pd.DataFrame(sorted(df_export['Ü-Ort PLZ'].unique()), columns=['Ü-Ort PLZ'])
-    df_plz.to_csv(os.path.join(credentials.export_path, 'new_plz.csv'))
-    return df_export
+def append_coordinates(df):
+    df['address'] = df['Ü-Ort STR'].astype(str) + ' ' + df['Ü-Ort STR-NR'].astype(str) + ', ' + \
+                    df['Ü-Ort PLZ'].astype(str) + ' ' + df['Ü-Ort ORT'].astype(str)
+    df_geb_eing = get_gebaeudeeingaenge()
+    # First try to get coordinates from Gebäudeeingänge directly
+    df = get_coordinates_from_gwr(df, df_geb_eing)
+    # Then try to get coordinates from Nominatim
+    df = get_coordinates_from_nomatim_and_gwr(df, df_geb_eing)
+
+    return df
+
+
+def get_gebaeudeeingaenge():
+    raw_data_file = os.path.join(credentials.export_path, 'gebaeudeeingaenge.csv')
+    logging.info(f'Downloading Gebäudeeingänge from ods to file {raw_data_file}...')
+    r = common.requests_get(f'https://data.bs.ch/api/records/1.0/download?dataset=100231')
+    with open(raw_data_file, 'wb') as f:
+        f.write(r.content)
+    return pd.read_csv(raw_data_file, sep=';')
+
+
+def get_coordinates_from_gwr(df, df_geb_eing):
+    df_geb_eing['address'] = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str) + ', ' + df_geb_eing[
+        'dplz4'].astype(str) + ' ' + df_geb_eing['dplzname']
+    df = df.merge(df_geb_eing[['address', 'eingang_koordinaten']], on='address', how='left')
+    df.rename(columns={'eingang_koordinaten': 'coordinates'}, inplace=True)
+    return df
+
+
+def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, street_series=None):
+    geolocator = Nominatim(user_agent="zefix_handelsregister", proxies=common.credentials.proxies)
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+    shp_file_path = os.path.join(credentials.export_path, 'shp_bs', 'bs.shp')
+    gdf_bs = gpd.read_file(shp_file_path)
+    missing_coords = df[df['coordinates'].isna()]
+    for index, row in missing_coords.iterrows():
+        if use_rapidfuzz:
+            closest_streetname = find_closest_streetname(row['Ü-Ort STR'].astype(str), street_series)
+            address = closest_streetname + ', ' + row['Ü-Ort PLZ'].astype(str) + ' ' + row['Ü-Ort ORT'].astype(str).split(' ')[0]
+        else:
+            address = row['address']
+        if address not in cached_coordinates:
+            try:
+                location = geocode(address)
+                if location:
+                    point = Point(location.longitude, location.latitude)
+                    is_in_bs = ('Basel' in row['Ü-Ort ORT'] or
+                                'Riehen' in row['Ü-Ort ORT'] or
+                                'Bettingen' in row['Ü-Ort ORT'])
+                    if is_in_bs != gdf_bs.contains(point).any():
+                        logging.info(f"Location {location} is not in Basel-Stadt")
+                        continue
+                    cached_coordinates[address] = (location.latitude, location.longitude)
+                    df.at[index, 'coordinates'] = cached_coordinates[address]
+                else:
+                    logging.info(f"Location not found for address: {address}")
+                    cached_coordinates[address] = None
+            except Exception as e:
+                logging.info(f"Error occurred for address {address}: {e}")
+                time.sleep(5)
+        else:
+            logging.info(f"Using cached coordinates for address: {address}")
+            df.at[index, 'coordinates'] = cached_coordinates[address]
+    return df, cached_coordinates
+
+
+def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
+    # Get lookup table for addresses that could not be found
+    path_lookup_table = os.path.join(credentials.export_path, 'data', 'addr_to_coords_lookup_table.json')
+    if os.path.exists(path_lookup_table):
+        with open(path_lookup_table, 'r') as f:
+            cached_coordinates = json.load(f)
+    else:  # Create empty lookup table since it does not exist yet
+        cached_coordinates = {}
+
+    df, cached_coordinates = get_coordinates_from_nominatim(df, cached_coordinates)
+
+    # Last resort: Find closest street in Gebäudeeingänge (https://data.bs.ch/explore/dataset/100231)
+    # with help of rapidfuzz and then get coordinates from Nominatim
+    street_series = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
+    df, cached_coordinates = get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=True,
+                                                            street_series=street_series)
+
+    # Save lookup table
+    with open(path_lookup_table, 'w') as f:
+        json.dump(cached_coordinates, f)
+    return df
+
+
+def find_closest_streetname(street, street_series):
+    if street:
+        closest_address, _, _ = process.extractOne(street, street_series)
+        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
+        return closest_address
+    return street
 
 
 if __name__ == "__main__":
