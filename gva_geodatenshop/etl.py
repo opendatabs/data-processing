@@ -121,7 +121,7 @@ for index, row in joined_data.iterrows():
             shppath, shpfilename = os.path.split(shpfile)
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
 
-            if row['create_map_urls'] == 'True':
+            if row['create_map_urls']:
                 logging.info(f"Create Map urls for {shpfilename_noext}")
                 # read the shape file in GVA folder
                 gdf = gpd.read_file(shpfile)
