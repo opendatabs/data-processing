@@ -8,7 +8,6 @@ import zipfile
 from charset_normalizer import from_path
 import common
 from common import change_tracking as ct
-import ods_publish.etl_id as odsp
 from gva_geodatenshop import credentials
 import geopandas as gpd
 import shutil
@@ -123,11 +122,6 @@ for index, row in joined_data.iterrows():
             shpfilename_noext, shpext = os.path.splitext(shpfilename)
 
             if row['create_map_urls']:
-                # Unpublish dataset first
-                logging.info(f"Unpublishing dataset {shpfilename_noext}...")
-                # Split by semi-colon and unpublish ever element of ods_id
-                for ods_id in str(row['ods_id']).split(';'):
-                    odsp.unpublish_ods_dataset_by_id(ods_id)
                 logging.info(f"Create Map urls for {shpfilename_noext}")
                 # read the shape file in GVA folder
                 gdf = gpd.read_file(shpfile)
