@@ -125,7 +125,9 @@ for index, row in joined_data.iterrows():
             if row['create_map_urls']:
                 # Unpublish dataset first
                 logging.info(f"Unpublishing dataset {shpfilename_noext}...")
-                odsp.unpublish_ods_dataset_by_id(str(row['ods_id']))
+                # Split by semi-colon and unpublish ever element of ods_id
+                for ods_id in str(row['ods_id']).split(';'):
+                    odsp.unpublish_ods_dataset_by_id(ods_id)
                 logging.info(f"Create Map urls for {shpfilename_noext}")
                 # read the shape file in GVA folder
                 gdf = gpd.read_file(shpfile)
