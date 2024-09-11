@@ -164,7 +164,9 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     shp_file_path = os.path.join(credentials.export_path, 'shp_bs', 'bs.shp')
     gdf_bs = gpd.read_file(shp_file_path)
-    missing_coords = df[df['coordinates'].isna()]
+    # If there are missing coordinates, try to get them from Nominatim
+    # except for those that have no streetnumber
+    missing_coords = df[df['coordinates'].isna() & df['Ü-Ort STR-NR'].notna()]
     for index, row in missing_coords.iterrows():
         if use_rapidfuzz:
             closest_streetname = find_closest_streetname(str(row['Ü-Ort STR']), street_series)
@@ -198,7 +200,7 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
 
 def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
     # Get lookup table for addresses that could not be found
-    path_lookup_table = os.path.join(credentials.export_path, 'data', 'addr_to_coords_lookup_table.json')
+    path_lookup_table = os.path.join(credentials.export_path, 'addr_to_coords_lookup_table.json')
     if os.path.exists(path_lookup_table):
         with open(path_lookup_table, 'r') as f:
             cached_coordinates = json.load(f)
