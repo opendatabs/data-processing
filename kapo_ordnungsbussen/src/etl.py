@@ -169,7 +169,8 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
     missing_coords = df[df['coordinates'].isna() & ~df['address'].str.contains(' nan, ')]
     for index, row in missing_coords.iterrows():
         if use_rapidfuzz:
-            closest_streetname = find_closest_streetname(str(row['Ü-Ort STR']), street_series)
+            closest_streetname = find_closest_streetname(str(row['Ü-Ort STR']) + ' ' + str(row['Ü-Ort STR-NR']),
+                                                         street_series)
             address = closest_streetname + ', ' + str(row['Ü-Ort PLZ']) + ' ' + str(row['Ü-Ort ORT']).split(' ')[0]
         else:
             address = row['address']
