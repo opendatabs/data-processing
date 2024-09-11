@@ -166,7 +166,7 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
     gdf_bs = gpd.read_file(shp_file_path)
     # If there are missing coordinates, try to get them from Nominatim
     # except for those that have no streetnumber
-    missing_coords = df[df['coordinates'].isna() & df['Ü-Ort STR-NR'].notna()]
+    missing_coords = df[df['coordinates'].isna() & (df['Ü-Ort STR-NR'].notna() | df['Ü-Ort STR-NR'] == 'nan')]
     for index, row in missing_coords.iterrows():
         if use_rapidfuzz:
             closest_streetname = find_closest_streetname(str(row['Ü-Ort STR']), street_series)
