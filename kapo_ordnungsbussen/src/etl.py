@@ -1,9 +1,10 @@
 import logging
 import os
-import smtplib
+import io
 import time
 import json
 import pandas as pd
+import zipfile
 
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
@@ -22,7 +23,7 @@ def main():
     list_path = os.path.join(credentials.data_orig_path, 'list_directories.txt')
     directories = common.list_directories(credentials.data_orig_path, list_path,
                                           ['Old', 'export', '2020_07_27'])
-    if ct.has_changed(list_path):
+    if True or ct.has_changed(list_path):
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
@@ -62,7 +63,8 @@ def main():
 
 def process_data_2017():
     logging.info(f'Reading 2017 data from csv...')
-    df_2020_07_27 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_07_27/OGD_BussenDaten.csv'), sep=';', encoding='cp1252')
+    df_2020_07_27 = pd.read_csv(os.path.join(credentials.data_orig_path, '2020_07_27/OGD_BussenDaten.csv'), sep=';',
+                                encoding='cp1252')
     df_2020_07_27['Übertretungsdatum'] = pd.to_datetime(df_2020_07_27['Übertretungsdatum'], format='%d.%m.%Y')
     df_2017 = df_2020_07_27.query('Übertretungsjahr == 2017')
     return df_2017
@@ -77,7 +79,8 @@ def process_data_from_2018(list_directories, df_2017):
         df = pd.read_excel(file)
         # want to take the data from the latest file, so remove in the df I have up till now all data of datum_min and after
         datum_min = df['Übertretungsdatum'].min()
-        logging.info(f'Earliest date is {datum_min}, add new data from this date on (and remove data after this date coming from older files)')
+        logging.info(
+            f'Earliest date is {datum_min}, add new data from this date on (and remove data after this date coming from older files)')
         df_all = df_all[df_all['Übertretungsdatum'] < datum_min]
         df_all = pd.concat([df_all, df], ignore_index=True)
     return df_all
@@ -87,8 +90,10 @@ def transform_for_export(df_all):
     logging.info('Calculating weekday, weekday number, and its combination...')
     df_all['Übertretungswochentag'] = df_all['Übertretungsdatum'].dt.weekday.apply(lambda x: common.weekdays_german[x])
     # Translate from Mo=0 to So=1, Mo=2 etc. to be backward.compatible with previously used SAS code
-    df_all['ÜbertretungswochentagNummer'] = (df_all['Übertretungsdatum'].dt.weekday.replace({0: 2, 1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 1}))
-    df_all['Wochentag'] = df_all['ÜbertretungswochentagNummer'].astype(str) + ' ' + df_all['Übertretungswochentag'].astype(str)
+    df_all['ÜbertretungswochentagNummer'] = (
+        df_all['Übertretungsdatum'].dt.weekday.replace({0: 2, 1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 1}))
+    df_all['Wochentag'] = df_all['ÜbertretungswochentagNummer'].astype(str) + ' ' + df_all[
+        'Übertretungswochentag'].astype(str)
 
     logging.info('Replacing wrong PLZ...')
     df_all['Ü-Ort PLZ'] = df_all['Ü-Ort PLZ'].replace(credentials.plz_replacements).astype(int)
@@ -134,11 +139,13 @@ def append_coordinates(df):
     df['address'] = df['Ü-Ort STR'].astype(str) + ' ' + df['Ü-Ort STR-NR'].astype(str) + ', ' + \
                     df['Ü-Ort PLZ'].astype(str) + ' ' + df['Ü-Ort ORT'].astype(str)
     df_geb_eing = get_gebaeudeeingaenge()
+    gdf_streets = get_street_shapes()
     # First try to get coordinates from Gebäudeeingänge directly
     df = get_coordinates_from_gwr(df, df_geb_eing)
     # Then try to get coordinates from Nominatim
     df = get_coordinates_from_nomatim_and_gwr(df, df_geb_eing)
-
+    # Finally, append shapes of streets
+    df = get_shapes_for_streets(df, gdf_streets)
     return df
 
 
@@ -149,6 +156,17 @@ def get_gebaeudeeingaenge():
     with open(raw_data_file, 'wb') as f:
         f.write(r.content)
     return pd.read_csv(raw_data_file, sep=';')
+
+
+def get_street_shapes():
+    path_to_folder = os.path.join(credentials.export_path, 'streets')
+    logging.info(f'Downloading street shapes from ods to file {path_to_folder}...')
+    r = common.requests_get(f'https://data.bs.ch/explore/dataset/100189/download/?format=shp')
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    z.extractall(path_to_folder)
+    path_to_shp = os.path.join(path_to_folder, '100189.shp')
+    gdf = gpd.read_file(path_to_shp, encoding='utf-8')
+    return gdf
 
 
 def get_coordinates_from_gwr(df, df_geb_eing):
@@ -164,11 +182,15 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     shp_file_path = os.path.join(credentials.export_path, 'shp_bs', 'bs.shp')
     gdf_bs = gpd.read_file(shp_file_path)
-    missing_coords = df[df['coordinates'].isna()]
+    # If there are missing coordinates, try to get them from Nominatim
+    # and there is no nan in address
+    missing_coords = df[df['coordinates'].isna() & ~df['address'].str.contains(' nan, ')]
     for index, row in missing_coords.iterrows():
         if use_rapidfuzz:
-            closest_streetname = find_closest_streetname(row['Ü-Ort STR'].astype(str), street_series)
-            address = closest_streetname + ', ' + row['Ü-Ort PLZ'].astype(str) + ' ' + row['Ü-Ort ORT'].astype(str).split(' ')[0]
+            closest_streetname = find_closest_streetname(str(row['Ü-Ort STR']), street_series)
+            row['closest_adress'] = closest_streetname + ' ' + str(row['Ü-Ort STR-NR']) + ', ' + str(
+                row['Ü-Ort PLZ']) + ' ' + str(row['Ü-Ort ORT']).split(' ')[0]
+            address = row['closest_adress']
         else:
             address = row['address']
         if address not in cached_coordinates:
@@ -198,7 +220,7 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
 
 def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
     # Get lookup table for addresses that could not be found
-    path_lookup_table = os.path.join(credentials.export_path, 'data', 'addr_to_coords_lookup_table.json')
+    path_lookup_table = os.path.join(credentials.export_path, 'addr_to_coords_lookup_table.json')
     if os.path.exists(path_lookup_table):
         with open(path_lookup_table, 'r') as f:
             cached_coordinates = json.load(f)
@@ -209,7 +231,7 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 
     # Last resort: Find closest street in Gebäudeeingänge (https://data.bs.ch/explore/dataset/100231)
     # with help of rapidfuzz and then get coordinates from Nominatim
-    street_series = df_geb_eing['strname'] + ' ' + df_geb_eing['deinr'].astype(str)
+    street_series = df_geb_eing['strname']
     df, cached_coordinates = get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=True,
                                                             street_series=street_series)
 
@@ -225,6 +247,20 @@ def find_closest_streetname(street, street_series):
         logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
         return closest_address
     return street
+
+
+def get_shapes_for_streets(df, gdf_streets):
+    df_streetnames = df['Ü-Ort STR'].unique()
+    for index, row in df_streetnames.iterrows():
+        # Find closest street name
+        street_name = row['Ü-Ort STR']
+        closest_street = find_closest_streetname(street_name, gdf_streets['strname'])
+        # Get shape of closest street
+        street_shape = gdf_streets[gdf_streets['strname'] == closest_street].geometry
+        # Append shape and closest streetname to df
+        df.loc[df['Ü-Ort STR'] == street_name, 'street_shape'] = street_shape
+        df.loc[df['Ü-Ort STR'] == street_name, 'closest_streetname'] = closest_street
+    return df
 
 
 if __name__ == "__main__":
