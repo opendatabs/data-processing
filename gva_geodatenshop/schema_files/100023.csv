@@ -1,0 +1,7 @@
+name;label;description
+Id_Hundesignalisation; ID; Eindeutiger Identifikator
+Einschraenkung; Einschränkung; Beschreibung der Einschränkung
+Einschraenkungsnummer; Einschränkungsnummer; Identifikator der Art der Einschränkung
+DatumVon; Datum_von; Startdatum der Einschränkung
+DatumBis; Datum_bis; Enddatum der Einschränkung
+Bemerkung; Bemerkung; Bemerkung zur Fläche 
