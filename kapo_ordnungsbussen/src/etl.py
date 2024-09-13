@@ -5,7 +5,9 @@ import time
 import json
 import pandas as pd
 import zipfile
+from tqdm import tqdm
 
+from geopy.distance import geodesic
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 from rapidfuzz import process
@@ -28,6 +30,7 @@ def main():
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
         df_all = append_coordinates(df_all)
+        df_all = calculate_distances(df_all)
         big_bussen = os.path.join(credentials.export_path, 'big_bussen.csv')
         new_plz = os.path.join(credentials.export_path, 'new_plz.csv')
         plz = os.path.join(credentials.export_path, 'plz.csv')
@@ -56,9 +59,23 @@ def main():
         export_path_all = os.path.join(credentials.export_path, 'Ordnungsbussen_OGD_all.csv')
         logging.info(f'Exporting all data to {export_path_all}...')
         df_all.to_csv(export_path_all, index=False)
-        common.upload_ftp(export_path_all, credentials.ftp_server,
-                          credentials.ftp_user, credentials.ftp_pass, 'kapo/ordnungsbussen')
         ct.update_hash_file(list_path)
+
+
+def calculate_distances(df):
+    # Function to calculate distance between two points
+    def calculate_distance(row):
+        if pd.isna(row['GPS Breite']) or pd.isna(row['GPS Länge']) or pd.isna(row['coordinates']):
+            return float('nan')
+        point1 = (row['GPS Breite'], row['GPS Länge'])
+        point2 = tuple(map(float, row['coordinates'].strip('()').strip('[]').split(',')))
+        return geodesic(point1, point2).meters
+
+    # Apply the function to each row with a progress bar
+    tqdm.pandas()
+    df['distance_to_coordinates'] = df.progress_apply(calculate_distance, axis=1)
+
+    return df
 
 
 def process_data_2017():
@@ -213,7 +230,7 @@ def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, 
                 logging.info(f"Error occurred for address {address}: {e}")
                 time.sleep(5)
         else:
-            logging.info(f"Using cached coordinates for address: {address}")
+            logging.info(f"Using cached coordinates for address")
             df.at[index, 'coordinates'] = cached_coordinates[address]
     return df, cached_coordinates
 
