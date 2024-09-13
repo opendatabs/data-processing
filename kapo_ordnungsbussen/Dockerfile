@@ -13,6 +13,7 @@ RUN python3 -m pip install --user --no-cache-dir rapidfuzz==3.6.1
 RUN python3 -m pip install --user --no-cache-dir geopandas==0.14.2
 RUN python3 -m pip install --user --no-cache-dir fiona==1.9.4 # geopandas dependency
 RUN python3 -m pip install --user --no-cache-dir shapely==2.0.2
+RUN python3 -m pip install --user --no-cache-dir tqdm==4.66.5
 CMD ["python3", "-m", "kapo_ordnungsbussen.src.etl"]
 
 
