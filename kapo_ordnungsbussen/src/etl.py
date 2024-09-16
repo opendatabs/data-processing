@@ -30,7 +30,7 @@ def main():
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
         df_all = append_coordinates(df_all)
-        df_all = calculate_distances(df_all)
+        # df_all = calculate_distances(df_all)
         big_bussen = os.path.join(credentials.export_path, 'big_bussen.csv')
         new_plz = os.path.join(credentials.export_path, 'new_plz.csv')
         plz = os.path.join(credentials.export_path, 'plz.csv')
