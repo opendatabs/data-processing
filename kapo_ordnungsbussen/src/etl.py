@@ -30,7 +30,8 @@ def main():
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
         df_all = append_coordinates(df_all)
-        # df_all = calculate_distances(df_all)
+        df_all['coordinates'] = df_all['coordinates'].astype(str).str.strip('()').strip('[]')
+        df_all = calculate_distances(df_all)
         big_bussen = os.path.join(credentials.export_path, 'big_bussen.csv')
         new_plz = os.path.join(credentials.export_path, 'new_plz.csv')
         plz = os.path.join(credentials.export_path, 'plz.csv')
@@ -68,7 +69,7 @@ def calculate_distances(df):
         if pd.isna(row['GPS Breite']) or pd.isna(row['GPS Länge']) or pd.isna(row['coordinates']):
             return float('nan')
         point1 = (row['GPS Breite'], row['GPS Länge'])
-        point2 = tuple(map(float, row['coordinates'].strip('()').strip('[]').split(',')))
+        point2 = tuple(map(float, row['coordinates'].split(',')))
         return geodesic(point1, point2).meters
 
     # Apply the function to each row with a progress bar
