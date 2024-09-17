@@ -25,7 +25,7 @@ def main():
                      parse_dates=['Ignore_changes_before', 'Embargo', 'Ignore_changes_after'])
     active_abst = df.query('Active == True').copy(deep=True)
     active_active_size = active_abst.Active.size
-    what_changed = {'updated_ods_datasets': [], 'datasets_changed_to_public': [], 'send_update_email': False}
+    what_changed = {'updated_ods_datasets': [], 'send_update_email': False}
     if active_active_size == 1:
         abst_date = active_abst.Abstimmungs_datum[0]
         logging.info(f'Processing Abstimmung for date {abst_date}...')
@@ -34,17 +34,18 @@ def main():
         if do_process:
             active_files = find_data_files_for_active_abst(active_abst)
             data_files_changed = have_data_files_changed(active_files)
+            logging.info(f'Have the data files changed? {data_files_changed}. ')
             logging.info(f'Is it time to make live datasets public? {make_live_public}. ')
             if data_files_changed or make_live_public:
                 df_details, details_changed, df_kennz, kennz_changed = calculate_and_upload(active_files)
                 common.ods_realtime_push_df(df_details, credentials.push_url_details_test)
                 common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_test)
-                what_changed = publish_datasets(active_abst, details_changed, kennz_changed, what_changed=what_changed)
+                what_changed = publish_datasets(details_changed, kennz_changed, what_changed=what_changed)
                 for file in active_files:
                     ct.update_hash_file(os.path.join(credentials.path, file))
 
                 if make_live_public:
-                    what_changed = make_datasets_public(active_abst, active_files, what_changed)
+                    what_changed = make_datasets_public(active_files, what_changed)
                     common.ods_realtime_push_df(df_details, credentials.push_url_details_public)
                     common.ods_realtime_push_df(df_kennz, credentials.push_url_kennz_public)
                 if data_files_changed:
@@ -95,11 +96,6 @@ def send_update_email(what_changed):
         text += f'Updated ODS Datasets: \n'
         for ods_id in what_changed['updated_ods_datasets']:
             text += f'- {ods_id}: https://data.bs.ch/explore/dataset/{ods_id} \n'
-    if len(what_changed['datasets_changed_to_public']) > 0:
-        what_changed['send_update_email'] = True
-        text += f'Datasets changed from restricted to domain (public): \n'
-        for ods_id in what_changed['datasets_changed_to_public']:
-            text += f'- {ods_id}: https://data.bs.ch/explore/dataset/{ods_id} \n'
     logging.info(f'Is it time to send an update email? {what_changed["send_update_email"]}')
     if what_changed['send_update_email']:
         text += f'\n\nKind regards, \nYour automated Open Data Basel-Stadt Python Job'
@@ -113,29 +109,25 @@ def send_update_email(what_changed):
     return what_changed['send_update_email'], text
 
 
-def make_datasets_public(active_abst, active_files, what_changed):
+def make_datasets_public(active_files, what_changed):
     vorlage_in_filename = [f for f in active_files if 'Vorlage' in f]
     logging.info(
-        f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: setting live ods datasets to public...')
+        f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: pushing data to public datasets.')
     if len(vorlage_in_filename) == 0:
-        for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Details_Live[0]]:
+        for ods_id in ['100345', '100346']:
             policy_changed, r = odsp.ods_set_general_access_policy(ods_id, 'domain')
             if policy_changed:
-                what_changed['datasets_changed_to_public'].append(ods_id)
+                what_changed['updated_ods_datasets'].append(ods_id)
     return what_changed
 
 
-def publish_datasets(active_abst, details_changed, kennz_changed, what_changed):
+def publish_datasets(details_changed, kennz_changed, what_changed):
     if kennz_changed:
-        logging.info(f'Kennzahlen have changed, publishing datasets (Test and live)...')
-        for ods_id in [active_abst.ODS_id_Kennzahlen_Live[0], active_abst.ODS_id_Kennzahlen_Test[0]]:
-            odsp.publish_ods_dataset_by_id(ods_id)
-            what_changed['updated_ods_datasets'].append(ods_id)
+        logging.info(f'Kennzahlen have changed, pushing data to the test dataset...')
+        what_changed['updated_ods_datasets'].append('100343')
     if details_changed:
-        logging.info(f'Details have changed, publishing datasets (Test and live)...')
-        for ods_id in [active_abst.ODS_id_Details_Live[0], active_abst.ODS_id_Details_Test[0]]:
-            odsp.publish_ods_dataset_by_id(ods_id)
-            what_changed['updated_ods_datasets'].append(ods_id)
+        logging.info(f'Details have changed, pushing data to the test dataset...')
+        what_changed['updated_ods_datasets'].append('100344')
     return what_changed
 
 
