@@ -96,12 +96,11 @@ def main():
 
     fetch_data_from_website(data_orig_path_abs=data_orig_path_abs)
     transform_all_ics_to_csv(data_orig_path_abs=data_orig_path_abs, data_path_abs=data_path_abs)
-
-    '''
+    
     common.update_ftp_and_odsp(path_export=os.path.join(credentials.data_path, credentials.output_filename_csv),
                         folder_name="ed/schulferien",
                         dataset_id="100397")
-    '''
+    
     
 
 if __name__ == "__main__":
