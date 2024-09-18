@@ -13,8 +13,8 @@ from ed_schulferien import credentials
 def fetch_data_from_website(data_orig_path_abs: str) -> None:
     
     os.makedirs(data_orig_path_abs, exist_ok=True)
-    
-    response = requests.get(credentials.website_to_fetch_from, proxies=credentials.proxies)
+
+    response = common.requests_get(credentials.website_to_fetch_from)
     soup = BeautifulSoup(response.content, 'html.parser')
     
     zip_links = [a['href'] for a in soup.find_all('a', href=True) if a['href'].endswith('.zip')]
@@ -22,8 +22,8 @@ def fetch_data_from_website(data_orig_path_abs: str) -> None:
     for link in zip_links:
         zip_filename = os.path.basename(link)
         zip_path = os.path.join(data_orig_path_abs, zip_filename)
-        
-        response = requests.get(link, proxies=credentials.proxies)
+
+        response = common.requests_get(link)
         with open(zip_path, 'wb') as f:
             f.write(response.content)
         
