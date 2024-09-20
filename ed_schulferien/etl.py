@@ -100,7 +100,7 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
                 process_ics_file(file_path, csv_writer)
 
 def main():
-    script_dir = os.path.join(pathlib.Path(__file__).parents[1], "ed_schulferien")
+    script_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), "ed_schulferien")
 
     data_path_abs = os.path.join(script_dir, data_path)
     data_orig_path_abs = os.path.join(script_dir, data_orig_path)
