@@ -39,6 +39,7 @@
 - Column "tags": If left empty, just opendata.swiss will be filled as tag. Recommended if several datasets with same topic are published.
 
 ### Deployment and harvesting
+- If schema_file is added or changed, the Airflow Job 'stata_pull_changes' also has to be run.
 - Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started.
 - After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.xlsx` accordingly.
 - Manually change ODS id of newly datasets. To do this, you have to depublish the dataset first.
