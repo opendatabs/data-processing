@@ -28,15 +28,18 @@
 - Column "title_nice": Replace shape names as title of ODS datasets. Multiple entries are separated with semicolon. If empty, shape name is used. If one shape gets a title_nice, all shapes must get a title_nice. 
 - Column "ods_id": Dataset id that will be used in ODS. Currently, this id is not automatically set and is just used for reference. 
 - Column "beschreibung": Add a description text for the shape(s) in question. If no description is given, the description by GVA is used. 
-- Column "referenz": Add URL that will be set as "Reference" in ODS. Currently this is used to add links to "https://models.geo.bs.ch/..." (which is planned to be imported automatically in the future). 
-- Column "theme": ODS / opendata.swiss theme(s) in German. 
+- Column "referenz": Add URL that will be set as "Reference" in ODS. If left empty, this schould be filled out automatically as "https://geo.bs.ch/...".
+- Column "theme": ODS / opendata.swiss theme(s) in German.
 - Column "keyword": Semicolon-separated list of keywords to be used in ODS.
 - Column "dcat_ap_ch.domain": Used if the dataset should be assigned to an opendata.swiss suborganisation. 
 - Column "dcat.accrualperiodicity": Accrual periodicity as described [here](https://handbook.opendata.swiss/de/content/glossar/bibliothek/dcat-ap-ch.html?highlight=accrual)
-- Column "schema_file": Set "True" if a (schema file)[[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file]](https://userguide.opendatasoft.com/l/en/article/wsyubsjp1m-ftp-with-meta-csv-harvester#schema_csv_file) is provided in the [schema_files](./schema_files/) folder. Schema files must be named `{ods_id}.csv`. 
+- Column "schema_file": Set "True" if a (schema file)[[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file]](https://userguide.opendatasoft.com/l/en/article/wsyubsjp1m-ftp-with-meta-csv-harvester#schema_csv_file) is provided in the [schema_files](./schema_files/) folder. Schema files must be named `{ods_id}.csv`.
+- Column "create_map_urls": Set "True" if links to various map services for the specified coordinates should be provided. Example: https://opendatabs.github.io/map-links/?lat=47.564901&lon=7.615269
 - Column "dcat.issued": Date string in the form "JJJJ-MM-TT" to be used as issued date in ODS and opendata.swiss.
-  
+- Column "tags": If left empty, just opendata.swiss will be filled as tag. Recommended if several datasets with same topic are published.
+
 ### Deployment and harvesting
+- If schema_file is added or changed, the Airflow Job 'stata_pull_changes' also has to be run.
 - Start Airflow Job `gva-geodatenshop`. Shapes are uploaded to FTP, and ODS harvester is started.
 - After successful finish of ODS harvester: In Backoffice, check newly created dataset(s), change metadata in file `Metadata.xlsx` accordingly.
 - Manually change ODS id of newly datasets. To do this, you have to depublish the dataset first.
