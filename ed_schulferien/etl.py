@@ -1,5 +1,7 @@
 import os
 import logging
+import pathlib
+
 import vobject
 import csv
 from datetime import datetime
@@ -42,31 +44,19 @@ def fetch_data_from_website(data_orig_path_abs: str) -> None:
     logging.info(f"Downloaded and extracted {len(zip_links)} zip files.")
 
 def clean_name(name: str) -> str:
-    logging.debug(f"Cleaning name: '{name}'")
     name = name.strip()
     name_year = name.rsplit(" ", 1)
-    logging.debug(f"Split into: {name_year}")
-    
     try:
         int(name_year[1][:3])
         name = name_year[0]
-        logging.debug(f"Removed year, new name: '{name}'")
     except ValueError:
         name = " ".join(name_year)
-        logging.debug(f"No year found, keeping full name: '{name}'")
     except IndexError:
         name = name_year[0]
-        logging.debug(f"No space found, using original name: '{name}'")
-    
     if "1.Mai" in name:
         name = name.replace("1.Mai", "1. Mai")
-        logging.debug(f"Replaced '1.Mai' with '1. Mai': '{name}'")
-    
     if "ü" in name:
         name = name.replace("ü", "ue")
-        logging.debug(f"Replaced 'ü' with 'ue': '{name}'")
-    
-    logging.debug(f"Final cleaned name: '{name}'\n")
     return name
 
 def process_ics_file(file_path: str, csv_writer: csv.writer) -> None:
@@ -110,7 +100,7 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
                 process_ics_file(file_path, csv_writer)
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir = os.path.join(pathlib.Path(__file__).parents[1], "ed_schulferien")
 
     data_path_abs = os.path.join(script_dir, data_path)
     data_orig_path_abs = os.path.join(script_dir, data_orig_path)
