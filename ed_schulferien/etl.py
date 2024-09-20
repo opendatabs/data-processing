@@ -1,5 +1,7 @@
 import os
 import logging
+import pathlib
+
 import vobject
 import csv
 from datetime import datetime
@@ -98,7 +100,7 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
                 process_ics_file(file_path, csv_writer)
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir = os.path.join(pathlib.Path(__file__).parents[1], "ed_schulferien")
 
     data_path_abs = os.path.join(script_dir, data_path)
     data_orig_path_abs = os.path.join(script_dir, data_orig_path)
