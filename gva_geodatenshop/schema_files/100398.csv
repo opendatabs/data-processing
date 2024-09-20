@@ -1,0 +1,12 @@
+name;label;description
+id;Id_Standort;Identifikator des Standorts
+nutzabsich;Nutzungsabsicht;Nutzungsabsicht des Standorts
+gewart;Gewässerart;Gewässerart des Standorts
+objekttyp;Objekttyp;
+katasternr;Katasternummer;Katasternummer aus dem Bohrkataster
+foerdermet;Fördermethode;Fördermethode der Entnahme
+zweck;Zweck
+nutzzustan;Nutzungszustand
+foerderkat;Förderleistungskategorie;Bewilligte Förderleistung (Kategorie)
+anmerkung;Anmerkung
+map_links;Map Links;Website with links to exact location on various maps (Google Maps, Apple Maps, etc.)
