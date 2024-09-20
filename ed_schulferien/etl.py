@@ -8,13 +8,20 @@ from bs4 import BeautifulSoup
 import common
 import zipfile
 
-from ed_schulferien import credentials
+
+website_to_fetch_from = "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
+
+data_orig_path = 'data_orig/'
+data_path = 'data/'
+
+output_filename_csv = 'school_holidays.csv'
+
 
 def fetch_data_from_website(data_orig_path_abs: str) -> None:
     
     os.makedirs(data_orig_path_abs, exist_ok=True)
 
-    response = common.requests_get(credentials.website_to_fetch_from)
+    response = common.requests_get(website_to_fetch_from)
     soup = BeautifulSoup(response.content, 'html.parser')
     
     zip_links = [a['href'] for a in soup.find_all('a', href=True) if a['href'].endswith('.zip')]
@@ -35,17 +42,31 @@ def fetch_data_from_website(data_orig_path_abs: str) -> None:
     logging.info(f"Downloaded and extracted {len(zip_links)} zip files.")
 
 def clean_name(name: str) -> str:
+    logging.debug(f"Cleaning name: '{name}'")
+    name = name.strip()
     name_year = name.rsplit(" ", 1)
+    logging.debug(f"Split into: {name_year}")
+    
     try:
         int(name_year[1][:3])
         name = name_year[0]
+        logging.debug(f"Removed year, new name: '{name}'")
     except ValueError:
         name = " ".join(name_year)
+        logging.debug(f"No year found, keeping full name: '{name}'")
     except IndexError:
         name = name_year[0]
+        logging.debug(f"No space found, using original name: '{name}'")
     
-    name = name.replace("1.Mai", "1. Mai")
-    name = name.replace("ü", "ue")
+    if "1.Mai" in name:
+        name = name.replace("1.Mai", "1. Mai")
+        logging.debug(f"Replaced '1.Mai' with '1. Mai': '{name}'")
+    
+    if "ü" in name:
+        name = name.replace("ü", "ue")
+        logging.debug(f"Replaced 'ü' with 'ue': '{name}'")
+    
+    logging.debug(f"Final cleaned name: '{name}'\n")
     return name
 
 def process_ics_file(file_path: str, csv_writer: csv.writer) -> None:
@@ -70,7 +91,7 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
     
     os.makedirs(data_path_abs, exist_ok=True)
 
-    csv_file_path = os.path.join(data_path_abs, credentials.output_filename_csv)
+    csv_file_path = os.path.join(data_path_abs, output_filename_csv)
     with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile, delimiter=';')
         csv_writer.writerow(['year', 'name', 'start_date', 'end_date'])
@@ -91,13 +112,13 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    data_path_abs = os.path.join(script_dir, credentials.data_path)
-    data_orig_path_abs = os.path.join(script_dir, credentials.data_orig_path)
+    data_path_abs = os.path.join(script_dir, data_path)
+    data_orig_path_abs = os.path.join(script_dir, data_orig_path)
 
     fetch_data_from_website(data_orig_path_abs=data_orig_path_abs)
     transform_all_ics_to_csv(data_orig_path_abs=data_orig_path_abs, data_path_abs=data_path_abs)
     
-    common.update_ftp_and_odsp(path_export=os.path.join(credentials.data_path, credentials.output_filename_csv),
+    common.update_ftp_and_odsp(path_export=os.path.join(data_path, output_filename_csv),
                         folder_name="ed/schulferien",
                         dataset_id="100397")
     
