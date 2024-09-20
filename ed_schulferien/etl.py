@@ -108,7 +108,7 @@ def main():
     fetch_data_from_website(data_orig_path_abs=data_orig_path_abs)
     transform_all_ics_to_csv(data_orig_path_abs=data_orig_path_abs, data_path_abs=data_path_abs)
     
-    common.update_ftp_and_odsp(path_export=os.path.join(data_path, output_filename_csv),
+    common.update_ftp_and_odsp(path_export=os.path.join(data_path_abs, output_filename_csv),
                         folder_name="ed/schulferien",
                         dataset_id="100397")
     
