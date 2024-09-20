@@ -8,13 +8,20 @@ from bs4 import BeautifulSoup
 import common
 import zipfile
 
-from ed_schulferien import credentials
+
+website_to_fetch_from = "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
+
+data_orig_path = 'data_orig/'
+data_path = 'data/'
+
+output_filename_csv = 'school_holidays.csv'
+
 
 def fetch_data_from_website(data_orig_path_abs: str) -> None:
     
     os.makedirs(data_orig_path_abs, exist_ok=True)
 
-    response = common.requests_get(credentials.website_to_fetch_from)
+    response = common.requests_get(website_to_fetch_from)
     soup = BeautifulSoup(response.content, 'html.parser')
     
     zip_links = [a['href'] for a in soup.find_all('a', href=True) if a['href'].endswith('.zip')]
@@ -84,7 +91,7 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
     
     os.makedirs(data_path_abs, exist_ok=True)
 
-    csv_file_path = os.path.join(data_path_abs, credentials.output_filename_csv)
+    csv_file_path = os.path.join(data_path_abs, output_filename_csv)
     with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile, delimiter=';')
         csv_writer.writerow(['year', 'name', 'start_date', 'end_date'])
@@ -105,13 +112,13 @@ def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str) -> Non
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    data_path_abs = os.path.join(script_dir, credentials.data_path)
-    data_orig_path_abs = os.path.join(script_dir, credentials.data_orig_path)
+    data_path_abs = os.path.join(script_dir, data_path)
+    data_orig_path_abs = os.path.join(script_dir, data_orig_path)
 
     fetch_data_from_website(data_orig_path_abs=data_orig_path_abs)
     transform_all_ics_to_csv(data_orig_path_abs=data_orig_path_abs, data_path_abs=data_path_abs)
     
-    common.update_ftp_and_odsp(path_export=os.path.join(credentials.data_path, credentials.output_filename_csv),
+    common.update_ftp_and_odsp(path_export=os.path.join(data_path, output_filename_csv),
                         folder_name="ed/schulferien",
                         dataset_id="100397")
     
