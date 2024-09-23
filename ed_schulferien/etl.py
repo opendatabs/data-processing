@@ -4,8 +4,6 @@ import pathlib
 
 import vobject
 import csv
-from datetime import datetime
-import requests
 from bs4 import BeautifulSoup
 import common
 import zipfile
