@@ -5,6 +5,7 @@ import common
 import pandas as pd
 
 
+# TODO: Rewrite this job to check all urls in all datasets and send an email if a url has changed or is not reachable
 def main():
     df_urls = pd.read_excel(
         os.path.join(pathlib.Path(__file__).parent.absolute(), 'data_orig', 'urls_to_replace_ods.xlsx'))
