@@ -1,6 +1,5 @@
 import os
 import xml.etree.ElementTree as ET
-import requests
 import pandas as pd
 from owslib.wfs import WebFeatureService
 from fgi_geodatenshop import credentials
@@ -22,7 +21,7 @@ def extract_second_hier_name(row, df2):
 
 # Function for retrieving and parsing WMS GetCapabilities
 def get_wms_capabilities(url_wms):
-    response = common.requests_get(url=url_wms)
+    response = common.requests_get(url=url_wms, verify=False)
     xml_data = response.content
     root = ET.fromstring(xml_data)
     namespaces = {'wms': 'http://www.opengis.net/wms'}
