@@ -12,8 +12,8 @@ CMD ["python3", "-m", "fgi_geodatenshop.etl"]
 
 
 # Docker commands to create image and run container:
-# cd ods_catalog
-# docker build -t ods_catalog .
+# cd fgi_geodatenshop
+# docker build -t fgi_geodatenshop .
 # cd ..
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name fgi_geodatenshop fgi_geodatenshop python3 -m fgi_geodatenshop.etl
 
