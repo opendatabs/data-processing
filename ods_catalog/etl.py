@@ -18,17 +18,10 @@ def main():
     r = common.requests_get(url_new_datasets, params=params, headers=headers)
     r.raise_for_status()
     df = common.pandas_read_csv(StringIO(r.text), sep=';', dtype=str)
-    # Filter the data for "FGI Datensätze"
-    df_fgi = df[df['Attributions'].str.contains('Geodaten Kanton Basel-Stadt',na=False)]
     # Push the new datasets to ODS
-    # OGD Datensätze 
     path_export = os.path.join(credentials.data_path, '100057_ods_catalog_published.csv')
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100057')
-    # FGI Datensätze 
-    path_export = os.path.join(credentials.data_path, '100395.csv')
-    df_fgi.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, 'FST-OGD', '100395')
 
 
 if __name__ == "__main__":
