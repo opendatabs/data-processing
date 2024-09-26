@@ -163,6 +163,18 @@ def create_aggregated_csv(curr_dir: str, filename_aggregated_csv: str, tmp_dir_n
         quarter_gdf = pd.concat(quarter_data, ignore_index=True)
         
         aggregated = quarter_gdf.groupby('wov_name')['cci'].mean().reset_index()
+        
+        # Calculate the overall average 'cci' for the entire city
+        overall_avg = quarter_gdf['cci'].mean()
+        gesamt_row = pd.DataFrame({
+            'wov_name': ['gesamtes Stadtgebiet'],
+            'cci': [overall_avg],
+            'Quartal': [f"{quarter[0]}-{quarter[1]}"]
+        })
+        
+        # Append the 'gesamtes Stadtgebiet' row to the aggregated DataFrame
+        aggregated = pd.concat([aggregated, gesamt_row], ignore_index=True)
+        
         aggregated['Quartal'] = f"{quarter[0]}-{quarter[1]}"
         results.append(aggregated)
         logging.info(f"Completed aggregation for quarter {quarter}")
