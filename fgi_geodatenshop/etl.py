@@ -7,6 +7,7 @@ import geopandas as gpd
 import logging
 import io
 import common
+import requests
 
 
 # Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
@@ -21,7 +22,7 @@ def extract_second_hier_name(row, df2):
 
 # Function for retrieving and parsing WMS GetCapabilities
 def get_wms_capabilities(url_wms):
-    response = common.requests_get(url=url_wms, verify=False)
+    response = requests.get(url=url_wms, verify=False)
     xml_data = response.content
     root = ET.fromstring(xml_data)
     namespaces = {'wms': 'http://www.opengis.net/wms'}
@@ -93,7 +94,7 @@ def process_wfs_data(url_wfs):
 # Function for saving FGI geodata for each layer name
 def save_geodata_for_layers(wfs, df_grouped, file_path):
     # Create a folder for the title to save geopackage data
-    for titel, layer_name_list in df_grouped[['Titel', 'Layer Name']].values:
+    for titel, layer_name_list in df_grouped[['Titel', 'Name']].values:
         titel_dir = os.path.join(file_path, titel)
         os.makedirs(titel_dir, exist_ok=True)
         # Retrieve and save the geodata for each layer name in the list
@@ -104,7 +105,9 @@ def save_geodata_for_layers(wfs, df_grouped, file_path):
                 gdf = gdf.to_crs(epsg=4326) 
                 geopackage_file = os.path.join(titel_dir, f'{layer_name}.gpkg')
                 gdf.to_file(geopackage_file, driver='GPKG') 
-
+                ftp_remote_dir = 'harvesters/GVA/data/geopackage'
+                common.upload_ftp(geopackage_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                      ftp_remote_dir)
                 logging.info(f'Successfully saved {layer_name} for {titel}')
             except Exception as e:
                 logging.error(f'Error processing {layer_name} for {titel}: {e}')
@@ -120,11 +123,12 @@ def main():
     df_wfs['Titel'] = df_wfs.apply(lambda row: extract_second_hier_name(row, df_wms), axis=1)
     new_column_order = ['Titel', 'Name', 'Metadata URL']
     df_wfs = df_wfs[new_column_order]
-    df_fgi = df_wfs.groupby('Titel')['Name'].apply(list).reset_index()
     df_wms_not_in_wfs = df_wms[~df_wms['Name'].isin(df_wfs['Name'])]
+    # assign the layer names under main names to collect the geodata
+    df_fgi = df_wfs.groupby('Titel')['Name'].apply(list).reset_index()
 
-    data_path = credentials.data_path
     # save DataFrames in CSV files
+    data_path = credentials.data_path
     df_wms.to_csv(os.path.join(data_path, 'Hier_wms.csv'), sep=';', index=False)
     df_fgi.to_csv(os.path.join(data_path, 'FGI_List.csv'), sep=';', index=False)
     df_wms_not_in_wfs.to_csv(os.path.join(data_path, 'wms_not_in_wfs.csv'), sep=';', index=False)
@@ -133,8 +137,9 @@ def main():
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100395')
 
 
-    # wfs = WebFeatureService(url=url_wfs, version='2.0.0')
-    # save_geodata_for_layers(wfs, df_fgi, file_path)
+    wfs = WebFeatureService(url=url_wfs, version='2.0.0')
+    file_path = os.path.join(credentials.data_path,'export')
+    save_geodata_for_layers(wfs, df_fgi, file_path)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
