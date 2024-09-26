@@ -123,8 +123,12 @@ def create_aggregated_csv(curr_dir: str, filename_aggregated_csv: str, tmp_dir_n
     # Read shapefile
     path_to_shp = os.path.join(tmp_path, f'{ods_id}.shp')
     gdf = gpd.read_file(path_to_shp, encoding='utf-8')
-    gdf_viertel = gdf.to_crs('EPSG:2056')  # Change to a suitable projected CRS
-    logging.debug("Loaded and reprojected spatial data.")
+    gdf_viertel_full = gdf.to_crs('EPSG:2056')  # Change to a suitable projected CRS
+    
+    # Create gdf_viertel without Riehen and Bettingen
+    gdf_viertel = gdf_viertel_full[~gdf_viertel_full['wov_name'].isin(['Riehen', 'Bettingen'])]
+    
+    logging.debug("Loaded and reprojected spatial data. Removed Riehen and Bettingen from gdf_viertel.")
 
     # Aggregate SKI (CCI) values by Wohnviertel and Quarter
     results = []
