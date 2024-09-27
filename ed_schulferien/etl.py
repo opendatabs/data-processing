@@ -1,16 +1,16 @@
-import os
-import shutil
+import csv
 import logging
+import os
 import pathlib
+import shutil
+import zipfile
 from datetime import timedelta
 
-import vobject
-import csv
-from bs4 import BeautifulSoup
-import common
-import zipfile
 import pandas as pd
+import vobject
+from bs4 import BeautifulSoup
 
+import common
 from ed_schulferien import credentials
 
 website_to_fetch_from = "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
