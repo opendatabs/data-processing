@@ -30,22 +30,18 @@ def unpublish_ods_dataset_by_id(dataset_id: str):
     common.unpublish_ods_dataset(dataset_uid, credentials)
 
 
-def ods_set_general_access_policy(dataset_id: str, access_policy: str, do_publish=True):
-    possible_values = ['domain', 'restricted']
-    if access_policy not in possible_values:
-        raise NotImplementedError(f'You can only use policies {possible_values}.')
+def ods_set_general_access_policy(dataset_id: str, access_should_be_restricted: bool, do_publish=True):
     dataset_uid = common.get_ods_uid_by_id(dataset_id, credentials)
     logging.info(f'Getting General Access Policy before setting it...')
-    url = f'https://data.bs.ch/api/management/v2/datasets/{dataset_uid}/security/access_policy'
+    url = f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/'
     r = common.requests_get(url=url, headers={'Authorization': f'apikey {credentials.api_key}'})
     r.raise_for_status()
-    existing_policy = r.text
-    data = f'"{access_policy}"'
-    do_change_policy = existing_policy != data
-    logging.info(f'Current access policy: {existing_policy}. Do we have to change that? {do_change_policy}. ')
+    is_currently_restricted = r.json()['is_restricted']
+    do_change_policy = is_currently_restricted != access_should_be_restricted
+    logging.info(f'Current access policy: {is_currently_restricted}. Do we have to change that? {do_change_policy}.')
     if do_change_policy:
-        logging.info(f'Setting General Access Policy to {data}...')
-        r = common.requests_put(url=url, data=data, headers={'Authorization': f'apikey {credentials.api_key}'})
+        logging.info(f'Setting General Access Policy to is_restricted={access_should_be_restricted}...')
+        r = common.requests_put(url=url, data={'is_restricted': access_should_be_restricted}, headers={'Authorization': f'apikey {credentials.api_key}'})
         r.raise_for_status()
         if do_publish:
             logging.info(f'Publishing dataset...')

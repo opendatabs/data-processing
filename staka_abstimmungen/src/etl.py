@@ -115,7 +115,7 @@ def make_datasets_public(active_files, what_changed):
         f'Number of data files with "Vorlage" in the filename: {len(vorlage_in_filename)}. If 0: pushing data to public datasets.')
     if len(vorlage_in_filename) == 0:
         for ods_id in ['100345', '100346']:
-            policy_changed, r = odsp.ods_set_general_access_policy(ods_id, 'domain')
+            policy_changed, r = odsp.ods_set_general_access_policy(ods_id, False)
             if policy_changed:
                 what_changed['updated_ods_datasets'].append(ods_id)
     return what_changed

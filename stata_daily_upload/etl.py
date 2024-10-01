@@ -41,9 +41,9 @@ def main():
                         ods_id_property = upload['ods_id']
                         if isinstance(ods_id_property, list):
                             for single_ods_id in ods_id_property:
-                                odsp.ods_set_general_access_policy(single_ods_id, 'domain', True)
+                                odsp.ods_set_general_access_policy(single_ods_id, False, True)
                         else:
-                            odsp.ods_set_general_access_policy(ods_id_property, 'domain', True)
+                            odsp.ods_set_general_access_policy(ods_id_property, False, True)
 
             else:
                 file_path = os.path.join(credentials.path_work, upload['file'])
@@ -56,9 +56,9 @@ def main():
                     ods_id_property = upload['ods_id']
                     if isinstance(ods_id_property, list):
                         for single_ods_id in ods_id_property:
-                            odsp.ods_set_general_access_policy(single_ods_id, 'domain', True)
+                            odsp.ods_set_general_access_policy(single_ods_id, False, True)
                     else:
-                        odsp.ods_set_general_access_policy(ods_id_property, 'domain', True)
+                        odsp.ods_set_general_access_policy(ods_id_property, False, True)
             if changed:
                 ods_id_property = upload['ods_id']
                 if isinstance(ods_id_property, list):
