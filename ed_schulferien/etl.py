@@ -84,7 +84,7 @@ def process_ics_file(file_path: str, csv_writer: csv.writer) -> None:
         year = start_date.year
 
         # Timestamps and 'if end_date.weekday() != 6' are added because of the ODS bug where a timestamp is introduced
-        # when exporting automatically generated ics file. TODO: Can be simplified once this ods-bug is fixed
+        # when exporting automatically generated ics file from ods. TODO: Can be simplified once this ods-bug is fixed
         start_date_str = start_date.strftime('%Y-%m-%d 00:00:00')
         end_date_str = end_date.strftime('%Y-%m-%d 23:59:00')
 
