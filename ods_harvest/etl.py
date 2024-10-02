@@ -33,13 +33,13 @@ def handle_http_errors(resp):
 for harv_id in ods_harvester_ids:
     wait_for_idle(harv_id)
     print(f'Sending harvester "{harv_id}" the "start" signal...')
-    response = common.requests_put(f'https://data.bs.ch/api/automation/v1.0/harvesters/{harv_id}/start/',
+    response = common.requests_post(f'https://data.bs.ch/api/automation/v1.0/harvesters/{harv_id}/start/',
                                    headers={'Authorization': f'apikey {credentials.api_key}'})
     handle_http_errors(response)
     wait_for_idle(harv_id)
 
     print(f'Sending harvester "{harv_id}" the "publish" signal...')
-    response = common.requests_put(f'https://data.bs.ch/api/automation/v1.0/harvesters/{harv_id}/publish/',
+    response = common.requests_post(f'https://data.bs.ch/api/automation/v1.0/harvesters/{harv_id}/publish/',
                                    headers={'Authorization': f'apikey {credentials.api_key}'})
     handle_http_errors(response)
     wait_for_idle(harv_id)
