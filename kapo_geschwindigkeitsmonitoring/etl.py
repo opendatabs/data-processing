@@ -120,7 +120,6 @@ def create_metadata_per_direction_df(df_metadata):
 
 def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     dfs = []
-    new_df = []
     files_to_upload = []
     # error_df = pd.DataFrame(columns=['line_text_orig', 'line_text_fixed', 'file', 'line_number'])
     # empty_df = pd.DataFrame(columns=['ID'])
@@ -159,10 +158,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 # todo: fix ambiguous times - setting ambiguous to 'infer' raises an exception for some times
                 raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize(
                     'Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
-                dfs.append(raw_df)
-                # todo: Check why new_df is necessary
-                new_df.append(raw_df)
                 raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
+                dfs.append(raw_df)
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
                 raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
@@ -181,14 +178,6 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         logging.info(f'Creating one huge dataframe...')
         all_df = pd.concat(dfs)
         logging.info(f'{len(dfs)} datasets have been processed in total. ')
-        if len(new_df) > 0:
-            logging.info(f'{len(new_df)} new datasets have been processed:')
-            new_dfs = pd.concat(new_df)
-            new_df_details = new_dfs.groupby(['Messung-ID', 'Richtung ID'])[['Messung-ID', 'Richtung ID']].agg(
-                ['unique'])
-            logging.info(new_df_details[['Messung-ID', 'Richtung ID']])
-        else:
-            logging.info(f'No new raw data found...')
 
         all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
         logging.info(f'Exporting into one huge csv and pickle to {all_data_filename}...')
@@ -206,10 +195,15 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         logging.info(f'Saving into sqlite db {db_filename}...')
         conn = sqlite3.connect(db_filename)
         all_df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
+
+        with conn:
+            conn.execute('CREATE INDEX idx_richtung_datum_messung ON {} ("Richtung ID", "Datum", "Messung-ID")'.format(
+                db_filename.split(os.sep)[-1].replace('.db', '')
+            ))
+
         common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
         return all_df
-
 
 def create_measures_per_year(all_df):
     # Create a separate data file per year
