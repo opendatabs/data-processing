@@ -125,6 +125,7 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
 
     merged = pd.merge(df_old, df_new, on=id_columns, suffixes=('_old', '_new'), how='inner')
     mask = pd.DataFrame(index=merged.index)
+    # TODO: Keep df.equals in mind for comparison
     for col in columns_to_compare:
         old_col = merged[f'{col}_old']
         new_col = merged[f'{col}_new']
