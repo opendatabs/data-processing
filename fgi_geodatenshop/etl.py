@@ -302,18 +302,6 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 'schema_file': schema_file
             })
 
-    # # Save harvester file
-    # if len(metadata_for_ods) > 0:
-    #     ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
-    #     ods_metadata_filename = os.path.join(credentials.path_root, 'Opendatasoft_Export_GVA.csv')
-    #     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
-
-    #     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
-    #         logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
-    #         common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-    #                           'harvesters/GVA')
-    #         ct.update_hash_file(ods_metadata_filename)
-
     # Save harvester file
     # Connect to  the FTP-Server
     ftp = ftplib.FTP(credentials.ftp_server)
@@ -326,7 +314,20 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
     df_new = pd.DataFrame(metadata_for_ods)
     ods_metadata = pd.concat([ods_metadata, df_new], ignore_index=True)
     # Save ods.csv localy 
-    ods_metadata.to_csv(os.path.join(credentials.data_path, 'Opendatasoft_Export_GVA.csv'), sep=';', index=False)
+    ods_metadata_filename = os.path.join(credentials.data_path, 'Opendatasoft_Export_GVA.csv')
+    ods_metadata.to_csv(ods_metadata_filename, sep=';', index=False)
+
+     # if len(metadata_for_ods) > 0:
+    #     ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
+    #     ods_metadata_filename = os.path.join(credentials.path_root, 'Opendatasoft_Export_GVA.csv')
+    #     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
+
+    if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
+        logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
+        common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                            'harvesters/GVA')
+        ct.update_hash_file(ods_metadata_filename)
+
     # Upload each schema_file
     logging.info('Uploading ODS schema files to FTP Server...')
 
