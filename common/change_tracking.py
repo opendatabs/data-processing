@@ -161,7 +161,7 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     logging.info(f'Updated rows:')
     logging.info(updated_rows)
 
-    return deprecated_rows, updated_rows, changed_columns
+    return deprecated_rows, updated_rows
 
 
 
