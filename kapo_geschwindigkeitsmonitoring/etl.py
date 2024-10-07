@@ -226,7 +226,8 @@ def push_new_rows(df, filename):
     df.to_csv(filename, index=False)
     # Read again since otherwise it will label every column as modified
     df = pd.read_csv(filename)
-    common.ods_realtime_push_complete_update(df, df_old, id_columns=['Messung-ID', 'Richtung ID', 'Datum_Zeit'],
+    common.ods_realtime_push_complete_update(df, df_old, 
+                                             id_columns=['Messung-ID', 'Richtung ID', 'Datum_Zeit', 'Geschwindigkeit', 'Fahrzeuglänge'],
                                              url=credentials.push_url_100097)
 
 
