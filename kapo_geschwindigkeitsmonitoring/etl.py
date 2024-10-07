@@ -212,7 +212,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         all_df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
 
         with conn:
-            conn.execute('CREATE INDEX idx_richtung_datum_messung ON {} ("Richtung ID", "Datum", "Messung-ID")'.format(
+            conn.execute('CREATE INDEX idx_richtung_datum_messung ON {} ("Richtung ID")'.format(
                 db_filename.split(os.sep)[-1].replace('.db', '')
             ))
 
