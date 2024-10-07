@@ -35,7 +35,7 @@ def fix_data(filename, measure_id, encoding):
 
 
 def main():
-    push_past_measures = False
+    push_past_measures = True
     if push_past_measures:
         realtime_push_all_past_measures()
     logging.info(f'Connecting to DB...')
@@ -174,10 +174,10 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
                 dfs.append(raw_df)
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
-                # if row['dataset_id'] == '100097':
-                #     push_new_rows(raw_df, filename_current_measure)
-                # else:
-                raw_df.to_csv(filename_current_measure, index=False)
+                if row['dataset_id'] == '100097':
+                    push_new_rows(raw_df, filename_current_measure)
+                else:
+                    raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
 
     for obj in files_to_upload:
@@ -212,7 +212,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         all_df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
 
         with conn:
-            conn.execute('CREATE INDEX idx_richtung_datum_messung ON {} ("Richtung ID", "Datum", "Messung-ID")'.format(
+            conn.execute('CREATE INDEX idx_richtung_datum_messung ON {} ("Richtung ID")'.format(
                 db_filename.split(os.sep)[-1].replace('.db', '')
             ))
 
@@ -224,7 +224,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 def push_new_rows(df, filename):
     df_old = pd.read_csv(filename)
     df.to_csv(filename, index=False)
-    common.ods_realtime_push_complete_update(df, df_old, id_columns=['Messung-ID', 'Richtung ID', 'Datum'])
+    common.ods_realtime_push_complete_update(df, df_old, id_columns=['Messung-ID', 'Richtung ID', 'Timestamp'])
 
 
 def create_measures_per_year(all_df):
@@ -241,9 +241,6 @@ def create_measures_per_year(all_df):
         if ct.has_changed(filename=current_filename, method='hash'):
             common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                               password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
-            # todo: Publish ODS data when ready
-            # odsp.publish_ods_dataset_by_id('100XXX')
-            # todo: Create new ods dataset when necessary
             ct.update_hash_file(current_filename)
     return year_file_names
 

@@ -240,8 +240,7 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
 
 def ods_realtime_push_complete_update(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
     ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key)
-    # TODO: Fix delete requests, they are throwing 405 Method Not Allowed
-    # ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
+    ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
     ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare, push_key)
 
 
@@ -289,8 +288,10 @@ def ods_realtime_push_df(df, url, push_key='', delete=False):
         payload = df.to_json(orient="records")
         # logging.info(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
         # use data=payload here because payload is a string. If it was an object, we'd have to use json=payload.
-        # TODO: Fix delete requests, they are throwing 405 Method Not Allowed
-        r = requests_post(url=url, data=payload, params={'pushkey': push_key})
+        if delete:
+            r = requests_delete(url=url, data=payload, params={'pushkey': push_key})
+        else:
+            r = requests_post(url=url, data=payload, params={'pushkey': push_key})
         r.raise_for_status()
         return r
 
