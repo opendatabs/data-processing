@@ -134,14 +134,15 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
             common_categories = sorted(set(new_col.cat.categories.tolist() + old_col.cat.categories.tolist()))
             new_col = new_col.cat.set_categories(common_categories)
             old_col = old_col.cat.set_categories(common_categories)
-        # Compare columns and record where changes occurred
-        mask[col] = ~((old_col == new_col) | (pd.isna(old_col) & pd.isna(new_col)))
-        # If there are changes in this column, add the column name to the list
-        if mask[col].any():
-            changed_columns.append(col)
+        # Compare columns using df.equals() and add the result to the mask
+        if not old_col.equals(new_col):
+            mask[col] = True  # Mark as changed
+            changed_columns.append(col)  # Add to the changed columns list
+        else:
+            mask[col] = False  # Mark as unchanged
     # Filter rows with any changes in the specified columns
     modified_rows = merged[mask.any(axis=1)]
-    
+
     # Log the columns that had changes
     if changed_columns:
         logging.info(f'Columns with changes: {changed_columns}')
@@ -162,7 +163,6 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     logging.info(updated_rows)
 
     return deprecated_rows, updated_rows
-
 
 
 def find_deleted_rows(df_old, df_new, id_columns):
