@@ -224,6 +224,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 def push_new_rows(df, filename):
     df_old = pd.read_csv(filename)
     df.to_csv(filename, index=False)
+    # Read again since otherwise it will label every column as modified
+    df = pd.read_csv(filename)
     common.ods_realtime_push_complete_update(df, df_old, id_columns=['Messung-ID', 'Richtung ID', 'Datum_Zeit'],
                                              url=credentials.push_url_100097)
 
