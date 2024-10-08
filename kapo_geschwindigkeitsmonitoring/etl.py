@@ -210,12 +210,12 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         logging.info(f'Saving into sqlite db {db_filename}...')
         conn = sqlite3.connect(db_filename)
         all_df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
-
+        logging.info(f'Creating index on Richtung ID...')
         with conn:
             conn.execute('CREATE INDEX idx_richtung_datum_messung ON "{}" ("Richtung ID")'.format(
                 db_filename.split(os.sep)[-1].replace('.db', '')
             ))
-
+        conn.close()
         common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
 
         return all_df
