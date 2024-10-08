@@ -240,7 +240,8 @@ def is_embargo_over(data_file_path, embargo_file_path=None) -> bool:
 
 def ods_realtime_push_complete_update(df_old, df_new, id_columns, url, columns_to_compare=None, push_key=''):
     ods_realtime_push_new_entries(df_old, df_new, id_columns, url, push_key)
-    ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
+    # TODO: Find out why this does not work as expected (405 Method Not Allowed)
+    # ods_realtime_push_delete_entries(df_old, df_new, id_columns, url, push_key)
     ods_realtime_push_modified_entries(df_old, df_new, id_columns, url, columns_to_compare, push_key)
 
 
