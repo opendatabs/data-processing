@@ -6,14 +6,11 @@ from fgi_geodatenshop import credentials
 import geopandas as gpd 
 import logging
 import io
-from io import StringIO
 import sys
 import common
 import requests
-from charset_normalizer import from_path
 from datetime import datetime
 from common import change_tracking as ct
-import  ftplib
 
 
 # Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
@@ -120,39 +117,11 @@ else:
     logging.info('Proceeding with copying files...')
 
 
-def get_encoding(filename):
-    logging.info('Retrieving encoding...')
-    result = from_path(filename)
-    enc = result.best().encoding
-    logging.info(f'Retrieved encoding {enc}...')
-    return enc
-
-
-def open_csv(file_path):
-    logging.info(f'Reading data file form {file_path}...')
-    enc = get_encoding(file_path)
-    return pd.read_csv(file_path, sep=';', na_filter=False, encoding=enc)
-
-
-# Function to join the three files 
-def join_files():
-    data = open_csv(os.path.join(credentials.path_harv, 'ogd_datensaetze.csv'))
-    metadata = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False)
-    pub_org = open_csv(os.path.join(credentials.path_harv, 'Publizierende_organisation.csv'))
-
-    logging.info(f'Left-joining data, metadata and publizierende_organisation...')
-    data_meta = pd.merge(data, metadata, on='ordnerpfad', how='left')
-    joined_data = pd.merge(data_meta, pub_org, on='herausgeber', how='left')
-    joined_data.to_csv(os.path.join(credentials.data_path, '_alldata.csv'), index=False, sep=';')
-    return joined_data
-
-
 def remove_empty_string_from_list(string_list):
-    return list(filter(None, string_list))
+    return list(filter(None, string_list))   
 
 
 # Returns value from geocat
-
 def geocat_value(key, metadata):
     if str(key) != '':
         pathlist = key.split('.')
@@ -179,17 +148,17 @@ def geocat_try(geocat_path_list, metadata):
 
 # Function for saving FGI geodata for each layer name
 def save_geodata_for_layers(wfs, df_fgi, file_path):
-    joined_data = join_files()
+    meta_data = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False)
     metadata_for_ods = []
     logging.info('Iterating over datasets...')
-    for index, row in joined_data.iterrows():
-        if row['import'] is True and row['ordnerpfad'] == 'Hochbauprojekte Kanton Basel-Stadt':
+    for index, row in meta_data.iterrows():
+        if row['import']:
         # Which shapes need to be imported to ods?
-            shapes_to_load = remove_empty_string_from_list(row['shapes'].split(';'))
+            shapes_to_load = remove_empty_string_from_list(row['Layers'].split(';'))
             num_files = len(shapes_to_load)
             if num_files == 0:  # load all shapes.
                 # find the list of shapes in fgi_list
-                ind_list = df_fgi[df_fgi['Titel'] == row['ordnerpfad']].index
+                ind_list = df_fgi[df_fgi['Titel'] == row['Titel']].index
                 shapes_to_load = df_fgi.iloc[ind_list]['Name'].values[0]
             gdf_result = gpd.GeoDataFrame()
             for shapefile in shapes_to_load:
@@ -200,25 +169,20 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
 
             # creat a maps_urls
             if row['create_map_urls']:
-                logging.info(f"Create Map urls for {shapefile}")
+                logging.info(f"Create Map urls for {row['titel_nice']}")
                 gdf_result = gdf_result.to_crs(epsg=4326)
                 gdf_result['Map Links'] = \
                 gdf_result.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
 
             # save the geofile locally
-            titel = row['ordnerpfad']
+            titel = row['Titel']
             titel_dir = os.path.join(file_path, titel)
             os.makedirs(titel_dir, exist_ok=True)
-            if num_files == 0:
-                file_name = f'{titel}.gpkg'
-                geopackage_file = os.path.join(titel_dir, file_name)
-                gdf_result.to_file(geopackage_file, driver='GPKG')
-            else:
-                file_name = f'{titel}_{shapefile}'
-                geopackage_file = os.path.join(titel_dir, file_name)
-                gdf_result.to_file(geopackage_file, driver='GPKG')
+            file_name = f'{row['titel_nice']}.gpkg'
+            geopackage_file = os.path.join(titel_dir, file_name)
+            gdf_result.to_file(geopackage_file, driver='GPKG')
             # save in ftp server
-            ftp_remote_dir = 'harvesters/GVA/data/geopackage'
+            ftp_remote_dir = 'harvesters/GVA/data'
             common.upload_ftp(geopackage_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                                        ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
@@ -228,10 +192,10 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'})
             r.raise_for_status()
             metadata = r.json()
-            modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
+            # modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
             ods_id = row['ods_id']
             schema_file = ''
-            if row['schema_file'] == 'True':
+            if row['schema_file']:
                 schema_file = f'{ods_id}.csv'
 
             # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
@@ -281,9 +245,6 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.1.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
                     'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'], metadata),
                 'dcat.accrualperiodicity': row['dcat.accrualperiodicity'],
-                # todo: Maintenance interval in geocat - create conversion table geocat -> ODS theme. Value in geocat: gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:resourceMaintenance.che:CHE_MD_MaintenanceInformation.gmd:maintenanceAndUpdateFrequency.gmd:MD_MaintenanceFrequencyCode.@codeListValue
-                # License has to be set manually for the moment, since we cannot choose one of the predefined ones through this harvester type
-                # 'license': 'https://creativecommons.org/licenses/by/3.0/ch/deed.de',
                 'attributions': 'Geodaten Kanton Basel-Stadt',
                 # For some datasets, keyword is a list
                 # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
@@ -291,8 +252,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
                 'publisher': row['herausgeber'],
                 'dcat.issued': row['dcat.issued'],
-                # todo: give time in UTC
-                'modified': modified,
+                #'modified': modified,
                 'language': 'de',
                 'publizierende-organisation': row['publizierende_organisation'],
                 # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
@@ -303,24 +263,10 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             })
 
     # Save harvester file
-    # Connect to  the FTP-Server
-    ftp = ftplib.FTP(credentials.ftp_server)
-    ftp.login(credentials.ftp_user, credentials.ftp_pass)
-    ods_path = 'harvesters/GVA/Opendatasoft_Export_GVA.csv'
-    # Download the ods file
-    with open(os.path.join(credentials.data_path,'tmp.csv'), 'wb') as local_file:
-        ftp.retrbinary(f'RETR {ods_path}', local_file.write)
-    ods_metadata = pd.read_csv(os.path.join(credentials.data_path, 'tmp.csv'), sep=';')
-    df_new = pd.DataFrame(metadata_for_ods)
-    ods_metadata = pd.concat([ods_metadata, df_new], ignore_index=True)
-    # Save ods.csv localy 
-    ods_metadata_filename = os.path.join(credentials.data_path, 'Opendatasoft_Export_GVA.csv')
-    ods_metadata.to_csv(ods_metadata_filename, sep=';', index=False)
-
-     # if len(metadata_for_ods) > 0:
-    #     ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
-    #     ods_metadata_filename = os.path.join(credentials.path_root, 'Opendatasoft_Export_GVA.csv')
-    #     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
+    if len(metadata_for_ods) > 0:
+        ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
+        ods_metadata_filename = os.path.join(credentials.data_path, 'Opendatasoft_Export_GVA_GPKG.csv')
+        ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
 
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
         logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
@@ -331,14 +277,17 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
     # Upload each schema_file
     logging.info('Uploading ODS schema files to FTP Server...')
 
-    # for schemafile in ods_metadata['schema_file'].unique():
-    #     if schemafile != '':
-    #         schemafile_with_path = os.path.join(credentials.schema_path, 'schema_files', schemafile)
-    #         if ct.has_changed(schemafile_with_path) and (not no_file_copy):
-    #             logging.info(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
-    #             common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user,
-    #                               credentials.ftp_pass, 'harvesters/GVA')
-    #             ct.update_hash_file(schemafile_with_path)
+    for schemafile in ods_metadata['schema_file'].unique():
+        if schemafile != '':
+            schemafile_with_path = os.path.join(credentials.schema_path, schemafile)
+            if ct.has_changed(schemafile_with_path) and (not no_file_copy):
+                logging.info(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
+                common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user,
+                                  credentials.ftp_pass, 'harvesters/GVA')
+                ct.update_hash_file(schemafile_with_path)
+    else:
+        logging.info('Harvester File contains no entries, no upload necessary.')
+
 
 def main():
     url_wms = 'https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities'
