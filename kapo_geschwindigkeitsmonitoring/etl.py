@@ -35,7 +35,7 @@ def fix_data(filename, measure_id, encoding):
 
 
 def main():
-    push_past_measures = True
+    push_past_measures = False
     if push_past_measures:
         realtime_push_all_past_measures()
     logging.info(f'Connecting to DB...')
