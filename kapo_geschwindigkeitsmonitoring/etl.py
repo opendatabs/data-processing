@@ -35,7 +35,7 @@ def fix_data(filename, measure_id, encoding):
 
 
 def main():
-    push_past_measures = False
+    push_past_measures = True
     if push_past_measures:
         realtime_push_all_past_measures()
     logging.info(f'Connecting to DB...')
@@ -81,7 +81,7 @@ def create_metadata_per_location_df(df):
     raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
-    df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
+
     df_metadata = df[['ID', 'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
@@ -90,7 +90,6 @@ def create_metadata_per_location_df(df):
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
-    df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=metadata_filename, method='hash'):
         common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                           password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
@@ -122,7 +121,6 @@ def create_metadata_per_direction_df(df_metadata):
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
-    df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=richtung_filename, method='hash'):
         common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                           password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
@@ -195,28 +193,22 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         all_df = pd.concat(dfs)
         logging.info(f'{len(dfs)} datasets have been processed in total. ')
 
-        all_data_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.csv'))
-        logging.info(f'Exporting into one huge csv and pickle to {all_data_filename}...')
-        all_df.to_csv(all_data_filename, index=False)
-        all_df.to_pickle(all_data_filename.replace('.csv', '.pkl'))
-        if ct.has_changed(filename=all_data_filename, method='hash'):
-            common.upload_ftp(filename=all_data_filename, server=credentials.ftp_server, user=credentials.ftp_user,
-                              password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
-            odsp.publish_ods_dataset_by_id('100200')
-            odsp.publish_ods_dataset_by_id('100358')
-            ct.update_hash_file(all_data_filename)
-
-        db_filename = all_data_filename.replace('.csv', '.db')
+        db_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.db'))
+        table_name = db_filename.split(os.sep)[-1].replace('.db', '')
         logging.info(f'Saving into sqlite db {db_filename}...')
         conn = sqlite3.connect(db_filename)
-        all_df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace')
+        all_df.to_sql(name=table_name, con=conn, if_exists='replace')
         logging.info(f'Creating index on Richtung ID...')
         with conn:
             conn.execute('CREATE INDEX idx_richtung_datum_messung ON "{}" ("Richtung ID")'.format(
-                db_filename.split(os.sep)[-1].replace('.db', '')
+                table_name
             ))
         conn.close()
-        common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        if ct.has_changed(filename=db_filename, method='hash'):
+            common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+            odsp.publish_ods_dataset_by_id('100200')
+            odsp.publish_ods_dataset_by_id('100358')
+            ct.update_hash_file(db_filename)
 
         return all_df
 
