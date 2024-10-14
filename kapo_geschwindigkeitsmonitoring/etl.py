@@ -81,6 +81,7 @@ def create_metadata_per_location_df(df):
     raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
+    df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
 
     df_metadata = df[['ID', 'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
@@ -90,6 +91,7 @@ def create_metadata_per_location_df(df):
     metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
+    df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=metadata_filename, method='hash'):
         common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                           password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
@@ -198,6 +200,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         logging.info(f'Saving into sqlite db {db_filename}...')
         conn = sqlite3.connect(db_filename)
         all_df.to_sql(name=table_name, con=conn, if_exists='replace')
+        logging.info(f'Saving into pickle {db_filename.replace(".db", ".pkl")}...')
+        all_df.to_pickle(db_filename.replace('.db', '.pkl'))
         logging.info(f'Creating index on Richtung ID...')
         with conn:
             conn.execute('CREATE INDEX idx_richtung_datum_messung ON "{}" ("Richtung ID")'.format(
