@@ -123,6 +123,7 @@ def create_metadata_per_direction_df(df_metadata):
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
+    df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=richtung_filename, method='hash'):
         common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                           password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
