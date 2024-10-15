@@ -29,9 +29,8 @@ def process_upload(upload):
 
 def process_single_file(upload, file, changed):
     file_path = os.path.join(credentials.path_work, file)
-    embargo_over = common.is_embargo_over(file_path)
 
-    if (not upload.get('embargo')) or (upload.get('embargo') and embargo_over):
+    if (not upload.get('embargo')) or (upload.get('embargo') and common.is_embargo_over(file_path)):
         if ct.has_changed(file_path, method='modification_date'):
             changed = True
             ct.update_mod_timestamp_file(file_path)
@@ -43,7 +42,7 @@ def process_single_file(upload, file, changed):
                 upload['dest_dir']
             )
 
-    if upload.get('make_public_embargo') and embargo_over:
+    if upload.get('make_public_embargo') and common.is_embargo_over(file_path):
         ods_id_property = upload['ods_id']
         if isinstance(ods_id_property, list):
             for single_ods_id in ods_id_property:
