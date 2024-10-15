@@ -1,0 +1,22 @@
+{
+    "Geschwindigkeit": 9.0,
+    "Zeit": "10:36:55",
+    "Datum": "08.01.2024",
+    "Richtung ID": 1,
+    "Fahrzeuglänge": 10.1,
+    "Messung-ID": 791,
+    "Datum_Zeit": "08.01.24 10:36:55",
+    "Timestamp": "2024-01-08 10:36:55+01:00",
+    "Richtung": "Isteinerstrasse",
+    "Fzg": 9766,
+    "V50": 23.0,
+    "V85": 28.0,
+    "Ue_Quote": 1.05,
+    "the_geom": "010100002008080000CDCCCC8CF5EC434166666666365A3341",
+    "Strasse": "Sperrstrasse",
+    "Strasse_Nr": "vis 40",
+    "Ort": "Basel",
+    "Zone": 30.0,
+    "Messbeginn": "2024-01-08",
+    "Messende": "2024-01-16"
+}

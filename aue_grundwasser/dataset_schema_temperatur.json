@@ -1,0 +1,22 @@
+{
+    "Date": "2023-01-01",
+    "Time": "00:00:00",
+    "StationNr": "0000000148",
+    "StationId": "148",
+    "StationName": "Hörnliallee (0148)",
+    "SensorNr": 20,
+    "SensName": "Temperatur",
+    "Value": 14.2,
+    "lat": 47.56582587565807,
+    "lon": 7.636258295367558,
+    "geo_point_2d": "47.56582587565807,7.636258295367558",
+    "XCoord": 2614873,
+    "YCoord": 1268365,
+    "topTerrain": 264.47,
+    "refPoint": 264.28,
+    "Status": "raw",
+    "on/offline": "online",
+    "timestamp_text": "2023-01-01T00:00:00",
+    "timestamp": "2022-12-31 23:00:00+00:00",
+    "bohrkataster-link": "https://data.bs.ch/explore/dataset/100182/table/?refine.catnum45=148"
+}

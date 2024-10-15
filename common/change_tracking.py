@@ -119,33 +119,62 @@ def find_new_rows(df_old, df_new, id_columns):
     return new_rows
 
 
+import pandas as pd
+import logging
+
 def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     if columns_to_compare is None:
         columns_to_compare = [col for col in df_new.columns if col not in id_columns]
-
+    # Merge the dataframes on the id columns
     merged = pd.merge(df_old, df_new, on=id_columns, suffixes=('_old', '_new'), how='inner')
     mask = pd.DataFrame(index=merged.index)
+    changed_columns = []  # To store column names where changes occur
     for col in columns_to_compare:
         old_col = merged[f'{col}_old']
         new_col = merged[f'{col}_new']
         if new_col.dtype == 'category':
+            # Handle categorical columns by ensuring they have the same categories
             common_categories = sorted(set(new_col.cat.categories.tolist() + old_col.cat.categories.tolist()))
             new_col = new_col.cat.set_categories(common_categories)
             old_col = old_col.cat.set_categories(common_categories)
+        # Compare columns and record where changes occurred
         mask[col] = ~((old_col == new_col) | (pd.isna(old_col) & pd.isna(new_col)))
+        # If there are changes in this column, add the column name to the list
+        if mask[col].any():
+            changed_columns.append(col)
+    # Filter rows with any changes in the specified columns
     modified_rows = merged[mask.any(axis=1)]
+    
+    # Log the columns that had changes
+    if changed_columns:
+        logging.info(f'Columns with changes: {changed_columns}')
+    else:
+        logging.info('No columns were modified.')
     logging.info(f'Found {len(modified_rows)} modified rows:')
-    deprecated_rows = (modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
-                                     [f'{col}_old' for col in columns_to_compare]].rename(
-        columns={f'{col}_old': col for col in columns_to_compare}))
+    # Deprecated rows (old values)
+    deprecated_rows = modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
+                                    [f'{col}_old' for col in columns_to_compare]].rename(
+        columns={f'{col}_old': col for col in columns_to_compare})
     logging.info(f'Deprecated rows:')
     logging.info(deprecated_rows)
+    # Updated rows (new values)
     updated_rows = modified_rows[([id_columns] if isinstance(id_columns, str) else id_columns) +
                                  [f'{col}_new' for col in columns_to_compare]].rename(
         columns={f'{col}_new': col for col in columns_to_compare})
     logging.info(f'Updated rows:')
     logging.info(updated_rows)
+    # Print detailed changes for debugging
+    for idx, row in modified_rows.iterrows():
+        row_id = row[id_columns] if isinstance(id_columns, str) else tuple(row[id_columns])
+        logging.info(f'\nChanges for row with ID {row_id}:')
+        for col in changed_columns:
+            old_value = row[f'{col}_old']
+            new_value = row[f'{col}_new']
+            if not pd.isna(old_value) or not pd.isna(new_value):
+                logging.info(f" - Column '{col}': old value = {old_value}, new value = {new_value}")
+    
     return deprecated_rows, updated_rows
+
 
 
 def find_deleted_rows(df_old, df_new, id_columns):
