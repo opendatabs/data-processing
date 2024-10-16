@@ -11,7 +11,7 @@ from common import change_tracking as ct
 from gva_geodatenshop import credentials
 import geopandas as gpd
 import shutil
-
+import requests
 
 # Returns value from geocat
 def geocat_value(key):
@@ -65,7 +65,7 @@ def open_csv(file_path):
 
 
 # Function to create Map_links
-def create_map_links(geometry):
+def create_map_links(geometry, p1, p2):
     # check whether the data is a geo point or geo shape
     logging.info(f'the type of the geometry is {geometry.geom_type}')
    # geometry_types = gdf.iloc[0][geometry].geom_type
@@ -76,7 +76,7 @@ def create_map_links(geometry):
 
      #  create a Map_links
     lat, lon = centroid.y, centroid.x
-    Map_links = f'https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}'
+    Map_links = f'https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}'
     return Map_links
 
 
@@ -123,13 +123,24 @@ for index, row in joined_data.iterrows():
 
             if row['create_map_urls']:
                 logging.info(f"Create Map urls for {shpfilename_noext}")
+                # Extract params from redirect
+                link = row['mapbs_link'].replace('www.geo.bs.ch', 'https://geo.bs.ch')
+                response = requests.get(link, allow_redirects=True)
+                # Find the redircet
+                redirect_link = response.url
+                # Extract the part of the URL after the '?'
+                query_string = redirect_link.split('?')[1]
+                # Splitting the parameters at'&'
+                params = query_string.split('&')
+                tree_groups = [param.replace('tree_groups=', '') for param in params if 'tree_groups=' in param][0]
+                tree_group_layers_ = [param.replace('tree_group_layers_', '') for param in params if 'tree_group_layers_' in param][0]
                 # read the shape file in GVA folder
                 gdf = gpd.read_file(shpfile)
                 # make a copy of data frame to protect the unchanged data
                 gdf_transformed = gdf.copy()
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
                 gdf_transformed['Map Links'] = \
-                    gdf_transformed.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
+                    gdf_transformed.apply(lambda row2: create_map_links(row2['geometry'], tree_groups, tree_group_layers_), axis=1, result_type='expand')
                 gdf['Map Links'] = gdf_transformed['Map Links']
                 gdf.to_file(os.path.join(temp_folder_path, shpfilename))
             # Determine shp_to_load_number - the index of the current shape that should be loaded to ods
