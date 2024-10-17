@@ -185,10 +185,10 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 dfs.append(raw_df)
 
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
-                if row['dataset_id'] == '100097':
-                    push_new_rows(raw_df, filename_current_measure)
-                else:
-                    raw_df.to_csv(filename_current_measure, index=False)
+                # if row['dataset_id'] == '100097':
+                #    push_new_rows(raw_df, filename_current_measure)
+                # else:
+                raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
 
     for obj in files_to_upload:
@@ -224,7 +224,7 @@ def push_new_rows(df, filename):
         df.to_csv(filename, index=False)
         # Read again since otherwise it will label every column as modified
         df = pd.read_csv(filename)
-        common.ods_realtime_push_complete_update(df, df_old,
+        common.ods_realtime_push_complete_update(df_old, df,
                                                  id_columns=['Messung-ID', 'Richtung ID', 'Datum_Zeit',
                                                              'Geschwindigkeit', 'Fahrzeuglänge'],
                                                  url=credentials.push_url_100097)
