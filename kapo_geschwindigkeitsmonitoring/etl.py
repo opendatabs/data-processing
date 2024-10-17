@@ -64,7 +64,7 @@ def main():
     df_metadata = create_metadata_per_location_df(df_meta_raw)
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
     df_measurements = create_measurements_df(df_meta_raw, df_metadata_per_direction)
-    # year_file_names = create_measures_per_year(df_measurements)
+    create_measures_per_year(df_measurements)
 
 
 def realtime_push_all_past_measures():
@@ -235,20 +235,17 @@ def push_new_rows(df, filename):
 
 def create_measures_per_year(all_df):
     # Create a separate data file per year
-    all_df['jahr'] = all_df.Timestamp.dt.year
-    all_years = all_df.jahr.unique()
-    year_file_names = []
+    all_years = all_df.messbeginn_jahr.unique()
     for year in all_years:
-        year_data = all_df[all_df.jahr.eq(year)]
+        year_data = all_df[all_df.messbeginn_jahr.eq(year)]
+        logging.info(f"Number of rows in {year}: {year_data.shape[0]}")
         current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
         logging.info(f'Saving {current_filename}...')
         year_data.to_csv(current_filename, index=False)
-        year_file_names.append(current_filename)
         if ct.has_changed(filename=current_filename, method='hash'):
             common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                               password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
             ct.update_hash_file(current_filename)
-    return year_file_names
 
 
 if __name__ == "__main__":
