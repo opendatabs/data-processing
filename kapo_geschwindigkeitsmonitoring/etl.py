@@ -235,6 +235,7 @@ def push_new_rows(df, filename):
 
 def create_measures_per_year(all_df):
     # Create a separate data file per year
+    all_df['messbeginn_jahr'] = all_df.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     all_years = all_df.messbeginn_jahr.unique()
     for year in all_years:
         year_data = all_df[all_df.messbeginn_jahr.eq(year)]
