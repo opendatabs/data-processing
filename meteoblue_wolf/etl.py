@@ -107,8 +107,9 @@ def main():
 
     # Iterate over all json files in the json folder and upload them to the FTP server deleting them afterward
     for json_file in os.listdir(os.path.join(credentials.path, 'json')):
+        jahr = json_file.split('-')[1]
         common.upload_ftp(os.path.join(credentials.path, 'json', json_file), credentials.ftp_server, credentials.ftp_user,
-                          credentials.ftp_pass, 'json')
+                          credentials.ftp_pass, f'json/{jahr}')
         os.remove(os.path.join(credentials.path, 'json', json_file))
     logging.info('Job successful!')
 
