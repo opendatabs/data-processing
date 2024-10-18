@@ -210,6 +210,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     logging.info(f'All data processed and saved to {db_filename} and {pkl_filename}...')
     if ct.has_changed(filename=pkl_filename, method='hash'):
         common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        odsp.publish_ods_dataset_by_id('100097')
         odsp.publish_ods_dataset_by_id('100200')
         odsp.publish_ods_dataset_by_id('100358')
         ct.update_hash_file(pkl_filename)
