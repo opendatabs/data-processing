@@ -35,9 +35,6 @@ def fix_data(filename, measure_id, encoding):
 
 
 def main():
-    push_past_measures = False
-    if push_past_measures:
-        realtime_push_all_past_measures()
     logging.info(f'Connecting to DB...')
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
@@ -65,16 +62,6 @@ def main():
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
     df_measurements = create_measurements_df(df_meta_raw, df_metadata_per_direction)
     create_measures_per_year(df_measurements)
-
-
-def realtime_push_all_past_measures():
-    logging.info(f'Pushing all past measures to ODS...')
-    file_list = common.download_ftp([], credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                                    f'{credentials.ftp_remote_path_data}/100097',
-                                    os.path.join(credentials.path, '100097'), '*.csv')
-    for file in file_list:
-        df = pd.read_csv(file['local_file'])
-        common.batched_ods_realtime_push(df, credentials.push_url_100097)
 
 
 def create_metadata_per_location_df(df):
@@ -185,9 +172,6 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 dfs.append(raw_df)
 
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
-                # if row['dataset_id'] == '100097':
-                #    push_new_rows(raw_df, filename_current_measure)
-                # else:
                 raw_df.to_csv(filename_current_measure, index=False)
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
 
@@ -216,22 +200,6 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         ct.update_hash_file(pkl_filename)
 
     return all_df
-
-
-def push_new_rows(df, filename):
-    # If it does exist, read it in order to compare the two dataframes
-    if os.path.exists(filename):
-        df_old = pd.read_csv(filename)
-        df.to_csv(filename, index=False)
-        # Read again since otherwise it will label every column as modified
-        df = pd.read_csv(filename)
-        common.ods_realtime_push_complete_update(df_old, df,
-                                                 id_columns=['Messung-ID', 'Richtung ID', 'Datum_Zeit',
-                                                             'Geschwindigkeit', 'Fahrzeuglänge'],
-                                                 url=credentials.push_url_100097)
-    else:
-        df.to_csv(filename, index=False)
-        common.batched_ods_realtime_push(df, credentials.push_url_100097)
 
 
 def create_measures_per_year(all_df):
