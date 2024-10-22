@@ -167,6 +167,11 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                     'Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
                 raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
 
+                # Timestamp has to be between Messbeginn and Messende
+                num_rows_before = raw_df.shape[0]
+                raw_df = raw_df[(raw_df['Timestamp'].dt.floor('D') >= raw_df['Messbeginn']) & (raw_df['Timestamp'].dt.floor('D') <= raw_df['Messende'])]
+                logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows due to timestamp not being between Messbeginn and Messende...')
+
                 logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
                 raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
                 dfs.append(raw_df)
