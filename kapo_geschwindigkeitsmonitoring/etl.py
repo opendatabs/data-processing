@@ -169,7 +169,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
                 # Timestamp has to be between Messbeginn and Messende
                 num_rows_before = raw_df.shape[0]
-                raw_df = raw_df[(raw_df['Timestamp'].dt.floor('D') >= raw_df['Messbeginn']) & (raw_df['Timestamp'].dt.floor('D') <= raw_df['Messende'])]
+                raw_df = raw_df[(raw_df['Timestamp'].dt.floor('D') >= pd.to_datetime(raw_df['Messbeginn']).dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward').dt.floor('D')) & (raw_df['Timestamp'].dt.floor('D') <= pd.to_datetime(raw_df['Messende']).dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward').dt.floor('D'))]
                 logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows due to timestamp not being between Messbeginn and Messende...')
 
                 logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
