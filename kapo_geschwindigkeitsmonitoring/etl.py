@@ -181,7 +181,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
 
     for obj in files_to_upload:
-        if True or ct.has_changed(filename=obj['filename'], method='hash'):
+        if ct.has_changed(filename=obj['filename'], method='hash'):
             common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user,
                               password=credentials.ftp_pass,
                               remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
