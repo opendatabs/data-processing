@@ -9,7 +9,7 @@ The Open Data infrastructure of Basel-Stadt consists of the following platforms:
 - Data Platform  https://data.bs.ch
 
 ### Outline of the ETL Process
-Usually, data is published from data-producing governmental entities on internal network drives to the [Fachstelle OGD](https://opendata.bs.ch). From there, jobs running on the data processing server read and _extract_, _transform_ and then _load_ ([ETL](https://en.wikipedia.org/wiki/Extract,_transform,_load)) the resulting dataset to the web server via (S)FTP. These datasets are then retrieved and published by the data platform so that they can be consumed by the public. 
+Usually, data is published from data-producing governmental entities on internal network drives to the [Fachstelle OGD](https://data.bs.ch). From there, jobs running on the data processing server read and _extract_, _transform_ and then _load_ ([ETL](https://en.wikipedia.org/wiki/Extract,_transform,_load)) the resulting dataset to the web server via (S)FTP. These datasets are then retrieved and published by the data platform so that they can be consumed by the public. 
 
 ## Technical Implementation
 ### Involved Systems and their purpose
