@@ -2,7 +2,7 @@ FROM python:3.12.3
 WORKDIR /code/data-processing
 #ARG HTTPS_PROXY
 #ENV HTTPS_PROXY=$HTTPS_PROXY
-COPY /code/data-processing/stata_ods/daily_jobs/update_temporal_coverage/requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir -r requirements.txt
 
