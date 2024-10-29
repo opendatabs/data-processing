@@ -10,6 +10,15 @@ ALTERSGRUPPEN = ['18-24 Jahre', '25-29 Jahre', '30-39 Jahre', '40-49 Jahre', '50
 
 
 def main():
+    # Regierungsratswahlen 2024 (2. Wahlgang)
+    df_rr = process_regierungsrat(which='RR_2_WG')
+    path_export = os.path.join(credentials.path_data, '100405_kandidaturen_wahlgang2_regierungsrat.csv')
+    df_rr.to_csv(path_export, index=False)
+    common.upload_ftp(path_export, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      '/wahlen_abstimmungen/wahlen/rr/kandidaturen_2024')
+    odsp.publish_ods_dataset_by_id('100405')
+
+    """ Don't run since already done
     # Grossratswahlen 2024
     df_gr_2024 = process_grossrat()
     path_export = os.path.join(credentials.path_data, 'export', '100385_kandidaturen_grossrat.csv')
@@ -69,8 +78,6 @@ def main():
                       '/wahlen_abstimmungen/wahlen/rr/kandidaturen_2024')
     odsp.publish_ods_dataset_by_id('100387')
 
-    # Don't run since already done
-    """
     # Regierungsrat-Ersatzwahl 2024
     df_rr = process_regierungsrat()
     path_export = os.path.join(credentials.path_data, '100333_kandidaturen_regierungsrat_ersatz.csv')

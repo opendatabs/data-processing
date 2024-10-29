@@ -70,7 +70,7 @@ def main():
     df_aktuell.loc[df_aktuell['Name'] == "St. Jakob Sportbad", 'Zeitpunkt'] = st_jakob_zeitpunkt
     # Apply the function to the 'Zeitpunkt' column
     df_aktuell['Zeitpunkt'] = pd.to_datetime(df_aktuell['Zeitpunkt'].apply(convert_datetime)).dt.tz_localize(
-        'Europe/Zurich')
+        'Europe/Zurich', ambiguous=True)
     df_aktuell = df_aktuell.dropna()
     df_aktuell['Zeitpunkt_Job'] = pd.to_datetime(datetime.now()).tz_localize('Europe/Zurich')
     path_export = os.path.join(credentials.path_new, '100388_gartenbaeder_temp_live.csv')

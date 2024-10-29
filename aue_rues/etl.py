@@ -16,18 +16,12 @@ def download_latest_data(truebung=False):
                                'onlinedaten', local_path, '*_RUES_Online_S3.csv', list_only=False)
 
 
-# S3: {"Startzeitpunkt": "01.01.2020 00:00:00", "Endezeitpunkt": "01.01.2020 00:15:00",
-# "RUS.W.O.S3.LF": 384.1, "RUS.W.O.S3.O2": 12.31, "RUS.W.O.S3.PH": 8.03, "RUS.W.O.S3.TE": 6.58}
 def push_data_files_old(csv_files, truebung=False):
     for file in csv_files:
         df = pd.read_csv(file['local_file'], sep=';')
-        # {"Startzeitpunkt": "01.01.2020 00:00:00", "Endezeitpunkt": "01.01.2020 00:15:00", "RUS.W.O.S3.LF": 384.1, "RUS.W.O.S3.O2": 12.31, "RUS.W.O.S3.PH": 8.03, "RUS.W.O.S3.TE": 6.58}
-        # Trübung: {"Startzeitpunkt": "20.10.2020 09:00:00", "Endezeitpunkt": "20.10.2020 10:00:00", "RUS.W.O.MS.TR": 1.9}
-        r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
+        common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
 
-# Trübung: {"Startzeitpunkt": "2023-11-22 22:00:00+0100", "Endezeitpunkt": "2023-11-22 23:00:00+0100",
-# "RUS.W.O.MS.TR": 1.9}
 def push_data_files(csv_files, truebung=False):
     # Dictionary to hold the files grouped by date
     dfs_by_date = defaultdict(pd.DataFrame)
@@ -39,7 +33,6 @@ def push_data_files(csv_files, truebung=False):
 
     for date, df in dfs_by_date.items():
         logging.info(f'Processing files for date {date}...')
-        df = df.drop_duplicates()
         df = df.sort_values(by=['Startzeitpunkt']).reset_index(drop=True)
 
         df['Startzeitpunkt'] = (pd.to_datetime(df['Startzeitpunkt'], format='%d.%m.%Y %H:%M:%S')
@@ -48,7 +41,7 @@ def push_data_files(csv_files, truebung=False):
         df['Endezeitpunkt'] = df['Startzeitpunkt'] + datetime.timedelta(hours=1)
         df['Startzeitpunkt'] = df['Startzeitpunkt'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
         df['Endezeitpunkt'] = df['Endezeitpunkt'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
-        r = common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
+        common.ods_realtime_push_df(df, url=credentials.ods_push_url_truebung if truebung else credentials.ods_push_url)
 
 
 def archive_data_files(csv_files, truebung=False):

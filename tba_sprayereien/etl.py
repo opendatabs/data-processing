@@ -36,6 +36,7 @@ def main():
         gdf['erfassungszeit'] = pd.to_datetime(gdf['erfassungszeit']).dt.tz_localize('Europe/Zurich')
         path_export = os.path.join(credentials.data_path, 'export', '100389_sprayereien.csv')
         gdf.to_csv(path_export, index=False)
+        common.update_ftp_and_odsp(path_export, 'tba/sprayereien', '100389')
 
 
 def download_spatial_descriptors(ods_id):
