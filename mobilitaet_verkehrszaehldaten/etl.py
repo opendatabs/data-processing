@@ -84,11 +84,12 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     # Create a separate dataset per ZST_NR
     all_sites = data.Zst_id.unique()
     for site in all_sites:
-        site_data = data[data.Zst_id.eq(site)]
-        current_filename = os.path.join(dest_path, 'sites', str(site) + '_' + filename)
-        print(f'Saving {current_filename}...')
-        site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
-        generated_filenames.append(current_filename)
+        for traffic_type in ['MIV', 'Velo', 'Fussgänger']:
+            site_data = data[data.Zst_id.eq(site) & data.TrafficType.eq(traffic_type)]
+            current_filename = os.path.join(dest_path, 'sites', traffic_type, str(site))
+            print(f'Saving {current_filename}...')
+            site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+            generated_filenames.append(current_filename)
 
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
@@ -110,8 +111,13 @@ def main():
             if not no_file_copy:
                 for file in file_names:
                     if ct.has_changed(file):
-                        common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                                          'sites' if 'sites' in file else '')
+                        if 'sites' in file:
+                            type = file.split(os.sep)[-2]
+                            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                              f'verkehrszaehl_dashboard/data/{type}')
+                        else:
+                            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                              '')
                         ct.update_hash_file(file)
             ct.update_hash_file(datafile_with_path)
 
