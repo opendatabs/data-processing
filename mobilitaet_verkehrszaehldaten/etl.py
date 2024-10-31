@@ -88,7 +88,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             site_data = data[data.Zst_id.eq(site) & data.TrafficType.eq(traffic_type)]
             if site_data.empty:
                 continue
-            current_filename = os.path.join(dest_path, 'sites', traffic_type, str(site))
+            current_filename = os.path.join(dest_path, 'sites',
+                                            'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
+                                            f'{str(site)}.csv')
             print(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
             generated_filenames.append(current_filename)
