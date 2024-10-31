@@ -80,20 +80,21 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         print(f'Saving {current_filename}...')
         year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
-
-    # Create a separate dataset per ZST_NR
-    all_sites = data.Zst_id.unique()
-    for site in all_sites:
-        for traffic_type in ['MIV', 'Velo', 'Fussgänger']:
-            site_data = data[data.Zst_id.eq(site) & data.TrafficType.eq(traffic_type)]
-            if site_data.empty:
-                continue
-            current_filename = os.path.join(dest_path, 'sites',
-                                            'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
-                                            f'{str(site)}.csv')
-            print(f'Saving {current_filename}...')
-            site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
-            generated_filenames.append(current_filename)
+        
+    if 'MIV_Speed' not in filename:
+        # Create a separate dataset per ZST_NR
+        all_sites = data.Zst_id.unique()
+        for site in all_sites:
+            for traffic_type in ['MIV', 'Velo', 'Fussgänger']:
+                site_data = data[data.Zst_id.eq(site) & data.TrafficType.eq(traffic_type)]
+                if site_data.empty:
+                    continue
+                current_filename = os.path.join(dest_path, 'sites',
+                                                'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
+                                                f'{str(site)}.csv')
+                print(f'Saving {current_filename}...')
+                site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+                generated_filenames.append(current_filename)
 
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
