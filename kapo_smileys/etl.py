@@ -143,9 +143,15 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
     for f in tagesdaten_files:
         logging.info(f'Parsing Messdaten File {f}...')
         # p = re.compile(r'Datenablage\\\\(?P<idstandort>\d+)_')
-        df = (pd.read_csv(f, sep=' ', names=['Datum', 'Zeit', 'V_Einfahrt', 'dummy', 'V_Ausfahrt'])
+        df = (pd.read_csv(f, sep=' ', names=['Datum', 'Zeit', 'V_Einfahrt', 'dummy', 'V_Ausfahrt'], dtype=str,
+                          encoding='utf-8', encoding_errors='ignore')
               .rename(columns={'Datum': 'Messung_Datum', 'Zeit': 'Messung_Zeit'})
               .drop(columns=['dummy']))
+        # Ignore all rows that do not have the correct format
+        df = df[df.Messung_Datum.str.match(r'\d{2}\.\d{2}\.\d{2}')]
+        df = df[df.Messung_Zeit.str.match(r'\d{2}:\d{2}:\d{2}')]
+        df = df[df.V_Einfahrt.str.match(r'\d{3}')]
+        df = df[df.V_Ausfahrt.str.match(r'\d{3}')]
         df['Messung_Timestamp'] = pd.to_datetime(df.Messung_Datum + 'T' + df.Messung_Zeit, format='%d.%m.%yT%H:%M:%S')
         df['is_dt'] = df['Messung_Timestamp'].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
         df.loc[df['is_dt'], 'Messung_Timestamp'] = df['Messung_Timestamp'] - pd.Timedelta(hours=1)
@@ -156,6 +162,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df['id_standort'] = id_standort
         day_str = os.path.basename(f).split('.')[0]
         df['day_str'] = day_str
+        df['V_Einfahrt'] = df.V_Einfahrt.astype(int)
+        df['V_Ausfahrt'] = df.V_Ausfahrt.astype(int)
         df['V_Delta'] = df.V_Ausfahrt - df.V_Einfahrt
         # Determining Zyklus and Smiley_Nr of measurement
         df_m1 = pd.merge(df_einsatz_days, df, how='right', on=['id_standort', 'day_str']).drop(
