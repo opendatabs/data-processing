@@ -85,7 +85,7 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
     messdaten_path = os.path.join(curr_dir, 'data_orig', 'Datenablage')
     list_path = os.path.join(curr_dir, 'data', 'list_files.txt')
     common.list_files(messdaten_path, list_path, recursive=True)
-    if ct.has_changed(list_path):
+    if True or ct.has_changed(list_path):
         messdaten_folders = glob.glob(os.path.join(messdaten_path, '*'))
         messdaten_dfs = []
         stat_dfs = []
@@ -176,9 +176,9 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         messdaten_dfs_pro_standort.append(df_m)
         export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
         df_m.to_csv(export_file_single, index=False)
-        if ct.has_changed(export_file_single):
+        if True or ct.has_changed(export_file_single):
             common.upload_ftp(export_file_single, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'kapo/smileys/data')
+                              f'kapo/smileys/data/zyklus{int(df_m.Zyklus.iloc[0])}')
             ct.update_hash_file(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
