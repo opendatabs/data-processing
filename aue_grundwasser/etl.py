@@ -144,8 +144,7 @@ def retrieve_1416_x_coordinates():
 
 
 def main():
-    realtime_push_past_measures('10')
-    realtime_push_past_measures('20')
+    realtime_push_past_measures()
     x_coord_1416 = 0
     files_to_process = list_files()
     if len(files_to_process) > 0:
