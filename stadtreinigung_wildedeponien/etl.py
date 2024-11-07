@@ -49,7 +49,7 @@ def main():
         df['raster_lon'] = ((df.lon - offset_lon) // raster_size) * raster_size + offset_lon
         # df['diff_lat'] = df.lat - df.raster_lat
         # df['diff_lon'] = df.lon - df.raster_lon
-        df.drop(['geometry', 'coords', 'lat', 'lon', 'adresse'], axis=1, inplace=True)
+        # df.drop(['geometry', 'coords', 'lat', 'lon', 'adresse'], axis=1, inplace=True)
 
         # logging.info('Extracting lat and long using regex from column "koordinaten..."')
         # 'POINT\((?<long> \d *.\d *)\s(?<lat> \d *.\d *)\)'
@@ -75,7 +75,7 @@ def main():
         logging.info('Spatially joining points with Bezirk...')
         gdf_wv_bez = gpd.sjoin(gdf_wv, df_bez, how='left', op="within", rsuffix='bez', lsuffix='points')
         logging.info('Dropping unnecessary columns...')
-        gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'],
+        gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit'],
                         inplace=True)
 
         # todo: Find nearest Wohnviertel / Bezirk of points outside of those shapes (Rhein, Outside of BS territory)
