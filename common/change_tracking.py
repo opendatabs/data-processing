@@ -119,9 +119,6 @@ def find_new_rows(df_old, df_new, id_columns):
     return new_rows
 
 
-import pandas as pd
-import logging
-
 def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     if columns_to_compare is None:
         columns_to_compare = [col for col in df_new.columns if col not in id_columns]
@@ -130,6 +127,10 @@ def find_modified_rows(df_old, df_new, id_columns, columns_to_compare=None):
     mask = pd.DataFrame(index=merged.index)
     changed_columns = []  # To store column names where changes occur
     for col in columns_to_compare:
+        # If a new row gets added to the dataframe, the old column will be NaN
+        if f'{col}_old' not in merged.columns:
+            merged[f'{col}_old'] = ''
+            merged[f'{col}_new'] = merged[col]
         old_col = merged[f'{col}_old']
         new_col = merged[f'{col}_new']
         if new_col.dtype == 'category':
