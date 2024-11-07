@@ -94,7 +94,7 @@ def main():
                                   'MAXPARKZ': 'maxparkz', 'KEINL': 'keinl'}).drop(columns=['TARIF_C1'])
         gdf['tarif_gebiet'] = gdf['tarif_code'].str[:1]
 
-        columns_of_interest = ['id', 'anzahl_parkfelder', 'typ', 'tarif_gebiet', 'sopfg_geb',
+        columns_of_interest = ['id', 'anzahl_parkfelder', 'id_typ', 'typ', 'tarif_gebiet', 'sopfg_geb',
                                'tarif_id', 'tarif_code', 'gebpflicht', 'maxparkz', 'keinl',
                                'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name', 'strasse']
         gdf_export = gdf[columns_of_interest]
