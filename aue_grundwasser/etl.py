@@ -16,10 +16,13 @@ def realtime_push_past_measures(sensornr=''):
                                         f'{credentials.ftp_path_up}/values/SensorNr_{sensornr}',
                                         os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr}'), '*.csv')
         sorted_file_list = sorted(file_list, key=lambda x: x['remote_file'])
+        dfs = []
         for file in sorted_file_list:
-            df = pd.read_csv(file['local_file'])
-            df = df[df['Status'] == 'cleansed']
-            common.batched_ods_realtime_push(df, (
+            dfs = dfs.append(pd.read_csv(file['local_file']))
+        df = pd.concat(dfs)
+        # Make sure the raw measures are not pushed if there are cleansed ones with same timestamp and station
+        df = df.sort_values(by=['timestamp', 'StationNr', 'Status']).drop_duplicates(subset=['timestamp', 'StationNr'])
+        common.batched_ods_realtime_push(df, (
                 credentials.push_url_wasserstand if sensornr == '10' else credentials.push_url_temperatur))
     else:
         logging.info('No sensor specified for realtime pushing of past measures, skipping...')
