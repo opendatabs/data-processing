@@ -18,6 +18,7 @@ def realtime_push_past_measures(sensornr=''):
         sorted_file_list = sorted(file_list, key=lambda x: x['remote_file'])
         for file in sorted_file_list:
             df = pd.read_csv(file['local_file'])
+            df = df[df['Status'] == 'cleansed']
             common.batched_ods_realtime_push(df, (
                 credentials.push_url_wasserstand if sensornr == '10' else credentials.push_url_temperatur))
     else:
@@ -140,7 +141,8 @@ def retrieve_1416_x_coordinates():
 
 
 def main():
-    realtime_push_past_measures()
+    realtime_push_past_measures('10')
+    realtime_push_past_measures('20')
     x_coord_1416 = 0
     files_to_process = list_files()
     if len(files_to_process) > 0:
