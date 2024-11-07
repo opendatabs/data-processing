@@ -144,7 +144,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         logging.info(f'Parsing Messdaten File {f}...')
         # p = re.compile(r'Datenablage\\\\(?P<idstandort>\d+)_')
         df = (pd.read_csv(f, sep=' ', names=['Datum', 'Zeit', 'V_Einfahrt', 'dummy', 'V_Ausfahrt'], dtype=str,
-                          encoding='utf-8', encoding_errors='ignore')
+                          encoding='utf-8', encoding_errors='ignore', on_bad_lines='skip')
               .rename(columns={'Datum': 'Messung_Datum', 'Zeit': 'Messung_Zeit'})
               .drop(columns=['dummy']))
         # Ignore all rows that do not have the correct format
