@@ -148,10 +148,10 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
               .rename(columns={'Datum': 'Messung_Datum', 'Zeit': 'Messung_Zeit'})
               .drop(columns=['dummy']))
         # Ignore all rows that do not have the correct format
-        df = df[df.Messung_Datum.str.match(r'\d{2}\.\d{2}\.\d{2}')]
-        df = df[df.Messung_Zeit.str.match(r'\d{2}:\d{2}:\d{2}')]
-        df = df[df.V_Einfahrt.str.match(r'\d{3}')]
-        df = df[df.V_Ausfahrt.str.match(r'\d{3}')]
+        df = df[df.Messung_Datum.str.match(r'^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.\d{2}$')]
+        df = df[df.Messung_Zeit.str.match(r'^(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$')]
+        df = df[df.V_Einfahrt.str.match(r'^\d{3}$')]
+        df = df[df.V_Ausfahrt.str.match(r'^\d{3}$')]
         df['Messung_Timestamp'] = pd.to_datetime(df.Messung_Datum + 'T' + df.Messung_Zeit, format='%d.%m.%yT%H:%M:%S')
         df['is_dt'] = df['Messung_Timestamp'].apply(lambda x: is_dt(x, pytz.timezone('Europe/Zurich')))
         df.loc[df['is_dt'], 'Messung_Timestamp'] = df['Messung_Timestamp'] - pd.Timedelta(hours=1)
