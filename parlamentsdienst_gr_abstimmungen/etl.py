@@ -513,7 +513,7 @@ def calc_details_from_single_json_file(local_file, df_name_trakt, df_members):
     df_json['Datenstand_text'] = df_json['created'].str.replace('Z', '+0000', regex=False)
     df_json['Datenstand'] = pd.to_datetime(df_json['Datenstand_text'])
     df_json['Entscheid_Mitglied'] = df_json['individual_result'].replace(
-        {'y': 'J', 'n': 'N', 'a': 'E', 'x': 'A', ' ': 'A'})
+        {'y': 'J', 'n': 'N', 'a': 'E', 'x': 'A', ' ': 'A', '0': 'A'})
     df_json.loc[(df_json['chairman']) & (df_json['Entscheid_Mitglied'] == 'A'), 'Entscheid_Mitglied'] = 'P'
     df_json['Anz_P'] = 0 if df_json['Entscheid_Mitglied'].str.contains('P').sum() == 0 else 1
     df_json['Anz_A'] = 100 - (df_json['Anz_J'] + df_json['Anz_N'] + df_json['Anz_E'] + df_json['Anz_P'])
@@ -545,7 +545,7 @@ def main():
     # Uncomment to process older poll data
     # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
-    if is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+    if is_session_now(ical_file_path, hours_before_start=1464, hours_after_end=10):
         poll_dfs.append(
             (handle_polls_json(process_archive=False, df_unique_session_dates=df_unique_session_dates), 'aktuell_json'))
 
