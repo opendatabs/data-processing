@@ -8,24 +8,7 @@ from aue_grundwasser import credentials
 import ods_publish.etl_id as odsp
 from zoneinfo import ZoneInfo
 import numpy as np
-
-
-def realtime_push_past_measures(sensornr=''):
-    if sensornr == '10' or sensornr == '20':
-        file_list = common.download_ftp([], credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up,
-                                        f'{credentials.ftp_path_up}/values/SensorNr_{sensornr}',
-                                        os.path.join(credentials.data_path, 'values', f'SensorNr_{sensornr}'), '*.csv')
-        sorted_file_list = sorted(file_list, key=lambda x: x['remote_file'])
-        dfs = []
-        for file in sorted_file_list:
-            dfs = dfs.append(pd.read_csv(file['local_file']))
-        df = pd.concat(dfs)
-        # Make sure the raw measures are not pushed if there are cleansed ones with same timestamp and station
-        df = df.sort_values(by=['timestamp', 'StationNr', 'Status']).drop_duplicates(subset=['timestamp', 'StationNr'])
-        common.batched_ods_realtime_push(df, (
-                credentials.push_url_wasserstand if sensornr == '10' else credentials.push_url_temperatur))
-    else:
-        logging.info('No sensor specified for realtime pushing of past measures, skipping...')
+from io import StringIO
 
 
 def list_files():
@@ -96,10 +79,6 @@ def process(file, x_coords_1416):
         df_filter[value_columns].to_csv(value_filename, index=False)
         common.upload_ftp(value_filename, credentials.ftp_server, credentials.ftp_user_up, credentials.ftp_pass_up,
                           '/'.join([credentials.ftp_path_up, 'values', f'SensorNr_{sensornr_filter}']))
-        # Convert timestamp to string for realtime push
-        df_filter['timestamp'] = df_filter['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
-        common.batched_ods_realtime_push(df_filter[value_columns].reset_index(),
-                                            (credentials.push_url_wasserstand if sensornr_filter == 10 else credentials.push_url_temperatur))
         exported_files.append(value_filename)
 
         if export_stats:
@@ -144,7 +123,6 @@ def retrieve_1416_x_coordinates():
 
 
 def main():
-    realtime_push_past_measures()
     x_coord_1416 = 0
     files_to_process = list_files()
     if len(files_to_process) > 0:
@@ -157,7 +135,7 @@ def main():
         process(file['local_file'], x_coord_1416)
         files.append(file)
     if len(files_to_process) > 0:
-        for ods_id in ['100180', '100181']:
+        for ods_id in ['100164', '100179', '100180', '100181']:
             odsp.publish_ods_dataset_by_id(ods_id)
             pass
     for file in files:
