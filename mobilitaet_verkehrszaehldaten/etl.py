@@ -9,6 +9,7 @@ import os
 import platform
 import sqlite3
 import pytz
+import io
 
 print(f'Python running on the following architecture:')
 print(f'{platform.architecture()}')
@@ -96,7 +97,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
                 generated_filenames.append(current_filename)
 
-    df_dtv = calculate_avg_traffic_per_zst(data, filename)
+    df_dtv = calculate_avg_traffic_per_zst(data, dest_path, filename)
     if df_dtv is not None:
         current_filename = os.path.join(dest_path, 'dtv_' + filename)
         print(f'Saving {current_filename}...')
@@ -107,7 +108,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     return generated_filenames
 
 
-def calculate_avg_traffic_per_zst(df, filename):
+def calculate_avg_traffic_per_zst(df, dest_path, filename):
     url_to_locations = 'https://data.bs.ch/explore/dataset/100038/download/'
     params = {
         'format': 'csv',
@@ -115,9 +116,7 @@ def calculate_avg_traffic_per_zst(df, filename):
         'klasse': 'Dauerzaehlstelle'
     }
     r = common.requests_get(url_to_locations, params=params)
-    with open(os.path.join(credentials.path_orig, 'locations.csv'), 'wb') as f:
-        f.write(r.content)
-    df_locations = pd.read_csv(os.path.join(credentials.path_orig, 'locations.csv'), sep=';', encoding='utf-8')
+    df_locations = pd.read_csv(io.StringIO(r.text), sep=';', encoding='utf-8')
     # Expand ZWECK to several lines if there is a +
     df_locations['zweck'] = df_locations['zweck'].str.split('+')
     df_locations = df_locations.explode('zweck')
@@ -157,7 +156,7 @@ def main():
     # Upload processed and truncated data
     for datafile in filename_orig:
         datafile_with_path = os.path.join(credentials.path_orig, datafile)
-        if ct.has_changed(datafile_with_path):
+        if True or ct.has_changed(datafile_with_path):
             file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
             if not no_file_copy:
                 for file in file_names:
