@@ -96,8 +96,54 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
                 generated_filenames.append(current_filename)
 
+    df_dtv = calculate_avg_traffic_per_zst(data, filename)
+    if df_dtv is not None:
+        current_filename = os.path.join(dest_path, 'dtv_' + filename)
+        print(f'Saving {current_filename}...')
+        df_dtv.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+        generated_filenames.append(current_filename)
+
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
+
+
+def calculate_avg_traffic_per_zst(df, filename):
+    url_to_locations = 'https://data.bs.ch/explore/dataset/100038/download/'
+    params = {
+        'format': 'csv',
+        'timezone': 'Europe/Zurich',
+        'klasse': 'Dauerzaehlstelle'
+    }
+    r = common.requests_get(url_to_locations, params=params)
+    with open(os.path.join(credentials.path_orig, 'locations.csv'), 'wb') as f:
+        f.write(r.content)
+    df_locations = pd.read_csv(os.path.join(credentials.path_orig, 'locations.csv'), sep=';', encoding='utf-8')
+    # Expand ZWECK to several lines if there is a +
+    df_locations['zweck'] = df_locations['zweck'].str.split('+')
+    df_locations = df_locations.explode('zweck')
+    # Replace Velo/Moto with Velo and Fuss with Fussgänger
+    df_locations['zweck'] = df_locations['zweck'].str.replace('Velo/Moto', 'Velo')
+    df_locations['zweck'] = df_locations['zweck'].str.replace('Fuss', 'Fussgänger')
+
+    # For each filename first sum up the daily traffic volume per site and traffic type, then calculate the average
+    aggregation_dict = {
+        'MIV_Speed.csv': ['Total', '20', '20_30', '30_40', '40_50', '50_60', '60_70', '70_80', '80_90', '90_100',
+                          '100_110', '110_120', '120_130', '130'],
+        'Velo_Fuss_Count.csv': ['Total'],
+        'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+', 'Sattelzug',
+                               'Bus', 'andere']
+    }
+    if filename in aggregation_dict:
+        columns = aggregation_dict[filename]
+        df_tv = df.groupby(['Zst_id', 'Date', 'TrafficType'])[columns].sum().reset_index()
+        df_dtv = df_tv.groupby(['Zst_id', 'TrafficType'])[columns].mean().reset_index()
+
+        df_count_data_points = df_tv.groupby(['Zst_id', 'TrafficType'])[['Total']].count().reset_index()
+        df_dtv['Num_HourValues'] = df_count_data_points['Total']
+        # Merge with locations
+        df_dtv = df_dtv.merge(df_locations, left_on=['Zst_id', 'TrafficType'], right_on=['id_zst', 'zweck'], how='left')
+
+        return df_dtv
 
 
 def main():
