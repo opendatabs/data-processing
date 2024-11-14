@@ -137,10 +137,13 @@ def calculate_dtv_zst(df, dest_path, filename):
     if filename in aggregation_dict:
         columns = aggregation_dict[filename]
         df_tv = df.groupby(['Zst_id', 'Date', 'TrafficType'])[columns].sum().reset_index()
+        # Remove rows with Total = 0
+        df_tv = df_tv[df_tv['Total'] > 0]
         df_dtv = df_tv.groupby(['Zst_id', 'TrafficType'])[columns].mean().reset_index()
 
-        df_count_data_points = df_tv.groupby(['Zst_id', 'TrafficType'])[['Total']].count().reset_index()
-        df_dtv['Num_HourValues'] = df_count_data_points['Total']
+        df_count_data_points = df.groupby(['Zst_id', 'TrafficType'])['DateTimeFrom'].count().reset_index()
+        df_dtv = df_dtv.merge(df_count_data_points, on=['Zst_id', 'TrafficType'], how='left')
+        df_dtv.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
         # Merge with locations
         df_dtv = df_dtv.merge(df_locations, left_on=['Zst_id', 'TrafficType'], right_on=['id_zst', 'zweck'], how='left')
 
