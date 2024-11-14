@@ -141,8 +141,9 @@ def calculate_dtv_zst(df, dest_path, filename):
         df_tv = df_tv[df_tv['Total'] > 0]
         df_dtv = df_tv.groupby(['Zst_id', 'TrafficType'])[columns].mean().reset_index()
 
-        df_count_data_points = df.groupby(['Zst_id', 'TrafficType'])['DateTimeFrom'].count().reset_index()
-        df_dtv = df_dtv.merge(df_count_data_points, on=['Zst_id', 'TrafficType'], how='left')
+        df_count = df.groupby(['Zst_id', 'TrafficType'])['DateTimeFrom'].count().reset_index()
+        df_count = df_count[df_count['DateTimeFrom'] > 0]
+        df_dtv = df_dtv.merge(df_count, on=['Zst_id', 'TrafficType'], how='left')
         df_dtv.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
         # Merge with locations
         df_dtv = df_dtv.merge(df_locations, left_on=['Zst_id', 'TrafficType'], right_on=['id_zst', 'zweck'], how='left')
