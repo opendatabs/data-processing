@@ -178,8 +178,8 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             titel = row['Titel']
             titel_dir = os.path.join(file_path, titel)
             os.makedirs(titel_dir, exist_ok=True)
-            file_name = row['titel_nice']
-            geopackage_file = os.path.join(titel_dir, f'{file_name}.gpkg')
+            file_name = f'{row['titel_nice']}.gpkg'
+            geopackage_file = os.path.join(titel_dir, file_name)
             gdf_result.to_file(geopackage_file, driver='GPKG')
             # save in ftp server
             ftp_remote_dir = 'harvesters/GVA/data'
