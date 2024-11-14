@@ -128,8 +128,8 @@ def calculate_dtv_zst(df, dest_path, filename):
 
     # For each filename first sum up the daily traffic volume per site and traffic type, then calculate the average
     aggregation_dict = {
-        'MIV_Speed.csv': ['Total', '20', '20_30', '30_40', '40_50', '50_60', '60_70', '70_80', '80_90', '90_100',
-                          '100_110', '110_120', '120_130', '130'],
+        'MIV_Speed.csv': ['Total', '<20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100',
+                          '100-110', '110-120', '120-130', '>130'],
         'Velo_Fuss_Count.csv': ['Total'],
         'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+', 'Sattelzug',
                                'Bus', 'andere']
