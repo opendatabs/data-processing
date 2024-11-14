@@ -97,7 +97,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
                 generated_filenames.append(current_filename)
 
-    df_dtv = calculate_avg_traffic_per_zst(data, dest_path, filename)
+    df_dtv = calculate_dtv_zst(data, dest_path, filename)
     if df_dtv is not None:
         current_filename = os.path.join(dest_path, 'dtv_' + filename)
         print(f'Saving {current_filename}...')
@@ -108,7 +108,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     return generated_filenames
 
 
-def calculate_avg_traffic_per_zst(df, dest_path, filename):
+def calculate_dtv_zst(df, dest_path, filename):
     url_to_locations = 'https://data.bs.ch/explore/dataset/100038/download/'
     params = {
         'format': 'csv',
@@ -123,6 +123,8 @@ def calculate_avg_traffic_per_zst(df, dest_path, filename):
     # Replace Velo/Moto with Velo and Fuss with Fussgänger
     df_locations['zweck'] = df_locations['zweck'].str.replace('Velo/Moto', 'Velo')
     df_locations['zweck'] = df_locations['zweck'].str.replace('Fuss', 'Fussgänger')
+    # Save id_zst as string
+    df_locations['id_zst'] = df_locations['id_zst'].astype(str)
 
     # For each filename first sum up the daily traffic volume per site and traffic type, then calculate the average
     aggregation_dict = {
