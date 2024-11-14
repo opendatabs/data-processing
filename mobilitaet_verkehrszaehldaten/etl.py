@@ -29,7 +29,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                        sep=';',
                        # encoding='ANSI',
                        encoding='cp1252',
-                       dtype={'SiteCode': 'category', 'SiteName': 'category', 'DirectionName': 'category', 'LaneName': 'category', 'TrafficType': 'category'})
+                       dtype={'SiteCode': 'category', 'SiteName': 'category', 'DirectionName': 'category',
+                              'LaneName': 'category', 'TrafficType': 'category'})
     print(f"Processing {path_to_copied_file}...")
     data['DateTimeFrom'] = pd.to_datetime(data['Date'] + ' ' + data['TimeFrom'], format='%d.%m.%Y %H:%M')
     data['DateTimeTo'] = data['DateTimeFrom'] + pd.Timedelta(hours=1)
@@ -81,34 +82,79 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         print(f'Saving {current_filename}...')
         year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
-        
-    if 'MIV_Speed' not in filename:
-        # Create a separate dataset per ZST_NR
-        all_sites = data.Zst_id.unique()
-        for site in all_sites:
-            for traffic_type in ['MIV', 'Velo', 'Fussgänger']:
-                site_data = data[data.Zst_id.eq(site) & data.TrafficType.eq(traffic_type)]
-                if site_data.empty:
-                    continue
-                current_filename = os.path.join(dest_path, 'sites',
-                                                'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
-                                                f'{str(site)}.csv')
-                print(f'Saving {current_filename}...')
-                site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
-                generated_filenames.append(current_filename)
 
-    df_dtv = calculate_dtv_zst(data, dest_path, filename)
-    if df_dtv is not None:
+    # Create a separate dataset per site and traffic type
+    all_sites = data.Zst_id.unique()
+    for site in all_sites:
+        for traffic_type in ['MIV', 'Velo', 'Fussgänger']:
+            site_data = data[data.Zst_id.eq(site) & data.TrafficType.eq(traffic_type)]
+
+            if site_data.empty:
+                continue
+
+            # Calculate the total counts per hour for each date, direction, and lane
+            df_hourly = site_data.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[
+                'Total'].sum().reset_index()
+            df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName'],
+                                                    columns='HourFrom', values='Total', fill_value=0).reset_index()
+            # Save the hourly data
+            current_filename_hourly = os.path.join(dest_path, 'sites',
+                                                   'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
+                                                   f'{str(site)}_hourly.csv')
+            print(f'Saving {current_filename_hourly}...')
+            df_hourly_pivot.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
+            generated_filenames.append(current_filename_hourly)
+
+            # Calculate the average per day for each year, direction, and lane
+            df_daily = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])['Total'].sum().reset_index()
+            df_days = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])['Date'].nunique().reset_index()
+            df_daily = df_daily.merge(df_days, on=['Year', 'Month', 'DirectionName', 'LaneName'])
+            df_daily['DTV'] = df_daily['Total'] / df_daily['Date']
+            df_monthly_pivot = df_daily.pivot_table(index=['Year', 'DirectionName', 'LaneName'],
+                                                    columns='Month', values='DTV', fill_value=0).reset_index()
+            # Save the monthly data
+            current_filename_monthly = os.path.join(dest_path, 'sites',
+                                                    'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
+                                                    f'{str(site)}_monthly.csv')
+            print(f'Saving {current_filename_monthly}...')
+            df_monthly_pivot.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
+            generated_filenames.append(current_filename_monthly)
+
+            # Save the original site data
+            current_filename = os.path.join(dest_path, 'sites',
+                                            'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
+                                            f'{str(site)}.csv')
+            if filename == 'MIV_Speed.csv':
+                current_filename = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
+            print(f'Saving {current_filename}...')
+            site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+            generated_filenames.append(current_filename)
+
+
+    # Calculate dtv per ZST and traffic type
+    df_locations = download_locations()
+    if 'MIV' in filename:
+        df_dtv = calculate_dtv_zst_miv(data, df_locations, dest_path, filename)
         current_filename = os.path.join(dest_path, 'dtv_' + filename)
         print(f'Saving {current_filename}...')
         df_dtv.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+        generated_filenames.append(current_filename)
+    else:
+        df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(data, df_locations, dest_path, filename)
+        current_filename = os.path.join(dest_path, 'dtv_Velo')
+        print(f'Saving {current_filename}...')
+        df_dtv_velo.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+        generated_filenames.append(current_filename)
+        current_filename = os.path.join(dest_path, 'dtv_Fussgaenger')
+        print(f'Saving {current_filename}...')
+        df_dtv_fuss.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
 
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
 
 
-def calculate_dtv_zst(df, dest_path, filename):
+def download_locations():
     url_to_locations = 'https://data.bs.ch/explore/dataset/100038/download/'
     params = {
         'format': 'csv',
@@ -125,12 +171,14 @@ def calculate_dtv_zst(df, dest_path, filename):
     df_locations['zweck'] = df_locations['zweck'].str.replace('Fuss', 'Fussgänger')
     # Save id_zst as string
     df_locations['id_zst'] = df_locations['id_zst'].astype(str)
+    return df_locations
 
+
+def calculate_dtv_zst_miv(df, df_locations, dest_path, filename):
     # For each filename first sum up the daily traffic volume per site and traffic type, then calculate the average
     aggregation_dict = {
         'MIV_Speed.csv': ['Total', '<20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100',
                           '100-110', '110-120', '120-130', '>130'],
-        'Velo_Fuss_Count.csv': ['Total'],
         'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+', 'Sattelzug',
                                'Bus', 'andere']
     }
@@ -146,9 +194,31 @@ def calculate_dtv_zst(df, dest_path, filename):
         df_dtv = df_dtv.merge(df_count, on=['Zst_id', 'TrafficType'], how='left')
         df_dtv.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
         # Merge with locations
-        df_dtv = df_dtv.merge(df_locations, left_on=['Zst_id', 'TrafficType'], right_on=['id_zst', 'zweck'], how='left')
+        df_dtv = df_dtv.merge(df_locations, left_on=['Zst_id', 'TrafficType'], right_on=['id_zst', 'zweck'],
+                              how='left').drop(columns=['id_zst', 'zweck'])
 
         return df_dtv
+
+
+def calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename):
+    df_tv = df.groupby(['Zst_id', 'Date', 'TrafficType'])['Total'].sum().reset_index()
+    # Remove rows with Total = 0
+    df_tv = df_tv[df_tv['Total'] > 0]
+    df_dtv = df_tv.groupby(['Zst_id', 'TrafficType'])['Total'].mean().reset_index()
+
+    df_count = df.groupby(['Zst_id', 'TrafficType'])['DateTimeFrom'].count().reset_index()
+    df_count = df_count[df_count['DateTimeFrom'] > 0]
+    df_dtv = df_dtv.merge(df_count, on=['Zst_id', 'TrafficType'], how='left')
+    df_dtv.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
+    # Merge with locations
+    df_dtv = df_dtv.merge(df_locations, left_on=['Zst_id', 'TrafficType'], right_on=['id_zst', 'zweck'],
+                          how='left').drop(columns=['id_zst', 'zweck'])
+
+    df_dtv_velo = df_dtv[df_dtv['TrafficType'] == 'Velo']
+    df_dtv_fuss = df_dtv[df_dtv['TrafficType'] == 'Fussgänger']
+    # Rename Fussgänger to Fussgaenger
+    df_dtv_fuss = df_dtv_fuss.rename(columns={'TrafficType': 'TrafficType'.replace('ä', 'a')})
+    return df_dtv_velo, df_dtv_fuss
 
 
 def main():
