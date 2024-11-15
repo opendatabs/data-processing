@@ -102,7 +102,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
             generated_filenames.append(current_filename)
 
-            if True or ct.has_changed(current_filename):
+            if ct.has_changed(current_filename):
                 # Calculate the total counts per hour for each date, direction, and lane
                 df_hourly = site_data.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[
                     'Total'].sum().reset_index()
@@ -213,6 +213,8 @@ def calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename):
     # Remove rows with Total = 0
     df_tv = df_tv[df_tv['Total'] > 0]
     df_dtv = df_tv.groupby(['Zst_id', 'TrafficType'])['Total'].mean().reset_index()
+    # Remove rows with NaN-values
+    df_dtv = df_dtv.dropna()
 
     df_count = df.groupby(['Zst_id', 'TrafficType'])['DateTimeFrom'].count().reset_index()
     df_count = df_count[df_count['DateTimeFrom'] > 0]
@@ -224,8 +226,7 @@ def calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename):
 
     df_dtv_velo = df_dtv[df_dtv['TrafficType'] == 'Velo']
     df_dtv_fuss = df_dtv[df_dtv['TrafficType'] == 'Fussgänger']
-    # Rename Fussgänger to Fussgaenger
-    df_dtv_fuss = df_dtv_fuss.rename(columns={'TrafficType': 'TrafficType'.replace('ä', 'a')})
+    df_dtv_fuss['TrafficType'] = 'Fussgaenger'
     return df_dtv_velo, df_dtv_fuss
 
 
