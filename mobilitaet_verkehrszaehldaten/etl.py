@@ -114,7 +114,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                                                        'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
                                                        f'{str(site)}_hourly.csv')
                 if filename == 'MIV_Speed.csv':
-                    current_filename = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
+                    current_filename_hourly = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
                 print(f'Saving {current_filename_hourly}...')
                 df_hourly_pivot.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
                 generated_filenames.append(current_filename_hourly)
@@ -131,10 +131,12 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                                                         'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
                                                         f'{str(site)}_monthly.csv')
                 if filename == 'MIV_Speed.csv':
-                    current_filename = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
+                    current_filename_monthly = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
                 print(f'Saving {current_filename_monthly}...')
                 df_monthly_pivot.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
                 generated_filenames.append(current_filename_monthly)
+
+                ct.update_hash_file(current_filename)
 
 
     # Calculate dtv per ZST and traffic type
