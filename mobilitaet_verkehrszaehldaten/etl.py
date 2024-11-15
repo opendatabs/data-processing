@@ -149,11 +149,11 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         generated_filenames.append(current_filename)
     else:
         df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(data, df_locations, dest_path, filename)
-        current_filename = os.path.join(dest_path, 'dtv_Velo')
+        current_filename = os.path.join(dest_path, 'dtv_Velo.csv')
         print(f'Saving {current_filename}...')
         df_dtv_velo.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
-        current_filename = os.path.join(dest_path, 'dtv_Fussgaenger')
+        current_filename = os.path.join(dest_path, 'dtv_Fussgaenger.csv')
         print(f'Saving {current_filename}...')
         df_dtv_fuss.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
