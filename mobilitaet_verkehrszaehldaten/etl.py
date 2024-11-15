@@ -102,7 +102,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
             generated_filenames.append(current_filename)
 
-            if ct.has_changed(current_filename):
+            if True or ct.has_changed(current_filename):
                 # Calculate the total counts per hour for each date, direction, and lane
                 df_hourly = site_data.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[
                     'Total'].sum().reset_index()
