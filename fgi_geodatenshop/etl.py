@@ -15,6 +15,7 @@ from common import change_tracking as ct
 
 # Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
 def extract_second_hier_name(row, df2):
+    # extract from wms the second name in the hierarchy
     # Search in df2 for the matching name
     matching_row = df2[df2['Name'] == row['Name']]
     if not matching_row.empty:
@@ -94,7 +95,7 @@ def process_wfs_data(url_wfs):
 
 
 # Function to create Map_links
-def create_map_links(geometry):
+def create_map_links(geometry, p1, p2):
     # check whether the data is a geo point or geo shape
     logging.info(f'the type of the geometry is {geometry.geom_type}')
    # geometry_types = gdf.iloc[0][geometry].geom_type
@@ -105,7 +106,7 @@ def create_map_links(geometry):
 
      #  create a Map_links
     lat, lon = centroid.y, centroid.x
-    Map_links = f'https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}'
+    Map_links = f'https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}'
     return Map_links
 
 
@@ -170,10 +171,21 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             # creat a maps_urls
             if row['create_map_urls']:
                 logging.info(f"Create Map urls for {row['titel_nice']}")
+                # Extract params from redirect
+                link = row['mapbs_link'].replace('www.geo.bs.ch', 'https://geo.bs.ch')
+                response = requests.get(link, allow_redirects=True)
+                # Find the redircet
+                redirect_link = response.url
+                # Extract the part of the URL after the '?'
+                query_string = redirect_link.split('?')[1]
+                # Splitting the parameters at'&'
+                params = query_string.split('&')
+                tree_groups = [param.replace('tree_groups=', '') for param in params if 'tree_groups=' in param][0]
+                tree_group_layers_ = [param.replace('tree_group_layers_', '') for param in params if 'tree_group_layers_' in param][0]
                 gdf_result = gdf_result.to_crs(epsg=4326)
                 gdf_result['Map Links'] = \
-                gdf_result.apply(lambda row2: create_map_links(row2['geometry']), axis=1, result_type='expand')
-
+                gdf_result.apply(lambda row2: create_map_links(row2['geometry'], tree_groups, tree_group_layers_), axis=1, result_type='expand')
+                print(gdf_result.head())
             # save the geofile locally
             titel = row['Titel']
             titel_dir = os.path.join(file_path, titel)
