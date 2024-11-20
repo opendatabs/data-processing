@@ -107,7 +107,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_hourly = site_data.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[
                     'Total'].sum().reset_index()
                 df_hourly = df_hourly[df_hourly['Total'] > 0]
-                df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName'],
+                df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName', 'Weekday'],
                                                         columns='HourFrom', values='Total').reset_index()
                 # Save the hourly data
                 current_filename_hourly = os.path.join(dest_path, 'sites',
