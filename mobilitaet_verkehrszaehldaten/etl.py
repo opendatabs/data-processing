@@ -108,7 +108,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     'Total'].sum().reset_index()
                 df_hourly = df_hourly[df_hourly['Total'] > 0]
                 df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName'],
-                                                        columns='HourFrom', values='Total', fill_value=0).reset_index()
+                                                        columns='HourFrom', values='Total').reset_index()
                 # Save the hourly data
                 current_filename_hourly = os.path.join(dest_path, 'sites',
                                                        'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
@@ -125,7 +125,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_daily = df_daily.merge(df_days, on=['Year', 'Month', 'DirectionName', 'LaneName'])
                 df_daily['DTV'] = df_daily['Total'] / df_daily['Date']
                 df_monthly_pivot = df_daily.pivot_table(index=['Year', 'DirectionName', 'LaneName'],
-                                                        columns='Month', values='DTV', fill_value=0).reset_index()
+                                                        columns='Month', values='DTV').reset_index()
                 # Save the monthly data
                 current_filename_monthly = os.path.join(dest_path, 'sites',
                                                         'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
