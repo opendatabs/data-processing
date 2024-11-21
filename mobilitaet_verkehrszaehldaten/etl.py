@@ -36,6 +36,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['DateTimeTo'] = data['DateTimeFrom'] + pd.Timedelta(hours=1)
     data['Year'] = data['DateTimeFrom'].dt.year
     data['Month'] = data['DateTimeFrom'].dt.month
+    data['Week'] = data['DateTimeFrom'].dt.isocalendar().week
     data['Day'] = data['DateTimeFrom'].dt.day
     data['Weekday'] = data['DateTimeFrom'].dt.weekday
     data['HourFrom'] = data['DateTimeFrom'].dt.hour
@@ -93,51 +94,70 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 continue
 
             # Save the original site data
-            current_filename = os.path.join(dest_path, 'sites',
-                                            'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
-                                            f'{str(site)}.csv')
-            if filename == 'MIV_Speed.csv':
-                current_filename = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
+            if traffic_type == 'Fussgänger':
+                subfolder = 'Fussgaenger'
+            elif filename == 'MIV_Speed.csv':
+                subfolder = 'MIV_Speed'
+            else:
+                subfolder = traffic_type
+
+            # Save the original site data
+            current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.csv')
             print(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
             generated_filenames.append(current_filename)
 
-            if ct.has_changed(current_filename):
-                # Calculate the total counts per hour for each date, direction, and lane
-                df_hourly = site_data.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[
-                    'Total'].sum().reset_index()
-                df_hourly = df_hourly[df_hourly['Total'] > 0]
-                df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName', 'Weekday'],
-                                                        columns='HourFrom', values='Total').reset_index()
-                # Save the hourly data
-                current_filename_hourly = os.path.join(dest_path, 'sites',
-                                                       'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
-                                                       f'{str(site)}_hourly.csv')
-                if filename == 'MIV_Speed.csv':
-                    current_filename_hourly = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
-                print(f'Saving {current_filename_hourly}...')
-                df_hourly_pivot.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
-                generated_filenames.append(current_filename_hourly)
+            if True or ct.has_changed(current_filename):
+                categories = {
+                    'MIV_Speed.csv': ['Total', '<20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90',
+                                      '90-100',
+                                      '100-110', '110-120', '120-130', '>130'],
+                    'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+',
+                                           'Sattelzug',
+                                           'Bus', 'andere'],
+                    'Velo_Fuss_Count.csv': ['Total']}
+                for category in categories[filename]:
+                    # Calculate the total counts per hour for each date, direction, and lane
+                    df_hourly = site_data.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[
+                        category].sum().reset_index()
+                    df_hourly = df_hourly[df_hourly[category] > 0]
+                    df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName', 'Weekday'],
+                                                            columns='HourFrom',
+                                                            values=category).reset_index()
+                    # Save the hourly data
+                    current_filename_hourly = os.path.join(dest_path, 'sites', subfolder,
+                                                           f'{str(site)}_{category}_hourly.csv')
+                    print(f'Saving {current_filename_hourly}...')
+                    df_hourly_pivot.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
+                    generated_filenames.append(current_filename_hourly)
+
+                # Calculate the daily counts per weekday for each week, direction, and lane
+                df_daily = site_data.groupby(['Year', 'Week', 'Weekday', 'Date', 'DirectionName', 'LaneName'])[
+                    categories[filename]].sum().reset_index()
+                df_daily = df_daily[df_daily['Total'] > 0]
+                # Save the daily data
+                current_filename_weekly = os.path.join(dest_path, 'sites', subfolder,
+                                                       f'{str(site)}_daily.csv')
+                print(f'Saving {current_filename_weekly}...')
+                df_daily.to_csv(current_filename_weekly, sep=';', encoding='utf-8', index=False)
+                generated_filenames.append(current_filename_weekly)
 
                 # Calculate the average per day for each year, direction, and lane
-                df_daily = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])['Total'].sum().reset_index()
-                df_days = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])['Date'].nunique().reset_index()
-                df_daily = df_daily.merge(df_days, on=['Year', 'Month', 'DirectionName', 'LaneName'])
-                df_daily['DTV'] = df_daily['Total'] / df_daily['Date']
-                df_monthly_pivot = df_daily.pivot_table(index=['Year', 'DirectionName', 'LaneName'],
-                                                        columns='Month', values='DTV').reset_index()
+                df_monthly = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])[
+                    categories[filename]].sum().reset_index()
+                df_monthly = df_monthly[df_monthly['Total'] > 0]
+                df_measures = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])[
+                    'DateTimeFrom'].nunique().reset_index()
+                df_measures = df_measures[df_measures['DateTimeFrom'] > 0]
+                df_monthly = df_monthly.merge(df_measures, on=['Year', 'Month', 'DirectionName', 'LaneName'])
+                df_monthly[categories[filename]] = df_monthly[categories[filename]] / df_monthly['DateTimeFrom'] * 24
                 # Save the monthly data
-                current_filename_monthly = os.path.join(dest_path, 'sites',
-                                                        'Fussgaenger' if traffic_type == 'Fussgänger' else traffic_type,
+                current_filename_monthly = os.path.join(dest_path, 'sites', subfolder,
                                                         f'{str(site)}_monthly.csv')
-                if filename == 'MIV_Speed.csv':
-                    current_filename_monthly = os.path.join(dest_path, 'sites', 'MIV_Speed', f'{str(site)}.csv')
                 print(f'Saving {current_filename_monthly}...')
-                df_monthly_pivot.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
+                df_monthly.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
                 generated_filenames.append(current_filename_monthly)
-
                 ct.update_hash_file(current_filename)
-
 
     # Calculate dtv per ZST and traffic type
     df_locations = download_locations()
