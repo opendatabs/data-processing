@@ -120,10 +120,10 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     # Calculate the total counts per hour for each date, direction, and lane
 
                     df_cols = site_data[['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
-                    df_filtered = df_cols.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom']).filter(lambda x: len(x) > 1)
-                    df_hourly = df_filtered.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom'])[category].sum().reset_index()
+                    df_filtered = df_cols.groupby(['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom']).filter(lambda x: len(x) > 1)
+                    df_hourly = df_filtered.groupby(['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom'])[category].sum().reset_index()
                     df_hourly = df_hourly[df_hourly[category] > 0]
-                    df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName', 'Weekday'],
+                    df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'Weekday', 'DirectionName', 'LaneName'],
                                                             columns='HourFrom',
                                                             values=category).reset_index()
                     # Save the hourly data
