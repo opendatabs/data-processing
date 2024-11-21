@@ -153,7 +153,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_measures.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
                 df_measures = df_measures[df_measures['NumMeasures'] > 0]
                 df_monthly = df_monthly.merge(df_measures, on=['Year', 'Month', 'DirectionName', 'LaneName'])
-                df_monthly[categories[filename]] = df_monthly[categories[filename]] / df_monthly['NumMeasures'] * 24
+                for col in categories[filename]:
+                    df_monthly[col] = df_monthly[col] / df_monthly['NumMeasures'] * 24
                 # Save the monthly data
                 current_filename_monthly = os.path.join(dest_path, 'sites', subfolder,
                                                         f'{str(site)}_monthly.csv')
@@ -169,7 +170,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_measures.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
                 df_measures = df_measures[df_measures['NumMeasures'] > 0]
                 df_yearly = df_yearly.merge(df_measures, on=['Year', 'DirectionName', 'LaneName'])
-                df_yearly[categories[filename]] = df_yearly[categories[filename]] / df_yearly['NumMeasures'] * 24
+                for col in categories[filename]:
+                    df_yearly[col] = df_yearly[col] / df_yearly['NumMeasures'] * 24
                 # Save the yearly data
                 current_filename_yearly = os.path.join(dest_path, 'sites', subfolder,
                                                        f'{str(site)}_yearly.csv')
