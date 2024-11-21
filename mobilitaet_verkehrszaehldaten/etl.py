@@ -118,7 +118,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     'Velo_Fuss_Count.csv': ['Total']}
                 for category in categories[filename]:
                     # Calculate the total counts per hour for each date, direction, and lane
-                    df_cols = site_data[['Date', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
+
+                    df_cols = site_data[['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
                     df_hourly = df_cols.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom']).filter(lambda x: len(x) > 1)[category].sum().reset_index()
                     df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName', 'Weekday'],
                                                             columns='HourFrom',
