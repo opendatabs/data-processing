@@ -118,9 +118,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     'Velo_Fuss_Count.csv': ['Total']}
                 for category in categories[filename]:
                     # Calculate the total counts per hour for each date, direction, and lane
-                    df_hourly = site_data.groupby(['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom'])[
-                        category].sum().reset_index()
-                    df_hourly = df_hourly[df_hourly[category] > 0]
+
+                    df_cols = site_data[['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
+                    df_hourly = df_cols.groupby(['Date', 'DirectionName', 'LaneName', 'HourFrom']).filter(lambda x: len(x) > 1)[category].sum().reset_index()
                     df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'DirectionName', 'LaneName', 'Weekday'],
                                                             columns='HourFrom',
                                                             values=category).reset_index()
@@ -132,9 +132,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     generated_filenames.append(current_filename_hourly)
 
                 # Calculate the daily counts per weekday for each week, direction, and lane
-                df_daily = site_data.groupby(['Year', 'Week', 'Weekday', 'Date', 'DirectionName', 'LaneName'])[
-                    categories[filename]].sum().reset_index()
-                df_daily = df_daily[df_daily['Total'] > 0]
+                df_cols = site_data[['Year', 'Week', 'Weekday', 'Date', 'DirectionName', 'LaneName'] + categories[filename]].copy()
+                df_daily = df_cols.groupby(['Year', 'Week', 'Weekday', 'Date', 'DirectionName', 'LaneName']).filter(
+                    lambda x: len(x) > 1)[categories[filename]].sum().reset_index()
                 # Save the daily data
                 current_filename_weekly = os.path.join(dest_path, 'sites', subfolder,
                                                        f'{str(site)}_daily.csv')
@@ -143,12 +143,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 generated_filenames.append(current_filename_weekly)
 
                 # Calculate the average per day for each year, direction, and lane
-                df_monthly = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])[
-                    categories[filename]].sum().reset_index()
-                df_monthly = df_monthly[df_monthly['Total'] > 0]
-                df_measures = site_data.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])[
-                    'DateTimeFrom'].nunique().reset_index()
-                df_measures = df_measures[df_measures['DateTimeFrom'] > 0]
+                df_cols = site_data[['Year', 'Month', 'DirectionName', 'LaneName', 'DateTimeFrom'] + categories[filename]].copy()
+                df_monthly = df_cols.groupby(['Year', 'Month', 'DirectionName', 'LaneName']).filter(lambda x: len(x) > 1)[categories[filename]].sum().reset_index()
+                df_measures = df_cols.groupby(['Year', 'Month', 'DirectionName', 'LaneName']).filter(lambda x: len(x) > 1)['DateTimeFrom'].nunique().reset_index()
                 df_monthly = df_monthly.merge(df_measures, on=['Year', 'Month', 'DirectionName', 'LaneName'])
                 df_monthly[categories[filename]] = df_monthly[categories[filename]] / df_monthly['DateTimeFrom'] * 24
                 # Save the monthly data
