@@ -111,21 +111,19 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             if True or ct.has_changed(current_filename):
                 categories = {
                     'MIV_Speed.csv': ['Total', '<20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90',
-                                      '90-100',
-                                      '100-110', '110-120', '120-130', '>130'],
+                                      '90-100', '100-110', '110-120', '120-130', '>130'],
                     'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+',
-                                           'Sattelzug',
-                                           'Bus', 'andere'],
+                                           'Sattelzug', 'Bus', 'andere'],
                     'Velo_Fuss_Count.csv': ['Total']}
                 for category in categories[filename]:
                     # Calculate the total counts per hour for each date, direction, and lane
-
-                    df_to_group = site_data[['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
-                    df_hourly = df_to_group.groupby(['Date', 'Weekday', 'DirectionName', 'LaneName', 'HourFrom'])[category].sum().reset_index()
-                    df_hourly = df_hourly[df_hourly[category] > 0]
-                    df_hourly_pivot = df_hourly.pivot_table(index=['Date', 'Weekday', 'DirectionName', 'LaneName'],
-                                                            columns='HourFrom',
-                                                            values=category).reset_index()
+                    df_to_pivot = site_data[['Date', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
+                    df_to_merge = site_data[['Date', 'Weekday']].copy()
+                    df_hourly_pivot = df_to_pivot.pivot_table(index=['Date', 'DirectionName', 'LaneName'],
+                                                              values=category,
+                                                              columns='HourFrom',
+                                                              aggfunc='sum').reset_index()
+                    df_hourly_pivot = df_hourly_pivot.merge(df_to_merge, on='Date')
                     # Save the hourly data
                     current_filename_hourly = os.path.join(dest_path, 'sites', subfolder,
                                                            f'{str(site)}_{category}_hourly.csv')
@@ -142,8 +140,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_daily = df_daily[df_daily['Total'] > 0]
                 df_daily = df_daily.merge(df_to_merge, on='Date')
                 # Save the daily data
-                current_filename_weekly = os.path.join(dest_path, 'sites', subfolder,
-                                                       f'{str(site)}_daily.csv')
+                current_filename_weekly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
                 print(f'Saving {current_filename_weekly}...')
                 df_daily.to_csv(current_filename_weekly, sep=';', encoding='utf-8', index=False)
                 common.upload_ftp(current_filename_weekly, credentials.ftp_server, credentials.ftp_user,
