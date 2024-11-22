@@ -181,11 +181,10 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
 
     for obj in files_to_upload:
-        if ct.has_changed(filename=obj['filename'], method='hash'):
-            common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user,
-                              password=credentials.ftp_pass,
-                              remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
-            ct.update_hash_file(obj['filename'])
+        common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user,
+                          password=credentials.ftp_pass,
+                          remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
+        os.remove(obj['filename'])
 
     logging.info(f'Creating index on Richtung ID...')
     with conn:
@@ -217,10 +216,9 @@ def create_measures_per_year(all_df):
         current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
         logging.info(f'Saving {current_filename}...')
         year_data.to_csv(current_filename, index=False)
-        if ct.has_changed(filename=current_filename, method='hash'):
-            common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
-                              password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
-            ct.update_hash_file(current_filename)
+        common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
+                          password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+        os.remove(current_filename)
 
 
 if __name__ == "__main__":

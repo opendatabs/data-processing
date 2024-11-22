@@ -105,7 +105,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.csv')
             print(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
-            generated_filenames.append(current_filename)
+            common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                              f'verkehrszaehl_dashboard/data/{subfolder}')
 
             if True or ct.has_changed(current_filename):
                 categories = {
@@ -130,7 +131,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                                                            f'{str(site)}_{category}_hourly.csv')
                     print(f'Saving {current_filename_hourly}...')
                     df_hourly_pivot.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
-                    generated_filenames.append(current_filename_hourly)
+                    common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user,
+                                      credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
+                    os.remove(current_filename_hourly)
 
                 # Calculate the daily counts per weekday for each week, direction, and lane
                 df_to_group = site_data[['Date', 'DirectionName', 'LaneName'] + categories[filename]].copy()
@@ -143,7 +146,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                                                        f'{str(site)}_daily.csv')
                 print(f'Saving {current_filename_weekly}...')
                 df_daily.to_csv(current_filename_weekly, sep=';', encoding='utf-8', index=False)
-                generated_filenames.append(current_filename_weekly)
+                common.upload_ftp(current_filename_weekly, credentials.ftp_server, credentials.ftp_user,
+                                  credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
+                os.remove(current_filename_weekly)
 
                 # Calculate the average per day for each month, direction, and lane
                 df_to_group = site_data[['Year', 'Month', 'DirectionName', 'LaneName', 'DateTimeFrom'] + categories[filename]].copy()
@@ -160,7 +165,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                                                         f'{str(site)}_monthly.csv')
                 print(f'Saving {current_filename_monthly}...')
                 df_monthly.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
-                generated_filenames.append(current_filename_monthly)
+                common.upload_ftp(current_filename_monthly, credentials.ftp_server, credentials.ftp_user,
+                                  credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
+                os.remove(current_filename_monthly)
 
                 # Calculate the average per day for each year, direction, and lane
                 df_to_group = site_data[['Year', 'DirectionName', 'LaneName', 'DateTimeFrom'] + categories[filename]].copy()
@@ -177,7 +184,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                                                        f'{str(site)}_yearly.csv')
                 print(f'Saving {current_filename_yearly}...')
                 df_yearly.to_csv(current_filename_yearly, sep=';', encoding='utf-8', index=False)
-                generated_filenames.append(current_filename_yearly)
+                common.upload_ftp(current_filename_yearly, credentials.ftp_server, credentials.ftp_user,
+                                  credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
+                os.remove(current_filename_yearly)
 
                 ct.update_hash_file(current_filename)
 
@@ -288,13 +297,7 @@ def main():
             if not no_file_copy:
                 for file in file_names:
                     if ct.has_changed(file):
-                        if 'sites' in file:
-                            type = file.split(os.sep)[-2]
-                            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                                              f'verkehrszaehl_dashboard/data/{type}')
-                        else:
-                            common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                                              '')
+                        common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
                         ct.update_hash_file(file)
             ct.update_hash_file(datafile_with_path)
 

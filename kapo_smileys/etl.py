@@ -184,10 +184,10 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         messdaten_dfs_pro_standort.append(df_m)
         export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
         df_m.to_csv(export_file_single, index=False)
-        if not df_m.empty and ct.has_changed(export_file_single):
+        if not df_m.empty:
             common.upload_ftp(export_file_single, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               f'kapo/smileys/data/zyklus{int(df_m.Zyklus.iloc[0])}')
-            ct.update_hash_file(export_file_single)
+            os.remove(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
     if len(df_all_pro_standort.id_standort.unique()) > 1:
