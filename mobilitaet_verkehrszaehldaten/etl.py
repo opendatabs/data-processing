@@ -119,10 +119,9 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     df_to_pivot = site_data[['Date', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
                     df_to_merge = site_data[['Date', 'Weekday']].copy()
                     df_hourly_pivot = df_to_pivot.pivot_table(index=['Date', 'DirectionName', 'LaneName'],
-                                                            columns='HourFrom',
-                                                            values=category,
-                                                            aggfunc='sum').reset_index()
-                    df_hourly_pivot.fillna(0, inplace=True)
+                                                              values=category,
+                                                              columns='HourFrom',
+                                                              aggfunc='sum').reset_index()
                     df_hourly_pivot = df_hourly_pivot.merge(df_to_merge, on='Date')
                     # Save the hourly data
                     current_filename_hourly = os.path.join(dest_path, 'sites', subfolder,
