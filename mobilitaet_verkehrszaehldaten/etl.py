@@ -105,82 +105,83 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.csv')
             print(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
-            common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              f'verkehrszaehl_dashboard/data/{subfolder}')
 
             if True or ct.has_changed(current_filename):
+                common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                                  f'verkehrszaehl_dashboard/data/{subfolder}')
                 categories = {
                     'MIV_Speed.csv': ['Total', '<20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90',
                                       '90-100', '100-110', '110-120', '120-130', '>130'],
                     'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+',
                                            'Sattelzug', 'Bus', 'andere'],
                     'Velo_Fuss_Count.csv': ['Total']}
+                site_data['Direction_LaneName'] = site_data['DirectionName'] + '#' + site_data['LaneName']
                 for category in categories[filename]:
                     # Calculate the total counts per hour for each date, direction, and lane
-                    df_to_pivot = site_data[['Date', 'DirectionName', 'LaneName', 'HourFrom', category]].copy()
+                    df_to_pivot = site_data[['Date', 'Direction_LaneName', 'HourFrom', category]].copy()
                     df_to_merge = site_data[['Date', 'Weekday']].copy()
-                    df_hourly_pivot = df_to_pivot.pivot_table(index=['Date', 'DirectionName', 'LaneName'],
-                                                              values=category,
-                                                              columns='HourFrom',
-                                                              aggfunc='sum').reset_index()
-                    df_hourly_pivot = df_hourly_pivot.merge(df_to_merge, on='Date')
+                    df_agg = df_to_pivot.pivot_table(index=['Date', 'Direction_LaneName'],
+                                                     values=category,
+                                                     columns='HourFrom',
+                                                     aggfunc='sum').reset_index()
+                    df_agg = df_agg.merge(df_to_merge, on='Date')
                     # Save the hourly data
                     current_filename_hourly = os.path.join(dest_path, 'sites', subfolder,
                                                            f'{str(site)}_{category}_hourly.csv')
                     print(f'Saving {current_filename_hourly}...')
-                    df_hourly_pivot.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
+                    df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
                     common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user,
                                       credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
                     os.remove(current_filename_hourly)
 
                 # Calculate the daily counts per weekday for each week, direction, and lane
-                df_to_group = site_data[['Date', 'DirectionName', 'LaneName'] + categories[filename]].copy()
+                df_to_group = site_data[['Date', 'Direction_LaneName'] + categories[filename]].copy()
                 df_to_merge = site_data[['Date', 'Week', 'Weekday', 'Year']].copy()
-                df_daily = df_to_group.groupby(['Date', 'DirectionName', 'LaneName'])[categories[filename]].sum().reset_index()
-                df_daily = df_daily[df_daily['Total'] > 0]
-                df_daily = df_daily.merge(df_to_merge, on='Date')
+                df_agg = df_to_group.groupby(['Date', 'Direction_LaneName'])[categories[filename]].sum().reset_index()
+                df_agg = df_agg[df_agg['Total'] > 0]
+                df_agg = df_agg.merge(df_to_merge, on='Date')
                 # Save the daily data
                 current_filename_weekly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
                 print(f'Saving {current_filename_weekly}...')
-                df_daily.to_csv(current_filename_weekly, sep=';', encoding='utf-8', index=False)
+                df_agg.to_csv(current_filename_weekly, sep=';', encoding='utf-8', index=False)
                 common.upload_ftp(current_filename_weekly, credentials.ftp_server, credentials.ftp_user,
                                   credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
                 os.remove(current_filename_weekly)
 
                 # Calculate the average per day for each month, direction, and lane
-                df_to_group = site_data[['Year', 'Month', 'DirectionName', 'LaneName', 'DateTimeFrom'] + categories[filename]].copy()
-                df_monthly = df_to_group.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])[categories[filename]].sum().reset_index()
-                df_monthly = df_monthly[df_monthly['Total'] > 0]
-                df_measures = df_to_group.groupby(['Year', 'Month', 'DirectionName', 'LaneName'])['DateTimeFrom'].nunique().reset_index()
+                df_to_group = site_data[['Year', 'Month', 'Direction_LaneName', 'DateTimeFrom'] + categories[filename]].copy()
+                df_agg = df_to_group.groupby(['Year', 'Month', 'Direction_LaneName'])[categories[filename]].sum().reset_index()
+                df_agg = df_agg[df_agg['Total'] > 0]
+                df_measures = df_to_group.groupby(['Year', 'Month', 'Direction_LaneName'])['DateTimeFrom'].nunique().reset_index()
                 df_measures.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
                 df_measures = df_measures[df_measures['NumMeasures'] > 0]
-                df_monthly = df_monthly.merge(df_measures, on=['Year', 'Month', 'DirectionName', 'LaneName'])
+                df_agg = df_agg.merge(df_measures, on=['Year', 'Month', 'Direction_LaneName'])
                 for col in categories[filename]:
-                    df_monthly[col] = df_monthly[col] / df_monthly['NumMeasures'] * 24
+                    df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
                 # Save the monthly data
                 current_filename_monthly = os.path.join(dest_path, 'sites', subfolder,
                                                         f'{str(site)}_monthly.csv')
                 print(f'Saving {current_filename_monthly}...')
-                df_monthly.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
+                df_agg.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
                 common.upload_ftp(current_filename_monthly, credentials.ftp_server, credentials.ftp_user,
                                   credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
                 os.remove(current_filename_monthly)
 
                 # Calculate the average per day for each year, direction, and lane
-                df_to_group = site_data[['Year', 'DirectionName', 'LaneName', 'DateTimeFrom'] + categories[filename]].copy()
-                df_yearly = df_to_group.groupby(['Year', 'DirectionName', 'LaneName'])[categories[filename]].sum().reset_index()
-                df_yearly = df_yearly[df_yearly['Total'] > 0]
-                df_measures = df_to_group.groupby(['Year', 'DirectionName', 'LaneName'])['DateTimeFrom'].nunique().reset_index()
+                df_to_group = site_data[['Year', 'Direction_LaneName', 'DateTimeFrom'] + categories[filename]].copy()
+                df_agg = df_to_group.groupby(['Year', 'Direction_LaneName'])[categories[filename]].sum().reset_index()
+                df_agg = df_agg[df_agg['Total'] > 0]
+                df_measures = df_to_group.groupby(['Year', 'Direction_LaneName'])['DateTimeFrom'].nunique().reset_index()
                 df_measures.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
                 df_measures = df_measures[df_measures['NumMeasures'] > 0]
-                df_yearly = df_yearly.merge(df_measures, on=['Year', 'DirectionName', 'LaneName'])
+                df_agg = df_agg.merge(df_measures, on=['Year', 'Direction_LaneName'])
                 for col in categories[filename]:
-                    df_yearly[col] = df_yearly[col] / df_yearly['NumMeasures'] * 24
+                    df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
                 # Save the yearly data
                 current_filename_yearly = os.path.join(dest_path, 'sites', subfolder,
                                                        f'{str(site)}_yearly.csv')
                 print(f'Saving {current_filename_yearly}...')
-                df_yearly.to_csv(current_filename_yearly, sep=';', encoding='utf-8', index=False)
+                df_agg.to_csv(current_filename_yearly, sep=';', encoding='utf-8', index=False)
                 common.upload_ftp(current_filename_yearly, credentials.ftp_server, credentials.ftp_user,
                                   credentials.ftp_pass, f'verkehrszaehl_dashboard/data/{subfolder}')
                 os.remove(current_filename_yearly)
