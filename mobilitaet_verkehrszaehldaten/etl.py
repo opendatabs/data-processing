@@ -115,7 +115,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                     'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.', 'LW', 'LW+',
                                            'Sattelzug', 'Bus', 'andere'],
                     'Velo_Fuss_Count.csv': ['Total']}
-                site_data['Direction_LaneName'] = site_data['DirectionName'] + '#' + site_data['LaneName']
+                site_data['Direction_LaneName'] = site_data['DirectionName'].astype(str) + '#' + site_data['LaneName'].astype(str)
                 for category in categories[filename]:
                     # Calculate the total counts per hour for each date, direction, and lane
                     df_to_pivot = site_data[['Date', 'Direction_LaneName', 'HourFrom', category]].copy()
