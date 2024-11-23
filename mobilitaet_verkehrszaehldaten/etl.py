@@ -119,12 +119,14 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 for category in categories[filename]:
                     # Calculate the total counts per hour for each date, direction, and lane
                     df_to_pivot = site_data[['Date', 'Direction_LaneName', 'HourFrom', category]].copy()
-                    df_to_merge = site_data[['Date', 'Weekday']].copy()
+                    df_to_merge = site_data[['Date', 'Weekday']].copy().drop_duplicates()
                     df_agg = df_to_pivot.pivot_table(index=['Date', 'Direction_LaneName'],
                                                      values=category,
                                                      columns='HourFrom',
                                                      aggfunc='sum').reset_index()
                     df_agg = df_agg.merge(df_to_merge, on='Date')
+                    df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
+                    df_agg = df_agg.drop(columns=['Direction_LaneName'])
                     # Save the hourly data
                     current_filename_hourly = os.path.join(dest_path, 'sites', subfolder,
                                                            f'{str(site)}_{category}_hourly.csv')
@@ -136,10 +138,12 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
 
                 # Calculate the daily counts per weekday for each week, direction, and lane
                 df_to_group = site_data[['Date', 'Direction_LaneName'] + categories[filename]].copy()
-                df_to_merge = site_data[['Date', 'Week', 'Weekday', 'Year']].copy()
+                df_to_merge = site_data[['Date', 'Week', 'Weekday', 'Year']].copy().drop_duplicates()
                 df_agg = df_to_group.groupby(['Date', 'Direction_LaneName'])[categories[filename]].sum().reset_index()
                 df_agg = df_agg[df_agg['Total'] > 0]
                 df_agg = df_agg.merge(df_to_merge, on='Date')
+                df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
+                df_agg = df_agg.drop(columns=['Direction_LaneName'])
                 # Save the daily data
                 current_filename_weekly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
                 print(f'Saving {current_filename_weekly}...')
@@ -158,6 +162,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_agg = df_agg.merge(df_measures, on=['Year', 'Month', 'Direction_LaneName'])
                 for col in categories[filename]:
                     df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
+                df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
+                df_agg = df_agg.drop(columns=['Direction_LaneName'])
                 # Save the monthly data
                 current_filename_monthly = os.path.join(dest_path, 'sites', subfolder,
                                                         f'{str(site)}_monthly.csv')
@@ -177,6 +183,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
                 df_agg = df_agg.merge(df_measures, on=['Year', 'Direction_LaneName'])
                 for col in categories[filename]:
                     df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
+                df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
+                df_agg = df_agg.drop(columns=['Direction_LaneName'])
                 # Save the yearly data
                 current_filename_yearly = os.path.join(dest_path, 'sites', subfolder,
                                                        f'{str(site)}_yearly.csv')
