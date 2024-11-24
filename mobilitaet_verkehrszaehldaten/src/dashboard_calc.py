@@ -235,11 +235,9 @@ def aggregate_weekly(site_data, categories, dest_path, subfolder, site, filename
         df_pivot = df_pivot.drop(columns=['Direction_LaneName'])
 
         # Save the weekly data
-        current_filename_weekly = os.path.join(
-            dest_path, 'sites', subfolder, f'{str(site)}_{category}_weekly.json'
-        )
+        current_filename_weekly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_weekly.json')
         print(f'Saving {current_filename_weekly}...')
-        df_pivot.to_json(current_filename_weekly, orient='records', force_ascii=False)
+        save_as_list_of_lists(df_pivot, current_filename_weekly)
         common.upload_ftp(current_filename_weekly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data/{subfolder}')
         os.remove(current_filename_weekly)
@@ -349,6 +347,11 @@ def save_as_list_of_lists(df, filename):
     - df (pd.DataFrame): The DataFrame to save.
     - filename (str): The output JSON file path.
     """
+    # Convert datetime columns to string format
+    df = df.copy()
+    for col in df.select_dtypes(include=['datetime64[ns]', 'datetime64', 'datetimetz']):
+        df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S') 
+
     # Convert DataFrame to list of lists
     data_as_list = [df.columns.tolist()] + df.to_numpy().tolist()
 
@@ -356,4 +359,5 @@ def save_as_list_of_lists(df, filename):
     with open(filename, 'w', encoding='utf-8') as json_file:
         json.dump(data_as_list, json_file, ensure_ascii=False, indent=4)
     print(f"Saved {filename} in list-of-lists format.")
+
     
