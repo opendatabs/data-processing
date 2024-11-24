@@ -45,7 +45,7 @@ def create_json_files_for_dashboard(df, filename, dest_path):
             # Save the original site data
             current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.json')
             print(f'Saving {current_filename}...')
-            site_data.to_json(current_filename, orient='records', force_ascii=False)
+            save_as_list_of_lists(site_data, current_filename)
 
             if True or ct.has_changed(current_filename):
                 common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -73,7 +73,7 @@ def create_json_files_for_dashboard(df, filename, dest_path):
         else:
             current_filename = os.path.join(dest_path, 'dtv_MIV.json')
         print(f'Saving {current_filename}...')
-        df_dtv.to_json(current_filename, orient='records', force_ascii=False)
+        save_as_list_of_lists(df_dtv, current_filename)
         common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data')
         os.remove(current_filename)
@@ -81,13 +81,13 @@ def create_json_files_for_dashboard(df, filename, dest_path):
         df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename)
         current_filename_velo = os.path.join(dest_path, 'dtv_Velo.json')
         print(f'Saving {current_filename_velo}...')
-        df_dtv_velo.to_json(current_filename_velo, orient='records', force_ascii=False)
+        save_as_list_of_lists(df_dtv_velo, current_filename_velo)
         common.upload_ftp(current_filename_velo, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data')
         os.remove(current_filename_velo)
         current_filename_fuss = os.path.join(dest_path, 'dtv_Fussgaenger.json')
         print(f'Saving {current_filename_fuss}...')
-        df_dtv_fuss.to_json(current_filename_fuss, orient='records', force_ascii=False)
+        save_as_list_of_lists(df_dtv_fuss, current_filename_fuss)
         common.upload_ftp(current_filename_fuss, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data')
         os.remove(current_filename_fuss)
@@ -123,7 +123,7 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
         # Save the hourly data
         current_filename_hourly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_hourly.json')
         print(f'Saving {current_filename_hourly}...')
-        df_agg.to_json(current_filename_hourly, orient='records', force_ascii=False)
+        save_as_list_of_lists(df_agg, current_filename_hourly)
         common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data/{subfolder}')
         os.remove(current_filename_hourly)
@@ -153,7 +153,7 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.json')
     print(f'Saving {current_filename_daily}...')
-    df_agg.to_json(current_filename_daily, orient='records', force_ascii=False)
+    save_as_list_of_lists(df_agg, current_filename_daily)
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
     os.remove(current_filename_daily)
@@ -197,7 +197,7 @@ def aggregate_time_period(site_data, categories, dest_path, subfolder, site, fil
     # Save the aggregated data
     current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{file_suffix}.json')
     print(f'Saving {current_filename}...')
-    df_agg.to_json(current_filename, orient='records', force_ascii=False)
+    save_as_list_of_lists(df_agg, current_filename)
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
     os.remove(current_filename)
@@ -297,3 +297,21 @@ def calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename):
     df_dtv_fuss = df_dtv[df_dtv['TrafficType'] == 'Fussgänger']
     df_dtv_fuss['TrafficType'] = 'Fussgaenger'  # Correcting the TrafficType for consistency
     return df_dtv_velo, df_dtv_fuss
+
+
+def save_as_list_of_lists(df, filename):
+    """
+    Saves a DataFrame as a JSON file in a list-of-lists format.
+
+    Parameters:
+    - df (pd.DataFrame): The DataFrame to save.
+    - filename (str): The output JSON file path.
+    """
+    # Convert DataFrame to list of lists
+    data_as_list = [df.columns.tolist()] + df.to_numpy().tolist()
+
+    # Save as JSON
+    with open(filename, 'w', encoding='utf-8') as json_file:
+        json.dump(data_as_list, json_file, ensure_ascii=False, indent=4)
+    print(f"Saved {filename} in list-of-lists format.")
+    
