@@ -227,10 +227,11 @@ def download_locations():
     df_locations['zweck'] = df_locations['zweck'].str.replace('Fuss', 'Fussgänger')
     # Save 'id_zst' as string
     df_locations['id_zst'] = df_locations['id_zst'].astype(str)
-    return df_locations
+    return df_locations[['id_zst', 'zweck', 'geo_point_2d', 'name', 'gemeinde', 'klasse', 'kombiniert',
+                         'art', 'arme', 'fahrstreif', 'typ', 'strtyp', 'betriebnah', 'betriebzus']]
 
 
-def calculate_dtv_zst_miv(df, df_locations, dest_path, filename):
+def calculate_dtv_zst_miv(df, df_locations, filename):
     """
     Calculates DTV per ZST for MIV data.
 
@@ -266,7 +267,7 @@ def calculate_dtv_zst_miv(df, df_locations, dest_path, filename):
         return df_dtv
 
 
-def calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename):
+def calculate_dtv_zst_velo_fuss(df, df_locations):
     """
     Calculates DTV per ZST for Velo and Fussgänger data.
 
