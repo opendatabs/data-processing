@@ -62,7 +62,6 @@ def create_json_files_for_dashboard(df, filename, dest_path):
                 aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
                 aggregate_time_period(site_data, categories, dest_path, subfolder, site, filename, period='Month')
                 aggregate_time_period(site_data, categories, dest_path, subfolder, site, filename, period='Year')
-                aggregate_weekly(site_data, categories, dest_path, subfolder, site, filename)
 
                 ct.update_hash_file(current_filename)
 
@@ -203,44 +202,6 @@ def aggregate_time_period(site_data, categories, dest_path, subfolder, site, fil
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
     os.remove(current_filename)
-
-
-def aggregate_weekly(site_data, categories, dest_path, subfolder, site, filename):
-    """
-    Aggregates data by Week and Weekday, pivoting years as columns.
-
-    Parameters:
-    - site_data (pd.DataFrame): DataFrame containing site data.
-    - categories (dict): Dictionary mapping filenames to category lists.
-    - dest_path (str): Destination path for saving files.
-    - subfolder (str): Subfolder name.
-    - site (str/int): Site identifier.
-    - filename (str): Name of the file being processed.
-    """
-    for category in categories[filename]:
-        # Group by Year, Week, Weekday, Direction_LaneName
-        df_to_group = site_data[['Year', 'Week', 'Weekday', 'Direction_LaneName', category]].copy()
-        df_agg = df_to_group.groupby(['Year', 'Week', 'Weekday', 'Direction_LaneName'])[category].sum().reset_index()
-        df_agg = df_agg[df_agg[category] > 0]
-
-        # Pivot so that years are columns
-        df_pivot = df_agg.pivot_table(
-            index=['Week', 'Weekday', 'Direction_LaneName'],
-            columns='Year',
-            values=category,
-            aggfunc='first'
-        ).reset_index()
-        
-        df_pivot[['DirectionName', 'LaneName']] = df_pivot['Direction_LaneName'].str.split('#', expand=True)
-        df_pivot = df_pivot.drop(columns=['Direction_LaneName'])
-
-        # Save the weekly data
-        current_filename_weekly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_weekly.json')
-        print(f'Saving {current_filename_weekly}...')
-        save_as_list_of_lists(df_pivot, current_filename_weekly)
-        common.upload_ftp(current_filename_weekly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          f'verkehrszaehl_dashboard/data/{subfolder}')
-        os.remove(current_filename_weekly)
 
 
 def download_locations():
