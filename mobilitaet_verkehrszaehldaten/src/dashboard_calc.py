@@ -68,7 +68,7 @@ def create_json_files_for_dashboard(df, filename, dest_path):
     # Calculate DTV per ZST and traffic type
     df_locations = download_locations()
     if 'MIV' in filename:
-        df_dtv = calculate_dtv_zst_miv(df, df_locations, dest_path, filename)
+        df_dtv = calculate_dtv_zst_miv(df, df_locations, filename)
         if 'MIV_Speed' in filename:
             current_filename = os.path.join(dest_path, 'dtv_MIV_Speed.json')
         else:
@@ -79,7 +79,7 @@ def create_json_files_for_dashboard(df, filename, dest_path):
                           f'verkehrszaehl_dashboard/data')
         os.remove(current_filename)
     else:
-        df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(df, df_locations, dest_path, filename)
+        df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(df, df_locations)
         current_filename_velo = os.path.join(dest_path, 'dtv_Velo.json')
         print(f'Saving {current_filename_velo}...')
         save_as_list_of_lists(df_dtv_velo, current_filename_velo)
