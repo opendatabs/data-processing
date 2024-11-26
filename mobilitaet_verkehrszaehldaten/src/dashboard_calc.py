@@ -44,9 +44,9 @@ def create_json_files_for_dashboard(df, filename, dest_path):
                 subfolder = traffic_type
 
             # Save the original site data
-            current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.json')
+            current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.csv')
             print(f'Saving {current_filename}...')
-            save_as_list_of_lists(site_data, current_filename)
+            site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
 
             if True or ct.has_changed(current_filename):
                 common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -124,7 +124,7 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
         df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
         # Save the hourly data
-        current_filename_hourly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_hourly.json')
+        current_filename_hourly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_hourly.csv')
         print(f'Saving {current_filename_hourly}...')
         df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
         common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -154,7 +154,7 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the daily data
-    current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.json')
+    current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
     print(f'Saving {current_filename_daily}...')
     df_agg.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -198,7 +198,7 @@ def aggregate_time_period(site_data, categories, dest_path, subfolder, site, fil
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the aggregated data
-    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{file_suffix}.json')
+    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{file_suffix}.csv')
     print(f'Saving {current_filename}...')
     df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
