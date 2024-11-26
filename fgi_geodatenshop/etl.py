@@ -75,7 +75,7 @@ def process_wms_data(url_wms):
 
 # Function for retrieving and parsing WFS GetCapabilities
 def process_wfs_data(url_wfs):
-    wfs = WebFeatureService(url=url_wfs, version='2.0.0')
+    wfs = WebFeatureService(url=url_wfs, version='2.0.0', timeout=120)
     # Retrieve the list of available layers (feature types) and their metadata
     feature_list = []
     for feature in wfs.contents:
