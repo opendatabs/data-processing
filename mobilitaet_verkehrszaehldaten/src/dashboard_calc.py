@@ -56,6 +56,8 @@ def create_json_files_for_dashboard(df, filename, dest_path):
                 site_data['Direction_LaneName'] = (
                         site_data['DirectionName'].astype(str) + '#' + site_data['LaneName'].astype(str)
                 )
+                # Convert Date to string format like '2022-01-01'
+                site_data['Date'] = pd.to_datetime(site_data['Date'], format='%d.%m.%Y').dt.strftime('%Y-%m-%d')
 
                 # Perform aggregations
                 aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename)
