@@ -126,7 +126,7 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
         # Save the hourly data
         current_filename_hourly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_hourly.json')
         print(f'Saving {current_filename_hourly}...')
-        save_as_list_of_lists(df_agg, current_filename_hourly)
+        df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
         common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data/{subfolder}')
         os.remove(current_filename_hourly)
@@ -156,7 +156,7 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.json')
     print(f'Saving {current_filename_daily}...')
-    save_as_list_of_lists(df_agg, current_filename_daily)
+    df_agg.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
     os.remove(current_filename_daily)
@@ -200,7 +200,7 @@ def aggregate_time_period(site_data, categories, dest_path, subfolder, site, fil
     # Save the aggregated data
     current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{file_suffix}.json')
     print(f'Saving {current_filename}...')
-    save_as_list_of_lists(df_agg, current_filename)
+    df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
     os.remove(current_filename)
