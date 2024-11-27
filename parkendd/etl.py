@@ -60,23 +60,37 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
                 cells = row.find_all('td')
                 if not cells:
                     continue
+
+                link_element = row.find('td', class_='parkh_name').find('a')
+                href = link_element['href']
+                
+                if href.count('/') != 1:
+                    raise ValueError(f"Invalid href format: {href}. Expected exactly one '/'")
+                
+                prefix, id2 = href.split('/')
+
+                url_lot = url_to_scrape_from + href
+                additional_info_scraped = find_additional_info_scraped(url_lot=url_lot)
+                
                 lot_data = {
                     'name': row.find('td', class_='parkh_name').get_text(strip=True),
                     'free': int(row.find('td', class_='parkh_belegung').get_text(strip=True)),
                     'status': row.find('td', class_='parkh_status').get_text(strip=True),
                     'last_updated': formatted_timestamp_last_updated,
-                    'last_downloaded': formatted_timestamp_now
+                    'last_downloaded': formatted_timestamp_now,
+                    'href': href,
+                    'id': f'basel{prefix}{id2}',
+                    'id2': id2
                 }
                 lots_data.append(lot_data)
     
     normalized_scraped = pd.DataFrame(lots_data)
     normalized_scraped['title'] = "Parkhaus " + normalized_scraped['name']
-    normalized_scraped['id2'] = normalized_scraped['name'].str.lower().str.replace(' ', '')
-    normalized_scraped['link'] = "https://www.parkleitsystem-basel.ch/parkhaus/" + normalized_scraped['id2']
+    normalized_scraped['link'] = url_to_scrape_from + normalized_scraped['href']
     normalized_scraped['description'] = 'Anzahl freie Parkplätze: ' + normalized_scraped['free'].astype(str)
     normalized_scraped['published'] = normalized_scraped['last_downloaded']
     
-    # Reorder columns to match the desired order
+    # For debugging purposes: Reorder columns to match the order of the DataFrame from the API
     column_order = ['address', 'forecast', 'free', 'id', 'lot_type', 'name', 'state', 'total', 
                     'last_downloaded', 'last_updated', 'coords.lat', 'coords.lng', 'title', 
                     'id2', 'link', 'description', 'published']
