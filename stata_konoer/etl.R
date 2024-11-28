@@ -92,7 +92,7 @@ data_strassenverkehr_new <- data_strassenverkehr %>%
          x_temp = "schwere",
          month = "monat",
          hour_of_day = "stunde") %>%
-  separate_wider_delim(col="geo_point_2d", delim = ", ", names = c("latitude","longitude")) %>%
+  separate_wider_delim(col="geo_point_2d", delim = ",", names = c("latitude","longitude")) %>%
   separate_wider_delim(col="wochentag", delim = " ", names = c("day_of_week_nr","day_of_week")) %>%
   mutate(parent_incident_type = "Verkehrsunfälle",
          longitude = as.numeric(longitude),
