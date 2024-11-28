@@ -16,8 +16,8 @@ def main():
     data_orig_root = credentials.import_root_folder
     datasets = [
         {
-            'data_file': os.path.join(data_orig_root, '55plus/Alle_Jahre/DATENSATZ_55plus_OGD_TEXT.csv'),
-            'var_file': os.path.join(data_orig_root, '55plus/Alle_Jahre/VARIABLEN_2019.csv'),
+            'data_file': os.path.join(data_orig_root, '55plus/2011-2023/datensatz_55plus_2011_2023_OGD_TEXT.csv'),
+            'var_file': os.path.join(data_orig_root, '55plus/2011-2023/Variablen_55plus_2011_2023_OGD.csv'),
             'export_file': 'Befragung_55_plus_alle_jahre.csv',
             'ftp_folder': '55plus',
             'jahr': None,

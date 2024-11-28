@@ -325,7 +325,7 @@ def main():
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100395')
 
 
-    wfs = WebFeatureService(url=url_wfs, version='2.0.0')
+    wfs = WebFeatureService(url=url_wfs, version='2.0.0', timeout=120)
     file_path = os.path.join(credentials.data_path, 'export')
     save_geodata_for_layers(wfs, df_fgi, file_path)
 
