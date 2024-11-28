@@ -10,7 +10,7 @@ get_dataset <- function(url) {
     dir.create(data_path, recursive = TRUE)
   }
   # Download the CSV file
-  csv_path <- file.path(data_path , '100020.csv')
+  csv_path <- file.path(data_path , '100120.csv')
   download.file(url, csv_path, mode = "wb")
 
   # Read the CSV file
@@ -28,7 +28,7 @@ get_dataset <- function(url) {
 
 pathBussen <- "/code/data-processing/kapo_ordnungsbussen/data/Ordnungsbussen_OGD_all.csv"
 pathWildeDeponien <- "/code/data-processing/stadtreinigung_wildedeponien/data/wildedeponien_all.csv"
-urlStrassenverkehr <- "https://data.bs.ch/explore/dataset/100020/download?format=csv&use_labels=true&timezone=Europe%2FZurich"
+urlStrassenverkehr <- "https://data.bs.ch/explore/dataset/100120/download?format=csv&timezone=Europe%2FZurich"
 
 data_deponien <- fread(pathWildeDeponien, header = TRUE)
 data_deponien_new <- data_deponien %>%
@@ -86,14 +86,14 @@ write.csv(data_bussen_new,file = "/code/data-processing/stata_konoer/data_Ordnun
 
 data_strassenverkehr <- get_dataset(urlStrassenverkehr)
 data_strassenverkehr_new <- data_strassenverkehr %>%
-  rename(id = "Eindeutiger Identifikator des Unfalls",
-         incident_type_primary= "Beschreibung zum Unfalltyp", 
-         year=Unfalljahr,
-         x_temp = "Beschreibung der Unfallschwerekategorie", 
-         month = Unfallmonat,
-         hour_of_day = Unfallstunde) %>% 
-  separate_wider_delim(col="Geo Point", delim = ", ", names = c("latitude","longitude")) %>%
-  separate_wider_delim(col="Wochentag", delim = " ", names = c("day_of_week_nr","day_of_week")) %>%
+  rename(id = "id_unfall",
+         incident_type_primary= "typ",
+         year= "jahr",
+         x_temp = "schwere",
+         month = "monat",
+         hour_of_day = "stunde") %>%
+  separate_wider_delim(col="geo_point_2d", delim = ", ", names = c("latitude","longitude")) %>%
+  separate_wider_delim(col="wochentag", delim = " ", names = c("day_of_week_nr","day_of_week")) %>%
   mutate(parent_incident_type = "Verkehrsunfälle",
          longitude = as.numeric(longitude),
          latitude = as.numeric(latitude),
