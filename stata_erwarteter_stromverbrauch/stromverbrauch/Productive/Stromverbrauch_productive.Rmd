@@ -19,29 +19,18 @@ knitr::knit_hooks$set(inline = function(x) {
 
 ```{r message=FALSE, warning=FALSE}
 
-library(rmarkdown)
 library(httr)
 library(data.table)
 library(dplyr)
 library(lubridate)
 library(knitr)
-library(kableExtra)
-library(ggplot2)
-library(stringr)
-library(magrittr)
 library(highcharter)
-library(forecast)
-library(xlsx)
-library(fastDummies)
-library(zoo)
-library(prophet)
-library(tidyr)
-library(psych)
-library(rsample) 
+library(DT)
 library(caret)
-library(MLmetrics)
-library(modelr)
-
+library(tibble) 
+library(rsample)   
+library(jtools)
+library(tidyr)
 
 ```
 
@@ -304,72 +293,168 @@ Data %>%
       time >= as.Date("2023-05-01") ~ "Prognose"
     )
   ) %>%
+  slice(1:(n() - 1)) %>%
   assign("Data_selec", ., inherits = TRUE)
 
 
 
 ```
 
-<br>
-<br>
+<br> <br>
 
-# Das Modell
+# OLS Regression
 
 ```{r message=FALSE, warning=FALSE}
 
-set.seed(1234) 
+Data_selec_model <- Data_selec %>%
+  filter(time < as.Date("2024-10-31"))
 
-Data_model <- Data_selec %>%
-  filter(time < as.Date("2023-05-01")) %>%
-  mutate(time_num = as.numeric(time)) %>%
-  arrange(time)
+set.seed(12345)
 
-# Data_prognose <- Data_selec %>%
-#   filter(time >= as.Date("2023-05-01"))
+inTraining <- createDataPartition(Data_selec_model$netzlast_kwh, p = .7, list = FALSE)
+training <- Data_selec_model[ inTraining,]
+testing  <- Data_selec_model[-inTraining,]
 
-
-tab_split <- initial_split(Data_model, prop = .7)
-tab_train <- training(tab_split) 
-tab_test  <- testing(tab_split) 
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10)
 
 
-
-model_lm <- lm(netzlast_kwh ~ time_num + I(time_num^2) + Di_dummy + Mi_dummy + Do_dummy + Fr_dummy + Sa_dummy + So_dummy + gre000d0 + hto000d0 + 
-                    # nto000d0 + prestad0 + 
+set.seed(54321)
+ols_Fit1 <- train(netzlast_kwh ~ time_num + I(time_num^2) + Di_dummy + Mi_dummy + Do_dummy + Fr_dummy + Sa_dummy + So_dummy + gre000d0 + hto000d0 + 
+                    nto000d0 + prestad0 +
                     rre150d0 + sre000d0 + tre200d0 + I(tre200d0^2) + 
-                    # tre200dn + tre200dx + 
+                    tre200dn + tre200dx +
                     ure200d0 + Covid19_Lockdown + HGT + I(HGT^2) + Neujahrstag_dummy + Karfreitag_dummy + 
                     # Ostersonntag_dummy + 
                     Ostermontag_dummy + Tag_der_Arbeit_dummy + Auffahrt_dummy + 
-                    # Pfingssonntag_dummy + 
+                    Pfingssonntag_dummy +
                     Pfingstmontag_dummy + Bundesfeiertag_dummy + Heiligabend_dummy + Weihnachten_dummy + Stephanstag_dummy + Silvester_dummy + Ferien_dummy + 
                     time_num * Wochenende_dummy + 
                     Neujahrstag_dummy * Wochenende_dummy +
-                    # Karfreitag_dummy * Wochenende_dummy +
                     Tag_der_Arbeit_dummy * Wochenende_dummy +
-                    # Auffahrt_dummy * Wochenende_dummy +
                     Bundesfeiertag_dummy  * Wochenende_dummy +
                     Heiligabend_dummy * Wochenende_dummy +
-                    Stephanstag_dummy * Wochenende_dummy, data = tab_train)
+                    Stephanstag_dummy * Wochenende_dummy,
+                  data = training, 
+                  method = "lm",
+                  trControl = fitControl,
+                  verbose = TRUE)
 
+# ols_Fit1
+# ols_Fit1$resample
+# summary(ols_Fit1)
+
+```
+
+## Leistung cross-validation
+
+
+```{r }
+ols_Fit1$results %>% 
+  round(digits = 3) -> ols_Fit1$results
+
+
+data.frame(
+  RMSE = paste0(ols_Fit1$results[2], " &pm; ", ols_Fit1$results[5]),
+  Rsquared = paste0(ols_Fit1$results[3], " &pm; ", ols_Fit1$results[6]),
+  MAE = paste0(ols_Fit1$results[4], " &pm; ", ols_Fit1$results[7])
+) %>%
+  kable()
+
+```
+
+## Endgültiges Modell
+
+```{r message=FALSE, warning=FALSE}
+
+final_model <- lm(netzlast_kwh ~ time_num + I(time_num^2) + Di_dummy + Mi_dummy + Do_dummy + Fr_dummy + Sa_dummy + So_dummy + gre000d0 + hto000d0 + nto000d0 + # prestad0 +
+                    rre150d0 + sre000d0 + tre200d0 + I(tre200d0^2) + tre200dn + #tre200dx +
+                    ure200d0 + Covid19_Lockdown + HGT + I(HGT^2) + Neujahrstag_dummy + Karfreitag_dummy + 
+                    # Ostersonntag_dummy + 
+                    Ostermontag_dummy + Tag_der_Arbeit_dummy + Auffahrt_dummy + 
+                    Pfingssonntag_dummy +
+                    Pfingstmontag_dummy + Bundesfeiertag_dummy + Heiligabend_dummy + Weihnachten_dummy + Stephanstag_dummy + Silvester_dummy + Ferien_dummy + 
+                    time_num * Wochenende_dummy + 
+                    Neujahrstag_dummy * Wochenende_dummy +
+                    Tag_der_Arbeit_dummy * Wochenende_dummy +
+                    Bundesfeiertag_dummy  * Wochenende_dummy +
+                    Heiligabend_dummy * Wochenende_dummy +
+                    Stephanstag_dummy * Wochenende_dummy,
+                  data = Data_selec_model)
+
+
+summ(final_model,
+     model.info	= T,
+     model.fit = F,
+     digits = getOption("jtools-digits", 3),
+     stars = T,
+     robust=T
+)
+
+
+```
+
+```{r echo=FALSE}
+
+Data_selec_model %>%
+  mutate(pred = predict(final_model, newdata = Data_selec_model)) %>%
+  select(obs = netzlast_kwh, pred) %>%
+  defaultSummary() %>%
+  round(digits = 3) -> performance_model
+
+data.frame(
+  RMSE = performance_model[1],
+  Rsquared = performance_model[2],
+  MAE = performance_model[3]
+) %>%
+  kable(row.names = F, align = "lll") 
+
+```
+<br> <br>
+
+```{r fig.cap="Effektiver und erwarteter täglicher Stromverbrauch."}
 
 Data_selec %>%
   bind_cols(
-    predict(model_lm, Data_selec, interval = "prediction")
+    predict(final_model, Data_selec, interval = "prediction")
   ) %>%
-  select(time, fit, lwr, upr, netzlast_kwh) %>%
-  mutate(
-    Ettape = case_when(
-      time < as.Date("2022-07-01") ~ "Train",
-      time >= as.Date("2022-07-01") & time < as.Date("2023-05-01") ~ "Test",
-      time >= as.Date("2023-05-01") ~ "Prognose"
-    )
-  ) %>%
-  mutate(resid = netzlast_kwh - fit) %>%
-  assign("Pred_lm", ., inherits = TRUE)
+  mutate(netzlast_kwh = netzlast_kwh/1000000,
+         fit = fit/1000000,
+         lwr = lwr/1000000,
+         upr = upr/1000000) -> Data_model_ols
 
 
-write.csv2(Pred_lm %>%
+
+
+highchart(type = "stock") %>%
+  hc_add_series(Data_model_ols, "line", hcaes(time, netzlast_kwh), color = "#008AC3",
+       tooltip = list(pointFormat = "Effektiver Stromverbrauch: {point.netzlast_kwh:.2f} GWh",
+                      shared = TRUE),
+       zIndex = 1) %>%
+  hc_add_series(Data_model_ols, "line", hcaes(time, fit), color = "#B375AB",
+       tooltip = list(pointFormat = "Erwarteter Stromverbrauch: {point.fit:.2f} GWh",
+                      shared = TRUE),
+       zIndex = 2) %>%
+  hc_add_series(Data_model_ols, type = "arearange",
+                hcaes(x = time, low = lwr, high = upr),
+                zIndex = 0,
+                color = "#E7CEE2",
+                tooltip = list(pointFormat = "95% Konfidenzintervall: {point.lwr:.2f} - {point.upr:.2f} GWh"), shared = TRUE
+                ) %>%
+  hc_xAxis(title = list(text = ""), opposite = FALSE) %>% 
+  hc_yAxis(title = list(text = "")) %>%
+  hc_plotOptions(series = list(marker = list(enabled = FALSE))) %>%
+  hc_rangeSelector(selected = 0)
+
+
+```
+
+
+
+
+```{r}
+write.csv2(Data_model_ols %>%
              mutate(vgl_real_minus_forecast = netzlast_kwh - fit) %>%
              select(
                time,
@@ -381,76 +466,6 @@ write.csv2(Pred_lm %>%
                trainorforecast = Ettape
                ), 
            "100245_Strom_Wetter.csv", row.names=F, na = "") 
-  
-Pred_lm %>%
-  mutate(time_num = as.numeric(time)) %>%
-  assign("Pred_lm", ., inherits = TRUE)
-  
-
-
-  
-
-  
-
-```
-
-<br>
-<br>
-
-```{r, echo=FALSE, results='asis'}
-
-data.frame(Ettape = c("Train", "Test", "Prognose"),
-           R2 = c(
-             rsquare(model_lm, data=Data_selec %>% filter(Ettape == "Train")),
-             rsquare(model_lm, data=Data_selec %>% filter(Ettape == "Test")),
-             rsquare(model_lm, data=Data_selec %>% filter(Ettape == "Prognose"))),
-           RMSE = c(
-             rmse(model_lm, data=Data_selec %>% filter(Ettape == "Train")),
-             rmse(model_lm, data=Data_selec %>% filter(Ettape == "Test")),
-             rmse(model_lm, data=Data_selec %>% filter(Ettape == "Prognose"))),
-           MAE = c(
-             mae(model_lm, data=Data_selec %>% filter(Ettape == "Train")),
-             mae(model_lm, data=Data_selec %>% filter(Ettape == "Test")),
-             mae(model_lm, data=Data_selec %>% filter(Ettape == "Prognose")))
-) %>%
-  kbl() %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
-
-```
-
-
-<br>
-<br>
-<br>
-
-
-```{r fig.cap="Effektiver und erwarteter täglicher Stromverbrauch."}
-
-Pred_lm %>%
-  filter(time >= as.Date("2023-07-01")) %>%
-  mutate(netzlast_kwh = netzlast_kwh/1000000,
-         fit = fit/1000000,
-         lwr = lwr/1000000,
-         upr = upr/1000000) -> recent
-
-hchart(recent, "line", hcaes(time, netzlast_kwh), color = "#008AC3",
-       tooltip = list(pointFormat = "Effektiver Stromverbrauch: {point.netzlast_kwh:.2f} GWh",
-                      shared = TRUE),
-       zIndex = 1) %>%
-  hc_add_series(recent, "line", hcaes(time, fit), color = "#B375AB",
-       tooltip = list(pointFormat = "Erwarteter Stromverbrauch: {point.fit:.2f} GWh",
-                      shared = TRUE),
-       zIndex = 2) %>%
-  hc_add_series(recent, type = "arearange",
-                hcaes(x = time, low = lwr, high = upr),
-                zIndex = 0,
-                color = "#E7CEE2",
-                tooltip = list(pointFormat = "95% Konfidenzintervall: {point.lwr:.2f} - {point.upr:.2f} GWh"), shared = TRUE
-                ) %>%
-  hc_xAxis(title = list(text = "")) %>% 
-  hc_yAxis(title = list(text = "")) %>%
-  hc_plotOptions(series = list(marker = list(enabled = FALSE)))
-
 
 ```
 
@@ -458,7 +473,12 @@ hchart(recent, "line", hcaes(time, netzlast_kwh), color = "#008AC3",
 <br>
 <br>
 
-> **_Hinweis:_**  Je nach Kombination von Betriebssystemen und Versionen von RStudio, R und den verwendeten Pakete können die Ergebnisse leicht von den publizierten Resultaten abweichen. Grund dafür sind Unterschiede am Zufalls-Generator für die Prognose des Modells. Die angewendete Konfiguration lautet:
+
+> ***Hinweis:*** Je nach Kombination von Betriebssystemen und Versionen
+> von RStudio, R und den verwendeten Pakete können die Ergebnisse leicht
+> von den publizierten Resultaten abweichen. Die angewendete Konfiguration 
+> lautet:
+
 
 <br>
 
