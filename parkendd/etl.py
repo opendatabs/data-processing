@@ -36,6 +36,9 @@ def fetch_data_from_parkendd_api() -> pd.DataFrame:
 
     return normalized
 
+def find_additional_info(url_lot: str) -> tuple:
+    # TODO: implement me (find all infos that are not yet scraped, like address, etc.; see columns_to_update in main)
+    pass
 
 def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     url_to_scrape_from = "https://www.parkleitsystem-basel.ch/"
@@ -48,6 +51,7 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     date_str = str(parking_header.find('p').contents[0]).strip()
     time_str = parking_header.find('span', class_='stempel_zeit').string.strip()
 
+    # TODO: Handle timezones, i.e. specify the timezone in the format, or rather the UTC+1 for example
     timestamp = datetime.strptime(f"{date_str} {time_str}", '%d.%m.%Y %H:%M:%S')
     formatted_timestamp_last_updated = timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
@@ -70,7 +74,7 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
                 prefix, id2 = href.split('/')
 
                 url_lot = url_to_scrape_from + href
-                additional_info_scraped = find_additional_info_scraped(url_lot=url_lot)
+                additional_info_scraped = find_additional_info(url_lot=url_lot)
                 
                 lot_data = {
                     'name': row.find('td', class_='parkh_name').get_text(strip=True),
@@ -89,7 +93,10 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     normalized_scraped['link'] = url_to_scrape_from + normalized_scraped['href']
     normalized_scraped['description'] = 'Anzahl freie Parkplätze: ' + normalized_scraped['free'].astype(str)
     normalized_scraped['published'] = normalized_scraped['last_downloaded']
-    
+
+    normalized_scraped['forecast'] = False
+
+    # TODO: remove this when finished
     # For debugging purposes: Reorder columns to match the order of the DataFrame from the API
     column_order = ['address', 'forecast', 'free', 'id', 'lot_type', 'name', 'state', 'total', 
                     'last_downloaded', 'last_updated', 'coords.lat', 'coords.lng', 'title', 
@@ -100,11 +107,32 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
 
 
 def main():
-    #normalized = fetch_data_from_parkendd_api()
-    #print(normalized.head())
+    # As a note for future me: We do not want to use the api anymore, as we don't get new data. So, as of now, we take
+    # some info (that does not get updated) from the api, and everything else we scrape directly from the website. This
+    # is a quick and dirty fix; we would like to have only 1 source, i.e. replace the api completely.
+    # TODO: When we have done this, we can simplify the code until the "pass" tremendously.
+    normalized_api = fetch_data_from_parkendd_api()
     normalized_scraped = scrape_data_from_parkleitsystem()
-    exit()
 
+    normalized_api['id2'] = normalized_api['id2'].replace('centralbahnparking', 'centralbahn')
+
+    all_columns = list(normalized_scraped.columns)
+
+    columns_to_update = ['address', 'lot_type', 'state', 'total', 'coords.lat', 'coords.lng', 'description']
+    columns_to_keep = list(set(all_columns) - set(columns_to_update + ['id2']))
+
+    merged = pd.merge(normalized_api, normalized_scraped, on='id2', suffixes=('_api', '_scraped'))
+
+    for col in columns_to_update:
+        merged[col] = merged[f'{col}_api']
+
+    for col in columns_to_keep:
+        merged[col] = merged[f'{col}_scraped']
+
+    normalized = merged[all_columns]
+
+    pass
+    
     lots_file_name = os.path.join(credentials.path, 'csv', 'lots', 'parkendd-lots.csv')
 
     logging.info(f'Creating lots file and saving as {lots_file_name}...')
