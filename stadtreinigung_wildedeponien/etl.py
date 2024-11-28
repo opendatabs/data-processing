@@ -50,9 +50,6 @@ def main():
         # df['diff_lat'] = df.lat - df.raster_lat
         # df['diff_lon'] = df.lon - df.raster_lon
 
-        # logging.info('Extracting lat and long using regex from column "koordinaten..."')
-        # 'POINT\((?<long> \d *.\d *)\s(?<lat> \d *.\d *)\)'
-
         logging.info('Creating ISO8601 timestamps with timezone info...')
         df['Timestamp'] = pd.to_datetime(df['meldung_erfassungszeit'])
         # df['Timestamp'] = pd.to_datetime(df['bearbeitungszeit_meldung'], format='%Y-%m-%d %H:%M:%S%Z')
@@ -77,7 +74,7 @@ def main():
         gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'],
                         inplace=True)
 
-        gdf_export = gdf_wv_bez.drop(['geometry', 'coords', 'lat', 'lon', 'adresse'], axis=1)
+        gdf_export = gdf_wv_bez.drop(['coords', 'lat', 'lon', 'adresse'], axis=1)
 
         # todo: Find nearest Wohnviertel / Bezirk of points outside of those shapes (Rhein, Outside of BS territory)
         # e.g. see https://gis.stackexchange.com/a/342489
