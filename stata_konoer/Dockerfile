@@ -23,12 +23,12 @@ RUN echo "r <- getOption('repos'); \
 	  r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2024-11-28'; \
 	  options(repos = r);" > ~/.Rprofile
 
-RUN Rscript -e "install.packages(c('httr', 'data.table', 'dplyr', 'lubridate', 'knitr', 'highcharter', 'DT', 'caret', 'tibble', 'rsample', 'jtools'), dependencies = TRUE)"
+RUN Rscript -e "install.packages(c('zoo', 'data.table', 'lubridate', 'knitr', 'tidyverse'), dependencies = TRUE)"
 
 CMD ["Rscript", "/code/data-processing/stata_konoer/etl.R"]
 
 # Docker commands to create image and run container:
-# cd stata_erwarteter_gasverbrauch
-# docker build -t gasverbrauch .
+# cd stata_konoer
+# docker build -t stata_konoer .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/Gasverbrauch:/code/data-processing/stata_erwarteter_gasverbrauch/data/export --name gasverbrauch gasverbrauch
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/StatA/KoNör:/code/data-processing/stata_konoer/data --name stata_konoer stata_konoer
