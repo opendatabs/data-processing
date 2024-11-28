@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     r-cran-rstan \
     libxml2-dev \
     default-jdk \
-    libglpk-dev
+    libglpk-dev \
+    libudunits2-dev
 
 
 ## Explicitly setting my default RStudio Package Manager Repo
