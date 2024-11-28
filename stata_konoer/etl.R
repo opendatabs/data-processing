@@ -28,7 +28,7 @@ get_dataset <- function(url) {
 
 pathBussen <- "/code/data-processing/kapo_ordnungsbussen/data/Ordnungsbussen_OGD_all.csv"
 pathWildeDeponien <- "/code/data-processing/stadtreinigung_wildedeponien/data/wildedeponien_all.csv"
-urlStrassenverkehr <- "https://data.bs.ch/explore/dataset/100020/download?format=csv&timezone=Europe%2FZurich"
+urlStrassenverkehr <- "https://data.bs.ch/explore/dataset/100020/download?format=csv&use_labels=true&timezone=Europe%2FZurich"
 
 data_deponien <- fread(pathWildeDeponien, header = TRUE)
 data_deponien_new <- data_deponien %>%
