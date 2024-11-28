@@ -49,7 +49,6 @@ def main():
         df['raster_lon'] = ((df.lon - offset_lon) // raster_size) * raster_size + offset_lon
         # df['diff_lat'] = df.lat - df.raster_lat
         # df['diff_lon'] = df.lon - df.raster_lon
-        df.drop(['geometry', 'coords', 'lat', 'lon', 'adresse'], axis=1, inplace=True)
 
         # logging.info('Extracting lat and long using regex from column "koordinaten..."')
         # 'POINT\((?<long> \d *.\d *)\s(?<lat> \d *.\d *)\)'
@@ -78,18 +77,24 @@ def main():
         gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'],
                         inplace=True)
 
+        gdf_export = gdf_wv_bez.drop(['geometry', 'coords', 'lat', 'lon', 'adresse'], axis=1)
+
         # todo: Find nearest Wohnviertel / Bezirk of points outside of those shapes (Rhein, Outside of BS territory)
         # e.g. see https://gis.stackexchange.com/a/342489
 
         timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        file_path = os.path.join(credentials.path, f'{credentials.filename}')
+        file_path = os.path.join(credentials.path, credentials.filename)
         logging.info(f'Exporting data to {file_path}...')
-        gdf_wv_bez.to_csv(file_path, index=False, date_format='%Y-%m-%dT%H:%M:%S%z')
+        gdf_export.to_csv(file_path, index=False, date_format='%Y-%m-%dT%H:%M:%S%z')
         if ct.has_changed(file_path):
             common.upload_ftp(file_path, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'stadtreinigung/illegale-deponien')
             odsp.publish_ods_dataset_by_id('100070')
             ct.update_hash_file(file_path)
+
+        file_path_all = os.path.join(credentials.path, credentials.filename.replace('.csv', '_all.csv'))
+        logging.info(f'Exporting all data to {file_path_all}...')
+        gdf_wv_bez.to_csv(file_path_all, index=False, date_format='%Y-%m-%dT%H:%M:%S%z')
 
 
 if __name__ == "__main__":
