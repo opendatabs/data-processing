@@ -1,8 +1,12 @@
 ---
-title: "Erwarteter Gasverbrauch im Versorgungsgebiet von IWB"
+# title: "Erwarteter und effektiver Gasverbrauch im Versorgungsgebiet der Industriellen Werke Basel (IWB)"
+title: "Modellberechnung:"
 author: "José A.F. Monteiro, Joëlle Velvart und Tobias Erhardt"
-date: "06.12.2023 (letzte Veränderung am `r format(Sys.time(), '%d.%m.%Y')`)" 
+date: "16.04.2024 (letzte Veränderung am `r format(Sys.time(), '%d.%m.%Y')`)" 
 output: bookdown::html_document2
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include = FALSE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -12,8 +16,7 @@ knitr::knit_hooks$set(inline = function(x) {
 })
 ```
 
-<br>
-<br>
+<br> <br>
 
 # Libraries
 
@@ -33,8 +36,7 @@ library(jtools)
 
 ```
 
-<br>
-<br>
+<br> <br>
 
 # Daten importieren und vorbereiten
 
@@ -72,9 +74,7 @@ fread("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-dail
 
 ```
 
-<br>
-<br>
-
+<br> <br>
 
 ## Feiertage, Ferien und Veranstaltungen
 
@@ -124,8 +124,7 @@ rm(events, rd_veranst)
 
 ```
 
-<br>
-<br>
+<br> <br>
 
 ## Gasverbrauchs-Daten
 
@@ -149,8 +148,7 @@ httr::GET("https://data.bs.ch/explore/dataset/100304/download/?format=csv&timezo
 
 ```
 
-<br>
-<br>
+<br> <br>
 
 ## Datensätze zusammenfügen
 
@@ -160,9 +158,10 @@ meteo %>%
               select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
   full_join(gas_daily %>%
               select(-timestamp), by = c("year" = "year", "month" = "month", "day" = "day")) %>%
-  mutate(weekday = lubridate::wday(timestamp, label = TRUE, abbr = TRUE, locale="German_Germany"),
-         daytype = if_else(weekday %in% c("So", "Sa"), "Wochenende", "Werktage")) %>%
+    mutate(weekday = lubridate::wday(as.Date(timestamp), label = TRUE, abbr = TRUE),
+         daytype = if_else(weekday %in% c(1,7), "Wochenende", "Werktage")) %>%
   relocate(timestamp, gasverbrauch) %>%
+  filter(!is.na(gasverbrauch)) %>%
   mutate(HGT = if_else(tre200d0 <= 12, 20-tre200d0, 0)) %>%
   mutate(Herbstmesse = if_else(is.na(Herbstmesse), "No", Herbstmesse),
          Feiertage = if_else(is.na(Feiertage), "No", Feiertage),
@@ -170,8 +169,7 @@ meteo %>%
   mutate(time = as.Date(timestamp, tz = 'Europe/Berlin')) %>%
   select(-timestamp) %>%
   relocate(time) %>%
-  slice(1:(n() - 1)) %>%              # Unvollständigen Tag für den Gasverbrauch entfernen.
-  filter(time >= as.Date("2021-09-01"), !is.na(gasverbrauch)) %>%
+  slice(1:(n() - 1)) %>%              
   assign("Data", ., inherits = TRUE)
 
 # Variable für Energiespar-Kampagnen
@@ -188,91 +186,143 @@ Data %>%
          year_month = paste(year, 
                             formatC(month, width = 2, format = "d", flag = "0"),
                             sep="-"),
-         Energiespar_Kampagnen_monatlich = ifelse(Energiespar_Kampagnen == 1, as.character(year_month), "0")
-  ) %>% assign("Data_selec", ., inherits = TRUE)
+         Energiespar_Kampagnen_monatlich = ifelse(Energiespar_Kampagnen == 1, as.character(year_month), "0"),
+         weekday = factor(weekday, ordered = FALSE)
+  ) %>%
+  slice(1:(n() - 1)) %>% # Unvollständigen Tag für den Gasverbrauch entfernen.
+  assign("Data_selec", ., inherits = TRUE)
 
 ```
 
-<br>
-<br>
+<br> <br>
 
 # OLS Regression
 
 ```{r message=FALSE, warning=FALSE}
-set.seed(1234)
 
 Data_selec_model <- Data_selec %>%
-  filter(time < as.Date("2023-08-01"))
-Data_selec_prognose <- Data_selec %>%
-  filter(time >= as.Date("2023-08-01"))
+  filter(time < as.Date("2024-10-31"))
 
-tab_split <- initial_split(Data_selec_model, prop = .7)
-tab_train <- training(tab_split) 
-tab_test  <- testing(tab_split) 
+set.seed(12345)
 
-tab_train %>%
-  mutate(Ettape = "Train") %>%
-  bind_rows(tab_test %>%
-              mutate(Ettape = "Test")) %>%
-  bind_rows(Data_selec_prognose %>%
-              mutate(Ettape = "Prognose")) %>%
-  arrange(time) -> Data_model_ols
+inTraining <- createDataPartition(Data_selec_model$gasverbrauch, p = .7, list = FALSE)
+training <- Data_selec_model[ inTraining,]
+testing  <- Data_selec_model[-inTraining,]
 
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10)
 
-model_ols <- lm(gasverbrauch ~ time + as.factor(month) + factor(weekday, ordered=F) +
+set.seed(54321)
+ols_Fit1 <- train(gasverbrauch ~ time + as.factor(month) + weekday +
                   as.factor(Ferien_dummy) + as.factor(Feiertage_dummy) + as.factor(Herbstmesse_dummy) +
-                  gre000d0 + tre200d0 + ure200d0 +
+                  gre000d0 + hto000d0 + nto000d0 + prestad0 + rre150d0 + 
+                  sre000d0 +
+                  tre200d0 + tre200dn + tre200dx + ure200d0 +
                   Energiespar_Kampagnen +
-                  I(tre200d0^2), data = tab_train)
+                  HGT +
+                  I(HGT^2) + I(tre200d0^2),
+                  data = training, 
+                  method = "lm",
+                  trControl = fitControl,
+                  verbose = TRUE)
+# ols_Fit1
+# ols_Fit1$resample
+# summary(ols_Fit1)
 
-tab_train %>%
-  mutate(pred = predict(model_ols, tab_train)) %>%
+```
+
+## Leistung cross-validation
+
+
+```{r }
+ols_Fit1$results %>% 
+  round(digits = 3) -> ols_Fit1$results
+
+
+data.frame(
+  RMSE = paste0(ols_Fit1$results[2], " &pm; ", ols_Fit1$results[5]),
+  Rsquared = paste0(ols_Fit1$results[3], " &pm; ", ols_Fit1$results[6]),
+  MAE = paste0(ols_Fit1$results[4], " &pm; ", ols_Fit1$results[7])
+) %>%
+  kable()
+
+```
+
+## Leistung Test
+
+
+```{r }
+
+testing %>%
+  mutate(pred = predict(ols_Fit1, newdata = testing)) %>%
   select(obs = gasverbrauch, pred) %>%
   defaultSummary() %>%
-  c(c(Ettape = "Train"), .) %>%
-  bind_rows(
-    tab_test %>%
-      mutate(pred = predict(model_ols, tab_test)) %>%
-      select(obs = gasverbrauch, pred) %>%
-      defaultSummary() %>%
-      c(c(Ettape = "Test"), .)
-  ) %>%
-  bind_rows(
-    Data_selec_prognose %>%
-      mutate(pred = predict(model_ols, Data_selec_prognose)) %>%
-      select(obs = gasverbrauch, pred) %>%
-      defaultSummary() %>%
-      c(c(Ettape = "Prognose"), .)
-  ) -> summary_ols
+  round(digits = 3) -> performance_test
+
+data.frame(
+  RMSE = performance_test[1],
+  Rsquared = performance_test[2],
+  MAE = performance_test[3]
+) %>%
+  kable(row.names = F, align = "lll") 
+
+```
+
+## Endgültiges Modell
+
+```{r message=FALSE, warning=FALSE}
+
+final_model <- lm(gasverbrauch ~ time + as.factor(month) + weekday +
+                  as.factor(Ferien_dummy) + as.factor(Feiertage_dummy) + as.factor(Herbstmesse_dummy) +
+                  gre000d0 + hto000d0 + 
+                  # nto000d0 + prestad0 + rre150d0 + sre000d0 + 
+                  tre200d0 + tre200dn + 
+                  # tre200dx + ure200d0 +
+                  Energiespar_Kampagnen +
+                  # HGT + I(HGT^2) + 
+                  I(tre200d0^2),
+                  data = Data_selec_model)
 
 
-summ(model_ols,
-     model.info	= F,
+summ(final_model,
+     model.info	= T,
      model.fit = F,
      digits = getOption("jtools-digits", 3),
      stars = T,
      robust=T
-
 )
-
-summary_ols %>%
-  as.list() %>%
-  as.tibble() %>%
-  datatable(options=list(dom = 'Brt')) %>%
-  formatStyle( 0, target= 'row', lineHeight='60%') %>%
-  formatRound(columns = c(2:4), digits = 3) 
 
 
 ```
 
-<br>
-<br>
+```{r echo=FALSE}
+
+Data_selec_model %>%
+  mutate(pred = predict(final_model, newdata = Data_selec_model)) %>%
+  select(obs = gasverbrauch, pred) %>%
+  defaultSummary() %>%
+  round(digits = 3) -> performance_model
+
+data.frame(
+  RMSE = performance_model[1],
+  Rsquared = performance_model[2],
+  MAE = performance_model[3]
+) %>%
+  kable(row.names = F, align = "lll") 
+
+```
+
+
+
+
+<br> <br>
 
 ```{r}
 
-Data_model_ols %>%
+Data_selec %>%
   bind_cols(
-    predict(model_ols, Data_model_ols, interval = "prediction") 
+    predict(final_model, Data_selec, interval = "prediction")
   ) %>%
   slice(1:(n() - 1)) -> Data_model_ols
 
@@ -309,18 +359,18 @@ write.csv2(Data_model_ols %>%
                forecast = fit,
                vgl_real_minus_forecast,
                forecast_lowFI = lwr,
-               forecast_highFI = upr,
-               traintestorforecast = Ettape
-             ), 
-           "100353_gasverbrauch.csv", row.names=F, na = "") 
+               forecast_highFI = upr
+             ),
+           "100353_gasverbrauch.csv", row.names=F, na = "")
 
 ```
 
-<br>
-<br>
-<br>
+<br> <br> <br>
 
-> **_Hinweis:_**  Je nach Kombination von Betriebssystemen und Versionen von RStudio, R und den verwendeten Pakete können die Ergebnisse leicht von den publizierten Resultaten abweichen. Grund dafür sind Unterschiede am Zufalls-Generator für die Prognose des Modells. Die angewendete Konfiguration lautet:
+> ***Hinweis:*** Je nach Kombination von Betriebssystemen und Versionen
+> von RStudio, R und den verwendeten Pakete können die Ergebnisse leicht
+> von den publizierten Resultaten abweichen. Die angewendete Konfiguration 
+> lautet:
 
 <br>
 
@@ -330,7 +380,26 @@ sessionInfo()
 
 ```
 
+<br>
 
+Gasverbrauch im Versorgungsgebiet der IWB:
+<a href="https://data.bs.ch/explore/dataset/100304/" target="_parent">
+https://data.bs.ch/explore/dataset/100304/ </a>
 
+Effektiver und erwarteter täglicher Gasverbrauch:
+<a href="https://data.bs.ch/explore/dataset/100353/" target="_parent">
+https://data.bs.ch/explore/dataset/100353/ </a>
 
+Der Code des Modells kann selber ausgeführt und weiterentwickelt werden.
+Hierfür wird Renku verwendet. Renku ist eine Plattform, die verschiedene
+Werkzeuge für reproduzierbare und kollaborative Datenanalyseprojekte
+bündelt:
+<a href="https://renkulab.io/projects/stata/reproducible/erwarteter-gasverbrauch-basel-stadt" target="_parent">
+https://renkulab.io/projects/stata/reproducible/erwarteter-gasverbrauch-basel-stadt
+</a>
 
+Webartikel:
+<a href="https://www.statistik.bs.ch/aktuell/gasverbrauch-2023.html" target="_parent">
+https://www.statistik.bs.ch/aktuell/gasverbrauch-2023.html </a>
+
+<br> <br> <br>
