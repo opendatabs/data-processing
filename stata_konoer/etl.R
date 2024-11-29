@@ -2,27 +2,41 @@ library(data.table)
 library(zoo)
 library(lubridate)
 library(tidyverse)
+library(httr)
 
-get_dataset <- function(url, proxy = NULL) {
+get_dataset <- function(url, pw_file = NULL, output_file = "100120.csv") {
   # Create directory if it does not exist
   data_path <- file.path('code', 'data-processing', 'stata_konoer', 'data')
   if (!dir.exists(data_path)) {
     dir.create(data_path, recursive = TRUE)
   }
 
-  # Set proxy if provided
-  if (!is.null(proxy)) {
-    Sys.setenv(http_proxy = proxy, https_proxy = proxy)
+  # Define the path for the downloaded file
+  csv_path <- file.path(data_path, output_file)
+
+  # Initialize proxy configuration
+  config <- list()
+
+  # Read proxy credentials if pw_file is provided
+  if (!is.null(pw_file) && file.exists(pw_file)) {
+    creds <- readLines(pw_file)
+    proxy_url <- sub("proxy_url=", "", creds[grep("proxy_url=", creds)])
+    username <- sub("username=", "", creds[grep("username=", creds)])
+    password <- sub("password=", "", creds[grep("password=", creds)])
+
+    if (length(proxy_url) > 0 && length(username) > 0 && length(password) > 0) {
+      config <- use_proxy(url = proxy_url, username = username, password = password)
+    } else {
+      stop("Proxy credentials in pw.txt are incomplete.")
+    }
   }
 
-  # Download the CSV file
-  csv_path <- file.path(data_path , '100120.csv')
-  download.file(url, csv_path, mode = "wb")
+  # Download the file using httr::GET
+  response <- GET(url, config, write_disk(csv_path, overwrite = TRUE))
 
-  # Reset proxy settings to default
-  if (!is.null(proxy)) {
-    Sys.unsetenv("http_proxy")
-    Sys.unsetenv("https_proxy")
+  # Check if the request was successful
+  if (http_type(response) != "text/csv" && status_code(response) != 200) {
+    stop("Failed to download the file. Check the URL or proxy settings.")
   }
 
   # Read the CSV file
@@ -39,6 +53,7 @@ get_dataset <- function(url, proxy = NULL) {
 
   return(data)
 }
+
 
 pathBussen <- "/code/data-processing/kapo_ordnungsbussen/data/Ordnungsbussen_OGD_all.csv"
 pathWildeDeponien <- "/code/data-processing/stadtreinigung_wildedeponien/data/wildedeponien_all.csv"
@@ -98,8 +113,7 @@ data_bussen_new <- data_bussen %>%
 print(head(data_bussen_new))
 write.csv(data_bussen_new,file = "/code/data-processing/stata_konoer/data_Ordnungsbussen.csv", fileEncoding = "UTF-8", row.names = FALSE)
 
-fread("pw.txt") -> pw
-data_strassenverkehr <- get_dataset(urlStrassenverkehr, proxy=pw[system=="internet", proxy])
+data_strassenverkehr <- get_dataset(urlStrassenverkehr, pw_file = "pw.txt")
 data_strassenverkehr_new <- data_strassenverkehr %>%
   rename(id = "id_unfall",
          incident_type_primary= "typ",

@@ -26,7 +26,7 @@ RUN echo "r <- getOption('repos'); \
 	  r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2024-11-28'; \
 	  options(repos = r);" > ~/.Rprofile
 
-RUN Rscript -e "install.packages(c('zoo', 'data.table', 'lubridate', 'knitr', 'tidyverse', 'eRTG3D'), dependencies = TRUE)"
+RUN Rscript -e "install.packages(c('zoo', 'data.table', 'lubridate', 'knitr', 'tidyverse', 'eRTG3D', 'httr'), dependencies = TRUE)"
 
 CMD ["Rscript", "/code/data-processing/stata_konoer/etl.R"]
 
