@@ -8,7 +8,7 @@ from common import change_tracking as ct
 from mobilitaet_verkehrszaehldaten import credentials
 
 
-def create_json_files_for_dashboard(df, filename, dest_path):
+def create_files_for_dashboard(df, filename, dest_path):
     """
     Creates JSON files for the dashboard based on the provided DataFrame.
 
@@ -49,9 +49,6 @@ def create_json_files_for_dashboard(df, filename, dest_path):
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
 
             if True or ct.has_changed(current_filename):
-                common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                                  f'verkehrszaehl_dashboard/data/{subfolder}')
-
                 # Add Direction_LaneName column
                 site_data['Direction_LaneName'] = (
                         site_data['DirectionName'].astype(str) + '#' + site_data['LaneName'].astype(str)
@@ -66,6 +63,9 @@ def create_json_files_for_dashboard(df, filename, dest_path):
                 aggregate_time_period(site_data, categories, dest_path, subfolder, site, filename, period='Year')
 
                 ct.update_hash_file(current_filename)
+
+    # For the velo view, we need to also show the temperature and precipitation data
+    download_weather_station_data(dest_path)
 
     # Calculate DTV per ZST and traffic type
     df_locations = download_locations()
@@ -324,4 +324,76 @@ def save_as_list_of_lists(df, filename):
         json.dump(data_as_list, json_file, ensure_ascii=False, indent=4)
     print(f"Saved {filename} in list-of-lists format.")
 
-    
+
+def download_weather_station_data(dest_path):
+    """
+    Downloads weather station data and returns a DataFrame with the data.
+
+    Returns:
+    - pd.DataFrame: DataFrame containing weather station data.
+    """
+    url_to_locations = 'https://data.bs.ch/explore/dataset/100051/download/'
+    params = {
+        'format': 'csv',
+        'timezone': 'Europe/Zurich',
+    }
+    r = common.requests_get(url_to_locations, params=params)
+    df = pd.read_csv(io.StringIO(r.text), sep=';', encoding='utf-8')
+    # Extract Date, HourFrom, Year, Month, Week, Weekday from datum_zeit
+    df['DateTimeFrom'] = pd.to_datetime(df['datum_zeit'], format='%Y-%m-%dT%H:%M:%S%z', utc=True).dt.tz_convert('Europe/Zurich')
+    df['Date'] = df['DateTimeFrom'].dt.strftime('%Y-%m-%d')
+    df['Hour'] = df['DateTimeFrom'].dt.hour
+    df['Year'] = df['DateTimeFrom'].dt.year
+    df['Month'] = df['DateTimeFrom'].dt.month
+    df['Week'] = df['DateTimeFrom'].dt.isocalendar().week
+    df['Weekday'] = df['DateTimeFrom'].dt.weekday
+    # Aggregate hourly data for temp_c and prec_mm columns
+    df_to_merge = df[['Date', 'Weekday']].drop_duplicates()
+    for col_name in ['temp_c', 'prec_mm']:
+        df_to_pivot = df[['Date', 'Hour', col_name]].copy()
+        df_agg = df_to_pivot.pivot_table(
+            index=['Date'],
+            values=col_name,
+            columns='Hour',
+            aggfunc='sum'
+        ).reset_index()
+        df_agg = df_agg.merge(df_to_merge, on='Date')
+        # Save the hourly data
+        current_filename_hourly = os.path.join(dest_path, 'weather', f'weather_{col_name}_hourly.csv')
+        print(f'Saving {current_filename_hourly}...')
+        df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
+        common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                          'verkehrszaehl_dashboard/data/weather')
+        os.remove(current_filename_hourly)
+    # Aggregate daily data for temp_c and prec_mm columns
+    df_to_group = df[['Date', 'temp_c', 'prec_mm']].copy()
+    df_to_merge = df[['Date', 'Week', 'Weekday', 'Year']].drop_duplicates()
+    df_agg = df_to_group.groupby(['Date'])[['temp_c', 'prec_mm']].mean().reset_index()
+    df_agg = df_agg.merge(df_to_merge, on='Date')
+    # Save the daily data
+    current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
+    print(f'Saving {current_filename_daily}...')
+    df_agg.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
+    common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      'verkehrszaehl_dashboard/data/weather')
+    os.remove(current_filename_daily)
+    # Aggregate monthly data for temp_c and prec_mm columns
+    df_to_group = df[['Year', 'Month', 'temp_c', 'prec_mm']].copy()
+    df_agg = df_to_group.groupby(['Year', 'Month'])[['temp_c', 'prec_mm']].mean().reset_index()
+    # Save the monthly data
+    current_filename_monthly = os.path.join(dest_path, 'weather', 'weather_monthly.csv')
+    print(f'Saving {current_filename_monthly}...')
+    df_agg.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
+    common.upload_ftp(current_filename_monthly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      'verkehrszaehl_dashboard/data/weather')
+    os.remove(current_filename_monthly)
+    # Aggregate yearly data for temp_c and prec_mm columns
+    df_to_group = df[['Year', 'temp_c', 'prec_mm']].copy()
+    df_agg = df_to_group.groupby(['Year'])[['temp_c', 'prec_mm']].mean().reset_index()
+    # Save the yearly data
+    current_filename_yearly = os.path.join(dest_path, 'weather', 'weather_yearly.csv')
+    print(f'Saving {current_filename_yearly}...')
+    df_agg.to_csv(current_filename_yearly, sep=';', encoding='utf-8', index=False)
+    common.upload_ftp(current_filename_yearly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      'verkehrszaehl_dashboard/data/weather')
+    os.remove(current_filename_yearly)

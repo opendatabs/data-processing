@@ -86,7 +86,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         generated_filenames.append(current_filename)
 
     logging.info(f'Creating json files for dashboard...')
-    dashboard_calc.create_json_files_for_dashboard(data, filename, dest_path)
+    dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
 
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
