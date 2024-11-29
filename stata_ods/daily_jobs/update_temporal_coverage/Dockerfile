@@ -3,7 +3,7 @@ WORKDIR /code/data-processing
 #ARG HTTPS_PROXY
 #ENV HTTPS_PROXY=$HTTPS_PROXY
 COPY requirements.txt requirements.txt
-COPY ../../../.ods_utils_py.env .ods_utils_py.env
+COPY .ods_utils_py.env .ods_utils_py.env
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir -r requirements.txt
 
