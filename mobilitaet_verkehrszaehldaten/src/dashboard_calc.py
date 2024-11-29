@@ -59,8 +59,8 @@ def create_files_for_dashboard(df, filename, dest_path):
                 # Perform aggregations
                 aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename)
                 aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
-                aggregate_time_period(site_data, categories, dest_path, subfolder, site, filename, period='Month')
-                aggregate_time_period(site_data, categories, dest_path, subfolder, site, filename, period='Year')
+                aggregate_monthly(site_data, categories, dest_path, subfolder, site, filename)
+                aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename)
 
                 ct.update_hash_file(current_filename)
 
@@ -108,7 +108,11 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
     - site (str/int): Site identifier.
     - filename (str): Name of the file being processed.
     """
-    df_to_merge = site_data[['Date', 'Weekday']].drop_duplicates()
+
+    # Determine the date range
+    min_date = pd.to_datetime(site_data['Date']).min()
+    max_date = pd.to_datetime(site_data['Date']).max()
+    date_range = pd.DataFrame({'Date': pd.date_range(start=min_date, end=max_date).strftime('%Y-%m-%d')})
 
     for category in categories[filename]:
         # Calculate the total counts per hour for each date, direction, and lane
@@ -119,7 +123,14 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
             columns='HourFrom',
             aggfunc='sum'
         ).reset_index()
-        df_agg = df_agg.merge(df_to_merge, on='Date')
+
+        # Create the complete date range for each direction and lane combination
+        directions_lanes = df_agg['Direction_LaneName'].unique()
+        complete_dates = pd.MultiIndex.from_product([date_range['Date'], directions_lanes],
+                                                    names=['Date', 'Direction_LaneName']).to_frame(index=False)
+        df_agg = complete_dates.merge(df_agg, on=['Date', 'Direction_LaneName'], how='left')
+
+        df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).dt.dayofweek
         df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
         df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
@@ -146,10 +157,24 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     """
     # Calculate the daily counts per weekday for each date, direction, and lane
     df_to_group = site_data[['Date', 'Direction_LaneName'] + categories[filename]].copy()
-    df_to_merge = site_data[['Date', 'Week', 'Weekday', 'Year']].drop_duplicates()
+
+    # Determine the date range
+    min_date = pd.to_datetime(site_data['Date']).min()
+    max_date = pd.to_datetime(site_data['Date']).max()
+    date_range = pd.DataFrame({'Date': pd.date_range(start=min_date, end=max_date).strftime('%Y-%m-%d')})
+
     df_agg = df_to_group.groupby(['Date', 'Direction_LaneName'])[categories[filename]].sum().reset_index()
     df_agg = df_agg[df_agg['Total'] > 0]
-    df_agg = df_agg.merge(df_to_merge, on='Date')
+    df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).dt.dayofweek
+    df_agg['Week'] = pd.to_datetime(df_agg['Date']).dt.week
+    df_agg['Year'] = pd.to_datetime(df_agg['Date']).dt.year
+
+    # Create the complete date range for each direction and lane combination
+    directions_lanes = df_agg['Direction_LaneName'].unique()
+    complete_dates = pd.MultiIndex.from_product([date_range['Date'], directions_lanes],
+                                                names=['Date', 'Direction_LaneName']).to_frame(index=False)
+    df_agg = complete_dates.merge(df_agg, on=['Date', 'Direction_LaneName'], how='left')
+
     df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
@@ -162,9 +187,9 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     os.remove(current_filename_daily)
 
 
-def aggregate_time_period(site_data, categories, dest_path, subfolder, site, filename, period):
+def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filename):
     """
-    Aggregates data over a specified time period ('Month' or 'Year').
+    Aggregates data over months.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
@@ -173,32 +198,88 @@ def aggregate_time_period(site_data, categories, dest_path, subfolder, site, fil
     - subfolder (str): Subfolder name.
     - site (str/int): Site identifier.
     - filename (str): Name of the file being processed.
-    - period (str): 'Month' or 'Year' indicating the aggregation period.
     """
-    if period == 'Month':
-        group_cols = ['Year', 'Month', 'Direction_LaneName']
-        file_suffix = 'monthly'
-    elif period == 'Year':
-        group_cols = ['Year', 'Direction_LaneName']
-        file_suffix = 'yearly'
-    else:
-        raise ValueError("Period must be 'Month' or 'Year'")
-
+    group_cols = ['Year', 'Month', 'Direction_LaneName']
     df_to_group = site_data[group_cols + ['DateTimeFrom'] + categories[filename]].copy()
+
+    # Aggregate data by month
     df_agg = df_to_group.groupby(group_cols)[categories[filename]].sum().reset_index()
     df_agg = df_agg[df_agg['Total'] > 0]
 
+    # Count the number of measures
     df_measures = df_to_group.groupby(group_cols)['DateTimeFrom'].nunique().reset_index()
     df_measures.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
-    df_measures = df_measures[df_measures['NumMeasures'] > 0]
-    df_agg = df_agg.merge(df_measures, on=group_cols)
+    df_agg = df_agg.merge(df_measures, on=group_cols, how='left')
     for col in categories[filename]:
         df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
+
+    # Create a complete range of months
+    min_date = site_data['DateTimeFrom'].min()
+    max_date = site_data['DateTimeFrom'].max()
+    date_range = pd.date_range(start=min_date, end=max_date, freq='MS')
+    direction_lanes = site_data['Direction_LaneName'].unique()
+    complete_months = pd.MultiIndex.from_product(
+        [date_range.year, date_range.month, direction_lanes],
+        names=['Year', 'Month', 'Direction_LaneName']
+    ).to_frame(index=False)
+
+    # Merge with the complete range
+    df_agg = complete_months.merge(df_agg, on=group_cols, how='left')
     df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the aggregated data
-    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{file_suffix}.csv')
+    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_monthly.csv')
+    print(f'Saving {current_filename}...')
+    df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+    common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
+                      f'verkehrszaehl_dashboard/data/{subfolder}')
+    os.remove(current_filename)
+
+
+def aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename):
+    """
+    Aggregates data over years.
+
+    Parameters:
+    - site_data (pd.DataFrame): DataFrame containing site data.
+    - categories (dict): Dictionary mapping filenames to category lists.
+    - dest_path (str): Destination path for saving files.
+    - subfolder (str): Subfolder name.
+    - site (str/int): Site identifier.
+    - filename (str): Name of the file being processed.
+    """
+    group_cols = ['Year', 'Direction_LaneName']
+    df_to_group = site_data[group_cols + ['DateTimeFrom'] + categories[filename]].copy()
+
+    # Aggregate data by year
+    df_agg = df_to_group.groupby(group_cols)[categories[filename]].sum().reset_index()
+    df_agg = df_agg[df_agg['Total'] > 0]
+
+    # Count the number of measures
+    df_measures = df_to_group.groupby(group_cols)['DateTimeFrom'].nunique().reset_index()
+    df_measures.rename(columns={'DateTimeFrom': 'NumMeasures'}, inplace=True)
+    df_agg = df_agg.merge(df_measures, on=group_cols, how='left')
+    for col in categories[filename]:
+        df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
+
+    # Create a complete range of years
+    min_year = site_data['DateTimeFrom'].min().year
+    max_year = site_data['DateTimeFrom'].max().year
+    years = pd.DataFrame({'Year': range(min_year, max_year + 1)})
+    direction_lanes = site_data['Direction_LaneName'].unique()
+    complete_years = pd.MultiIndex.from_product(
+        [years['Year'], direction_lanes],
+        names=['Year', 'Direction_LaneName']
+    ).to_frame(index=False)
+
+    # Merge with the complete range
+    df_agg = complete_years.merge(df_agg, on=group_cols, how='left')
+    df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
+    df_agg = df_agg.drop(columns=['Direction_LaneName'])
+
+    # Save the aggregated data
+    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_yearly.csv')
     print(f'Saving {current_filename}...')
     df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -345,19 +426,34 @@ def download_weather_station_data(dest_path):
     df['Hour'] = df['DateTimeFrom'].dt.hour
     df['Year'] = df['DateTimeFrom'].dt.year
     df['Month'] = df['DateTimeFrom'].dt.month
-    df['Week'] = df['DateTimeFrom'].dt.isocalendar().week
-    df['Weekday'] = df['DateTimeFrom'].dt.weekday
-    # Aggregate hourly data for temp_c and prec_mm columns
-    df_to_merge = df[['Date', 'Weekday']].drop_duplicates()
+
+    # Determine the date range
+    min_date = pd.to_datetime(df['Date']).min()
+    max_date = pd.to_datetime(df['Date']).max()
+    date_range = pd.date_range(start=min_date, end=max_date)
+
+    # Create a complete date-hour range
+    complete_date_hour = pd.MultiIndex.from_product(
+        [date_range, range(24)],
+        names=['Date', 'Hour']
+    ).to_frame(index=False)
+    complete_date_hour['Date'] = complete_date_hour['Date'].dt.strftime('%Y-%m-%d')
+
     for col_name in ['temp_c', 'prec_mm']:
         df_to_pivot = df[['Date', 'Hour', col_name]].copy()
+
+        # Pivot and aggregate the data
         df_agg = df_to_pivot.pivot_table(
             index=['Date'],
             values=col_name,
             columns='Hour',
             aggfunc='sum'
         ).reset_index()
-        df_agg = df_agg.merge(df_to_merge, on='Date')
+
+        # Merge with the complete date-hour range to fill missing values
+        df_agg = complete_date_hour.merge(df_agg, on=['Date', 'Hour'], how='left')
+        df_agg['Weeekday'] = pd.to_datetime(df_agg['Date']).dt.dayofweek
+
         # Save the hourly data
         current_filename_hourly = os.path.join(dest_path, 'weather', f'weather_{col_name}_hourly.csv')
         print(f'Saving {current_filename_hourly}...')
@@ -365,11 +461,22 @@ def download_weather_station_data(dest_path):
         common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           'verkehrszaehl_dashboard/data/weather')
         os.remove(current_filename_hourly)
+
     # Aggregate daily data for temp_c and prec_mm columns
     df_to_group = df[['Date', 'temp_c', 'prec_mm']].copy()
-    df_to_merge = df[['Date', 'Week', 'Weekday', 'Year']].drop_duplicates()
+
+    # Determine the date range
+    min_date = pd.to_datetime(df['Date']).min()
+    max_date = pd.to_datetime(df['Date']).max()
+    date_range = pd.DataFrame({'Date': pd.date_range(start=min_date, end=max_date).strftime('%Y-%m-%d')})
+
+    # Merge with the complete date range
     df_agg = df_to_group.groupby(['Date'])[['temp_c', 'prec_mm']].mean().reset_index()
-    df_agg = df_agg.merge(df_to_merge, on='Date')
+    df_agg = date_range.merge(df_agg, on='Date', how='left')
+    df_agg['Weeekday'] = pd.to_datetime(df_agg['Date']).dt.dayofweek
+    df_agg['Year'] = pd.to_datetime(df_agg['Date']).dt.year
+    df_agg['Week'] = pd.to_datetime(df_agg['Date']).dt.month
+
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
     print(f'Saving {current_filename_daily}...')
@@ -377,9 +484,25 @@ def download_weather_station_data(dest_path):
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       'verkehrszaehl_dashboard/data/weather')
     os.remove(current_filename_daily)
-    # Aggregate monthly data for temp_c and prec_mm columns
+
+    # Aggregate monthly data
     df_to_group = df[['Year', 'Month', 'temp_c', 'prec_mm']].copy()
     df_agg = df_to_group.groupby(['Year', 'Month'])[['temp_c', 'prec_mm']].mean().reset_index()
+
+    # Create a complete range of months within the date range
+    min_date = pd.to_datetime(df[['Year', 'Month']].assign(Day=1)).min()
+    max_date = pd.to_datetime(df[['Year', 'Month']].assign(Day=1)).max()
+    date_range = pd.date_range(start=min_date, end=max_date, freq='MS')
+
+    # Create a DataFrame of all months in the range
+    complete_months = pd.DataFrame({
+        'Year': date_range.year,
+        'Month': date_range.month
+    })
+
+    # Merge with the complete range to fill missing months
+    df_agg = complete_months.merge(df_agg, on=['Year', 'Month'], how='left')
+
     # Save the monthly data
     current_filename_monthly = os.path.join(dest_path, 'weather', 'weather_monthly.csv')
     print(f'Saving {current_filename_monthly}...')
@@ -387,6 +510,7 @@ def download_weather_station_data(dest_path):
     common.upload_ftp(current_filename_monthly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       'verkehrszaehl_dashboard/data/weather')
     os.remove(current_filename_monthly)
+
     # Aggregate yearly data for temp_c and prec_mm columns
     df_to_group = df[['Year', 'temp_c', 'prec_mm']].copy()
     df_agg = df_to_group.groupby(['Year'])[['temp_c', 'prec_mm']].mean().reset_index()

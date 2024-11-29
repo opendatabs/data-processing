@@ -37,7 +37,6 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['DateTimeTo'] = data['DateTimeFrom'] + pd.Timedelta(hours=1)
     data['Year'] = data['DateTimeFrom'].dt.year
     data['Month'] = data['DateTimeFrom'].dt.month
-    data['Week'] = data['DateTimeFrom'].dt.isocalendar().week
     data['Day'] = data['DateTimeFrom'].dt.day
     data['Weekday'] = data['DateTimeFrom'].dt.weekday
     data['HourFrom'] = data['DateTimeFrom'].dt.hour
