@@ -3,26 +3,40 @@ library(zoo)
 library(lubridate)
 library(tidyverse)
 
-get_dataset <- function(url) {
+get_dataset <- function(url, proxy = NULL) {
   # Create directory if it does not exist
   data_path <- file.path('code', 'data-processing', 'stata_konoer', 'data')
   if (!dir.exists(data_path)) {
     dir.create(data_path, recursive = TRUE)
   }
+
+  # Set proxy if provided
+  if (!is.null(proxy)) {
+    Sys.setenv(http_proxy = proxy, https_proxy = proxy)
+  }
+
   # Download the CSV file
   csv_path <- file.path(data_path , '100120.csv')
   download.file(url, csv_path, mode = "wb")
 
+  # Reset proxy settings to default
+  if (!is.null(proxy)) {
+    Sys.unsetenv("http_proxy")
+    Sys.unsetenv("https_proxy")
+  }
+
   # Read the CSV file
   data <- tryCatch(
-      read.csv(csv_path, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8"),
-      warning = function(w) NULL,
-      error = function(e) NULL
+    read.csv(csv_path, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8"),
+    warning = function(w) NULL,
+    error = function(e) NULL
   )
-  # if dataframe only has one column or less the data is not ";" separated
+
+  # If the dataframe only has one column or less, the data is not ";" separated
   if (is.null(data) || ncol(data) <= 1) {
-      stop("The data wasn't imported properly. Very likely the correct separator couldn't be found.\nPlease check the dataset manually and adjust the code.")
+    stop("The data wasn't imported properly. Very likely the correct separator couldn't be found.\nPlease check the dataset manually and adjust the code.")
   }
+
   return(data)
 }
 
@@ -84,7 +98,8 @@ data_bussen_new <- data_bussen %>%
 print(head(data_bussen_new))
 write.csv(data_bussen_new,file = "/code/data-processing/stata_konoer/data_Ordnungsbussen.csv", fileEncoding = "UTF-8", row.names = FALSE)
 
-data_strassenverkehr <- get_dataset(urlStrassenverkehr)
+fread("pw.txt") -> pw
+data_strassenverkehr <- get_dataset(urlStrassenverkehr, proxy=pw[system=="internet", proxy])
 data_strassenverkehr_new <- data_strassenverkehr %>%
   rename(id = "id_unfall",
          incident_type_primary= "typ",
