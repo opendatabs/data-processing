@@ -111,7 +111,7 @@ data_bussen_new <- data_bussen %>%
   filter(!is.na(longitude)) %>%
   filter(!is.na(latitude))
 print(head(data_bussen_new))
-write.csv(data_bussen_new,file = "/code/data-processing/stata_konoer/data_Ordnungsbussen.csv", fileEncoding = "UTF-8", row.names = FALSE)
+write.csv(data_bussen_new,file = "/code/data-processing/stata_konoer/data/data_Ordnungsbussen.csv", fileEncoding = "UTF-8", row.names = FALSE)
 
 data_strassenverkehr <- get_dataset(urlStrassenverkehr, pw_file = "pw.txt")
 data_strassenverkehr_new <- data_strassenverkehr %>%
