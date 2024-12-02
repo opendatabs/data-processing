@@ -448,7 +448,7 @@ def download_weather_station_data(dest_path):
         ).reset_index()
 
         # Merge with the complete date-hour range to fill missing values
-        df_agg = complete_date_hour.merge(df_agg, on=['Date', 'Hour'], how='left')
+        df_agg = complete_date_hour.merge(df_agg, on=['Date'], how='left')
         df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).dt.weekday
 
         # Save the hourly data
@@ -470,9 +470,9 @@ def download_weather_station_data(dest_path):
     # Merge with the complete date range
     df_agg = df_to_group.groupby(['Date'])[['temp_c', 'prec_mm']].mean().reset_index()
     df_agg = date_range.merge(df_agg, on='Date', how='left')
-    df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).weekday
+    df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).dt.weekday
     df_agg['Year'] = pd.to_datetime(df_agg['Date']).dt.year
-    df_agg['Week'] = pd.to_datetime(df_agg['Date']).dt.dt.isocalendar().week
+    df_agg['Week'] = pd.to_datetime(df_agg['Date']).dt.isocalendar().week
 
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
