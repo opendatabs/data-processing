@@ -2,12 +2,12 @@ library(knitr)
 library(data.table)
 library(httr)
 
-if (file.exists("Stromverbrauch_productiv.R")) {
+if (file.exists("Stromverbrauch_productive.R")) {
   #Delete file if it exists
-  file.remove("Stromverbrauch_productiv.R")
+  file.remove("Stromverbrauch_productive.R")
 }
 
-knitr::purl("stromverbrauch/Productiv/Stromverbrauch_productiv.Rmd", output = "Stromverbrauch_productiv.R")
+knitr::purl("stromverbrauch/Productive/Stromverbrauch_productive.Rmd", output = "Stromverbrauch_productive.R")
 
 fread("pw.txt") -> pw
 
@@ -21,7 +21,7 @@ x <- httr::GET("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/
 bin <- content(x, "raw")
 writeBin(bin, "data/nbcn-daily_BAS_current.csv")
 
-original_script <- readLines("Stromverbrauch_productiv.R")
+original_script <- readLines("Stromverbrauch_productive.R")
 
 modified_script <- gsub("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte",
                         "data",
@@ -35,6 +35,6 @@ modified_script <- gsub(old_line, new_line, modified_script, fixed = TRUE)
 modified_script <- gsub("100245_Strom_Wetter.csv", "data/export/100245_Strom_Wetter.csv", modified_script, fixed=TRUE)
 modified_script <- gsub("renv::snapshot()", "", modified_script, fixed=TRUE)
 
-writeLines(modified_script, "Stromverbrauch_productiv.R")
+writeLines(modified_script, "Stromverbrauch_productive.R")
 
-source("Stromverbrauch_productiv.R")
+source("Stromverbrauch_productive.R")
