@@ -462,8 +462,7 @@ write.csv2(Data_model_ols %>%
                forecast = fit,
                vgl_real_minus_forecast,
                forecast_lowFI = lwr,
-               forecast_highFI = upr,
-               trainorforecast = Ettape
+               forecast_highFI = upr
                ), 
            "100245_Strom_Wetter.csv", row.names=F, na = "") 
 
