@@ -110,6 +110,10 @@ def main():
                     os.remove(file)
             ct.update_hash_file(datafile_with_path)
 
+    # For the velo view in the dashboard,
+    # we also need to show the temperature and precipitation data
+    dashboard_calc.download_weather_station_data(credentials.path_dest)
+
     # Upload original unprocessed data
     if not no_file_copy:
         for orig_file in filename_orig:

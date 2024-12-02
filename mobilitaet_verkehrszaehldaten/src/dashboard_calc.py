@@ -64,9 +64,6 @@ def create_files_for_dashboard(df, filename, dest_path):
 
                 ct.update_hash_file(current_filename)
 
-    # For the velo view, we need to also show the temperature and precipitation data
-    download_weather_station_data(dest_path)
-
     # Calculate DTV per ZST and traffic type
     df_locations = download_locations()
     if 'MIV' in filename:
