@@ -34,6 +34,20 @@ def main():
         gdf['erfassungszeit'] = gdf['erfassungszeit'].str.split('.').str[0]
         # Adding the time zone
         gdf['erfassungszeit'] = pd.to_datetime(gdf['erfassungszeit']).dt.tz_localize('Europe/Zurich')
+        path_all = os.path.join(credentials.data_path, 'sprayereien.csv')
+        gdf.to_csv(path_all, index=False)
+        # Split geometry into lon and lat
+        gdf['lon'] = gdf['geometry'].x
+        gdf['lat'] = gdf['geometry'].y
+        # Rasterize coordinates
+        logging.info("Rasterizing coordinates and getting rid of data we don't want to have published...")
+        offset_lon = 2608700
+        offset_lat = 1263200
+        raster_size = 50
+        gdf['raster_lat'] = ((gdf.lat - offset_lat) // raster_size) * raster_size + offset_lat
+        gdf['raster_lon'] = ((gdf.lon - offset_lon) // raster_size) * raster_size + offset_lon
+        columns_of_interest = ['id', 'erfassungszeit', 'spray_typ', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name',
+                               'raster_lat', 'raster_lon']
         path_export = os.path.join(credentials.data_path, 'export', '100389_sprayereien.csv')
         gdf.to_csv(path_export, index=False)
         common.update_ftp_and_odsp(path_export, 'tba/sprayereien', '100389')
