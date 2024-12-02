@@ -48,6 +48,7 @@ def main():
         gdf['raster_lon'] = ((gdf.lon - offset_lon) // raster_size) * raster_size + offset_lon
         columns_of_interest = ['id', 'erfassungszeit', 'spray_typ', 'plz', 'wov_id', 'wov_name', 'bez_id', 'bez_name',
                                'raster_lat', 'raster_lon']
+        gdf = gdf[columns_of_interest]
         path_export = os.path.join(credentials.data_path, 'export', '100389_sprayereien.csv')
         gdf.to_csv(path_export, index=False)
         common.update_ftp_and_odsp(path_export, 'tba/sprayereien', '100389')
