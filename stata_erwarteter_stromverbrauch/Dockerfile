@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y \
 
 RUN R -e "install.packages('renv', repos = c(CRAN = 'https://cloud.r-project.org'))"
 
-COPY stromverbrauch/Productiv/renv.lock renv.lock
+COPY stromverbrauch/Productive/renv.lock renv.lock
 
-ENV RENV_PATHS_LIBRARY stromverbrauch/Productiv/renv/library
+ENV RENV_PATHS_LIBRARY stromverbrauch/Productive/renv/library
 
 RUN R -e "renv::restore()"
 
