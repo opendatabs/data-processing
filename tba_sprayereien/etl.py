@@ -28,7 +28,7 @@ def main():
         gdf_bezirke = download_spatial_descriptors('100039')
         gdf['bez_id'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_bezirke, 'bez_id'))
         gdf['bez_name'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_bezirke, 'bez_name'))
-        gdf['geometry'] = gdf['geometry'].to_crs('EPSG:4326')
+        gdf['geometry'] = gdf['geometry'].to_crs('EPSG:2056')
         # ---->  print(gdf.iloc[4407])
         # Removing the microseconds
         gdf['erfassungszeit'] = gdf['erfassungszeit'].str.split('.').str[0]
