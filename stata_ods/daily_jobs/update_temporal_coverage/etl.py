@@ -138,7 +138,9 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
         except IndexError:
             return None, None
 
-
+        if min_date is None or max_date is None:
+            logging.warning(f"Skipping column {column_name} due to missing date value.")
+            continue
 
         min_date_candidate = _parse_date(min_date, is_min_date=True)
         max_date_candidate = _parse_date(max_date, is_min_date=False)
