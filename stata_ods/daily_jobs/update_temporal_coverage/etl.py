@@ -200,7 +200,7 @@ def main():
         if min_date and max_date:
             # ISO 8601 standard for date ranges is "YYYY-MM-DD/YYYY-MM-DD"; we implement this here
             ods_utils.set_dataset_metadata_temporal_period(
-                temporal_period=f"{min_date}/{max_date}",
+                temporal_period=None,#f"{min_date}/{max_date}",
                 dataset_id=dataset_id,
                 publish=False
             )
