@@ -1,14 +1,14 @@
 """
-This class updates the temporal coverage fields of all datasets by automatically detecting date or datetime columns. It
-sorts these columns by granularity and only considers those with the highest granularity available. Specifically:
+This class updates the temporal coverage fields of all datasets with unrestricted access by automatically detecting
+date or datetime columns. It sorts these columns by granularity and only considers those with the highest granularity
+available. Specifically:
 
 - If datetime fields are present, only these are considered.
 - If no datetime fields are found, only date fields with 'day' granularity are used.
 - If no fields with 'day' granularity are available, fields with 'month' granularity are used.
 - If no 'month' fields are present, fields with 'year' granularity are used.
 
-If none of these granularities are present, the process skips the dataset and moves to the next. If the dataset id is
-not an integer then the dataset is skipped because it is very likely that this is just a test dataset.
+If none of these granularities are present, the process skips the dataset and moves to the next.
 """
 
 import logging
@@ -179,15 +179,9 @@ def main():
         'status'
     ])
 
-    all_dataset_ids: [int] = ods_utils.get_all_dataset_ids()
+    all_dataset_ids: [int] = ods_utils.get_all_dataset_ids(include_restricted=False)
 
     for dataset_id in all_dataset_ids:
-        # Skip datasets where the id is not a number: These are likely test datasets that we don't need.
-        try:
-            int(dataset_id)
-        except ValueError:
-            logging.info(f"Skipping dataset {dataset_id} as it is not a numeric ID")
-            continue
             
         logging.info(f"Processing dataset {dataset_id}")
         dataset_title = ods_utils.get_dataset_title(dataset_id=dataset_id)
