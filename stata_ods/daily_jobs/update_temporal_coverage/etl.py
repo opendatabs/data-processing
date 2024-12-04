@@ -12,6 +12,8 @@ If none of these granularities are present, the process skips the dataset and mo
 
 import logging
 from typing import Optional, Dict, Any
+
+import requests.exceptions
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 
@@ -181,7 +183,14 @@ def main():
         dataset_title = ods_utils.get_dataset_title(dataset_id=dataset_id)
 
         logging.info(f"Trying to retrieve oldest and newest date in the dataset {dataset_id}")
-        min_date, max_date, additional_info = get_dataset_date_range(dataset_id=dataset_id)
+        try:
+            min_date, max_date, additional_info = get_dataset_date_range(dataset_id=dataset_id)
+        except requests.exceptions.HTTPError as e:
+            logging.debug(f"HTTPError occurred: {e}")
+            if e.response.status_code == 404:
+                logging.info(f"Dataset {dataset_id} does not seem to exist. Skipping...")
+            continue
+
         logging.info(f"Found dates in dataset {dataset_id} from {min_date} to {max_date}")
 
         new_row = pd.DataFrame({
