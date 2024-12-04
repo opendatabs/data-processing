@@ -7,7 +7,8 @@ sorts these columns by granularity and only considers those with the highest gra
 - If no fields with 'day' granularity are available, fields with 'month' granularity are used.
 - If no 'month' fields are present, fields with 'year' granularity are used.
 
-If none of these granularities are present, the process skips the dataset and moves to the next.
+If none of these granularities are present, the process skips the dataset and moves to the next. If the dataset id is
+not an integer then the dataset is skipped because it is very likely that this is just a test dataset.
 """
 
 import logging
@@ -181,6 +182,13 @@ def main():
     all_dataset_ids: [int] = ods_utils.get_all_dataset_ids()
 
     for dataset_id in all_dataset_ids:
+        # Skip datasets where the id is not a number: These are likely test datasets that we don't need.
+        try:
+            int(dataset_id)
+        except ValueError:
+            logging.info(f"Skipping dataset {dataset_id} as it is not a numeric ID")
+            continue
+            
         logging.info(f"Processing dataset {dataset_id}")
         dataset_title = ods_utils.get_dataset_title(dataset_id=dataset_id)
 
