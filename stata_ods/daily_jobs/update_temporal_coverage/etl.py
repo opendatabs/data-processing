@@ -1,6 +1,7 @@
 """
-This class updates the temporal coverage fields of all datasets by automatically detecting date or datetime columns. It
-sorts these columns by granularity and only considers those with the highest granularity available. Specifically:
+This class updates the temporal coverage fields of all datasets with unrestricted access by automatically detecting
+date or datetime columns. It sorts these columns by granularity and only considers those with the highest granularity
+available. Specifically:
 
 - If datetime fields are present, only these are considered.
 - If no datetime fields are found, only date fields with 'day' granularity are used.
@@ -12,6 +13,8 @@ If none of these granularities are present, the process skips the dataset and mo
 
 import logging
 from typing import Optional, Dict, Any
+
+import requests.exceptions
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 
@@ -136,7 +139,9 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
         except IndexError:
             return None, None
 
-
+        if min_date is None or max_date is None:
+            logging.warning(f"Skipping column {column_name} due to missing date value.")
+            continue
 
         min_date_candidate = _parse_date(min_date, is_min_date=True)
         max_date_candidate = _parse_date(max_date, is_min_date=False)
@@ -174,14 +179,22 @@ def main():
         'status'
     ])
 
-    #all_dataset_ids: [int] = ods_utils.get_all_dataset_ids()
+    all_dataset_ids: [int] = ods_utils.get_all_dataset_ids(include_restricted=False)
 
-    for dataset_id in ['100397', '100396', '100014']:#all_dataset_ids:
-        logging.info(f"Processing dataset {dataset_id}")
+    for counter, dataset_id in enumerate(all_dataset_ids, start=1):
+            
+        logging.info(f"Processing dataset [{counter}/{len(all_dataset_ids)}]: {dataset_id}")
         dataset_title = ods_utils.get_dataset_title(dataset_id=dataset_id)
 
         logging.info(f"Trying to retrieve oldest and newest date in the dataset {dataset_id}")
-        min_date, max_date, additional_info = get_dataset_date_range(dataset_id=dataset_id)
+        try:
+            min_date, max_date, additional_info = get_dataset_date_range(dataset_id=dataset_id)
+        except requests.exceptions.HTTPError as e:
+            logging.debug(f"HTTPError occurred: {e}")
+            if e.response.status_code == 404:
+                logging.info(f"Dataset {dataset_id} does not seem to exist. Skipping...")
+            continue
+
         logging.info(f"Found dates in dataset {dataset_id} from {min_date} to {max_date}")
 
         new_row = pd.DataFrame({
