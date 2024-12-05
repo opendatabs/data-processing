@@ -180,7 +180,7 @@ def main():
         'status'
     ])
 
-    all_dataset_ids: [int] = ods_utils.get_all_dataset_ids(include_restricted=False)
+    all_dataset_ids: [str] = ods_utils.get_all_dataset_ids(include_restricted=False)
 
     for counter, dataset_id in enumerate(all_dataset_ids, start=1):
             
