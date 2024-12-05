@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     libproj-dev \
     libgdal-dev \
     libicu-dev \
+    libicu66 \
     locales && \
     locale-gen de_DE.UTF-8 && \
     update-locale LANG=de_DE.UTF-8
