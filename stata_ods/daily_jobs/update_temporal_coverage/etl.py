@@ -181,9 +181,9 @@ def main():
 
     all_dataset_ids: [int] = ods_utils.get_all_dataset_ids(include_restricted=False)
 
-    for dataset_id in all_dataset_ids:
+    for counter, dataset_id in enumerate(all_dataset_ids, start=1):
             
-        logging.info(f"Processing dataset {dataset_id}")
+        logging.info(f"Processing dataset [{counter}/{len(all_dataset_ids)}]: {dataset_id}")
         dataset_title = ods_utils.get_dataset_title(dataset_id=dataset_id)
 
         logging.info(f"Trying to retrieve oldest and newest date in the dataset {dataset_id}")
