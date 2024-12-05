@@ -11,6 +11,7 @@ available. Specifically:
 If none of these granularities are present, the process skips the dataset and moves to the next.
 """
 
+import os
 import logging
 from typing import Optional, Dict, Any
 
@@ -235,8 +236,9 @@ def main():
 
     # Save the DataFrame to a CSV file
     csv_filename = 'update_temporal_coverage_report.csv'
-    df.to_csv(csv_filename, index=False, sep=';')
-    logging.info(f"CSV file '{csv_filename}' has been created with the dataset information.")
+    csv_path = os.path.join('stata_ods', 'daily_jobs', 'update_temporal_coverage', csv_filename)
+    df.to_csv(csv_path, index=False, sep=';')
+    logging.info(f"CSV file '{csv_filename}' has been created with the dataset information. It has been saved to {csv_path}")
 
 
 if __name__ == "__main__":
