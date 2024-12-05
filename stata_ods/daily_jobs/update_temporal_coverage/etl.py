@@ -148,11 +148,11 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
         max_date_candidate = _parse_date(max_date, is_min_date=False)
 
         if min_return_value is None or min_date_candidate < min_return_value:
-            logging.debug(f"Updating min_return_value from {min_return_value} to {min_date_candidate}")
+            logging.debug(f"Found oldest date {min_date_candidate}")
             min_return_value = min_date_candidate
 
         if max_return_value is None or max_date_candidate > max_return_value:
-            logging.debug(f"Updating max_return_value from {max_return_value} to {max_date_candidate}")
+            logging.debug(f"Found newest date {max_date_candidate}")
             max_return_value = max_date_candidate
 
     min_date_str = None
@@ -222,10 +222,20 @@ def main():
             min_return_value = _parse_date(currently_set_dates.split('/')[0], is_min_date=True)
             max_return_value = _parse_date(currently_set_dates.split('/')[1], is_min_date=False)
 
-        should_update_min_date = min_date != min_return_value
-        should_update_max_date = max_date != max_return_value
+        should_update_min_date = min_return_value != _parse_date(min_date, is_min_date=True)
+        should_update_max_date = max_return_value != _parse_date(max_date, is_min_date=False)
 
         if min_date and max_date:
+            if should_update_min_date:
+                logging.info(f"Temporal coverage start date is {min_date} and does NOT need to be updated.")
+            else:
+                logging.info(f"Temporal coverage start date gets updated from {min_return_value.strftime('%Y-%m-%d')} to {min_date}")
+
+            if should_update_min_date:
+                logging.info(f"Temporal coverage end date is {max_date} and does NOT need to be updated.")
+            else:
+                logging.info(f"Temporal coverage end date gets updated from {max_return_value.strftime('%Y-%m-%d')} to {max_date}")
+
             # ISO 8601 standard for date ranges is "YYYY-MM-DD/YYYY-MM-DD"; we implement this here
             if should_update_min_date or should_update_max_date:
                 ods_utils.set_dataset_metadata_temporal_period(
