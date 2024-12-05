@@ -222,10 +222,10 @@ def main():
             min_return_value = _parse_date(currently_set_dates.split('/')[0], is_min_date=True)
             max_return_value = _parse_date(currently_set_dates.split('/')[1], is_min_date=False)
 
-        should_update_min_date = min_return_value != _parse_date(min_date, is_min_date=True)
-        should_update_max_date = max_return_value != _parse_date(max_date, is_min_date=False)
-
         if min_date and max_date:
+            should_update_min_date = min_return_value != _parse_date(min_date, is_min_date=True)
+            should_update_max_date = max_return_value != _parse_date(max_date, is_min_date=False)
+
             if should_update_min_date:
                 logging.info(f"Temporal coverage start date is {min_date} and does NOT need to be updated.")
             else:
