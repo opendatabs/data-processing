@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y \
     libproj-dev \
     libgdal-dev \
     libicu-dev \
-    libicu66 \
     locales && \
     locale-gen de_DE.UTF-8 && \
     update-locale LANG=de_DE.UTF-8
@@ -35,16 +34,11 @@ RUN echo "r <- getOption('repos'); \
           r['CRAN'] <- 'https://packagemanager.rstudio.com/cran/__linux__/focal/2024-11-28'; \
           options(repos = r);" > ~/.Rprofile
 
+# Reinstall stringi package with correct ICU version
+RUN Rscript -e "install.packages('stringi', dependencies = TRUE, type = 'source')"
+
 # Install required R packages
 RUN Rscript -e "install.packages(c('zoo', 'data.table', 'lubridate', 'knitr', 'tidyverse', 'eRTG3D', 'httr', 'stringi'), dependencies = TRUE)"
 
 # Set the default command to execute the R script
 CMD ["Rscript", "/code/data-processing/stata_konoer/etl.R"]
-
-# Docker commands to create image and run container:
-# cd stata_konoer
-# docker build -t stata_konoer .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing \
-#     -v /mnt/OGD-DataExch/StatA/KoNör:/code/data-processing/stata_konoer/data \
-#     --name stata_konoer stata_konoer
