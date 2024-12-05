@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     libudunits2-dev \
     libproj-dev \
     libgdal-dev \
+    libicu-dev \
     locales && \
     locale-gen de_DE.UTF-8 && \
     update-locale LANG=de_DE.UTF-8
@@ -34,7 +35,7 @@ RUN echo "r <- getOption('repos'); \
           options(repos = r);" > ~/.Rprofile
 
 # Install required R packages
-RUN Rscript -e "install.packages(c('zoo', 'data.table', 'lubridate', 'knitr', 'tidyverse', 'eRTG3D', 'httr'), dependencies = TRUE)"
+RUN Rscript -e "install.packages(c('zoo', 'data.table', 'lubridate', 'knitr', 'tidyverse', 'eRTG3D', 'httr', 'stringi'), dependencies = TRUE)"
 
 # Set the default command to execute the R script
 CMD ["Rscript", "/code/data-processing/stata_konoer/etl.R"]
