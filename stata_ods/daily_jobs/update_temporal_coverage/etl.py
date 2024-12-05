@@ -211,24 +211,46 @@ def main():
 
         df = pd.concat([df, new_row], ignore_index=True)
 
+        # IMPORTANT: For checking whether a date has changed, we use the date that is written into the "temporal period"
+        # field. When this field is not available, used, or updated anymore, we have to change how this works!
+
+        currently_set_dates = ods_utils.get_dataset_metadata_temporal_period(dataset_id=dataset_id)
+        if not currently_set_dates or '/' not in currently_set_dates:
+            min_return_value = None
+            max_return_value = None
+        else:
+            min_return_value = _parse_date(currently_set_dates.split('/')[0], is_min_date=True)
+            max_return_value = _parse_date(currently_set_dates.split('/')[1], is_min_date=False)
+
+        should_update_min_date = min_date != min_return_value
+        should_update_max_date = max_date != max_return_value
+
         if min_date and max_date:
             # ISO 8601 standard for date ranges is "YYYY-MM-DD/YYYY-MM-DD"; we implement this here
-            ods_utils.set_dataset_metadata_temporal_period(
-                temporal_period=f"{min_date}/{max_date}",
-                dataset_id=dataset_id,
-                publish=False
-            )
+            if should_update_min_date or should_update_max_date:
+                ods_utils.set_dataset_metadata_temporal_period(
+                    temporal_period=f"{min_date}/{max_date}",
+                    dataset_id=dataset_id,
+                    publish=False
+                )
 
-            ods_utils.set_dataset_metadata_temporal_coverage_start_date(
-                temporal_coverage_start_date=min_date,
-                dataset_id=dataset_id,
-                publish=False
-            )
-            ods_utils.set_dataset_metadata_temporal_coverage_end_date(
-                temporal_coverage_end_date=max_date,
-                dataset_id=dataset_id,
-                publish=True
-            )
+            if should_update_min_date:
+                ods_utils.set_dataset_metadata_temporal_coverage_start_date(
+                    temporal_coverage_start_date=min_date,
+                    dataset_id=dataset_id,
+                    publish=False
+                )
+
+            if should_update_max_date:
+                ods_utils.set_dataset_metadata_temporal_coverage_end_date(
+                    temporal_coverage_end_date=max_date,
+                    dataset_id=dataset_id,
+                    publish=False
+                )
+
+            if should_update_min_date or should_update_max_date:
+                ods_utils.set_dataset_public(dataset_id=dataset_id, should_be_public=True)
+
         else:
             logging.warning(f"Skipping metadata update for dataset {dataset_id} due to missing date range.")
 
