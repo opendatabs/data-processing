@@ -58,6 +58,7 @@ get_dataset <- function(url, pw_file = NULL, output_file = "100120.csv") {
 pathBussen <- "/code/data-processing/kapo_ordnungsbussen/data/Ordnungsbussen_OGD_all.csv"
 pathWildeDeponien <- "/code/data-processing/stadtreinigung_wildedeponien/data/wildedeponien_all.csv"
 urlStrassenverkehr <- "https://data.bs.ch/explore/dataset/100120/download?format=csv&timezone=Europe%2FZurich"
+pathSprayereien <- "/code/data-processing/tba_sprayereien/data/sprayereien.csv"
 
 data_deponien <- fread(pathWildeDeponien, header = TRUE)
 data_deponien_new <- data_deponien %>%
@@ -139,3 +140,59 @@ write.csv(data_strassenverkehr_new,file = "/code/data-processing/stata_konoer/da
 
 write.csv(data_strassenverkehr_new %>% select(parent_incident_type,incident_type_primary,incident_type_secondary_nr,incident_type_secondary) %>% unique(),
           file = "/code/data-processing/stata_konoer/data/data_strassenverkehrziffern.csv", fileEncoding = "UTF-8", row.names = FALSE)
+
+
+spray <- read.csv(pathSprayereien)
+
+spray$date <- spray$erfassungszeit
+
+# Konvertieren der incident_date-Spalte in ein POSIXct-Objekt
+spray$date_char <- ymd_hms(spray$date, tz = "UTC")
+
+# Umwandeln in ein Date-Objekt (nur Datum)
+spray$incident_date <- as.Date(spray$date_char)
+
+# Formatieren des Datums im Format dd.mm.yyyy
+#spray$incident_date <- format(spray$date, format = "%d.%m.%Y")
+
+# Erzeugen der neuen Spalten
+spray$year <- year(spray$incident_date)
+spray$month <- month(spray$incident_date)
+spray$day_of_week_nr <- wday(spray$incident_date)
+spray$day_of_week <- weekdays(spray$incident_date)  # Voller Name des Wochentags
+spray$hour_of_day <- hour(spray$date_char)
+
+
+# Funktion zur Extraktion von Longitude und Latitude
+extract_coordinates <- function(point_string) {
+  # Verwende reguläre Ausdrücke, um die Koordinaten zu extrahieren
+  matches <- regmatches(point_string, regexec("POINT \\(([^ ]+) ([^ )]+)\\)", point_string))
+  coords <- unlist(matches)[-1]
+  if (length(coords) == 2) {
+    return(as.numeric(coords))
+  } else {
+    return(c(NA, NA))
+  }
+}
+
+# Wende die Funktion auf die 'geometry'-Spalte an und erstelle neue Spalten
+coordinates <- t(sapply(spray$geometry, extract_coordinates))
+colnames(coordinates) <- c("longitude", "latitude")
+spray <- cbind(spray, coordinates)
+
+library(tidyr)
+library(dplyr)
+spray <- spray %>%
+  rename(incident_type_primary = spray_typ) %>%
+  mutate(incident_type_primary = recode(incident_type_primary,
+                                "sprayout" = "Spray-Out",
+                                "sprayex" = "Spray-Ex"))%>%
+  mutate(parent_incident_type = "Sprayereien")
+
+spray <- dplyr::select(spray, id, incident_date, year, month, day_of_week_nr, day_of_week, hour_of_day, longitude, latitude, parent_incident_type, incident_type_primary)
+
+# Pfad zur CSV-Datei
+output_file <- "/code/data-processing/stata_konoer/data/data_sprayereien.csv"
+
+# Exportieren des DataFrames als CSV-Datei
+write.csv(spray, file = output_file, row.names = FALSE)
