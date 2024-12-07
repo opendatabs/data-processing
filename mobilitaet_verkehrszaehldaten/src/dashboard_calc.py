@@ -142,7 +142,7 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
 
 def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename):
     """
-    Performs daily aggregation and saves the data.
+    Performs daily aggregation, merges with weather data and saves the data.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
@@ -175,6 +175,11 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
+    # Merge with weather data
+    weather_filename = os.path.join(dest_path, 'weather', 'weather_daily.csv')
+    df_weather = pd.read_csv(weather_filename, sep=';', encoding='utf-8')
+    df_agg = df_agg.merge(df_weather, on=['Date', 'Weekday', 'Year'], how='left')
+
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
     print(f'Saving {current_filename_daily}...')
@@ -186,7 +191,7 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
 
 def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filename):
     """
-    Aggregates data over months.
+    Aggregates data over months, merges with weather data and saves the data.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
@@ -225,6 +230,11 @@ def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filenam
     df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
+    # Merge with weather data
+    weather_filename = os.path.join(dest_path, 'weather', 'weather_monthly.csv')
+    df_weather = pd.read_csv(weather_filename, sep=';', encoding='utf-8')
+    df_agg = df_agg.merge(df_weather, on=['Year', 'Month'], how='left')
+
     # Save the aggregated data
     current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_monthly.csv')
     print(f'Saving {current_filename}...')
@@ -236,7 +246,7 @@ def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filenam
 
 def aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename):
     """
-    Aggregates data over years.
+    Aggregates data over years, merges with weather data and saves the data.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
@@ -274,6 +284,11 @@ def aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename
     df_agg = complete_years.merge(df_agg, on=group_cols, how='left')
     df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
+
+    # Merge with weather data
+    weather_filename = os.path.join(dest_path, 'weather', 'weather_yearly.csv')
+    df_weather = pd.read_csv(weather_filename, sep=';', encoding='utf-8')
+    df_agg = df_agg.merge(df_weather, on=['Year'], how='left')
 
     # Save the aggregated data
     current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_yearly.csv')
