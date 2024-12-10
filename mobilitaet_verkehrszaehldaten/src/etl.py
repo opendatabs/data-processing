@@ -97,6 +97,10 @@ def main():
         no_file_copy = True
         print('Proceeding without copying files...')
 
+    # For the velo view in the dashboard,
+    # we also need to show the temperature and precipitation data
+    dashboard_calc.download_weather_station_data(credentials.path_dest)
+
     filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv']
 
     # Upload processed and truncated data
@@ -109,10 +113,6 @@ def main():
                     common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
                     os.remove(file)
             ct.update_hash_file(datafile_with_path)
-
-    # For the velo view in the dashboard,
-    # we also need to show the temperature and precipitation data
-    dashboard_calc.download_weather_station_data(credentials.path_dest)
 
     # Upload original unprocessed data
     if not no_file_copy:
