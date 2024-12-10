@@ -425,7 +425,7 @@ def download_weather_station_data(dest_path):
     Returns:
     - pd.DataFrame: DataFrame containing weather station data.
     """
-    url_to_locations = 'https://data.bs.ch/explore/dataset/100051/download/'
+    url_to_locations = 'https://data.bs.ch/explore/dataset/100254/download/'
     params = {
         'format': 'csv',
         'timezone': 'Europe/Zurich',
@@ -433,99 +433,27 @@ def download_weather_station_data(dest_path):
     r = common.requests_get(url_to_locations, params=params)
     df = pd.read_csv(io.StringIO(r.text), sep=';', encoding='utf-8')
     # Extract Date, HourFrom, Year, Month, Week, Weekday from datum_zeit
-    df['DateTimeFrom'] = pd.to_datetime(df['datum_zeit'], format='%Y-%m-%dT%H:%M:%S%z', utc=True).dt.tz_convert('Europe/Zurich')
-    df['Date'] = df['DateTimeFrom'].dt.strftime('%Y-%m-%d')
-    df['Hour'] = df['DateTimeFrom'].dt.hour
-    df['Year'] = df['DateTimeFrom'].dt.year
-    df['Month'] = df['DateTimeFrom'].dt.month
+    df = df.rename(columns={'date': 'Date', 'tre200d0': 'temp_c', 'tre200dn': 'temp_min',
+                            'tre200dx': 'temp_max', 'rre150d0': 'prec_mm'})
+    df = df[df['Date'] > '2000-01-01']
+    df['Year'] = pd.to_datetime(df['Date']).dt.year
+    df['Month'] = pd.to_datetime(df['Date']).dt.month
+    df['Weekday'] = pd.to_datetime(df['Date']).dt.weekday
 
-    # Determine the date range
-    min_date = pd.to_datetime(df['Date']).min()
-    max_date = pd.to_datetime(df['Date']).max()
-    date_range = pd.date_range(start=min_date, end=max_date)
-
-    # Create a complete date-hour range
-    complete_date_hour = pd.MultiIndex.from_product(
-        [date_range, range(24)],
-        names=['Date', 'Hour']
-    ).to_frame(index=False)
-    complete_date_hour['Date'] = complete_date_hour['Date'].dt.strftime('%Y-%m-%d')
-
-    for col_name in ['temp_c', 'prec_mm']:
-        df_to_pivot = df[['Date', 'Hour', col_name]].copy()
-
-        # Pivot and aggregate the data
-        df_agg = df_to_pivot.pivot_table(
-            index=['Date'],
-            values=col_name,
-            columns='Hour',
-            aggfunc='sum'
-        ).reset_index()
-
-        # Merge with the complete date-hour range to fill missing values
-        df_agg = complete_date_hour.merge(df_agg, on=['Date'], how='left')
-        df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).dt.weekday
-
-        # Save the hourly data
-        current_filename_hourly = os.path.join(dest_path, 'weather', f'weather_{col_name}_hourly.csv')
-        print(f'Saving {current_filename_hourly}...')
-        df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
-        common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          'verkehrszaehl_dashboard/data/weather')
-        os.remove(current_filename_hourly)
-
-    # Aggregate daily data for temp_c and prec_mm columns
-    df_to_group = df[['Date', 'temp_c', 'prec_mm']].copy()
-
-    # Determine the date range
-    min_date = pd.to_datetime(df['Date']).min()
-    max_date = pd.to_datetime(df['Date']).max()
-    date_range = pd.DataFrame({'Date': pd.date_range(start=min_date, end=max_date).strftime('%Y-%m-%d')})
-
-    # Merge with the complete date range
-    df_agg = df_to_group.groupby(['Date'])[['temp_c', 'prec_mm']].mean().reset_index()
-    df_agg = date_range.merge(df_agg, on='Date', how='left')
-    df_agg['Weekday'] = pd.to_datetime(df_agg['Date']).dt.weekday
-    df_agg['Year'] = pd.to_datetime(df_agg['Date']).dt.year
-    df_agg['Week'] = pd.to_datetime(df_agg['Date']).dt.isocalendar().week
+    # Aggregate daily data for tre200d0, tre200dn, tre200dx and rre150d0 columns
+    df = df[['Date', 'temp_c', 'temp_min', 'temp_max', 'prec_mm', 'Year', 'Month', 'Weekday']].copy()
 
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
     print(f'Saving {current_filename_daily}...')
-    df_agg.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
+    df.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       'verkehrszaehl_dashboard/data/weather')
     os.remove(current_filename_daily)
 
-    # Aggregate monthly data
-    df_to_group = df[['Year', 'Month', 'temp_c', 'prec_mm']].copy()
-    df_agg = df_to_group.groupby(['Year', 'Month'])[['temp_c', 'prec_mm']].mean().reset_index()
-
-    # Create a complete range of months within the date range
-    min_date = pd.to_datetime(df[['Year', 'Month']].assign(Day=1)).min()
-    max_date = pd.to_datetime(df[['Year', 'Month']].assign(Day=1)).max()
-    date_range = pd.date_range(start=min_date, end=max_date, freq='MS')
-
-    # Create a DataFrame of all months in the range
-    complete_months = pd.DataFrame({
-        'Year': date_range.year,
-        'Month': date_range.month
-    })
-
-    # Merge with the complete range to fill missing months
-    df_agg = complete_months.merge(df_agg, on=['Year', 'Month'], how='left')
-
-    # Save the monthly data
-    current_filename_monthly = os.path.join(dest_path, 'weather', 'weather_monthly.csv')
-    print(f'Saving {current_filename_monthly}...')
-    df_agg.to_csv(current_filename_monthly, sep=';', encoding='utf-8', index=False)
-    common.upload_ftp(current_filename_monthly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                      'verkehrszaehl_dashboard/data/weather')
-    os.remove(current_filename_monthly)
-
-    # Aggregate yearly data for temp_c and prec_mm columns
-    df_to_group = df[['Year', 'temp_c', 'prec_mm']].copy()
-    df_agg = df_to_group.groupby(['Year'])[['temp_c', 'prec_mm']].mean().reset_index()
+    # Aggregate yearly data for tre200d0
+    df_to_group = df[['Year', 'temp_c']].copy()
+    df_agg = df_to_group.groupby(['Year'])[['temp_c']].mean().reset_index()
     # Save the yearly data
     current_filename_yearly = os.path.join(dest_path, 'weather', 'weather_yearly.csv')
     print(f'Saving {current_filename_yearly}...')
