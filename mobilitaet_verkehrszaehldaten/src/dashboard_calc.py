@@ -427,6 +427,8 @@ def download_weather_station_data(dest_path):
 
     # Aggregate daily data for tre200d0, tre200dn, tre200dx and rre150d0 columns
     df = df[['Date', 'temp_c', 'temp_min', 'temp_max', 'prec_mm', 'Year', 'Month', 'Weekday']].copy()
+    # Sort by Date starting with the oldest
+    df = df.sort_values(by='Date')
 
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
