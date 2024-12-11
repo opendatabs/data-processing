@@ -23,8 +23,8 @@ def main():
     time_str = parking_header.find('span', class_='stempel_zeit').string.strip()
     local_timezone = ZoneInfo("Europe/Zurich")
     timestamp = datetime.strptime(f"{date_str} {time_str}", '%d.%m.%Y %H:%M:%S').replace(tzinfo=local_timezone)
-    published = timestamp.isoformat()
-    formatted_timestamp_now = datetime.now(local_timezone).isoformat()
+    published = timestamp.isoformat(timespec='seconds')
+    formatted_timestamp_now = datetime.now(local_timezone).isoformat(timespec='seconds')
 
     #print(f"Last updated at    {published}")
     #print(f"Last downloaded at {formatted_timestamp_now}")
