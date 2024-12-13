@@ -71,7 +71,7 @@ def main():
         sys.exit(1)
 
     config_file = sys.argv[1]
-    config_path = os.path.join("code", "data-processing", "rsync", "config_files", config_file)
+    config_path = os.path.join("/code", "data-processing", "rsync", "config_files", config_file)
 
     config = load_config(config_path)
 
