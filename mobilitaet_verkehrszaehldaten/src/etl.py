@@ -106,7 +106,7 @@ def main():
     # Upload processed and truncated data
     for datafile in filename_orig:
         datafile_with_path = os.path.join(credentials.path_orig, datafile)
-        if True or ct.has_changed(datafile_with_path):
+        if ct.has_changed(datafile_with_path):
             file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
             if not no_file_copy:
                 for file in file_names:
