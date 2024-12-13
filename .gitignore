@@ -52,3 +52,4 @@ __pycache__/
 !/zefix_handelsregister/data/shp_bs/*
 !/gva_geodatenshop/schema_files/*.csv
 !/fgi_geodatenshop/schema_files/*.csv
+!**/dataset_schema.json
