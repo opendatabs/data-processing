@@ -67,11 +67,11 @@ def load_config(config_path):
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python3 rsync.py <config_file>", file=sys.stderr)
+        print("Usage: python3 sync_files.py <config_file>", file=sys.stderr)
         sys.exit(1)
 
     config_file = sys.argv[1]
-    config_path = os.path.join("/code", "data-processing", "rsync", "config_files", config_file)
+    config_path = os.path.join("config_files", config_file)
 
     config = load_config(config_path)
 
