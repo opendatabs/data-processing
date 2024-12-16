@@ -145,7 +145,10 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         raw_files = glob.glob(data_search_string, recursive=True)
 
         if len(raw_files) == 0:
-            logging.info(f'No data files found using search path {data_search_string}...')
+            raise FileNotFoundError(f'No raw files found for measurement ID {measure_id}!')
+        elif len(raw_files) > 2:
+            raise FileNotFoundError(f'More than two raw files found for measurement ID {measure_id}!')
+
         for i, file in enumerate(raw_files):
             file = file.replace('\\', '/')
             filename_current_measure = os.path.join(credentials.path, 'processed', f'{str(measure_id)}_{i}.csv')
