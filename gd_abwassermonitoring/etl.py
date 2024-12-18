@@ -111,11 +111,11 @@ def make_df_infl_bs_bl():
 def make_dataframe_rsv():
     path_fortlaufend = credentials.path_RSV_USB_fortlaufend
     df_fortlaufend = pd.read_csv(path_fortlaufend, sep=';')
-    df_fortlaufend = df_fortlaufend.rename(columns={'Datum RSV Nachweis (Kalenderwoche)': 'KW'})['KW']
+    df_fortlaufend = df_fortlaufend.rename(columns={'DATUM_RSV_NACHWEIS_KALENDERWOCHE': 'KW'})['KW']
     # Group by "KW" and save the count into "Anz_pos_RSV_USB"
     df_fortlaufend = df_fortlaufend.value_counts().reset_index()
     df_fortlaufend = df_fortlaufend.rename(columns={'count': 'KW_Anz_pos_RSV_USB'})
-    df_fortlaufend['KW'] = df_fortlaufend['KW'].str.replace('KW', '2024_')
+    df_fortlaufend['KW'] = df_fortlaufend['KW'].str.replace('2024-KW', '2024_')
     path_retro = credentials.path_RSV_USB_retrospektiv
     df_retro = pd.read_excel(path_retro)
     df_retro = df_retro.rename(columns={'RSV positiv (Anzahl)': 'KW_Anz_pos_RSV_USB'})

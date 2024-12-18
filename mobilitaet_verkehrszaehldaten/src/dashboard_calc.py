@@ -48,7 +48,7 @@ def create_files_for_dashboard(df, filename, dest_path):
             print(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
 
-            if True or ct.has_changed(current_filename):
+            if ct.has_changed(current_filename):
                 # Add Direction_LaneName column
                 site_data['Direction_LaneName'] = (
                         site_data['DirectionName'].astype(str) + '#' + site_data['LaneName'].astype(str)

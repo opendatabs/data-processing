@@ -48,7 +48,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
 
-    db_filename = os.path.join(dest_path, filename.replace('.csv', '.db'))
+    db_filename = os.path.join(dest_path, 'datasette', filename.replace('.csv', '.db'))
     print(f'Saving into sqlite db {db_filename}...')
     conn = sqlite3.connect(db_filename)
     data.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
@@ -106,7 +106,7 @@ def main():
     # Upload processed and truncated data
     for datafile in filename_orig:
         datafile_with_path = os.path.join(credentials.path_orig, datafile)
-        if True or ct.has_changed(datafile_with_path):
+        if ct.has_changed(datafile_with_path):
             file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
             if not no_file_copy:
                 for file in file_names:

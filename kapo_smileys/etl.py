@@ -18,7 +18,7 @@ import io
 def csv_to_sqlite(curr_dir, export_file_all):
     df = pd.read_csv(export_file_all)
     # Create a SQLite database
-    conn = sqlite3.connect(export_file_all.replace('.csv', '.db'))
+    conn = sqlite3.connect(export_file_all.replace('all_data.csv', 'smileys.db'))
     cursor = conn.cursor()
 
     # Create a table with the appropriate column types
