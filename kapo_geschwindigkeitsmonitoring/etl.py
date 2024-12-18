@@ -145,7 +145,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         raw_files = glob.glob(data_search_string, recursive=True)
 
         if len(raw_files) == 0:
-            raise FileNotFoundError(f'No raw files found for measurement ID {measure_id}!')
+            logging.info(f'No raw files found for measurement ID {measure_id}!')
+            continue
         elif len(raw_files) > 2:
             raise FileNotFoundError(f'More than two raw files found for measurement ID {measure_id}!')
 
