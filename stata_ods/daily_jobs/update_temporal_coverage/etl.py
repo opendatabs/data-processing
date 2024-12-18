@@ -84,20 +84,25 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
 
     base_url = "https://data.bs.ch/api/explore/v2.1"
 
-    r = _requests_utils.requests_get(url=f"{base_url}/catalog/datasets/{dataset_id}")
-    r.raise_for_status()
-
-    data_fields = r.json().get("fields")
-
-    datetime_columns = [col for col in data_fields if col.get('type') == 'datetime']
-    date_columns = [col for col in data_fields if col.get('type') == 'date']
-
     additional_information: Dict[str, Any] = {
-        "date_fields_found": [col['name'] for col in datetime_columns + date_columns],
+        "date_fields_found": [],
         "date_fields_considered": [],
         "granularity_used": "",
         "status": "No suitable fields found"
     }
+
+    r = _requests_utils.requests_get(url=f"{base_url}/catalog/datasets/{dataset_id}")
+    r.raise_for_status()
+
+    data_fields = r.json().get("fields")
+    if data_fields is None:
+        logging.error(f"No 'fields' found in dataset {dataset_id} response.")
+        return None, None, additional_information
+
+    datetime_columns = [col for col in data_fields if col.get('type') == 'datetime']
+    date_columns = [col for col in data_fields if col.get('type') == 'date']
+
+    additional_information["date_fields_found"] = [col['name'] for col in datetime_columns + date_columns]
 
     if datetime_columns:
         relevant_column_names = [col['name'] for col in datetime_columns]
@@ -145,8 +150,12 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
             logging.warning(f"Skipping column {column_name} due to missing date value.")
             continue
 
-        min_date_candidate = _parse_date(min_date, is_min_date=True)
-        max_date_candidate = _parse_date(max_date, is_min_date=False)
+        try:
+            min_date_candidate = _parse_date(min_date, is_min_date=True)
+            max_date_candidate = _parse_date(max_date, is_min_date=False)
+        except ValueError as e:
+            logging.error(f"Date parsing error for column {column_name} in dataset {dataset_id}: {e}")
+            continue
 
         if min_return_value is None or min_date_candidate < min_return_value:
             logging.debug(f"Found oldest date {min_date_candidate}")
