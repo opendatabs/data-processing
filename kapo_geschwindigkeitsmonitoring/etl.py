@@ -148,7 +148,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
             logging.info(f'No raw files found for measurement ID {measure_id}!')
             continue
         elif len(raw_files) > 2:
-            raise FileNotFoundError(f'More than two raw files found for measurement ID {measure_id}!')
+            logging.info(f'More than 2 raw files found for measurement ID {measure_id}!')
+
 
         for i, file in enumerate(raw_files):
             file = file.replace('\\', '/')
