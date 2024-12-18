@@ -138,7 +138,8 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
             min_date = r_min.json().get('results', {})[0][column_name]
             max_date = r_max.json().get('results', {})[0][column_name]
         except IndexError:
-            return None, None
+            logging.error(f"Insufficient results returned for column {column_name} in dataset {dataset_id}.")
+            continue
 
         if min_date is None or max_date is None:
             logging.warning(f"Skipping column {column_name} due to missing date value.")
