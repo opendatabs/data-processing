@@ -237,12 +237,18 @@ def main():
             should_update_max_date = max_return_value != _parse_date(max_date, is_min_date=False)
 
             if should_update_min_date:
-                logging.info(f"Temporal coverage start date gets updated from {min_return_value.strftime('%Y-%m-%d')} to {min_date}")
+                if min_return_value:
+                    logging.info(f"Temporal coverage start date gets updated from {min_return_value.strftime('%Y-%m-%d')} to {min_date}")
+                else:
+                    logging.info(f"Temporal coverage start date gets updated from None to {min_date}")
             else:
                 logging.info(f"Temporal coverage start date is {min_date} and does NOT need to be updated.")
 
-            if should_update_min_date:
-                logging.info(f"Temporal coverage end date gets updated from {max_return_value.strftime('%Y-%m-%d')} to {max_date}")
+            if should_update_max_date:
+                if max_return_value:
+                    logging.info(f"Temporal coverage end date gets updated from {max_return_value.strftime('%Y-%m-%d')} to {max_date}")
+                else:
+                    logging.info(f"Temporal coverage end date gets updated from None to {max_date}")
             else:
                 logging.info(f"Temporal coverage end date is {max_date} and does NOT need to be updated.")
 
@@ -253,6 +259,7 @@ def main():
                     dataset_id=dataset_id,
                     publish=False
                 )
+                logging.info(f"Update temporal period from {currently_set_dates} to {min_date}/{max_date}")
 
             if should_update_min_date:
                 ods_utils.set_dataset_metadata_temporal_coverage_start_date(
