@@ -57,6 +57,7 @@ def main():
                                          np.where(df_meta_raw['messbeginn_jahr'] < 2021, '100200', '100358'), '100097')
     df_meta_raw['link_zu_einzelmessungen'] = 'https://data.bs.ch/explore/dataset/' + df_meta_raw[
         'dataset_id'] + '/table/?refine.messung_id=' + df_meta_raw['ID'].astype(str)
+    df_meta_raw['Verzeichnis'] = df_meta_raw['Verzeichnis'].str.replace('\\\\bs.ch\\jdolddfsroot$', 'Q:')
 
     df_metadata = create_metadata_per_location_df(df_meta_raw)
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
