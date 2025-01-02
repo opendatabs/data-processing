@@ -66,9 +66,9 @@ def extract_html_content(data):
     html_content = ''
     if isinstance(data, dict):
         for key, value in data.items():
-            if key == 'html_content':
+            if key == 'header' or key == 'html_content':
                 if isinstance(value, dict):
-                    # Assuming the language of interest is German ('de')
+                    # Getting the 'de' key from the dictionary
                     html_content += value.get('de', '') + '\n'
             else:
                 html_content += extract_html_content(value)
@@ -89,8 +89,7 @@ def get_full_path(df, index, column_name):
 
 
 def get_recent_changes(process_all=False):
-    df_recent_changes = pd.DataFrame()
-    r = common.requests_get('http://lexfind/api/fe/de/entities/6/recent-changes')
+    r = common.requests_get('http://www.lexfind.ch/api/fe/de/entities/6/recent-changes')
     r.raise_for_status()
     recent_changes = r.json()
     df = pd.json_normalize(recent_changes, record_path='recent_changes')
@@ -102,7 +101,7 @@ def get_recent_changes(process_all=False):
         domain_suffix = recent_changes['next_batch']
         if domain_suffix is None:
             break
-        r = common.requests_get('http://lexfind' + domain_suffix)
+        r = common.requests_get('http://www.lexfind.ch' + domain_suffix)
         r.raise_for_status()
         recent_changes = r.json()
         df = pd.json_normalize(recent_changes, record_path='recent_changes')
