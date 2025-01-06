@@ -10,14 +10,16 @@ from zrd_gesetzessammlung import credentials
 
 
 def main():
+    '''
     df_tols = get_texts_of_law()
     path_export = os.path.join(credentials.data_path, 'export', '100354_systematics_with_tols.csv')
     df_tols.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'zrd_gesetzessammlung', '100354')
+    '''
 
-    df_rc = get_recent_changes(process_all=True)
-    path_export = os.path.join(credentials.data_path, 'export', '100355_recent_changes.csv')
-    df_rc.to_csv(path_export, index=False)
+    df_changes = get_changes(process_all=True)
+    path_export = os.path.join(credentials.data_path, 'export', '100355_changes.csv')
+    df_changes.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'zrd_gesetzessammlung', '100355')
 
 
@@ -186,13 +188,14 @@ def get_full_path(df, index, column_name):
         return get_full_path(df, df.at[index, 'parent'], column_name) + "/" + df.at[index, column_name]
 
 
-def get_recent_changes(process_all=False):
+def get_changes(process_all=False):
+    # First get old changes
+    df_old_changes = get_old_changes()
     r = common.requests_get('http://www.lexfind.ch/api/fe/de/entities/6/recent-changes')
     r.raise_for_status()
     recent_changes = r.json()
     df = pd.json_normalize(recent_changes, record_path='recent_changes')
     df = process_recent_changes(df)
-    common.ods_realtime_push_df(df, credentials.push_url)
     df_recent_changes = df
 
     while True and process_all:
@@ -204,9 +207,23 @@ def get_recent_changes(process_all=False):
         recent_changes = r.json()
         df = pd.json_normalize(recent_changes, record_path='recent_changes')
         df = process_recent_changes(df)
-        common.ods_realtime_push_df(df, credentials.push_url)
         df_recent_changes = pd.concat([df_recent_changes, df])
-    return df_recent_changes
+    df_changes = pd.concat([df_old_changes, df_recent_changes]).drop_duplicates(subset=['change_date',
+                                                                                        'text_of_law_version_id'],
+                                                                                keep='last')
+    upload_to_ftp_per_month(df_changes)
+    return df_changes
+
+
+def get_old_changes():
+    listing = common.download_ftp([], common.credentials.ftp_server,
+                                  common.credentials.ftp_user,
+                                  common.credentials.ftp_pass,
+                                  'zrd_gesetzessammlung/changes_per_month',
+                                  os.path.join(credentials.data_path, 'changes_per_month'),
+                                  pattern='*.csv')
+    df_old_changes = pd.concat([pd.read_csv(file['local_file']) for file in listing])
+    return df_old_changes
 
 
 def process_recent_changes(df):
@@ -219,16 +236,64 @@ def process_recent_changes(df):
                     df['text_of_law_version.dtah_urls'].apply(pd.Series).add_prefix('tolsv_dtah_')], axis=1)
     df.columns = df.columns.str.replace('.', '_')
 
+    df = df.rename(columns={
+        'text_of_law_version_version_active_since': 'text_of_law_version_active_since',
+        'text_of_law_version_version_inactive_since': 'text_of_law_version_inactive_since',
+        'text_of_law_version_version_found_at': 'text_of_law_version_found_at',})
+
     date_columns = ['change_date', 'text_of_law_version_info_badge_date',
-                    'text_of_law_version_version_active_since', 'text_of_law_version_family_active_since',
-                    'text_of_law_version_version_inactive_since', 'text_of_law_version_version_found_at']
+                    'text_of_law_version_active_since', 'text_of_law_version_family_active_since',
+                    'text_of_law_version_inactive_since', 'text_of_law_version_found_at']
     df = convert_date_columns(df, date_columns)
-    return df
+    # Add prefix https://www.lexfind.ch for columns tols_dta_url and tolsv_dtah_url
+    df['tols_dta_url'] = 'https://www.lexfind.ch' + df['tols_dta_url']
+    df['tolsv_dtah_url'] = 'https://www.lexfind.ch' + df['tolsv_dtah_url']
+    columns_of_interest = ['change_date', 'change_type', 'text_of_law_id', 'text_of_law_systematic_number',
+                           'text_of_law_is_active', 'text_of_law_version_id', 'text_of_law_version_title',
+                           'text_of_law_version_keywords', 'text_of_law_version_info_badge',
+                           'text_of_law_version_info_badge_date', 'text_of_law_version_type',
+                           'text_of_law_version_continuation_type', 'text_of_law_version_previous_type',
+                           'text_of_law_version_active_since', 'text_of_law_version_family_active_since',
+                           'text_of_law_version_inactive_since', 'text_of_law_version_found_at',
+                           'text_of_law_version_is_active', 'text_of_law_version_category_id',
+                           'text_of_law_version_category_name', 'tols_dta_original_url', 'tols_dta_url',
+                           'tols_dta_file_size', 'tolsv_dtah_url', 'tolsv_dtah_file_size']
+    return df[columns_of_interest]
 
 
-# Convert date columns from %d.%m.%Y to %Y-%m-%d (string)
+def upload_to_ftp_per_month(df):
+    df['change_date'] = pd.to_datetime(df['change_date'], errors='coerce')
+
+    # Group by year and month, count the occurrences
+    grouped = df.groupby(df['change_date'].dt.to_period('M')).size()
+
+    # Save each month's data into the output folder
+    for period, count in grouped.items():
+        year_month = period.strftime('%Y-%m')  # Format year-month
+        period_df = df[df['change_date'].dt.to_period('M') == period]
+
+        # Save to CSV
+        output_path = os.path.join(os.path.join(credentials.data_path, 'changes_per_month'), f"{year_month}.csv")
+        period_df.to_csv(output_path, index=False)
+        common.upload_ftp(output_path, common.credentials.ftp_server,
+                          common.credentials.ftp_user, common.credentials.ftp_pass,
+                          'zrd_gesetzessammlung/changes_per_month')
+
+
+# Generalized function to handle multiple date formats, including ISO, Unix timestamps, and custom formats
 def convert_date_columns(df, date_columns):
-    df[date_columns] = df[date_columns].apply(lambda x: pd.to_datetime(x, format='%d.%m.%Y', errors='coerce').dt.strftime('%Y-%m-%d'))
+    def parse_date(column):
+        return (
+            pd.to_datetime(column, format='%Y-%m-%d', errors='coerce')  # ISO format
+            .combine_first(pd.to_datetime(column, format='%d.%m.%Y', errors='coerce'))  # DD.MM.YYYY format
+            .combine_first(pd.to_datetime(column, format='%d_%m_%Y', errors='coerce'))  # DD_MM_YYYY format
+            .combine_first(pd.to_datetime(column, unit='ms', errors='coerce'))  # Unix timestamps in milliseconds
+            .combine_first(pd.to_datetime(column, errors='coerce', dayfirst=True))  # General fallback
+        )
+
+    # Apply the parsing logic to each specified column
+    for col in date_columns:
+        df[col] = parse_date(df[col]).dt.strftime('%Y-%m-%d')
     return df
 
 
