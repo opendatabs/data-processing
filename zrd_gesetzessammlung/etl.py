@@ -10,12 +10,10 @@ from zrd_gesetzessammlung import credentials
 
 
 def main():
-    '''
     df_tols = get_texts_of_law()
     path_export = os.path.join(credentials.data_path, 'export', '100354_systematics_with_tols.csv')
     df_tols.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'zrd_gesetzessammlung', '100354')
-    '''
 
     df_changes = get_changes(process_all=True)
     path_export = os.path.join(credentials.data_path, 'export', '100355_changes.csv')
@@ -56,8 +54,9 @@ def get_texts_of_law():
     for index, row in df[df['id'].notna()].iterrows():
         dfs_versions.append(get_versions(df.at[index, 'id']))
         # last 3 characters are the /de
-        base_url = df.at[index, 'original_url_de'].replace('/data/', '/api/de/texts_of_law/')[0:-3]
-        dfs_tols.append(get_text_of_law(base_url, df.at[index, 'systematic_number']))
+        if df.at[index, 'original_url_de']:
+            base_url = df.at[index, 'original_url_de'].replace('/data/', '/api/de/texts_of_law/')[0:-3]
+            dfs_tols.append(get_text_of_law(base_url, df.at[index, 'systematic_number']))
     df_versions = pd.concat(dfs_versions)
     df_tols = pd.concat(dfs_tols)
 
