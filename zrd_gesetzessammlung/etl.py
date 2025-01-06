@@ -75,9 +75,16 @@ def get_texts_of_law():
 
     # Date columns from %d.%m.%Y to %Y-%m-%d (string)
     date_columns = ['version_active_since', 'family_active_since', 'version_inactive_since', 'version_found_at']
-    df = convert_date_columns(df, date_columns)    # Scrap texts of law
+    df = convert_date_columns(df, date_columns)
 
-    return df
+    # Only return columns of interest
+    columns_of_interest = ['index', 'parent', 'children', 'identifier', 'title', 'identifier_full', 'title_full', 'id',
+                           'systematic_number', 'is_active', 'v_id', 'title_de', 'keywords_de', 'info_badge',
+                           'info_badge_date', 'type', 'continuation_type', 'previous_type', 'version_active_since',
+                           'family_active_since', 'version_inactive_since', 'version_found_at', 'category_id',
+                           'category_name', 'original_url_de', 'url_de', 'text_of_law', 'gesetzestext_html',
+                           'version_url_de', 'tolsv_dtah_url', 'tolsv_dtah_file_size']
+    return df[columns_of_interest]
 
 
 def get_versions(t_id):
