@@ -111,19 +111,21 @@ def get_text_of_law(base_url, systematic_number):
         return pd.DataFrame()
     r.raise_for_status()
     current_json = r.json()
-    df = extract_versions_and_dates(current_json, base_url, systematic_number)
+    df = extract_versions_and_dates(current_json, base_url)
     # Extract the HTML content from the json
     for index, row in df.iterrows():
         url_version = df.at[index, 'version_url_de']
         r = requests.get(url_version, proxies=common.credentials.proxies)
         if r.status_code == 404:
-            logging.warning(f"Version with text of law not found for systematic number {systematic_number} and url {url_version}")
+            logging.warning(f"Version with text of law not found for systematic number {systematic_number} and "
+                            f"url {url_version}")
             df.at[index, 'version_url_de'] = pd.NA
             continue
         r.raise_for_status()
         current_json = r.json()
         if current_json['text_of_law']['selected_version']['json_content']:
-            df.at[index, 'text_of_law'] = extract_html_content(current_json['text_of_law']['selected_version']['json_content']['document'])
+            df.at[index, 'text_of_law'] = extract_html_content(
+                current_json['text_of_law']['selected_version']['json_content']['document'])
         else:
             logging.warning(f"HTML content not found for systematic number {systematic_number} and url {url_version}")
             df.at[index, 'version_url_de'] = pd.NA
@@ -134,7 +136,7 @@ def get_text_of_law(base_url, systematic_number):
     return df
 
 
-def extract_versions_and_dates(tol_json, base_url, systematic_number):
+def extract_versions_and_dates(tol_json, base_url):
     """
     Extract urls to tols and activation dates from the given json.
     Returns a pandas DataFrame with columns 'version_url_de' and 'version_active_since'.
@@ -142,7 +144,7 @@ def extract_versions_and_dates(tol_json, base_url, systematic_number):
     pattern = re.compile(
         r"(?:Aktuelle\s+Version\s+in\s+Kraft\s+seit:|"
         r"Version\s+in\s+Kraft\s+seit:|"
-        r"in\s+Kraft\s+seit:)\s*([\d\.]{10})"
+        r"in\s+Kraft\s+seit:)\s*([\d.]{10})"
     )
 
     def extract_date(version_dates_str: str) -> str:
@@ -245,7 +247,7 @@ def process_recent_changes(df):
     df = df.rename(columns={
         'text_of_law_version_version_active_since': 'text_of_law_version_active_since',
         'text_of_law_version_version_inactive_since': 'text_of_law_version_inactive_since',
-        'text_of_law_version_version_found_at': 'text_of_law_version_found_at',})
+        'text_of_law_version_version_found_at': 'text_of_law_version_found_at', })
 
     date_columns = ['change_date', 'text_of_law_version_info_badge_date',
                     'text_of_law_version_active_since', 'text_of_law_version_family_active_since',
