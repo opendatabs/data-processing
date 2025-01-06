@@ -96,6 +96,7 @@ def get_versions(t_id):
     df = df.explode('dtah_urls').reset_index()
     df = pd.concat([df.drop(['dtah_urls'], axis=1),
                     df['dtah_urls'].apply(pd.Series).add_prefix('tolsv_dtah_')], axis=1)
+    df['tolsv_dtah_url'] = 'https://www.lexfind.ch' + df['tolsv_dtah_url']
     df = df.rename(columns={'id': 'v_id'})
     df['id'] = t_id
     df = df.drop(columns=['index'])
@@ -253,7 +254,6 @@ def process_recent_changes(df):
                     'text_of_law_version_active_since', 'text_of_law_version_family_active_since',
                     'text_of_law_version_inactive_since', 'text_of_law_version_found_at']
     df = convert_date_columns(df, date_columns)
-    # Add prefix https://www.lexfind.ch for columns tols_dta_url and tolsv_dtah_url
     df['tols_dta_url'] = 'https://www.lexfind.ch' + df['tols_dta_url']
     df['tolsv_dtah_url'] = 'https://www.lexfind.ch' + df['tolsv_dtah_url']
     columns_of_interest = ['change_date', 'change_type', 'text_of_law_id', 'text_of_law_systematic_number',
