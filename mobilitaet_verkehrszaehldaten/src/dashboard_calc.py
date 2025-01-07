@@ -426,10 +426,11 @@ def download_weather_station_data(dest_path):
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       'verkehrszaehl_dashboard/data/weather')
     os.remove(current_filename_daily)
-
     # Aggregate yearly data for tre200d0
     df_to_group = df[['Year', 'temp_c']].copy()
     df_agg = df_to_group.groupby(['Year'])[['temp_c']].mean().reset_index()
+    # Remove current year
+    df_agg = df_agg[df_agg['Year'] != pd.Timestamp.now().year]
     # Save the yearly data
     current_filename_yearly = os.path.join(dest_path, 'weather', 'weather_yearly.csv')
     logging.info(f'Saving {current_filename_yearly}...')
