@@ -2,6 +2,7 @@ FROM python:3.11-bullseye
 WORKDIR /code/data-processing
 #ARG HTTPS_PROXY
 #ENV HTTPS_PROXY=$HTTPS_PROXY
+COPY data/csv/lots/parkhaeuser_manually_curated.csv parkendd/data/csv/lots/
 RUN python3 -m pip install --user --no-cache-dir beautifulsoup4==4.12.3
 RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
 RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
