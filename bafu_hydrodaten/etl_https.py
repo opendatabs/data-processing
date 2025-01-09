@@ -4,13 +4,11 @@ import urllib3
 import os
 import pandas as pd
 import common
-from common import retry
 from requests.auth import HTTPBasicAuth
 from functools import reduce
 from bafu_hydrodaten import credentials
 
 
-@retry(common.http_errors_to_handle, tries=5, delay=60, backoff=2)
 def process_river(river_files, river_name, river_id, variable_names, push_url):
     print('Loading data into data frames...')
     dfs = []
