@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import logging
 from datetime import datetime
@@ -36,9 +37,71 @@ def fetch_data_from_parkendd_api() -> pd.DataFrame:
 
     return normalized
 
-def find_additional_info(url_lot: str) -> tuple:
-    # TODO: implement me (find all infos that are not yet scraped, like address, etc.; see columns_to_update in main)
-    pass
+def find_additional_info(url_lot: str):
+    additional_info = {}
+
+    # Take address and coords from parkhaeuser_manually_curated.csv
+    # Scrape total and durchfahrtshoehe from website
+
+    # Get webpage content
+    response = common.requests_get(url=url_lot)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    try:
+        total_str = soup.find_all('b', string='Kurzparkplätze:')[0].next_sibling.strip()
+    except IndexError:
+        total_str = None
+
+    if total_str is not None:
+        try:
+            total = int(total_str)
+        except ValueError:
+            regex_badbahnhof = r"(\d+) \(Mo.Fr\), (\d+) \(Sa.So\)"
+            regex_results_badbahnhof = re.findall(regex_badbahnhof, total_str)
+
+            regex_messe = r"(\d+) \+ (\d+) IV-Parkplätze im 4\. OG"
+            regex_results_messe = re.findall(regex_messe, total_str)
+
+            regex_claramatte = r"Mo\..Fr\. (\d+) \/ Sa\..So\. (\d+)"
+            regex_results_claramatte = re.findall(regex_claramatte, total_str)
+
+            if len(regex_results_badbahnhof) == 1:
+                regex_results_badbahnhof_ints = [int(item) for item in regex_results_badbahnhof[0]]
+                total = max(regex_results_badbahnhof_ints)
+            elif len(regex_results_messe) == 1:
+                regex_results_messe_ints = [int(item) for item in regex_results_messe[0]]
+                total = sum(regex_results_messe_ints)
+            elif len(regex_results_claramatte) == 1:
+                regex_results_claramatte_ints = [int(item) for item in regex_results_claramatte[0]]
+                total = max(regex_results_claramatte_ints)
+            else:
+                exit(f"Error: Number of total is present on {url_lot} but cannot be extracted. The total is described as '{total_str}'. Maybe the regex is outdated?")
+    else:
+        total = None
+        logging.info(f"No total found for {url_lot}")
+
+    additional_info['total'] = total
+
+    try:
+        durchfahrtshoehe_str = soup.find_all('b', string='Durchfahrtshöhe:')[0].next_sibling.strip()
+    except IndexError:
+        durchfahrtshoehe_str = ""
+
+    additional_info['durchfahrtshoehe'] = durchfahrtshoehe_str
+
+    # Read CSV and get additional info
+    csv_path_of_manually_curated = os.path.join(credentials.path, 'csv', 'lots', 'parkhaeuser_manually_curated.csv')
+    df = pd.read_csv(csv_path_of_manually_curated)
+    lot_info = df.set_index('link').loc[url_lot]
+
+    additional_info['total'] = total
+    additional_info['address'] = lot_info['address']
+    additional_info['coords.lat'] = lot_info['coords.lat']
+    additional_info['coords.lng'] = lot_info['coords.lng']
+
+    return additional_info
 
 def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     url_to_scrape_from = "https://www.parkleitsystem-basel.ch/"
@@ -73,67 +136,43 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
                 
                 prefix, id2 = href.split('/')
 
+                status = row.find('td', class_='parkh_status').get_text(strip=True)
+                state = 'open' if status == 'offen' else 'closed' if status == 'geschlossen' else 'unknown state'
+
                 url_lot = url_to_scrape_from + href
                 additional_info_scraped = find_additional_info(url_lot=url_lot)
-                
+
                 lot_data = {
                     'name': row.find('td', class_='parkh_name').get_text(strip=True),
                     'free': int(row.find('td', class_='parkh_belegung').get_text(strip=True)),
-                    'status': row.find('td', class_='parkh_status').get_text(strip=True),
+                    'status': status,
+                    'state': state,
                     'last_updated': formatted_timestamp_last_updated,
                     'last_downloaded': formatted_timestamp_now,
                     'href': href,
                     'id': f'basel{prefix}{id2}',
-                    'id2': id2
+                    'id2': id2,
+                    'lot_type': prefix.capitalize(),
+                    'total': additional_info_scraped['total'],
+                    'durchfahrtshoehe': additional_info_scraped['durchfahrtshoehe'],
+                    'address': additional_info_scraped['address'],
+                    'coords.lat': additional_info_scraped['coords.lat'],
+                    'coords.lng': additional_info_scraped['coords.lng']
                 }
                 lots_data.append(lot_data)
     
     normalized_scraped = pd.DataFrame(lots_data)
-    normalized_scraped['title'] = "Parkhaus " + normalized_scraped['name']
+    normalized_scraped['title'] = normalized_scraped['lot_type'] + ' ' + normalized_scraped['name']
     normalized_scraped['link'] = url_to_scrape_from + normalized_scraped['href']
-    normalized_scraped['description'] = 'Anzahl freie Parkplätze: ' + normalized_scraped['free'].astype(str)
     normalized_scraped['published'] = normalized_scraped['last_downloaded']
 
-    normalized_scraped['forecast'] = False
-
-    # TODO: remove this when finished
-    # For debugging purposes: Reorder columns to match the order of the DataFrame from the API
-    column_order = ['address', 'forecast', 'free', 'id', 'lot_type', 'name', 'state', 'total', 
-                    'last_downloaded', 'last_updated', 'coords.lat', 'coords.lng', 'title', 
-                    'id2', 'link', 'description', 'published']
-    normalized_scraped = normalized_scraped.reindex(columns=column_order)
-    
     return normalized_scraped
 
 
 def main():
-    # As a note for future me: We do not want to use the api anymore, as we don't get new data. So, as of now, we take
-    # some info (that does not get updated) from the api, and everything else we scrape directly from the website. This
-    # is a quick and dirty fix; we would like to have only 1 source, i.e. replace the api completely.
-    # TODO: When we have done this, we can simplify the code until the "pass" tremendously.
-    normalized_api = fetch_data_from_parkendd_api()
-    normalized_scraped = scrape_data_from_parkleitsystem()
-
-    normalized_api['id2'] = normalized_api['id2'].replace('centralbahnparking', 'centralbahn')
-
-    all_columns = list(normalized_scraped.columns)
-
-    columns_to_update = ['address', 'lot_type', 'state', 'total', 'coords.lat', 'coords.lng', 'description']
-    columns_to_keep = list(set(all_columns) - set(columns_to_update + ['id2']))
-
-    merged = pd.merge(normalized_api, normalized_scraped, on='id2', suffixes=('_api', '_scraped'))
-
-    for col in columns_to_update:
-        merged[col] = merged[f'{col}_api']
-
-    for col in columns_to_keep:
-        merged[col] = merged[f'{col}_scraped']
-
-    normalized = merged[all_columns]
-
-    pass
-    
     lots_file_name = os.path.join(credentials.path, 'csv', 'lots', 'parkendd-lots.csv')
+
+    normalized = scrape_data_from_parkleitsystem()
 
     logging.info(f'Creating lots file and saving as {lots_file_name}...')
     lots = normalized[
