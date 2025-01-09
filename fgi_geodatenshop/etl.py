@@ -17,6 +17,7 @@ from common import change_tracking as ct
 def extract_second_hier_name(row, df2):
     # extract from wms the second name in the hierarchy
     # Search in df2 for the matching name
+    # df2 is the df of wms
     matching_row = df2[df2['Name'] == row['Name']]
     if not matching_row.empty:
         hier_name = matching_row['Hier_Name'].values[0]
@@ -74,23 +75,17 @@ def process_wms_data(url_wms):
 
 
 # Function for retrieving and parsing WFS GetCapabilities
-def process_wfs_data(url_wfs):
-    wfs = WebFeatureService(url=url_wfs, version='2.0.0', timeout=120)
+def process_wfs_data(wfs):
     # Retrieve the list of available layers (feature types) and their metadata
     feature_list = []
     for feature in wfs.contents:
         feature_info = wfs[feature]
         feature_list.append({
-         'Name': feature,
-         'Metadata URL': feature_info.metadataUrls})
+         'Name': feature})
     # Convert to DataFrame and display
     df_wfs = pd.DataFrame(feature_list)
     # Clearing the column 'Layer Name' ( remove 'ms:')
     df_wfs['Name'] = df_wfs['Name'].str.replace('ms:', '', regex=False)
-    # Clean-up of the ‘Metadata URL’ column (remove prefix and suffix)
-    df_wfs['Metadata URL'] = df_wfs['Metadata URL'].astype(str)
-    df_wfs['Metadata URL'] = df_wfs['Metadata URL'].str.replace(r"\[{'url': '", '', regex=True)
-    df_wfs['Metadata URL'] = df_wfs['Metadata URL'].str.replace(r"'}\]", '', regex=True)
     return df_wfs
 
 
@@ -98,13 +93,13 @@ def process_wfs_data(url_wfs):
 def create_map_links(geometry, p1, p2):
     # check whether the data is a geo point or geo shape
     logging.info(f'the type of the geometry is {geometry.geom_type}')
-   # geometry_types = gdf.iloc[0][geometry].geom_type
+    # geometry_types = gdf.iloc[0][geometry].geom_type
     if geometry.geom_type == 'Polygon':
         centroid = geometry.centroid
     else:
-         centroid = geometry
+        centroid = geometry
 
-     #  create a Map_links
+    #  create a Map_links
     lat, lon = centroid.y, centroid.x
     Map_links = f'https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}'
     return Map_links
@@ -122,34 +117,46 @@ def remove_empty_string_from_list(string_list):
     return list(filter(None, string_list))   
 
 
-# Returns value from geocat
-def geocat_value(key, metadata):
-    if str(key) != '':
-        pathlist = key.split('.')
-        tmp = metadata
-        for x in pathlist:
-            if isinstance(tmp, list):
-                tmp = tmp[0]  # Take the first element if tmp is a list
-            tmp = tmp[int(x) if x.isdigit() else x]
-        return tmp
+def extract_meta_geocat(geocat_uid):
+    # extract the metadata form geocat
+    geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}/formatters/xml'
+    response = requests.get(geocat_url, proxies=credentials.proxy)
+    if response.status_code == 200:
+        logging.info(f"Data successfully fetched from {geocat_url}")
     else:
-        return ''
+        logging.warning(f"Failed to fetch data from {geocat_url}: Status {response.status_code}")
+    xml_data = response.content
 
+    # parsing the XML data
+    namespace = {'che': 'http://www.geocat.ch/2008/che', 'gmd': 'http://www.isotc211.org/2005/gmd',
+                 'gco': 'http://www.isotc211.org/2005/gco'}
+    root = ET.fromstring(xml_data)
 
-def geocat_try(geocat_path_list, metadata):
-    for key in geocat_path_list:
-        try:
-            return geocat_value(key, metadata)
-        except (KeyError, TypeError):
-            # This key apparently is not present, try the next one in the list
-            pass
-    logging.info('Error: None of the given keys exist in the source dict...')
-    raise KeyError(';'.join(geocat_path_list))
+    # Extract "Publizierende Organisation"
+    position_name = root.find('.//gmd:pointOfContact/che:CHE_CI_ResponsibleParty/gmd:positionName/gco:CharacterString',
+                              namespace)
+    # Extract "Herausgeber"
+    first_name = root.find(
+        './/gmd:pointOfContact/che:CHE_CI_ResponsibleParty/che:individualFirstName/gco:CharacterString',
+        namespace)
+    # Extract the description 
+    Beschreibung = root.find('.//gmd:abstract/gmd:PT_FreeText/gmd:textGroup/gmd:LocalisedCharacterString', namespace)
+    # Extract dcat.created
+    xpath_date_time = ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:DateTime"
+    xpath_date = ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:Date"
+    # Try to finde the path
+    date_time_node = root.find(xpath_date_time, namespace)
+    date_node = root.find(xpath_date, namespace)
+    if date_node is not None:
+        date_value = date_node.text
+    else:
+        date_value = date_time_node.text
+    return position_name.text, first_name.text, Beschreibung.text, date_value
 
-
+    
 # Function for saving FGI geodata for each layer name
 def save_geodata_for_layers(wfs, df_fgi, file_path):
-    meta_data = pd.read_excel(os.path.join(credentials.path_harv, 'Metadata.xlsx'), na_filter=False)
+    meta_data = pd.read_excel(os.path.join(credentials.data_path, 'Metadata.xlsx'), na_filter=False)
     metadata_for_ods = []
     logging.info('Iterating over datasets...')
     for index, row in meta_data.iterrows():
@@ -159,7 +166,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             num_files = len(shapes_to_load)
             if num_files == 0:  # load all shapes.
                 # find the list of shapes in fgi_list
-                ind_list = df_fgi[df_fgi['Titel'] == row['Titel']].index
+                ind_list = df_fgi[df_fgi['Gruppe'] == row['Gruppe']].index
                 shapes_to_load = df_fgi.iloc[ind_list]['Name'].values[0]
             gdf_result = gpd.GeoDataFrame()
             for shapefile in shapes_to_load:
@@ -185,12 +192,11 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 gdf_result = gdf_result.to_crs(epsg=4326)
                 gdf_result['Map Links'] = \
                 gdf_result.apply(lambda row2: create_map_links(row2['geometry'], tree_groups, tree_group_layers_), axis=1, result_type='expand')
-                print(gdf_result.head())
             # save the geofile locally
-            titel = row['Titel']
+            titel = row['Gruppe']
             titel_dir = os.path.join(file_path, titel)
             os.makedirs(titel_dir, exist_ok=True)
-            file_name = f"{row['titel_nice']}.gpkg"
+            file_name = f"{row['Dateiname']}.gpkg"
             geopackage_file = os.path.join(titel_dir, file_name)
             gdf_result.to_file(geopackage_file, driver='GPKG')
             # save in ftp server
@@ -199,24 +205,11 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                                        ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
             geocat_uid = row['geocat'].rsplit('/', 1)[-1].replace('\t', '')
-            geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}'
-            logging.info(f'Getting metadata from {geocat_url}...')
-            r = common.requests_get(geocat_url, headers={'accept': 'application/xml, application/json'})
-            r.raise_for_status()
-            metadata = r.json()
-            # modified = datetime.strptime(str(row['dateaktualisierung']), '%Y%m%d').date().strftime("%Y-%m-%d")
+            publizierende_organisation, herausgeber, geocat_description, dcat_created = extract_meta_geocat(geocat_uid)
             ods_id = row['ods_id']
             schema_file = ''
             if row['schema_file']:
                 schema_file = f'{ods_id}.csv'
-
-            # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
-            geocat_description_textgroup = \
-                metadata['gmd:identificationInfo']['che:CHE_MD_DataIdentification']['gmd:abstract']['gmd:PT_FreeText'][
-                    'gmd:textGroup']
-            geocat_description = geocat_description_textgroup[0]['gmd:LocalisedCharacterString'][
-                '#text'] if isinstance(geocat_description_textgroup, list) else \
-                geocat_description_textgroup['gmd:LocalisedCharacterString']['#text']
             # Check if a description to the current shape is given in Metadata.csv
             description = row['beschreibung']
             dcat_ap_ch_domain = ''
@@ -231,42 +224,20 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 'description': description if len(description) > 0 else geocat_description,
                 # Only add nonempty strings as references
                 'references': '; '.join(filter(None, [row['mapbs_link'], row['geocat'], row['referenz']])),
-                # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
                 'theme': str(row['theme']),
                 'keyword': str(row['keyword']),
                 'dcat_ap_ch.domain': dcat_ap_ch_domain,
                 'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
                 'dcat.contact_name': 'Fachstelle für OGD Basel-Stadt',
                 'dcat.contact_email': 'opendata@bs.ch',
-                # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
-                # 'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                #                                  'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'])
-                #                      + ' '
-                #                      + geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text',
-                #                                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualLastName.gco:CharacterString.#text']),
-                # 'dcat.contact_email': geocat_value(row['geocat_email']),
-                # 'dcat.contact_email': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
-                #                                   'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text',
-                #                                   'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact[0].che:CHE_CI_ResponsibleParty.gmd:contactInfo.gmd:CI_Contact.gmd:address.che:CHE_CI_Address.gmd:electronicMailAddress.gco:CharacterString.#text']),
-                # 'dcat.created': geocat_value('geocat_created'),
-                'dcat.created': geocat_try([
-                    'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text',
-                    'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text'], metadata),
-                'dcat.creator': geocat_try([
-                    'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                    'gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.1.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
-                    'gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text'], metadata),
-                'dcat.accrualperiodicity': row['dcat.accrualperiodicity'],
+                'dcat.created': dcat_created,
+                'dcat.creator': herausgeber,
                 'attributions': 'Geodaten Kanton Basel-Stadt',
-                # For some datasets, keyword is a list
-                # 'keyword': isinstance(metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"], list)
-                # if metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"][0]["gco:CharacterString"]["#text"]
-                # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
-                'publisher': row['herausgeber'],
+                'publisher': herausgeber,
                 'dcat.issued': row['dcat.issued'],
                 #'modified': modified,
                 'language': 'de',
-                'publizierende-organisation': row['publizierende_organisation'],
+                'publizierende-organisation': publizierende_organisation,
                 # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
                 'tags': ';'.join([i for i in list(set(row['tags'].split(';') + ['opendata.swiss'])) if i != '']),
                 'geodaten-modellbeschreibung': row['modellbeschreibung'],
@@ -279,7 +250,6 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
         ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
         ods_metadata_filename = os.path.join(credentials.data_path, 'Opendatasoft_Export_GVA_GPKG.csv')
         ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
-
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
         logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
         common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -288,7 +258,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
 
     # Upload each schema_file
     logging.info('Uploading ODS schema files to FTP Server...')
-
+    
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
             schemafile_with_path = os.path.join(credentials.schema_path, schemafile)
@@ -301,33 +271,123 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
         logging.info('Harvester File contains no entries, no upload necessary.')
 
 
+# Get the names of columns for each layers and save it in a csv-schema
+def get_name_col(wfs, df_wfs):
+    # Iterate over all rows in DataFrame `df_wfs`
+    for index, row in df_wfs.iterrows():
+        layer = row['Name']
+        titel_folder = row['Gruppe']
+        folder_path = os.path.join(credentials.data_path, 'schema_files/templates', titel_folder)
+        logging.info(f"Load layer: {layer} into folder: {titel_folder}")
+        try:
+            # Create folder if it does not exist
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+
+            # GetFeature query with GeoJSON output
+            response = wfs.getfeature(typename=layer)
+
+            # Load GeoJSON into GeoDataFrame
+            gdf = gpd.read_file(io.BytesIO(response.read()))
+
+            # Extract column names
+            spalten_namen = gdf.columns.tolist()
+
+            schema_data = {"name": spalten_namen, "label": ["" for _ in spalten_namen],
+                           "description": ["" for _ in spalten_namen]}
+            schema_df = pd.DataFrame(schema_data)
+            # Creat a path for the CSV_file
+            file_path = os.path.join(folder_path, f"{layer}.csv")
+            # Save CSV
+            schema_df.to_csv(file_path, index=False, sep=';')
+
+            logging.info(f"Column names of layer '{layer}' successfully saved to '{file_path}'.")
+        except Exception as e:
+            logging.error(f"Error loading layer '{layer}': {e}")
+
+    logging.info("All column names were saved successfully.")
+
+
+# Get the number of columns for each layer
+def get_num_col(wfs, df_fgi):
+    # Iterate over all rows in DataFrame `df_fgi
+    for index, row in df_fgi.iterrows():
+        layers = row['Name']
+        # List for storing the results
+        results = []
+        # Retrieve layers from WFS and save them directly to GeoPackage
+        for layer in layers:
+            try:
+                logging.info(f"load layer: {layer}")
+                response = wfs.getfeature(typename=layer)
+                gdf = gpd.read_file(io.BytesIO(response.read()))
+                anzahl_spalten = gdf.shape[1]
+                # Ergebnis speichern
+                results.append({"Layer": layer, "Anzahl_Spalten": anzahl_spalten})
+                logging.info(f"layer '{layer}' successfully loaded and number of columns saved.")
+            except Exception as e:
+                # Fehler protokollieren und Layer überspringen
+                logging.error(f"Error loading layer '{layer}': {e}")
+                results.append({"Layer": layer, "Anzahl_Spalten": "Fehler"})
+        # DataFrame mit den Ergebnissen erstellen
+        file_name = row['Gruppe']
+        file_path = os.path.join(credentials.data_path, f'schema_files/templates/{file_name}', 'Anzahl der Spalten')
+        df_results = pd.DataFrame(results)
+        # Ergebnisse in eine Excel-Datei speichern
+        df_results.to_csv(f"{file_path}.csv", index=False, sep=';')
+
+
+def ods_id_col(df_wfs,df_fgi):
+    # make a new column for ods_id in FGI Data set
+    meta_data = pd.read_excel(os.path.join(credentials.data_path, 'Metadata.xlsx'), na_filter=False)
+    layer_data = []  # Sammeln von Daten als Liste
+    for _, row in meta_data.iterrows():
+        shapes_to_load = remove_empty_string_from_list(row['Layers'].split(';'))
+        num_files = len(shapes_to_load)
+        if num_files == 0:
+            ind_list = df_fgi[df_fgi['Gruppe'] == row['Gruppe']].index
+            shapes_to_load = df_fgi.iloc[ind_list]['Name'].values[0]
+        for layer in shapes_to_load:
+            if layer in df_wfs['Name'].values:
+                layer_data.append({'Name': layer, 'ods_ids': row['ods_id']})
+    layer_mapping = pd.DataFrame(layer_data)  # Daten in DataFrame umwandeln
+    grouped_mapping = layer_mapping.groupby('Name')['ods_ids'].apply(list).reset_index()
+
+    # add the new column
+    df_wfs = df_wfs.merge(grouped_mapping, on='Name', how='left')
+    return df_wfs
+
+
+
 def main():
     url_wms = 'https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities'
     url_wfs = 'https://wfs.geo.bs.ch/'
-    
+    wfs = WebFeatureService(url=url_wfs, version='2.0.0', timeout=120)
     df_wms = process_wms_data(url_wms)
-    df_wfs = process_wfs_data(url_wfs)
+    df_wfs = process_wfs_data(wfs)
     
-    df_wfs['Titel'] = df_wfs.apply(lambda row: extract_second_hier_name(row, df_wms), axis=1)
-    new_column_order = ['Titel', 'Name', 'Metadata URL']
+    df_wfs['Gruppe'] = df_wfs.apply(lambda row: extract_second_hier_name(row, df_wms), axis=1)
+    new_column_order = ['Gruppe', 'Name']
     df_wfs = df_wfs[new_column_order]
     df_wms_not_in_wfs = df_wms[~df_wms['Name'].isin(df_wfs['Name'])]
     # assign the layer names under main names to collect the geodata
-    df_fgi = df_wfs.groupby('Titel')['Name'].apply(list).reset_index()
-
+    df_fgi = df_wfs.groupby('Gruppe')['Name'].apply(list).reset_index()
+    # Add the ods_ids column
+    df_wfs = ods_id_col(df_wfs, df_fgi)
     # save DataFrames in CSV files
     data_path = credentials.data_path
     df_wms.to_csv(os.path.join(data_path, 'Hier_wms.csv'), sep=';', index=False)
-    df_fgi.to_csv(os.path.join(data_path, 'FGI_List.csv'), sep=';', index=False)
+    df_fgi.to_csv(os.path.join(data_path, 'mapBS_shapes.csv'), sep=';', index=False)
     df_wms_not_in_wfs.to_csv(os.path.join(data_path, 'wms_not_in_wfs.csv'), sep=';', index=False)
-    path_export = os.path.join(data_path, '100395.csv')
+    path_export = os.path.join(data_path, 'Odg_datensätze.csv')
     df_wfs.to_csv(path_export, sep=';', index=False)
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100395')
 
-
-    wfs = WebFeatureService(url=url_wfs, version='2.0.0', timeout=120)
+    get_name_col(wfs, df_wfs)
+    get_num_col(wfs, df_fgi)
     file_path = os.path.join(credentials.data_path, 'export')
     save_geodata_for_layers(wfs, df_fgi, file_path)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

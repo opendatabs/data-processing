@@ -2,6 +2,7 @@ import os
 import io
 import json
 import pandas as pd
+import logging
 
 import common
 from common import change_tracking as ct
@@ -45,7 +46,7 @@ def create_files_for_dashboard(df, filename, dest_path):
 
             # Save the original site data
             current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.csv')
-            print(f'Saving {current_filename}...')
+            logging.info(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
 
             if ct.has_changed(current_filename):
@@ -72,7 +73,7 @@ def create_files_for_dashboard(df, filename, dest_path):
             current_filename = os.path.join(dest_path, 'dtv_MIV_Speed.json')
         else:
             current_filename = os.path.join(dest_path, 'dtv_MIV.json')
-        print(f'Saving {current_filename}...')
+        logging.info(f'Saving {current_filename}...')
         save_as_list_of_lists(df_dtv, current_filename)
         common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data')
@@ -80,13 +81,13 @@ def create_files_for_dashboard(df, filename, dest_path):
     else:
         df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(df, df_locations)
         current_filename_velo = os.path.join(dest_path, 'dtv_Velo.json')
-        print(f'Saving {current_filename_velo}...')
+        logging.info(f'Saving {current_filename_velo}...')
         save_as_list_of_lists(df_dtv_velo, current_filename_velo)
         common.upload_ftp(current_filename_velo, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data')
         os.remove(current_filename_velo)
         current_filename_fuss = os.path.join(dest_path, 'dtv_Fussgaenger.json')
-        print(f'Saving {current_filename_fuss}...')
+        logging.info(f'Saving {current_filename_fuss}...')
         save_as_list_of_lists(df_dtv_fuss, current_filename_fuss)
         common.upload_ftp(current_filename_fuss, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data')
@@ -133,7 +134,7 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
 
         # Save the hourly data
         current_filename_hourly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_hourly.csv')
-        print(f'Saving {current_filename_hourly}...')
+        logging.info(f'Saving {current_filename_hourly}...')
         df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
         common.upload_ftp(current_filename_hourly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                           f'verkehrszaehl_dashboard/data/{subfolder}')
@@ -177,7 +178,7 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
 
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
-    print(f'Saving {current_filename_daily}...')
+    logging.info(f'Saving {current_filename_daily}...')
     df_agg.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
@@ -210,24 +211,12 @@ def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filenam
     for col in categories[filename]:
         df_agg[col] = df_agg[col] / df_agg['NumMeasures'] * 24
 
-    # Create a complete range of months
-    min_date = site_data['DateTimeFrom'].min()
-    max_date = site_data['DateTimeFrom'].max()
-    date_range = pd.date_range(start=min_date, end=max_date, freq='MS')
-    direction_lanes = site_data['Direction_LaneName'].unique()
-    complete_months = pd.MultiIndex.from_product(
-        [date_range.year, date_range.month, direction_lanes],
-        names=['Year', 'Month', 'Direction_LaneName']
-    ).to_frame(index=False)
-
-    # Merge with the complete range
-    df_agg = complete_months.merge(df_agg, on=group_cols, how='left')
     df_agg[['DirectionName', 'LaneName']] = df_agg['Direction_LaneName'].str.split('#', expand=True)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the aggregated data
     current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_monthly.csv')
-    print(f'Saving {current_filename}...')
+    logging.info(f'Saving {current_filename}...')
     df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
@@ -277,7 +266,7 @@ def aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename
 
     # Save the aggregated data
     current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_yearly.csv')
-    print(f'Saving {current_filename}...')
+    logging.info(f'Saving {current_filename}...')
     df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       f'verkehrszaehl_dashboard/data/{subfolder}')
@@ -400,7 +389,7 @@ def save_as_list_of_lists(df, filename):
     # Save as JSON
     with open(filename, 'w', encoding='utf-8') as json_file:
         json.dump(data_as_list, json_file, ensure_ascii=False, indent=4)
-    print(f"Saved {filename} in list-of-lists format.")
+    logging.info(f"Saved {filename} in list-of-lists format.")
 
 
 def download_weather_station_data(dest_path):
@@ -432,18 +421,19 @@ def download_weather_station_data(dest_path):
 
     # Save the daily data
     current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
-    print(f'Saving {current_filename_daily}...')
+    logging.info(f'Saving {current_filename_daily}...')
     df.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       'verkehrszaehl_dashboard/data/weather')
     os.remove(current_filename_daily)
-
     # Aggregate yearly data for tre200d0
     df_to_group = df[['Year', 'temp_c']].copy()
     df_agg = df_to_group.groupby(['Year'])[['temp_c']].mean().reset_index()
+    # Remove current year
+    df_agg = df_agg[df_agg['Year'] != pd.Timestamp.now().year]
     # Save the yearly data
     current_filename_yearly = os.path.join(dest_path, 'weather', 'weather_yearly.csv')
-    print(f'Saving {current_filename_yearly}...')
+    logging.info(f'Saving {current_filename_yearly}...')
     df_agg.to_csv(current_filename_yearly, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_yearly, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                       'verkehrszaehl_dashboard/data/weather')

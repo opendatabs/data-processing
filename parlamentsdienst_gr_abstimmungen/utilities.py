@@ -52,6 +52,17 @@ def get_trakt_names(session_day):
     for session in dir_ls:
         session_str = session['remote_file']
         session_datetime = datetime.strptime(session_str, '%Y-%m-%d')
+        # Skip if it's strictly in the future
+        if session_datetime > session_day:
+            continue
+        # Check if the folder is empty or missing the required files
+        sub_dir_ls_file = credentials.ftp_ls_file.replace('.json', f'_session_data_sub_dir.json')
+        # Looking for files called 'BSGR_Agenda.csv' and 'BSGR_MEMBERS.csv'
+        sub_files = get_ftp_ls(remote_path=session_str, pattern='*.csv',  file_name=sub_dir_ls_file, ftp=ftp)
+
+        if len(sub_files) == 0:
+            continue
+
         diff_sessions = session_day - session_datetime
         if diff_sessions.days >= 0 and (closest_session_date is None or diff_sessions.days < closest_session_date.days):
             closest_session_date = diff_sessions
