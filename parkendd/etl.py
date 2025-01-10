@@ -3,7 +3,6 @@ import re
 import json
 import logging
 from datetime import datetime
-from typing_extensions import deprecated
 
 from parkendd import credentials
 import pandas as pd
@@ -11,34 +10,6 @@ import common
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 from bs4 import BeautifulSoup
-
-@deprecated("This function has been replaced since the rss feed does not receive any updates anymore. Use scrape_data_from_parkleitsystem() instead.")
-def fetch_data_from_parkendd_api() -> pd.DataFrame:
-    api_url = 'https://api.parkendd.de/Basel'
-    logging.info(f'Getting latest data from {api_url}...')
-    response = common.requests_get(url=api_url)
-
-    logging.info(f'Parsing json...')
-    parsed = json.loads(response.text)
-    # pretty_resp = json.dumps(parsed, indent=4, sort_keys=True)
-    # json_file_name = f'{credentials.path}json/parkendd-{str(datetime.now()).replace(":", "")}.json'
-    # resp_file = open(json_file_name, 'w+')
-    # resp_file.write(pretty_resp)
-    # resp_file.close()
-
-    logging.info(f'Processing data...')
-    for lot in parsed['lots']:
-        lot['last_downloaded'] = parsed['last_downloaded']
-        lot['last_updated'] = parsed['last_updated']
-
-    normalized = pd.json_normalize(parsed, record_path='lots')
-    normalized['title'] = "Parkhaus " + normalized['name']
-    normalized['id2'] = normalized['id'].str.replace('baselparkhaus', '')
-    normalized['link'] = "https://www.parkleitsystem-basel.ch/parkhaus/" + normalized['id2']
-    normalized['description'] = 'Anzahl freie Parkplätze: ' + normalized['free'].astype(str)
-    normalized['published'] = normalized['last_downloaded']
-
-    return normalized
 
 def find_additional_info(url_lot: str):
     additional_info = {}
