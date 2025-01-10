@@ -11,6 +11,7 @@ import common
 import requests
 from datetime import datetime
 from common import change_tracking as ct
+import shutil
 
 
 # Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
@@ -198,7 +199,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             os.makedirs(titel_dir, exist_ok=True)
             file_name = f"{row['Dateiname']}.gpkg"
             geopackage_file = os.path.join(titel_dir, file_name)
-            gdf_result.to_file(geopackage_file, driver='GPKG')
+            save_gpkg(gdf_result, file_name, geopackage_file)
             # save in ftp server
             ftp_remote_dir = 'harvesters/GVA/data'
             common.upload_ftp(geopackage_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -336,6 +337,16 @@ def get_num_col(wfs, df_fgi):
         # Ergebnisse in eine Excel-Datei speichern
         df_results.to_csv(f"{file_path}.csv", index=False, sep=';')
 
+
+def save_gpkg(gdf, file_name, final_gpkg_path):
+    # save gpkg_file temporarily
+    temp_gpkg_path = os.path.join(credentials.temp_path, file_name)
+    gdf.to_file(temp_gpkg_path, driver='GPKG')
+    logging.info(f"{file_name}.gpkg saved temporarily in :{temp_gpkg_path}")
+    shutil.copy(temp_gpkg_path, final_gpkg_path)
+    logging.info(f"{file_name}.gpkg copied in :{final_gpkg_path}")
+    if os.path.exists(temp_gpkg_path):
+        os.remove(temp_gpkg_path)
 
 def ods_id_col(df_wfs,df_fgi):
     # make a new column for ods_id in FGI Data set
