@@ -3,6 +3,8 @@ import re
 import json
 import logging
 from datetime import datetime
+from warnings import deprecated
+
 from parkendd import credentials
 import pandas as pd
 import common
@@ -10,6 +12,7 @@ from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 from bs4 import BeautifulSoup
 
+@deprecated("This function has been replaced since the rss feed does not receive any updates anymore. Use scrape_data_from_parkleitsystem() instead.")
 def fetch_data_from_parkendd_api() -> pd.DataFrame:
     api_url = 'https://api.parkendd.de/Basel'
     logging.info(f'Getting latest data from {api_url}...')
