@@ -11,6 +11,7 @@ import common
 import requests
 from datetime import datetime
 from common import change_tracking as ct
+import shutil
 
 
 # Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
@@ -120,7 +121,7 @@ def remove_empty_string_from_list(string_list):
 def extract_meta_geocat(geocat_uid):
     # extract the metadata form geocat
     geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}/formatters/xml'
-    response = requests.get(geocat_url, proxies=credentials.proxy)
+    response = common.requests_get(geocat_url)
     if response.status_code == 200:
         logging.info(f"Data successfully fetched from {geocat_url}")
     else:
@@ -198,7 +199,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             os.makedirs(titel_dir, exist_ok=True)
             file_name = f"{row['Dateiname']}.gpkg"
             geopackage_file = os.path.join(titel_dir, file_name)
-            gdf_result.to_file(geopackage_file, driver='GPKG')
+            save_gpkg(gdf_result, file_name, geopackage_file)
             # save in ftp server
             ftp_remote_dir = 'harvesters/GVA/data'
             common.upload_ftp(geopackage_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
@@ -261,7 +262,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
     
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
-            schemafile_with_path = os.path.join(credentials.schema_path, schemafile)
+            schemafile_with_path = os.path.join(credentials.data_path, 'schema_files', schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
                 logging.info(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
                 common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user,
@@ -337,6 +338,16 @@ def get_num_col(wfs, df_fgi):
         df_results.to_csv(f"{file_path}.csv", index=False, sep=';')
 
 
+def save_gpkg(gdf, file_name, final_gpkg_path):
+    # save gpkg_file temporarily
+    temp_gpkg_path = os.path.join(credentials.temp_path, file_name)
+    gdf.to_file(temp_gpkg_path, driver='GPKG')
+    logging.info(f"{file_name}.gpkg saved temporarily in :{temp_gpkg_path}")
+    shutil.copy(temp_gpkg_path, final_gpkg_path)
+    logging.info(f"{file_name}.gpkg copied in :{final_gpkg_path}")
+    if os.path.exists(temp_gpkg_path):
+        os.remove(temp_gpkg_path)
+
 def ods_id_col(df_wfs,df_fgi):
     # make a new column for ods_id in FGI Data set
     meta_data = pd.read_excel(os.path.join(credentials.data_path, 'Metadata.xlsx'), na_filter=False)
@@ -383,8 +394,8 @@ def main():
     df_wfs.to_csv(path_export, sep=';', index=False)
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100395')
 
-    #get_name_col(wfs, df_wfs)
-    #get_num_col(wfs, df_fgi)
+    get_name_col(wfs, df_wfs)
+    get_num_col(wfs, df_fgi)
     file_path = os.path.join(credentials.data_path, 'export')
     save_geodata_for_layers(wfs, df_fgi, file_path)
 
