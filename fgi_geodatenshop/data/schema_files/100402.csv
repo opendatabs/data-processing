@@ -1,8 +1,0 @@
-name;label;description
-hb_id_hochbauprojekt;ID;Eindeutiger Identifikator
-hb_projektbezeichnung;Projektbezeichnung;Name des Bauprojekts
-hb_fertigstellung;Fertigstellung;Jahr der Fertigstellung
-hb_adresse;Adresse;Strasse und Hausnummer
-hb_postleitzahl;PLZ;Postleitzahl
-hb_email;Email;E-Mail Kontakt
-hb_link;Weblink;Projekt Online
