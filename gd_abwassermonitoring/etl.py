@@ -115,7 +115,7 @@ def make_dataframe_rsv():
     # Group by "KW" and save the count into "Anz_pos_RSV_USB"
     df_fortlaufend = df_fortlaufend.value_counts().reset_index()
     df_fortlaufend = df_fortlaufend.rename(columns={'count': 'KW_Anz_pos_RSV_USB'})
-    df_fortlaufend['KW'] = df_fortlaufend['KW'].str.replace('2024-KW', '2024_')
+    df_fortlaufend['KW'] = df_fortlaufend['KW'].str.replace('-KW', '_')
     path_retro = credentials.path_RSV_USB_retrospektiv
     df_retro = pd.read_excel(path_retro)
     df_retro = df_retro.rename(columns={'RSV positiv (Anzahl)': 'KW_Anz_pos_RSV_USB'})
