@@ -394,8 +394,8 @@ def main():
     df_wfs.to_csv(path_export, sep=';', index=False)
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100395')
 
-    #get_name_col(wfs, df_wfs)
-    #get_num_col(wfs, df_fgi)
+    get_name_col(wfs, df_wfs)
+    get_num_col(wfs, df_fgi)
     file_path = os.path.join(credentials.data_path, 'export')
     save_geodata_for_layers(wfs, df_fgi, file_path)
 
