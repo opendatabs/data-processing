@@ -121,7 +121,7 @@ def remove_empty_string_from_list(string_list):
 def extract_meta_geocat(geocat_uid):
     # extract the metadata form geocat
     geocat_url = f'https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}/formatters/xml'
-    response = requests.get(geocat_url, proxies=credentials.proxy)
+    response = common.requests_get(geocat_url)
     if response.status_code == 200:
         logging.info(f"Data successfully fetched from {geocat_url}")
     else:
@@ -262,7 +262,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
     
     for schemafile in ods_metadata['schema_file'].unique():
         if schemafile != '':
-            schemafile_with_path = os.path.join(credentials.schema_path, schemafile)
+            schemafile_with_path = os.path.join(credentials.data_path, 'schema_files', schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
                 logging.info(f'Uploading ODS schema file to FTP Server: {schemafile_with_path}...')
                 common.upload_ftp(schemafile_with_path, credentials.ftp_server, credentials.ftp_user,
