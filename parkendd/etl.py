@@ -3,7 +3,7 @@ import re
 import json
 import logging
 from datetime import datetime
-from warnings import deprecated
+from typing_extensions import deprecated
 
 from parkendd import credentials
 import pandas as pd
