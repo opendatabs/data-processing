@@ -33,11 +33,12 @@
 - Column "keyword": Semicolon-separated list of keywords to be used in ODS.
 - Column "dcat\_ap\_ch.domain": Used if the dataset should be assigned to an opendata.swiss suborganisation.
 - Column "dcat.accrualperiodicity": Accrual periodicity as described [here](https://handbook.opendata.swiss/de/content/glossar/bibliothek/dcat-ap-ch.html?highlight=accrual)
-- Column "schema_file": Set "True" if a (schema file)[[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file]](https://userguide.opendatasoft.com/l/en/article/wsyubsjp1m-ftp-with-meta-csv-harvester#schema_csv_file) is provided in the [schema_files](data/schema_files/) folder. Schema files must be named `{ods\_id}.csv`. However, there are ready-made templates available for each shape, stored in`{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\harvesters\FGI\schema_files.`
+- Column "schema_file": Set "True" if a (schema file)[[https://help.opendatasoft.com/platform/en/publishing_data/02_harvesting_a_catalog/harvesters/ftp_with_meta_csv.html#schema-csv-file]](https://userguide.opendatasoft.com/l/en/article/wsyubsjp1m-ftp-with-meta-csv-harvester#schema_csv_file) is provided in the `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\harvesters\FGI\schema_files` folder. Schema files must be named `{ods\_id}.csv`. However, there are ready-made templates available for each shape, stored in`{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\harvesters\FGI\schema_files\templates`.
 - Column "create\_map\_urls": Set "True" if links to various map services for the specified coordinates should be provided. Example: [https://opendatabs.github.io/map-links/?lat=47.564901&lon=7.615269](https://opendatabs.github.io/map-links/?lat=47.564901\&lon=7.615269)
 - Column "dcat.issued": Date string in the form "JJJJ-MM-TT" to be used as issued date in ODS and opendata.swiss.
 - Column "tags": If left empty, just opendata.swiss will be filled as tag. Recommended if several datasets with same topic are published.
-
+- Columns "mapbs_link" is the short link for the dataset on mapBS. You can find it here [Geodaten beziehen](https://www.bs.ch/bvd/grundbuch-und-vermessungsamt/geo#geodaten-beziehen)
+- Columns "geocat" is the link for the metadata of the dataset. Again you can find it under "Metadata" here  [Geodaten beziehen](https://www.bs.ch/bvd/grundbuch-und-vermessungsamt/geo#geodaten-beziehen)
 ### Deployment and harvesting
 
 - If schema\_file is added or changed, the Airflow Job 'stata\_pull\_changes' also has to be run.
