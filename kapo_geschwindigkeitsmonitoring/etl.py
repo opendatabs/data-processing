@@ -132,10 +132,11 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn = sqlite3.connect(db_filename)
 
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
-    pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
-                          'Datum_Zeit', 'Timestamp', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote', 'the_geom',
-                          'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']
-                 ).to_sql(name=table_name, con=conn, if_exists='replace')
+    with conn:
+        pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
+                              'Datum_Zeit', 'Timestamp', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote', 'the_geom',
+                              'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']
+                     ).to_sql(name=table_name, con=conn, if_exists='replace')
 
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
@@ -179,7 +180,9 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows due to timestamp not being between Messbeginn and Messende...')
 
                 logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
-                raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
+                # Append to SQLite table if dataset_id 100097
+                with conn:
+                    raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
                 dfs.append(raw_df)
 
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
