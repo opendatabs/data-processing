@@ -220,7 +220,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             # Add entry to harvester file
             metadata_for_ods.append({
                 'ods_id': ods_id,
-                'name': geocat_uid + ':' + row['titel_nice'],
+                'name': geocat_uid + ':' + row['Dateiname'],
                 'title': row['titel_nice'],
                 'description': description if len(description) > 0 else geocat_description,
                 # Only add nonempty strings as references
