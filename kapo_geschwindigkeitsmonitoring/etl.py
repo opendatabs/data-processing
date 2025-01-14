@@ -181,8 +181,9 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
                 logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
                 # Append to SQLite table if dataset_id 100097
-                with conn:
-                    raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
+                if row['dataset_id'] == '100097':
+                    with conn:
+                        raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
                 dfs.append(raw_df)
 
                 logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
