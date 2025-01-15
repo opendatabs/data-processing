@@ -97,7 +97,7 @@ def create_metadata_per_direction_df(df_metadata):
         columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85',
                  'Ue_Quote_1': 'Ue_Quote'})
     df_richtung1['Richtung ID'] = 1
-    df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2' ,
+    df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2',
                                 'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung2 = df_richtung2.rename(
         columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85',
@@ -132,11 +132,10 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn = sqlite3.connect(db_filename)
 
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
-    with conn:
-        pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
-                              'Datum_Zeit', 'Timestamp', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote', 'the_geom',
-                              'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']
-                     ).to_sql(name=table_name, con=conn, if_exists='replace')
+    pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
+                          'Datum_Zeit', 'Timestamp', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote', 'the_geom',
+                          'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']
+                 ).to_sql(name=table_name, con=conn, if_exists='replace')
 
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
@@ -152,54 +151,60 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         elif len(raw_files) > 2:
             logging.info(f'More than 2 raw files found for measurement ID {measure_id}!')
 
-
         for i, file in enumerate(raw_files):
             file = file.replace('\\', '/')
             filename_current_measure = os.path.join(credentials.path, 'processed', f'{str(measure_id)}_{i}.csv')
             result = from_path(file)
             enc = result.best().encoding
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
-            raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc), skiprows=6,
-                                   header=0, encoding=enc,
+            raw_df = pd.read_table(fix_data(filename=file, measure_id=str(measure_id), encoding=enc),
+                                   skiprows=6,
+                                   header=0,
+                                   encoding=enc,
                                    names=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge'],
                                    on_bad_lines='skip')
 
             if raw_df.empty:
                 logging.info(f'Dataframe is empty, ignoring...')
-            else:
-                raw_df['Messung-ID'] = measure_id
-                logging.info(f'Calculating timestamp...')
-                raw_df['Datum_Zeit'] = raw_df['Datum'] + ' ' + raw_df['Zeit']
-                raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'], format='%d.%m.%y %H:%M:%S').dt.tz_localize(
-                    'Europe/Zurich', ambiguous=True, nonexistent='shift_forward')
-                raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
+                continue
 
-                # Timestamp has to be between Messbeginn and Messende
-                num_rows_before = raw_df.shape[0]
-                raw_df = raw_df[(raw_df['Timestamp'].dt.floor('D') >= pd.to_datetime(raw_df['Messbeginn']).dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward').dt.floor('D')) & (raw_df['Timestamp'].dt.floor('D') <= pd.to_datetime(raw_df['Messende']).dt.tz_localize('Europe/Zurich', ambiguous=True, nonexistent='shift_forward').dt.floor('D'))]
-                logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows due to timestamp not being between Messbeginn and Messende...')
+            raw_df['Messung-ID'] = measure_id
+            logging.info(f'Calculating timestamp...')
+            raw_df['Datum_Zeit'] = raw_df['Datum'] + ' ' + raw_df['Zeit']
+            raw_df['Timestamp'] = pd.to_datetime(raw_df['Datum_Zeit'],
+                                                 format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich',
+                                                                                            ambiguous=True,
+                                                                                            nonexistent='shift_forward')
+            raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
 
-                logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
-                # Append to SQLite table if dataset_id 100097
-                if row['dataset_id'] == '100097' or row['dataset_id'] == '100358':
-                    with conn:
-                        raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
-                dfs.append(raw_df)
+            # Timestamp has to be between Messbeginn and Messende
+            num_rows_before = raw_df.shape[0]
+            raw_df = raw_df[(raw_df['Timestamp'].dt.floor('D') >= pd.to_datetime(raw_df['Messbeginn']).dt.tz_localize(
+                'Europe/Zurich', ambiguous=True, nonexistent='shift_forward').dt.floor('D')) & (
+                                        raw_df['Timestamp'].dt.floor('D') <= pd.to_datetime(
+                                    raw_df['Messende']).dt.tz_localize('Europe/Zurich', ambiguous=True,
+                                                                       nonexistent='shift_forward').dt.floor('D'))]
+            logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows '
+                         f'due to timestamp not being between Messbeginn and Messende...')
 
-                logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
-                raw_df.to_csv(filename_current_measure, index=False)
-                files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
+            logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
+            # Append to SQLite table if dataset_id 100097
+            raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
+            dfs.append(raw_df)
+
+            logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
+            raw_df.to_csv(filename_current_measure, index=False)
+            files_to_upload.append({'filename': filename_current_measure, 'dataset_id': row['dataset_id']})
 
     for obj in files_to_upload:
         if ct.has_changed(filename=obj['filename'], method='hash'):
-            common.upload_ftp(filename=obj['filename'], server=credentials.ftp_server, user=credentials.ftp_user,
+            common.upload_ftp(filename=obj['filename'],
+                              server=credentials.ftp_server,
+                              user=credentials.ftp_user,
                               password=credentials.ftp_pass,
                               remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
-    logging.info(f'Creating index on Richtung ID...')
-    with conn:
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_richtung_datum_messung ON "{}" ("Richtung ID")'.format(table_name))
     conn.close()
 
     all_df = pd.concat(dfs)
@@ -217,19 +222,39 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     return all_df
 
 
-def create_measures_per_year(all_df):
+def create_measures_per_year(df_all):
+    db_filename = os.path.join(credentials.path, 'Geschwindigkeitsmonitoring.db')
+    base_table_name = os.path.splitext(os.path.basename(db_filename))[0]
+    logging.info(f"Creating or opening SQLite connection for {db_filename}...")
+    conn = sqlite3.connect(db_filename)
     # Create a separate data file per year
-    all_df['messbeginn_jahr'] = all_df.Messbeginn.astype(str).str.slice(0, 4).astype(int)
-    all_years = all_df.messbeginn_jahr.unique()
-    for year in all_years:
-        year_data = all_df[all_df.messbeginn_jahr.eq(year)]
-        logging.info(f"Number of rows in {year}: {year_data.shape[0]}")
-        current_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', f'_{str(year)}.csv'))
-        logging.info(f'Saving {current_filename}...')
-        year_data.to_csv(current_filename, index=False)
+    df_all['messbeginn_jahr'] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
+    for year_value, year_df in df_all.groupby('messbeginn_jahr'):
+        # CSV
+        current_filename = os.path.join(credentials.path,
+                                        credentials.filename.replace('.csv', f'_{str(year_value)}.csv'))
+        logging.info(f'Saving year {year_value} into {current_filename}...')
+        year_df.to_csv(current_filename, index=False)
         common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                           password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
         os.remove(current_filename)
+
+        # SQLite
+        table_name_for_year = f"{base_table_name}_{year_value}"
+        logging.info(f"Writing {year_df.shape[0]} rows for year {year_value} into '{table_name_for_year}'...")
+        year_df.to_sql(
+            name=table_name_for_year,
+            con=conn,
+            if_exists='replace',
+            index=False
+        )
+        with conn:
+            conn.execute(
+                f'CREATE INDEX IF NOT EXISTS idx_{table_name_for_year}_richtung '
+                f'ON "{table_name_for_year}" ("Richtung ID")'
+            )
+        conn.close()
+        logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
 
 
 if __name__ == "__main__":
