@@ -151,7 +151,7 @@ def main():
     logging.info(f'Creating lots file and saving as {lots_file_name}...')
     lots = normalized[
         ['address', 'id', 'lot_type', 'name', 'total', 'last_downloaded', 'last_updated', 'coords.lat', 'coords.lng',
-         'title', 'id2', 'link', 'published']]
+         'title', 'id2', 'state', 'durchfahrtshoehe', 'lot_type', 'link', 'published']]
     lots.to_csv(lots_file_name, index=False)
     if ct.has_changed(lots_file_name):
         common.upload_ftp(lots_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
