@@ -3,6 +3,7 @@ import re
 import json
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from parkendd import credentials
 import pandas as pd
@@ -92,8 +93,8 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     timestamp = datetime.strptime(f"{date_str} {time_str}", '%d.%m.%Y %H:%M:%S')
     formatted_timestamp_last_updated = timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
-    formatted_timestamp_now = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    
+    formatted_timestamp_now = datetime.now(ZoneInfo('Europe/Zurich')).isoformat(timespec='seconds')
+
     lots_data = []
     for section in soup.find_all('section', class_='middle'):
         for table in section.find_all('table'):
@@ -150,8 +151,8 @@ def main():
 
     logging.info(f'Creating lots file and saving as {lots_file_name}...')
     lots = normalized[
-        ['address', 'id', 'lot_type', 'name', 'total', 'last_downloaded', 'last_updated', 'coords.lat', 'coords.lng',
-         'title', 'id2', 'link', 'published']]
+        ['address', 'id', 'lot_type', 'name', 'total', 'last_updated', 'coords.lat', 'coords.lng',
+         'title', 'id2', 'state', 'durchfahrtshoehe', 'lot_type', 'link', 'published']]
     lots.to_csv(lots_file_name, index=False)
     if ct.has_changed(lots_file_name):
         common.upload_ftp(lots_file_name, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
