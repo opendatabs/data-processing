@@ -253,8 +253,8 @@ def create_measures_per_year(df_all):
                 f'CREATE INDEX IF NOT EXISTS idx_{table_name_for_year}_richtung '
                 f'ON "{table_name_for_year}" ("Richtung ID")'
             )
-        conn.close()
-        logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
+    conn.close()
+    logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
 
 
 if __name__ == "__main__":
