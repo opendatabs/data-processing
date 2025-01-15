@@ -3,6 +3,7 @@ import re
 import json
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from parkendd import credentials
 import pandas as pd
@@ -92,8 +93,8 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     timestamp = datetime.strptime(f"{date_str} {time_str}", '%d.%m.%Y %H:%M:%S')
     formatted_timestamp_last_updated = timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
-    formatted_timestamp_now = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    
+    formatted_timestamp_now = datetime.now(ZoneInfo('Europe/Zurich')).isoformat(timespec='seconds')
+
     lots_data = []
     for section in soup.find_all('section', class_='middle'):
         for table in section.find_all('table'):
