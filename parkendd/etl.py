@@ -89,9 +89,8 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
     date_str = str(parking_header.find('p').contents[0]).strip()
     time_str = parking_header.find('span', class_='stempel_zeit').string.strip()
 
-    # TODO: Handle timezones, i.e. specify the timezone in the format, or rather the UTC+1 for example
-    timestamp = datetime.strptime(f"{date_str} {time_str}", '%d.%m.%Y %H:%M:%S')
-    formatted_timestamp_last_updated = timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+    formatted_timestamp_last_updated = (datetime.strptime(f"{date_str} {time_str}", '%d.%m.%Y %H:%M:%S')
+                                        .replace(tzinfo=ZoneInfo('Europe/Zurich')).isoformat(timespec='seconds'))
 
     formatted_timestamp_now = datetime.now(ZoneInfo('Europe/Zurich')).isoformat(timespec='seconds')
 
