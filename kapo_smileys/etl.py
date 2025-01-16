@@ -285,13 +285,6 @@ def parse_einsatzplaene(curr_dir):
 
 def main():
     curr_dir = os.path.dirname(os.path.realpath(__file__))
-    export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
-    common.upload_ftp(export_file_all.replace('all_data.csv', 'smileys.db'),
-                      credentials.ftp_server,
-                      credentials.ftp_user,
-                      credentials.ftp_pass,
-                      'kapo/smileys')
-    quit()
     logging.info(f'Parsing Einsatzplaene...')
     df_einsaetze = parse_einsatzplaene(curr_dir)
     req = common.requests_get(
