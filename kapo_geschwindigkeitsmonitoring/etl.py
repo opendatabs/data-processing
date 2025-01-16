@@ -240,7 +240,7 @@ def create_measures_per_year(df_all):
         os.remove(current_filename)
 
         # SQLite
-        table_name_for_year = f"{base_table_name}_{year_value}"
+        table_name_for_year = str(year_value)
         logging.info(f"Writing {year_df.shape[0]} rows for year {year_value} into '{table_name_for_year}'...")
         year_df.to_sql(
             name=table_name_for_year,
