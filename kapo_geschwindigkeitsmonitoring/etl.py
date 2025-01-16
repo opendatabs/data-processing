@@ -126,15 +126,17 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     logging.info(f'Removing metadata without data...')
     df_meta_raw = df_meta_raw.dropna(subset=['Verzeichnis'])
 
-    db_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.db'))
-    table_name = db_filename.split(os.sep)[-1].replace('.db', '')
+    db_filename = os.path.join(credentials.path, 'geschwindigkeitsmonitoring_normalized.db')
+    table_name_direction = 'Kennzahlen_pro_Richtung'
+    table_name = 'Einzelmessungen'
     logging.info(f'Creating SQLite connection for {db_filename}...')
     conn = sqlite3.connect(db_filename)
+    logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
+    df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
 
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
-                          'Datum_Zeit', 'Timestamp', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote', 'the_geom',
-                          'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']
+                          'Datum_Zeit', 'Timestamp']
                  ).to_sql(name=table_name, con=conn, if_exists='replace')
 
     for index, row in df_meta_raw.iterrows():
@@ -175,6 +177,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                                                  format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich',
                                                                                             ambiguous=True,
                                                                                             nonexistent='shift_forward')
+            logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
+            raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
             raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
 
             # Timestamp has to be between Messbeginn and Messende
@@ -187,9 +191,6 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
             logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows '
                          f'due to timestamp not being between Messbeginn and Messende...')
 
-            logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
-            # Append to SQLite table if dataset_id 100097
-            raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
             dfs.append(raw_df)
 
             logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
