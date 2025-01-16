@@ -15,7 +15,7 @@ import zipfile
 import io
 
 
-def csv_to_sqlite(curr_dir, export_file_all):
+def csv_to_sqlite(export_file_all):
     df = pd.read_csv(export_file_all)
     # Create a SQLite database
     conn = sqlite3.connect(export_file_all.replace('all_data.csv', 'smileys.db'))
@@ -53,6 +53,12 @@ def csv_to_sqlite(curr_dir, export_file_all):
 
     # Import the CSV data into the SQLite table
     df.to_sql('kapo_smileys', conn, if_exists='replace', index=False)
+    # Upload to FTP
+    common.upload_ftp(export_file_all.replace('all_data.csv', 'smileys.db'),
+                      credentials.ftp_server,
+                      credentials.ftp_user,
+                      credentials.ftp_pass,
+                      'kapo/smileys')
 
     index_queries = [
         "CREATE INDEX IF NOT EXISTS idx_id_standort ON kapo_smileys (id_standort);",
@@ -110,7 +116,7 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
             common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
                               'kapo/smileys/all_data')
             any_changes = True
-            csv_to_sqlite(curr_dir, export_file_all)
+            csv_to_sqlite(export_file_all)
             ct.update_hash_file(export_file_all)
 
         stat_df = pd.concat(stat_dfs)
@@ -279,6 +285,9 @@ def parse_einsatzplaene(curr_dir):
 
 def main():
     curr_dir = os.path.dirname(os.path.realpath(__file__))
+    export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
+    csv_to_sqlite(export_file_all)
+    quit()
     logging.info(f'Parsing Einsatzplaene...')
     df_einsaetze = parse_einsatzplaene(curr_dir)
     req = common.requests_get(
