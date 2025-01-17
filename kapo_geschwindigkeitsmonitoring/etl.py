@@ -293,12 +293,14 @@ def create_indices(conn, table_name, columns_to_index):
     logging.info(f'Adding indices to SQLite table {table_name}...')
     with conn:
         for col in columns_to_index:
-            # Generate an index name by normalizing the column name
-            index_name = col.lower().replace(' ', '_')
+            # Normalize index name (for unique identification)
+            index_name = col.lower().replace(' ', '_').replace('-', '_')
+            # Escape the column name to handle special characters
+            col_escaped = f'"{col}"'
             # Create the index if it does not already exist
             conn.execute(
                 f'CREATE INDEX IF NOT EXISTS idx_{table_name}_{index_name} '
-                f'ON "{table_name}" ("{col}")'
+                f'ON "{table_name}" ({col_escaped})'
             )
     logging.info(f'Indices successfully created for {table_name}!')
 
