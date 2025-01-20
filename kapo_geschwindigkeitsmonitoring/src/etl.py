@@ -220,9 +220,15 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                               remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
-    # Before closing connection create indices
     create_indices(conn, table_name, columns_to_index)
     conn.close()
+    if ct.has_changed(filename=db_filename, method='hash'):
+        common.upload_ftp(db_filename,
+                          credentials.ftp_server,
+                          credentials.ftp_user,
+                          credentials.ftp_pass,
+                          credentials.ftp_remote_path_data)
+        ct.update_hash_file(db_filename)
 
     all_df = pd.concat(dfs)
     pkl_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.pkl'))
@@ -278,6 +284,13 @@ def create_measures_per_year(df_all):
         create_indices(conn, table_name_for_year, columns_to_index)
 
     conn.close()
+    if ct.has_changed(filename=db_filename, method='hash'):
+        common.upload_ftp(db_filename,
+                          credentials.ftp_server,
+                          credentials.ftp_user,
+                          credentials.ftp_pass,
+                          credentials.ftp_remote_path_data)
+        ct.update_hash_file(db_filename)
     logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
 
 
