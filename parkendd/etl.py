@@ -111,7 +111,7 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
                 prefix, id2 = href.split('/')
 
                 status = row.find('td', class_='parkh_status').get_text(strip=True)
-                state = 'open' if status == 'offen' else 'closed' if status == 'geschlossen' else 'unknown state'
+                state = 'open' if status == 'offen' else 'closed' if status == 'zu' else 'unknown state'
 
                 url_lot = url_to_scrape_from + href
                 additional_info_scraped = find_additional_info(url_lot=url_lot)
