@@ -1,7 +1,6 @@
 import io
 import logging
 import os
-import pathlib
 import shutil
 import pandas as pd
 import unicodedata
@@ -14,50 +13,49 @@ from stata_befragungen import credentials
 
 def main():
     data_orig_root = credentials.import_root_folder
-    data_path = os.path.join(pathlib.Path(__file__).parent, 'data')
     datasets = [
         {
             'data_file': os.path.join(data_orig_root, '55plus/2023/datensatz_55plus_2023_OGD_TEXT.csv'),
             'var_file': os.path.join(data_orig_root, '55plus/2023/Variablen_55plus_2023_OGD.csv'),
+            'export_folder': '55plus/2023',
             'export_file': 'Befragung_55_plus_2023.csv',
             'ftp_folder': '55plus',
-            'export_folder': '55plus/2023',
             'jahr': 2023,
             'ods_id': '100412'
         },
         {
             'data_file': os.path.join(data_orig_root, '55plus/2019/DATENSATZ2019_OGD_TEXT.csv'),
             'var_file': os.path.join(data_orig_root, '55plus/2019/VARIABLEN_2019.csv'),
+            'export_folder': '55plus/2019',
             'export_file': 'Befragung_55_plus_2019.csv',
             'ftp_folder': '55plus',
-            'export_folder': '55plus/2019',
             'jahr': 2019,
             'ods_id': '100203'
         },
         {
             'data_file': os.path.join(data_orig_root, '55plus/2015/DATENSATZ_2015_TEXT.csv'),
             'var_file': os.path.join(data_orig_root, '55plus/2015/VARIABLEN_2015.csv'),
+            'export_folder': '55plus/2015',
             'export_file': 'Befragung_55_plus_2015.csv',
             'ftp_folder': '55plus',
-            'export_folder': '55plus/2015',
             'jahr': 2015,
             'ods_id': '100204'
         },
         {
             'data_file': os.path.join(data_orig_root, '55plus/2011/WORK_DATENSATZ_2011_TEXT.csv'),
             'var_file': os.path.join(data_orig_root, '55plus/2011/VARIABLEN_2011.csv'),
+            'export_folder': '55plus/2011',
             'export_file': 'Befragung_55_plus_2011.csv',
             'ftp_folder': '55plus',
-            'export_folder': '55plus/2011',
             'jahr': 2011,
             'ods_id': '100205'
         }
     ]
     for ds in datasets:
-        process_single_file(data_file=ds['data_file'], var_file=ds['var_file'], data_path=data_path,
+        process_single_file(data_file=ds['data_file'], var_file=ds['var_file'], data_path=credentials.data_path,
                             export_folder=ds['export_folder'], export_file=ds['export_file'],
                             ftp_folder=ds['ftp_folder'], ods_id=ds['ods_id'], jahr=ds['jahr'])
-        publish_zip_from_folder(os.path.join(data_path, ds['export_folder']), ds['ftp_folder'])
+        publish_zip_from_folder(os.path.join(credentials.data_path, ds['export_folder']), ds['ftp_folder'])
 
 
 def publish_zip_from_folder(dir_to_zip, ftp_folder):
@@ -78,7 +76,7 @@ def process_single_file(data_file, var_file, data_path, export_folder, export_fi
         text = f.read()
         clean_text = unicodedata.normalize("NFKD", text)
     df_data = pd.read_csv(io.StringIO(clean_text), encoding=enc, sep=';', engine='python')
-    df_data.to_csv(os.path.join(data_path, export_folder, export_file.replace('/', '/Daten_')), index=False)
+    df_data.to_csv(os.path.join(data_path, export_folder, f'Daten_{export_file}'), index=False)
     if jahr and 'Jahr' not in df_data:
         logging.info(f'Re-setting column Jahr to {jahr}...')
         df_data['Jahr'] = jahr
@@ -86,7 +84,7 @@ def process_single_file(data_file, var_file, data_path, export_folder, export_fi
 
     enc = get_encoding(var_file)
     df_var = pd.read_csv(var_file, encoding=enc, sep=';', engine='python')
-    df_var.to_csv(os.path.join(data_path, export_folder, export_file.replace('/', '/Variabeln_')), index=False)
+    df_var.to_csv(os.path.join(data_path, export_folder, f'Variablen_{export_file}'), index=False)
     df_merge = df_data_long.merge(df_var, how='left', left_on='variable', right_on='FrageName')
     df_merge = df_merge[df_merge['value'] != '**OTHER**']
     df_export = df_merge[

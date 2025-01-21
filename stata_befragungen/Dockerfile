@@ -7,7 +7,7 @@ RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
 RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir charset_normalizer==3.3.2
-CMD ["python3", "-m", "stata_befragungen.etl"]
+CMD ["python3", "-m", "stata_befragungen.src.etl"]
 
 
 # Docker commands to create image and run container:
@@ -24,5 +24,3 @@ CMD ["python3", "-m", "stata_befragungen.etl"]
 # docker build -t stata_befragungen --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
 # winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name stata_befragungen stata_befragungen
-
-
