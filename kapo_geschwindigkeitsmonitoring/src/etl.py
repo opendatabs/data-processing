@@ -147,7 +147,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn = sqlite3.connect(db_filename)
     logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
     df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
-    create_indices(conn, table_name_direction, columns_to_index_direction)
+    common.create_indices(conn, table_name_direction, columns_to_index_direction)
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
@@ -220,7 +220,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                               remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
-    create_indices(conn, table_name, columns_to_index)
+    common.create_indices(conn, table_name, columns_to_index)
     conn.close()
     if ct.has_changed(filename=db_filename, method='hash'):
         common.upload_ftp(db_filename,
@@ -281,7 +281,7 @@ def create_measures_per_year(df_all):
             if_exists='replace',
             index=False
         )
-        create_indices(conn, table_name_for_year, columns_to_index)
+        common.create_indices(conn, table_name_for_year, columns_to_index)
 
     conn.close()
     if ct.has_changed(filename=db_filename, method='hash'):
@@ -292,30 +292,6 @@ def create_measures_per_year(df_all):
                           credentials.ftp_remote_path_data)
         ct.update_hash_file(db_filename)
     logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
-
-
-def create_indices(conn, table_name, columns_to_index):
-    """
-    Create indices for specified columns in a SQLite table.
-
-    Parameters:
-        conn (sqlite3.Connection): SQLite connection object.
-        table_name (str): Name of the table to add indices to.
-        columns_to_index (list): List of column names to index.
-    """
-    logging.info(f'Adding indices to SQLite table {table_name}...')
-    with conn:
-        for col in columns_to_index:
-            # Normalize index name (for unique identification)
-            index_name = col.lower().replace(' ', '_').replace('-', '_')
-            # Escape the column name to handle special characters
-            col_escaped = f'"{col}"'
-            # Create the index if it does not already exist
-            conn.execute(
-                f'CREATE INDEX IF NOT EXISTS idx_{table_name}_{index_name} '
-                f'ON "{table_name}" ({col_escaped})'
-            )
-    logging.info(f'Indices successfully created for {table_name}!')
 
 
 if __name__ == "__main__":
