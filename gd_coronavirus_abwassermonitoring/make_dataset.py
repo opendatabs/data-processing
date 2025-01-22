@@ -57,7 +57,6 @@ def main():
         push_url2 = credentials.ods_live_realtime_push_url2
         push_key2 = credentials.ods_live_realtime_push_key2
         common.ods_realtime_push_df(df_public, url=push_url2, push_key=push_key2)
-    logging.info('Job successful!')
 
 
 # Realtime API bootstrap data for dataset 100167:
@@ -205,18 +204,24 @@ def calculate_columns(df):
     df = df.loc[df['Datum'].notnull()]
     df = df.drop_duplicates(subset=['Datum'], keep='first')
     df = df.set_index('Datum').resample('D').asfreq()
-    df.fillna({'Anz_pos_BL': 0, 'faelle_bs': 0})
     df = df.reset_index()
     df["pos_rate_BL"] = df["Anz_pos_BL"]/(df["Anz_pos_BL"]+df["Anz_neg_BL"]) * 100
     df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"]/pop_BL * 100000
-    df["daily_cases_BS+BL"] = df["Anz_pos_BL"] + df["faelle_bs"]
-    df["hospitalized_BS+BL"] = df["Anz_hosp_BL"] + df["current_hosp"]
-    df["IC_BS+BL"] = df["Anz_icu_BL"] + df["current_icu"]
-    df["death_BS+BL"] = df["Anz_death_BL"] + df["ndiff_deceased"]
-    df["7t_inz_BS+BL"] = (df["7t_inz_BL"] * pop_BL + df["inzidenz07_bs"] * pop_BS)/(pop_BS + pop_BL)
-    df["pos_rate_BS+BL"] = (df["pos_rate_BL"] * pop_BL + df["positivity_rate_percent"] * pop_BS)/(pop_BS + pop_BL)
-    df["isolierte_BS+BL"] = df["Anz_Iso_BL"] + df["current_isolated"]
+    df["daily_cases_BS+BL"] = df["Anz_pos_BL"].fillna(0) + df["faelle_bs"].fillna(0)
+    df.loc[df["Anz_pos_BL"].isna() & df["faelle_bs"].isna(), "daily_cases_BS+BL"] = None
+    df["hospitalized_BS+BL"] = df["Anz_hosp_BL"].fillna(0) + df["current_hosp"].fillna(0)
+    df.loc[df["Anz_hosp_BL"].isna() & df["current_hosp"].isna(), "hospitalized_BS+BL"] = None
+    df["IC_BS+BL"] = df["Anz_icu_BL"].fillna(0) + df["current_icu"].fillna(0)
+    df.loc[df["Anz_icu_BL"].isna() & df["current_icu"].isna(), "IC_BS+BL"] = None
+    df["death_BS+BL"] = df["Anz_death_BL"].fillna(0) + df["ndiff_deceased"].fillna(0)
+    df.loc[df["Anz_death_BL"].isna() & df["ndiff_deceased"].isna(), "death_BS+BL"] = None
+    df["7t_inz_BS+BL"] = (df["7t_inz_BL"].fillna(0) * pop_BL + df["inzidenz07_bs"].fillna(0) * pop_BS)/(pop_BS + pop_BL)
+    df.loc[df["7t_inz_BL"].isna() & df["inzidenz07_bs"].isna(), "7t_inz_BS+BL"] = None
+    df["pos_rate_BS+BL"] = (df["pos_rate_BL"].fillna(0) * pop_BL + df["positivity_rate_percent"].fillna(0) * pop_BS)/(pop_BS + pop_BL)
+    df.loc[df["pos_rate_BL"].isna() & df["positivity_rate_percent"].isna(), "pos_rate_BS+BL"] = None
+    df["isolierte_BS+BL"] = df["Anz_Iso_BL"].fillna(0) + df["current_isolated"].fillna(0)
+    df.loc[df["Anz_Iso_BL"].isna() & df["current_isolated"].isna(), "isolierte_BS+BL"] = None
     df["Ratio_Isolierte/daily_cases"] = df["isolierte_BS+BL"]/df["daily_cases_BS+BL"]
     df["7t_median_BL"] = df["Anz_pos_BL"].rolling(window=7).median()
     df["7t_median_BS"] = df["faelle_bs"].rolling(window=7).median()
@@ -228,3 +233,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
+    logging.info('Job successful!')
