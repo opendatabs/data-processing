@@ -84,7 +84,7 @@ try:
                 entry = {
                     "Kategorie": main_theme,
                     "Thema": sub_theme_title,
-                    "Abkürzung": last_abbreviation,
+                    "Abkuerzung": last_abbreviation,
                     "Beschreibung": description,
                     "Aktualisierung": update_date,
                     "Ebenen": "; ".join(ebene_names),  # Save layers as a semicolon separated list
@@ -97,7 +97,7 @@ try:
 
                 data.append(entry)
         else:
-            data.append({"Kategorie": main_theme, "Thema": None,  "Abkürzung": None, "Beschreibung": None, "Aktualisierung": None, "Ebenen": None})
+            data.append({"Kategorie": main_theme, "Thema": None,  "Abkuerzung": None, "Beschreibung": None, "Aktualisierung": None, "Ebenen": None})
 
     # Save to an Excel file
     df = pd.DataFrame(data)
@@ -116,7 +116,7 @@ try:
         df['Zugriff'] = df['Zugriff'] + f": \"https://www.geo.bs.ch/erweiterte-berechtigung\""
 
         # Sort the columns in the desired order
-        desired_columns = ["Kategorie", "Thema", "Abkürzung", "Beschreibung", "Aktualisierung", "Geodaten-Shop",
+        desired_columns = ["Kategorie", "Thema", "Abkuerzung", "Beschreibung", "Aktualisierung", "Geodaten-Shop",
                            "Metadaten", "MapBS", "Geobasisdaten", "Ebenen", "WMS", "WFS", "WMTS", "Bild-URL",
                            "Zugriff"]
         existing_columns = [col for col in desired_columns if col in df.columns]
