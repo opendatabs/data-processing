@@ -15,6 +15,15 @@ def main():
     data_orig_root = credentials.import_root_folder
     datasets = [
         {
+            'data_file': os.path.join(data_orig_root, '55plus/2011-2023/datensatz_55plus_2011_2023_OGD_TEXT.csv'),
+            'var_file': os.path.join(data_orig_root, '55plus/2011-2023/Variablen_55plus_2011_2023_OGD.csv'),
+            'export_folder': '55plus',
+            'export_file': 'Befragung_55_plus_alle_jahre.csv',
+            'ftp_folder': '55plus',
+            'jahr': None,
+            'ods_id': '100185'
+        },
+        {
             'data_file': os.path.join(data_orig_root, '55plus/2023/datensatz_55plus_2023_OGD_TEXT.csv'),
             'var_file': os.path.join(data_orig_root, '55plus/2023/Variablen_55plus_2023_OGD.csv'),
             'export_folder': '55plus/2023',
@@ -77,9 +86,13 @@ def process_single_file(data_file, var_file, data_path, export_folder, export_fi
         clean_text = unicodedata.normalize("NFKD", text)
     df_data = pd.read_csv(io.StringIO(clean_text), encoding=enc, sep=';', engine='python')
     df_data.to_csv(os.path.join(data_path, export_folder, f'Daten_{export_file}'), index=False)
-    if jahr and 'Jahr' not in df_data:
-        logging.info(f'Re-setting column Jahr to {jahr}...')
-        df_data['Jahr'] = jahr
+    if jahr:
+        if 'Jahr' not in df_data:
+            logging.info(f'Re-setting column Jahr to {jahr}...')
+            df_data['Jahr'] = jahr
+    else:
+        logging.info('Jahresübergreifend: Filter out questions which just appear in one year...')
+        # TODO: Filter out questions which just appear in one year
     df_data_long = df_data.melt(id_vars=['ID', 'Jahr'])
 
     enc = get_encoding(var_file)
