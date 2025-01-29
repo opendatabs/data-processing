@@ -9,6 +9,8 @@ from gva_metadata import credentials
 import time
 import logging
 import re
+import requests
+
 
 # ChromeDriver Setup
 driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
@@ -34,7 +36,7 @@ try:
     # Extracting the topics, subtopics and additional information with BeautifulSoup
     soup = BeautifulSoup(page_source, "html.parser")
     data = []
-
+    ebene_data = [] # dataframe for descreption of "Ebenen"
     # Search for main topics
     headers = soup.find_all("div", class_="headerText")
     for header in headers:
@@ -71,10 +73,16 @@ try:
                     for link in link_elements:
                         link_text = link.get_text(strip=True)
                         links_dict[link_text] = link["href"]
-                # Extract layers
+                # Extract layers and descriptions
                 ebene_container = sub_theme.find_all("div", class_="ebenen")
-                ebene_names = [ebene.find("b").get_text(strip=True) for ebene in ebene_container if
-                               ebene.find("b")]  # only <b>-Texts extract
+                ebene_details = []
+                for ebene in ebene_container:
+                    title = ebene.find("b").get_text(strip=True) if ebene.find("b") else None
+                    beschreibung = ebene.find("b").next_sibling.strip() if ebene.find("b") and ebene.find(
+                        "b").next_sibling else None
+                    if title:
+                        ebene_details.append(title)
+                        ebene_data.append({"Ebene": title, "Beschreibung": beschreibung})
 
                 # Extract the link of the image
                 image_div = sub_theme.find("div", class_="themaBild")
@@ -87,7 +95,7 @@ try:
                     "Abkuerzung": last_abbreviation,
                     "Beschreibung": description,
                     "Aktualisierung": update_date,
-                    "Ebenen": "; ".join(ebene_names),  # Save layers as a semicolon separated list
+                    "Ebenen": " ; ".join( ebene_details),
                     "Bild-URL": image_url
                 }
 
@@ -102,6 +110,8 @@ try:
     # Save to an Excel file
     df = pd.DataFrame(data)
 
+    # Save Ebenen-Beschreibungen separately
+    df_ebenen = pd.DataFrame(ebene_data).drop_duplicates()
     # Convert entries in the columns to  "öffentlich" and "beschränkt öffentlich"
     if "öffentlich" in df.columns:
         df["öffentlich"] = df["öffentlich"].apply(lambda x: "Kategorie A" if pd.notna(x) else None)
@@ -125,11 +135,86 @@ try:
         file_path = os.path.join(credentials.data_path, file_name)
         df.to_csv(file_path, index=False, sep=';')
         common.update_ftp_and_odsp(file_path, '/gva/geodatenkatalog', '100410.csv')
-        print(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
+        logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
 
 except Exception as e:
-    print(f"Fehler: {e}")
+    logging.error(f"Fehler: {e}")
 
 finally:
     # Close browser
     driver.quit()
+
+try:
+    # Group by "topic" and keep the first entry of each group
+    grouped_df = df.groupby("Thema").agg({
+        "Kategorie": lambda x: ";".join(set(x)),  # Merge categories separated by ';'
+        **{col: 'first' for col in df.columns if col not in ["Thema", "Kategorie"]}
+    }).reset_index()
+
+    # Create new columns
+    grouped_df["title"] = grouped_df["Thema"]
+    grouped_df["modified"] = grouped_df["Aktualisierung"]
+    grouped_df["attributions"] = "Geodaten Kanton Basel-Stadt"
+    grouped_df["language"] = "de"
+    grouped_df["tags"] = grouped_df["Kategorie"]
+
+    # Format description as HTML
+    def create_description(row):
+        description = """<div style='display: flex; align-items: flex-start; gap: 20px;'>
+        <div style='flex: 1;'>
+            <h3>Kategorie</h3>
+            <ul>"""
+
+        # linking category entries
+        if pd.notna(row["Kategorie"]):
+            for category in row["Kategorie"].split(";"):
+                category = category.strip()
+                url = f"https://data.bs.ch/explore/?q=tags%3D{category.replace(' ', '%20')}"
+                description += f"<li><a href='{url}' target='_blank'>{category}</a></li>"
+        description += "</ul>"
+
+        description += """
+
+            <h3>Beschreibung</h3>
+            <p>{Beschreibung}</p>
+
+            <h3>Ebenen</h3>
+            <ul>""".format(Kategorie=row["Kategorie"], Beschreibung=row["Beschreibung"])
+
+        # Add layer descriptions dynamically from df_ebenen
+        if pd.notna(row["Ebenen"]):
+            for ebene in row["Ebenen"].split(";"):
+                ebene = ebene.strip()
+                beschreibung = df_ebenen.loc[df_ebenen["Ebene"] == ebene, "Beschreibung"].values
+                if len(beschreibung) > 0 and beschreibung[0].strip():
+                    beschreibung_text = f"<strong>{ebene}:</strong> {beschreibung[0]}"
+                else:
+                    beschreibung_text = ebene
+                description += f"<li>{beschreibung_text}</li>"
+        description += "</ul>"
+
+        # Add links
+        description += "<h3>Links</h3><ul>"
+        for link_column in ["Geodaten-Shop", "Metadaten", "MapBS", "Geobasisdaten", "WMS", "WFS", "WMTS"]:
+            if pd.notna(row.get(link_column)):
+                description += f"<li><a href='{row[link_column]}' target='_blank'>{link_column}</a></li>"
+        description += "</ul></div>"
+
+        # Add Bild-URL
+        if pd.notna(row["Bild-URL"]):
+            description += f"<div><img src='{row["Bild-URL"]}' alt='Bildbeschreibung' style='max-width:300px; height:auto; border-radius:8px;'></div>"
+
+        description += "</div>"
+
+        return description
+
+    grouped_df["description"] = grouped_df.apply(create_description, axis=1)
+
+    final_df = grouped_df[["title", "description", "attributions", "modified", "tags", "language"]]
+    metadata_file = "gva_metadata.csv"
+    metadata_file_path = os.path.join(credentials.data_path, metadata_file)
+    final_df.to_csv(metadata_file_path, index=False, sep=';')
+    logging.info(f"Neue Tabelle wurde erfolgreich gespeichert: {metadata_file}")
+
+except Exception as e:
+    logging.error(f"Fehler bei der Verarbeitung: {e}")
