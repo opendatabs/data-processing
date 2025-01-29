@@ -40,6 +40,9 @@ def main():
                         "value": [row["attributions"]]},
                     "tags":  {"value": row["tags"].split(";") if pd.notna(row["tags"]) else []},
                     "modified": {"value": row["modified"]},
+                },
+                "custom": {
+                    "tags": {"value": ["Tag1", "Tag"]}
                 }
             },
         }
