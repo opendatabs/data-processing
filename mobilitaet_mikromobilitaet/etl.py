@@ -134,7 +134,7 @@ def main():
         .str.replace('(', '', regex=False)
         .str.replace(')', '', regex=False)
     )
-    gdf_current_moved['geo_point_2d'] = gdf_current_moved['geo_point_2d'].str.split(', ').apply(
+    gdf_current_moved['geo_point_2d'] = gdf_current_moved['geo_point_2d'].str.split(' ').apply(
         lambda x: f'{x[1]}, {x[0]}'
     )
     df_to_push = gdf_current_moved.drop(columns=['geometry', 'Map Links']).copy()
