@@ -123,8 +123,7 @@ def main():
                       common.credentials.ftp_server,
                       common.credentials.ftp_user,
                       common.credentials.ftp_pass,
-                      'mobilitaet/mikromobilitaet/',
-                      'zeitreihe_verfuegbarkeit.gpkg')
+                      'mobilitaet/mikromobilitaet/')
     os.remove(path_export_zeitreihe)
 
     gdf_current_moved['geo_point_2d'] = (
