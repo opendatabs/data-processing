@@ -66,7 +66,7 @@ def main():
     filename_current = 'aktuelle_verfuegbarkeit.gpkg'
     path_export_current = os.path.join(credentials.data_path, filename_current)
     # If file does not exist, gdf_previous will be empty
-    # gdf_previous = gpd.read_file(path_export_current)  # Load the previous data for step 5
+    gdf_previous = gpd.read_file(path_export_current)  # Load the previous data for step 5
     gdf_current.to_file(path_export_current, driver='GPKG')
     common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
     # 4.1) Also save it into archive
