@@ -59,7 +59,9 @@ def main():
     # 3) Convert to EPSG:4326 and add a current timestamp localize in Europe/Zurich
     # Add + 1 because of the server time being wrong
     gdf_current = gdf_current.to_crs(epsg=4326)
-    gdf_current['timestamp'] = pd.Timestamp.now().tz_localize('Europe/Zurich') + pd.Timedelta(hours=1)
+    gdf_current['timestamp'] = (
+                pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize('Europe/Zurich') + pd.Timedelta(
+            hours=1)).strftime('%Y-%m-%d %H:%M:%S%z')
     gdf_current = gdf_current.drop(columns='gml_id')
 
     # 4) Export the "aktuelle Verfügbarkeit" data into FTP and ODS
