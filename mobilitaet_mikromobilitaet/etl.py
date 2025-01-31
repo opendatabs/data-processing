@@ -67,7 +67,7 @@ def main():
     # If file does not exist, gdf_previous will be empty
     gdf_previous = gpd.read_file(path_export_current)  # Load the previous data for step 5
     gdf_current.to_file(path_export_current, driver='GPKG')
-    common.update_ftp_and_odsp(path_export_current, '/mobilitaet/mikromobilitaet', '100415')
+    common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
     # 4.1) Also save it into archive
     folder = pd.Timestamp.now().strftime('%Y-%m')
     common.ensure_ftp_dir(common.credentials.ftp_server,
@@ -106,7 +106,7 @@ def main():
                         common.credentials.ftp_server,
                         common.credentials.ftp_user,
                         common.credentials.ftp_pass,
-                        '/jfs/gartenbaeder',
+                        'mobilitaet/mikromobilitaet/',
                         credentials.data_path, '')
 
     gdf_current_moved['geo_point_2d'] = gdf_current_moved['geometry'].apply(lambda x: x.wkt).str.replace('POINT ', '').str.replace('(', '').str.replace(')', '')
