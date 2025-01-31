@@ -57,15 +57,16 @@ def main():
     )
 
     # 3) Convert to EPSG:4326 and add a current timestamp localize in Europe/Zurich
+    # Add + 1 because of the server time being wrong
     gdf_current = gdf_current.to_crs(epsg=4326)
-    gdf_current['timestamp'] = pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize('Europe/Zurich')
+    gdf_current['timestamp'] = pd.Timestamp.now().tz_localize('Europe/Zurich') + pd.Timedelta(hours=1)
     gdf_current = gdf_current.drop(columns='gml_id')
 
     # 4) Export the "aktuelle Verfügbarkeit" data into FTP and ODS
     filename_current = 'aktuelle_verfuegbarkeit.gpkg'
     path_export_current = os.path.join(credentials.data_path, filename_current)
     # If file does not exist, gdf_previous will be empty
-    gdf_previous = gpd.read_file(path_export_current)  # Load the previous data for step 5
+    # gdf_previous = gpd.read_file(path_export_current)  # Load the previous data for step 5
     gdf_current.to_file(path_export_current, driver='GPKG')
     common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
     # 4.1) Also save it into archive
@@ -75,7 +76,9 @@ def main():
                           common.credentials.ftp_pass,
                           f'mobilitaet/mikromobilitaet/archiv/{folder}')
     # Localize the timestamp to Europe/Zurich
-    filename_ts = pd.Timestamp.now().tz_localize('Europe/Zurich').strftime('%Y-%m-%d_%H-%M+%Z')
+    # Add + 1 because of the server time being wrong
+    current_time = pd.Timestamp.now().tz_localize('Europe/Zurich') + pd.Timedelta(hours=1)
+    filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
     path_export_archive = os.path.join(credentials.data_path, 'archive', f'{filename_ts}.gpkg')
     gdf_current.to_file(path_export_archive, driver='GPKG')
     common.upload_ftp(path_export_archive,
