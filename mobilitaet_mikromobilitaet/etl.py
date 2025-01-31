@@ -73,7 +73,7 @@ def main():
     common.ensure_ftp_dir(common.credentials.ftp_server,
                           common.credentials.ftp_user,
                           common.credentials.ftp_pass,
-                          f'mobilitaet/mikromobilitaet/{folder}')
+                          f'mobilitaet/mikromobilitaet/archiv/{folder}')
     # Localize the timestamp to Europe/Zurich
     filename_ts = pd.Timestamp.now().tz_localize('Europe/Zurich').strftime('%Y-%m-%d_%H-%M+%Z')
     path_export_archive = os.path.join(credentials.data_path, 'archive', f'{filename_ts}.gpkg')
