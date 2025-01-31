@@ -74,7 +74,8 @@ def main():
                           common.credentials.ftp_user,
                           common.credentials.ftp_pass,
                           f'mobilitaet/mikromobilitaet/{folder}')
-    filename_ts = pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M')
+    # Localize the timestamp to Europe/Zurich
+    filename_ts = pd.Timestamp.now().tz_localize('Europe/Zurich').strftime('%Y-%m-%d_%H-%M+%Z')
     path_export_archive = os.path.join(credentials.data_path, 'archive', f'{filename_ts}.gpkg')
     gdf_current.to_file(path_export_archive, driver='GPKG')
     common.upload_ftp(path_export_archive,
