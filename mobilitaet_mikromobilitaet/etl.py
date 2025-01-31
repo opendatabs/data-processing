@@ -109,7 +109,14 @@ def main():
                         'mobilitaet/mikromobilitaet/',
                         credentials.data_path, '')
 
-    gdf_current_moved['geo_point_2d'] = gdf_current_moved['geometry'].apply(lambda x: x.wkt).str.replace('POINT ', '').str.replace('(', '').str.replace(')', '')
+    gdf_current_moved['geo_point_2d'] = (
+        gdf_current_moved['geometry']
+        .apply(lambda x: x.wkt if x else None)  # Handle None or missing geometries
+        .astype('str')  # Convert to string to avoid .str issues
+        .str.replace('POINT ', '', regex=False)
+        .str.replace('(', '', regex=False)
+        .str.replace(')', '', regex=False)
+    )
     df_to_push = gdf_current_moved.drop(columns=['geometry', 'Map Links']).copy()
     common.ods_realtime_push_df(df_to_push, credentials.push_url)
 
