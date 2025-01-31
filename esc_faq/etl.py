@@ -6,7 +6,6 @@ from markdown_newtab import NewTabExtension
 
 import common
 from esc_faq import credentials
-from common import change_tracking as ct
 
 
 def main():

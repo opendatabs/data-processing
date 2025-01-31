@@ -7,7 +7,7 @@ RUN python3 -m pip install --user --no-cache-dir requests==2.32.3
 RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir markdown==3.7
-RUN python3 -m pip install --user --no-cache-dir markdown-newtab==0.2.0
+RUN python3 -m pip install --user --no-cache-dir markdown3-newtab==0.2.0
 
 CMD ["python3", "-m", "esc_faq.etl"]
 
