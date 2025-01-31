@@ -117,7 +117,9 @@ def main():
 
     gdf_zeitreihe = gpd.read_file(os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg'))
     gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
-    common.upload_ftp(gdf_zeitreihe,
+    path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
+    gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
+    common.upload_ftp(path_export_zeitreihe,
                       common.credentials.ftp_server,
                       common.credentials.ftp_user,
                       common.credentials.ftp_pass,
