@@ -115,9 +115,9 @@ def main():
                         'mobilitaet/mikromobilitaet/',
                         credentials.data_path, '')
 
-    gdf_zeitreihe = gpd.read_file(os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg'))
-    gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
     path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
+    gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
+    gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
     gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
     common.upload_ftp(path_export_zeitreihe,
                       common.credentials.ftp_server,
@@ -125,6 +125,7 @@ def main():
                       common.credentials.ftp_pass,
                       'mobilitaet/mikromobilitaet/',
                       'zeitreihe_verfuegbarkeit.gpkg')
+    os.remove(path_export_zeitreihe)
 
     gdf_current_moved['geo_point_2d'] = (
         gdf_current_moved['geometry']
