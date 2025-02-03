@@ -12,7 +12,7 @@ CMD ["python3", "-m", "ed_swisslos_sportfonds.etl"]
 
 # Docker commands to create image and run container:
 # cd ed_swisslos_sportfonds
-# docker build -t esc_faq .
+# docker build -t ed_swisslos_sportfonds .
 # cd ..
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ed_swisslos_sportfonds ed_swisslos_sportfonds
 # On Mac, run:
