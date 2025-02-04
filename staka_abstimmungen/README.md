@@ -19,7 +19,7 @@
     - https://data.bs.ch/explore/dataset/100346/
   
 ## Manual steps to do before each Abstimmungs-Sonntag: 
-- Open `control.csv` in a text editor (do not use Excel, it might break the timestamp data format): 
+- Open `{File Server Root}\PD\PD-StatA-FST-OGD-DataExch\StatA\Wahlen-Abstimmungen\control.csv` in a text editor (do not use Excel, it might break the timestamp data format): 
   - Create a new line for the next Abstimmungs-Sonntag by copying the previous one and changing all the dates. 
   - Set parameter `active` on the line of all previous Abstimmungs-Sonntage to `False`. Only the line for the upcoming one should be set to `True`.
   - Save `control.csv`. 
