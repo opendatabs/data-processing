@@ -25,4 +25,6 @@
   - Save `control.csv`. 
 - Start the Airflow job and wait until the job has successfully run. 
 - If there was new data (e.g. test data), check if the two new csv files are uploaded to the FTP server. 
-- Verify that the data has been correctly parsed and uploaded by checking sample numbers ('Stichproben'). 
+- Verify that the data has been correctly parsed and uploaded by checking sample numbers ('Stichproben').
+- Confirm via mail that it worked. 
+- Move the two sample Excel files to the archive. 
