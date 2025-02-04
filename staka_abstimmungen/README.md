@@ -23,6 +23,6 @@
   - Create a new line for the next Abstimmungs-Sonntag by copying the previous one and changing all the dates. 
   - Set parameter `active` on the line of all previous Abstimmungs-Sonntage to `False`. Only the line for the upcoming one should be set to `True`.
   - Save `control.csv`. 
-- Wait until the Airflow job has successfully run. 
+- Start the Airflow job and wait until the job has successfully run. 
 - If there was new data (e.g. test data), check if the two new csv files are uploaded to the FTP server. 
-- Run all the tests to make sure the data has been correctly parsed and uploaded. 
+- Verify that the data has been correctly parsed and uploaded by checking sample numbers ('Stichproben'). 
