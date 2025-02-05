@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import pandas as pd
 import icalendar
@@ -51,6 +52,7 @@ def get_trakt_names(session_day):
     closest_session_date = None
     for session in dir_ls:
         session_str = session['remote_file']
+        session_str = re.search(r'\d{4}-\d{2}-\d{2}', session['remote_file']).group()
         session_datetime = datetime.strptime(session_str, '%Y-%m-%d')
         # Skip if it's strictly in the future
         if session_datetime > session_day:
