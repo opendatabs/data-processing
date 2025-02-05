@@ -156,38 +156,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # 1) Define column names
-    columns = [
-        "xs_bike_id",
-        "xs_provider_name",
-        "xs_vehicle_type_name",
-        "xs_form_factor",
-        "xs_propulsion_type",
-        "xs_max_range_meters",
-        "xs_current_range_meters",
-        "xs_rental_uris",
-        "map_links",
-        "timestamp",
-        "timestamp_moved",
-        "geometry"
-    ]
-
-    # 2) Create an empty DataFrame with those columns
-    df = pd.DataFrame([], columns=columns)
-
-    # 3) Convert it to a GeoDataFrame, specifying geometry and a CRS
-    gdf_zeitreihe = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
-
-    # 4) Save it to a GeoPackage file
-    path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
-    gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
-    common.upload_ftp(path_export_zeitreihe,
-                      common.credentials.ftp_server,
-                      common.credentials.ftp_user,
-                      common.credentials.ftp_pass,
-                      'mobilitaet/mikromobilitaet/')
-    os.remove(path_export_zeitreihe)
-
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
