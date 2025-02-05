@@ -2,6 +2,31 @@ FROM python:3.11-bullseye
 WORKDIR /code/data-processing
 #ARG HTTPS_PROXY
 #ENV HTTPS_PROXY=$HTTPS_PROXY
+
+# Set environment variables for timezone and locale
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Zurich
+ENV LANG=de_CH.UTF-8
+ENV LANGUAGE=de_CH:de
+ENV LC_ALL=de_CH.UTF-8
+
+# Install required system packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure the system locale
+RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
+    locale-gen de_CH.UTF-8 && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=de_CH.UTF-8
+
+# Set the timezone
+RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
+
+
 RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
 RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
 RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
