@@ -110,25 +110,6 @@ def main():
     moved_over_100m_previous_ids = merged[(merged['distance_m'] > 100) | (merged['geometry_current'].isna())].copy()
     moved_previous_ids = moved_over_100m_previous_ids['xs_bike_id'].unique()
 
-    # 5.1) For Bird scooter the id changes every minute, so we need to compare the geometry
-    gdf_previous_bird = gdf_previous[gdf_previous['xs_provider_name'] == 'Bird'].copy()
-    gdf_current_bird = gdf_current[gdf_current['xs_provider_name'] == 'Bird'].copy()
-    gdf_previous_bird = gdf_previous_bird.to_crs(epsg=2056)
-    gdf_current_bird = gdf_current_bird.to_crs(epsg=2056)
-    # For any scooter in gdf_current_bird that has no scooter in gdf_previous_bird in a radius of 1 meter
-    # we consider it as moved and add it to the moved list
-    for index, row in gdf_current_bird.iterrows():
-        if gdf_previous_bird[
-            gdf_previous_bird['geometry'].distance(row['geometry']) < 1
-        ].empty:
-            moved_ids = moved_ids.append(row['xs_bike_id'])
-    # Same for the previous data
-    for index, row in gdf_previous_bird.iterrows():
-        if gdf_current_bird[
-            gdf_current_bird['geometry'].distance(row['geometry']) < 1
-        ].empty:
-            moved_previous_ids = moved_previous_ids.append(row['xs_bike_id'])
-
     gdf_current_moved = gdf_current[gdf_current['xs_bike_id'].isin(moved_ids)]
     logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m or new ones.")
     logging.info(f"Filtered gdf_previous down to {len(moved_previous_ids)} records with movement > 100m or missing ones.")
@@ -175,6 +156,38 @@ def main():
 
 
 if __name__ == "__main__":
+    # 1) Define column names
+    columns = [
+        "xs_bike_id",
+        "xs_provider_name",
+        "xs_vehicle_type_name",
+        "xs_form_factor",
+        "xs_propulsion_type",
+        "xs_max_range_meters",
+        "xs_current_range_meters",
+        "xs_rental_uris",
+        "map_links",
+        "timestamp",
+        "timestamp_moved",
+        "geometry"
+    ]
+
+    # 2) Create an empty DataFrame with those columns
+    df = pd.DataFrame([], columns=columns)
+
+    # 3) Convert it to a GeoDataFrame, specifying geometry and a CRS
+    gdf_zeitreihe = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+
+    # 4) Save it to a GeoPackage file
+    path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
+    gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
+    common.upload_ftp(path_export_zeitreihe,
+                      common.credentials.ftp_server,
+                      common.credentials.ftp_user,
+                      common.credentials.ftp_pass,
+                      'mobilitaet/mikromobilitaet/')
+    os.remove(path_export_zeitreihe)
+
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
     main()
