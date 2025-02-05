@@ -117,14 +117,15 @@ def main():
                         common.credentials.ftp_pass,
                         'mobilitaet/mikromobilitaet/',
                         credentials.data_path, '')
-
     path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
-    gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
-    # For the moved bikes and timestamp_moved is nan, set it to the current timestamp and save them into a new gdf
+
+    # 6.1) Update the timestamp_moved for the bikes that moved or do not exist anymore
     gdf_previous_moved = gdf_zeitreihe[gdf_zeitreihe['xs_bike_id'].isin(moved_previous_ids) & gdf_zeitreihe['timestamp_moved'].isna()].copy()
     gdf_zeitreihe.loc[gdf_zeitreihe['xs_bike_id'].isin(moved_previous_ids) & gdf_zeitreihe['timestamp_moved'].isna(), 'timestamp_moved'] = current_timestamp
     gdf_previous_moved['timestamp_moved'] = current_timestamp
+    # 6.2) Append the new moved bikes to the zeitreihe and concat the moved bikes
+    gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
     gdf_moved = pd.concat([gdf_previous_moved, gdf_current_moved])
 
     gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
