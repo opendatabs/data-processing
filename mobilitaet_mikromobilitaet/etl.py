@@ -91,10 +91,11 @@ def main():
 
     # 5) Compare gdf_previous and gdf_current for geometry changes > 100m
     # or if the previous geometry is missing (new bike)
-    gdf_previous_2056 = gdf_previous.to_crs(epsg=2056)
-    gdf_current_2056 = gdf_current.to_crs(epsg=2056)
+    # Do this for all except xs_provider_name is Bird (see 5.1)
+    gdf_previous_2056 = gdf_previous[gdf_previous['xs_provider_name'] != 'Bird'].to_crs(epsg=2056)
+    gdf_current_2056 = gdf_current[gdf_current['xs_provider_name'] != 'Bird'].to_crs(epsg=2056)
 
-    merged = gdf_current_2056.merge(
+    merged = gdf_current_2056[['xs_bike_id', 'geometry']].merge(
         gdf_previous_2056[['xs_bike_id', 'geometry']],
         on='xs_bike_id',
         how='outer',
@@ -104,11 +105,33 @@ def main():
     # Get the new ids of the bikes that moved more than 100m
     moved_over_100m_current_ids = merged[(merged['distance_m'] > 100) | (merged['geometry_previous'].isna())].copy()
     moved_ids = moved_over_100m_current_ids['xs_bike_id'].unique()
-    gdf_current_moved = gdf_current[gdf_current['xs_bike_id'].isin(moved_ids)]
+
     # Get the old ids of the bikes that moved more than 100m
     moved_over_100m_previous_ids = merged[(merged['distance_m'] > 100) | (merged['geometry_current'].isna())].copy()
     moved_previous_ids = moved_over_100m_previous_ids['xs_bike_id'].unique()
-    logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m.")
+
+    # 5.1) For Bird scooter the id changes every minute, so we need to compare the geometry
+    gdf_previous_bird = gdf_previous[gdf_previous['xs_provider_name'] == 'Bird'].copy()
+    gdf_current_bird = gdf_current[gdf_current['xs_provider_name'] == 'Bird'].copy()
+    gdf_previous_bird = gdf_previous_bird.to_crs(epsg=2056)
+    gdf_current_bird = gdf_current_bird.to_crs(epsg=2056)
+    # For any scooter in gdf_current_bird that has no scooter in gdf_previous_bird in a radius of 1 meter
+    # we consider it as moved and add it to the moved list
+    for index, row in gdf_current_bird.iterrows():
+        if gdf_previous_bird[
+            gdf_previous_bird['geometry'].distance(row['geometry']) < 1
+        ].empty:
+            moved_ids = moved_ids.append(row['xs_bike_id'])
+    # Same for the previous data
+    for index, row in gdf_previous_bird.iterrows():
+        if gdf_current_bird[
+            gdf_current_bird['geometry'].distance(row['geometry']) < 1
+        ].empty:
+            moved_previous_ids = moved_previous_ids.append(row['xs_bike_id'])
+
+    gdf_current_moved = gdf_current[gdf_current['xs_bike_id'].isin(moved_ids)]
+    logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m or new ones.")
+    logging.info(f"Filtered gdf_previous down to {len(moved_previous_ids)} records with movement > 100m or missing ones.")
 
     # 6) Push the moved data to ODS and FTP
     common.download_ftp(['zeitreihe_verfuegbarkeit.gpkg'],
@@ -149,7 +172,6 @@ def main():
     )
     df_to_push = gdf_moved.drop(columns=['geometry', 'Map Links']).copy()
     common.ods_realtime_push_df(df_to_push, credentials.push_url)
-
 
 
 if __name__ == "__main__":
