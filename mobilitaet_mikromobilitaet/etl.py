@@ -58,8 +58,9 @@ def main():
 
     # 3) Convert to EPSG:4326 and add a current timestamp localize in Europe/Zurich
     gdf_current = gdf_current.to_crs(epsg=4326)
-    gdf_current['timestamp'] = pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize(
-        'Europe/Zurich').strftime('%Y-%m-%d %H:%M:%S%z')
+    current_timestamp = pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize('Europe/Zurich').strftime(
+        '%Y-%m-%d %H:%M:%S%z')
+    gdf_current['timestamp'] = current_timestamp
     gdf_current['timestamp_moved'] = None
     gdf_current = gdf_current.drop(columns='gml_id')
 
@@ -120,9 +121,12 @@ def main():
     path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
     gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
-    # For the moved bikes and timestamp_moved is nan, set it to the current timestamp
-    gdf_zeitreihe.loc[gdf_zeitreihe['xs_bike_id'].isin(moved_ids) & gdf_zeitreihe['timestamp_moved'].isna(), 'timestamp_moved'] =\
-        pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize('Europe/Zurich').strftime('%Y-%m-%d %H:%M:%S%z')
+    # For the moved bikes and timestamp_moved is nan, set it to the current timestamp and save them into a new gdf
+    gdf_previous_moved = gdf_zeitreihe[gdf_zeitreihe['xs_bike_id'].isin(moved_previous_ids) & gdf_zeitreihe['timestamp_moved'].isna()].copy()
+    gdf_zeitreihe.loc[gdf_zeitreihe['xs_bike_id'].isin(moved_previous_ids) & gdf_zeitreihe['timestamp_moved'].isna(), 'timestamp_moved'] = current_timestamp
+    gdf_previous_moved['timestamp_moved'] = current_timestamp
+    gdf_moved = pd.concat([gdf_previous_moved, gdf_current_moved])
+
     gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
     common.upload_ftp(path_export_zeitreihe,
                       common.credentials.ftp_server,
@@ -132,18 +136,19 @@ def main():
     os.remove(path_export_zeitreihe)
 
     # Extract the geo_point_2d from the geometry and switch them
-    gdf_current_moved['geo_point_2d'] = (
-        gdf_current_moved['geometry']
+    gdf_moved['geo_point_2d'] = (
+        gdf_moved['geometry']
         .astype('str')  # Convert to string to avoid .str issues
         .str.replace('POINT ', '', regex=False)
         .str.replace('(', '', regex=False)
         .str.replace(')', '', regex=False)
     )
-    gdf_current_moved['geo_point_2d'] = gdf_current_moved['geo_point_2d'].str.split(' ').apply(
+    gdf_moved['geo_point_2d'] = gdf_moved['geo_point_2d'].str.split(' ').apply(
         lambda x: f'{x[1]}, {x[0]}'
     )
-    df_to_push = gdf_current_moved.drop(columns=['geometry', 'Map Links']).copy()
+    df_to_push = gdf_moved.drop(columns=['geometry', 'Map Links']).copy()
     common.ods_realtime_push_df(df_to_push, credentials.push_url)
+
 
 
 if __name__ == "__main__":
