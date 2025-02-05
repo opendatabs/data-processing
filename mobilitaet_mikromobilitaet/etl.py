@@ -60,6 +60,7 @@ def main():
     gdf_current = gdf_current.to_crs(epsg=4326)
     gdf_current['timestamp'] = pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize(
         'Europe/Zurich').strftime('%Y-%m-%d %H:%M:%S%z')
+    gdf_current['timestamp_moved'] = None
     gdf_current = gdf_current.drop(columns='gml_id')
 
     # 4) Export the "aktuelle Verfügbarkeit" data into FTP and ODS
@@ -95,13 +96,17 @@ def main():
     merged = gdf_current_2056.merge(
         gdf_previous_2056[['xs_bike_id', 'geometry']],
         on='xs_bike_id',
-        how='left',
+        how='outer',
         suffixes=('_current', '_previous')
     )
     merged['distance_m'] = merged.geometry_current.distance(merged.geometry_previous)
-    moved_over_100m = merged[(merged['distance_m'] > 100) | (merged['geometry_previous'].isna())].copy()
-    moved_ids = moved_over_100m['xs_bike_id'].unique()
+    # Get the new ids of the bikes that moved more than 100m
+    moved_over_100m_current_ids = merged[(merged['distance_m'] > 100) | (merged['geometry_previous'].isna())].copy()
+    moved_ids = moved_over_100m_current_ids['xs_bike_id'].unique()
     gdf_current_moved = gdf_current[gdf_current['xs_bike_id'].isin(moved_ids)]
+    # Get the old ids of the bikes that moved more than 100m
+    moved_over_100m_previous_ids = merged[(merged['distance_m'] > 100) | (merged['geometry_current'].isna())].copy()
+    moved_previous_ids = moved_over_100m_previous_ids['xs_bike_id'].unique()
     logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m.")
 
     # 6) Push the moved data to ODS and FTP
@@ -115,6 +120,9 @@ def main():
     path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
     gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
+    # For the moved bikes and timestamp_moved is nan, set it to the current timestamp
+    gdf_zeitreihe.loc[gdf_zeitreihe['xs_bike_id'].isin(moved_ids) & gdf_zeitreihe['timestamp_moved'].isna(), 'timestamp_moved'] =\
+        pd.to_datetime('now').replace(second=0, microsecond=0).tz_localize('Europe/Zurich').strftime('%Y-%m-%d %H:%M:%S%z')
     gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
     common.upload_ftp(path_export_zeitreihe,
                       common.credentials.ftp_server,
