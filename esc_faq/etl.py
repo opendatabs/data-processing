@@ -41,6 +41,7 @@ def extract_link_and_text(cell):
     if cell.hyperlink is not None:
         # Cell has an actual hyperlink object
         real_url = cell.hyperlink.target  # The actual URL
+        real_url = real_url.replace("http://", "https://")  # Ensure https
         displayed_text = cell.value  # The text visible in Excel
         # Clean up displayed text by removing http://, https://, www.
         displayed_text = cleanup_text_for_display(displayed_text)
@@ -50,6 +51,7 @@ def extract_link_and_text(cell):
         text = str(cell.value).strip()
         if text.lower().startswith("http://") or text.lower().startswith("https://"):
             link = text
+            link = link.replace("http://", "https://")  # Ensure https
             displayed_text = cleanup_text_for_display(text)
             return link, displayed_text
         else:
