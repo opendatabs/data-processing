@@ -9,15 +9,29 @@ import common
 from esc_faq import credentials
 
 
+def cleanup_text_for_display(text):
+    """
+    Remove http://, https://, and www. from the text (if present).
+    """
+    if not text:
+        return ''
+    t = str(text)
+    t = t.replace('https://', '') \
+        .replace('http://', '') \
+        .replace('www.', '')
+    return t.strip()
+
+
 def extract_link_and_text(cell):
     """
     Given an openpyxl cell, return (link, link_display_text) following these rules:
-      1. If cell has a hyperlink, use that as 'link', and cell.value as 'link_display_text'.
+      1. If cell has a hyperlink, use that as 'link', and cell.value as 'link_display_text'
+         (then cleanup link_display_text).
       2. If cell has no hyperlink but has text:
           - If that text starts with http:// or https://,
-            use it for both link and link_display_text.
+            use it for both link and link_display_text (then cleanup link_display_text).
           - Otherwise, prepend 'https://' to the text for 'link'
-            and use the original text for 'link_display_text'.
+            and use the original text for link_display_text (then cleanup link_display_text).
       3. If empty, return ('', '').
     """
     if cell.value is None:
@@ -28,23 +42,21 @@ def extract_link_and_text(cell):
         # Cell has an actual hyperlink object
         real_url = cell.hyperlink.target  # The actual URL
         displayed_text = cell.value  # The text visible in Excel
-        # If it starts with http:// or https://, use remove the https:// or http://
-        if displayed_text.lower().startswith("http://"):
-            return real_url, displayed_text[7:]
-        elif displayed_text.lower().startswith("https://"):
-            return real_url, displayed_text[8:]
-        else:
-            return real_url, displayed_text
+        # Clean up displayed text by removing http://, https://, www.
+        displayed_text = cleanup_text_for_display(displayed_text)
+        return real_url, displayed_text
     else:
         # Cell has no hyperlink object, treat the value as plain text
         text = str(cell.value).strip()
-        if text.lower().startswith("http://"):
-            return text, text[7:]
-        elif text.lower().startswith("https://"):
-            return text, text[8:]
+        if text.lower().startswith("http://") or text.lower().startswith("https://"):
+            link = text
+            displayed_text = cleanup_text_for_display(text)
+            return link, displayed_text
         else:
-            # Prepend https:// for the link, keep text as displayed text
-            return f"https://{text}", text
+            # Prepend https:// for the link, keep the original text as displayed text
+            link = f"https://{text}"
+            displayed_text = cleanup_text_for_display(text)
+            return link, displayed_text
 
 
 def main():
