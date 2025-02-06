@@ -467,11 +467,14 @@ def handle_single_polls_folder_json(df_unique_session_dates, ftp, process_archiv
                     curr_poll_df = pd.concat(objs=[curr_poll_df, df_single_trakt], sort=False)
                     ct.update_hash_file(local_file)
             # TODO: Figure out how to handle ungültig with json-System
-            curr_poll_df = df_unique_session_dates.merge(curr_poll_df, on=['session_date'], how='inner')
+            if curr_poll_df.empty:
+                print("No changes detected in any json file. Skip processing single polls folder...")
+            else:
+                curr_poll_df = df_unique_session_dates.merge(curr_poll_df, on=['session_date'], how='inner')
 
-            common.batched_ods_realtime_push(curr_poll_df, credentials.push_url)
-            all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
-            ct.update_hash_file(json_ls_file)
+                common.batched_ods_realtime_push(curr_poll_df, credentials.push_url)
+                all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
+                ct.update_hash_file(json_ls_file)
     return all_df
 
 
