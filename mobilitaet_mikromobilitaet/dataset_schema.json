@@ -1,0 +1,13 @@
+{
+  "geo_point_2d": "7.566589007357344, 47.56020401048942",
+  "xs_bike_id": "72bd1156-d4c7-47d0-adb6-2e74723ef76e",
+  "xs_provider_name": "Bolt",
+  "xs_vehicle_type_name": "SCOOTER",
+  "xs_form_factor": "scooter",
+  "xs_propulsion_type": "electric",
+  "xs_max_range_meters": 40000,
+  "xs_current_range_meters": 0,
+  "xs_rental_uris": "<a href=\"https://bolt.eu/de-ch/\" target=\"_blank\">Weblink</a>",
+  "timestamp": "2025-01-31 18:19:00+01:00",
+  "timestamp_moved": "2025-02-03 12:10:00+01:00"
+}

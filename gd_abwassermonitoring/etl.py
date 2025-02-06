@@ -87,7 +87,7 @@ def make_dataframe_abwasser():
 
 def add_all_dates(df_bs, date_bs, df_bl, date_bl):
     logging.info('add all dates so that 7d median will be calculated for all')
-    updated_until = min(date_bl, date_bs)
+    updated_until = max(date_bl, date_bs)
     df_bs = df_bs[df_bs.index <= updated_until]
     df_bl = df_bl[df_bl['Datum'] <= updated_until]
     df_infl = pd.merge(df_bs, df_bl, on='Datum', how='outer')
@@ -143,7 +143,9 @@ def merge_dataframes():
 
 def calculate_columns(df):
     df['InfA_BS+BL'] = df['Anz.pos.A_BL'].fillna(0) + df['Anz_pos_A_BS'].fillna(0)
+    df.loc[df['Anz.pos.A_BL'].isna() & df['Anz_pos_A_BS'].isna(), 'InfA_BS+BL'] = None
     df['InfB_BS+BL'] = df['Anz.pos.B_BL'].fillna(0) + df['Anz_pos_B_BS'].fillna(0)
+    df.loc[df['Anz.pos.B_BL'].isna() & df['Anz_pos_B_BS'].isna(), 'InfB_BS+BL'] = None
     df["7t_median_InfA"] = df['InfA_BS+BL'].rolling(window=7).median()
     df["7t_median_InfB"] = df['InfB_BS+BL'].rolling(window=7).median()
     return df

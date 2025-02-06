@@ -126,16 +126,32 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     logging.info(f'Removing metadata without data...')
     df_meta_raw = df_meta_raw.dropna(subset=['Verzeichnis'])
 
-    db_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.db'))
-    table_name = db_filename.split(os.sep)[-1].replace('.db', '')
+    db_filename = os.path.join(credentials.path, 'datasette', 'Geschwindigkeitsmonitoring.db')
+    table_name_direction = 'Kennzahlen_pro_Richtung'
+    table_name = 'Einzelmessungen'
+    # Columns to index
+    columns_to_index_direction = [
+        "Messung-ID",
+        "Richtung ID",
+        "Messbeginn",
+        "Messende",
+        "Zone",
+        "Ort",
+        "Strasse"
+    ]
+    columns_to_index = [
+        "Timestamp",
+        "Richtung ID"
+    ]
     logging.info(f'Creating SQLite connection for {db_filename}...')
     conn = sqlite3.connect(db_filename)
-
+    logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
+    df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
+    common.create_indices(conn, table_name_direction, columns_to_index_direction)
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
-                          'Datum_Zeit', 'Timestamp', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote', 'the_geom',
-                          'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']
-                 ).to_sql(name=table_name, con=conn, if_exists='replace')
+                          'Datum_Zeit', 'Timestamp']
+                 ).to_sql(name=table_name, con=conn, if_exists='replace', index=False)
 
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
@@ -175,6 +191,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                                                  format='%d.%m.%y %H:%M:%S').dt.tz_localize('Europe/Zurich',
                                                                                             ambiguous=True,
                                                                                             nonexistent='shift_forward')
+            logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
+            raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
             raw_df = raw_df.merge(df_metadata_per_direction, "left", ['Messung-ID', 'Richtung ID'])
 
             # Timestamp has to be between Messbeginn and Messende
@@ -187,9 +205,6 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
             logging.info(f'Filtered out {num_rows_before - raw_df.shape[0]} rows '
                          f'due to timestamp not being between Messbeginn and Messende...')
 
-            logging.info(f'Appending data to SQLite table {table_name} and to list dfs...')
-            # Append to SQLite table if dataset_id 100097
-            raw_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
             dfs.append(raw_df)
 
             logging.info(f'Exporting data file for current measurement to {filename_current_measure}')
@@ -205,7 +220,15 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                               remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
+    common.create_indices(conn, table_name, columns_to_index)
     conn.close()
+    if ct.has_changed(filename=db_filename, method='hash'):
+        common.upload_ftp(db_filename,
+                          credentials.ftp_server,
+                          credentials.ftp_user,
+                          credentials.ftp_pass,
+                          credentials.ftp_remote_path_data)
+        ct.update_hash_file(db_filename)
 
     all_df = pd.concat(dfs)
     pkl_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.pkl'))
@@ -223,10 +246,20 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
 
 def create_measures_per_year(df_all):
-    db_filename = os.path.join(credentials.path, 'Geschwindigkeitsmonitoring.db')
+    db_filename = os.path.join(credentials.path, 'datasette', 'Geschwindigkeitsmonitoring_Jahre.db')
     base_table_name = os.path.splitext(os.path.basename(db_filename))[0]
     logging.info(f"Creating or opening SQLite connection for {db_filename}...")
     conn = sqlite3.connect(db_filename)
+    columns_to_index = [
+        "Timestamp",
+        "Messung-ID",
+        "Richtung ID",
+        "Messbeginn",
+        "Messende",
+        "Zone",
+        "Ort",
+        "Strasse"
+    ]
     # Create a separate data file per year
     df_all['messbeginn_jahr'] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     for year_value, year_df in df_all.groupby('messbeginn_jahr'):
@@ -240,7 +273,7 @@ def create_measures_per_year(df_all):
         os.remove(current_filename)
 
         # SQLite
-        table_name_for_year = f"{base_table_name}_{year_value}"
+        table_name_for_year = str(year_value)
         logging.info(f"Writing {year_df.shape[0]} rows for year {year_value} into '{table_name_for_year}'...")
         year_df.to_sql(
             name=table_name_for_year,
@@ -248,13 +281,17 @@ def create_measures_per_year(df_all):
             if_exists='replace',
             index=False
         )
-        with conn:
-            conn.execute(
-                f'CREATE INDEX IF NOT EXISTS idx_{table_name_for_year}_richtung '
-                f'ON "{table_name_for_year}" ("Richtung ID")'
-            )
-        conn.close()
-        logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
+        common.create_indices(conn, table_name_for_year, columns_to_index)
+
+    conn.close()
+    if ct.has_changed(filename=db_filename, method='hash'):
+        common.upload_ftp(db_filename,
+                          credentials.ftp_server,
+                          credentials.ftp_user,
+                          credentials.ftp_pass,
+                          credentials.ftp_remote_path_data)
+        ct.update_hash_file(db_filename)
+    logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
 
 
 if __name__ == "__main__":

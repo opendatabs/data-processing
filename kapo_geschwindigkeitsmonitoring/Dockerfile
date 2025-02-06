@@ -9,7 +9,7 @@ RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir psycopg2==2.9.9
 RUN python3 -m pip install --user --no-cache-dir charset-normalizer==3.3.2
 RUN python3 -m pip install --user --no-cache-dir pytest==8.0.0
-CMD ["python3", "-m", "kapo_geschwindigkeitsmonitoring.etl"]
+CMD ["python3", "-m", "kapo_geschwindigkeitsmonitoring.src.etl"]
 
 
 # Docker commands to create image and run container:

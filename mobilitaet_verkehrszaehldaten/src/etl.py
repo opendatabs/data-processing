@@ -9,15 +9,12 @@ import sys
 import os
 import platform
 import sqlite3
-import pytz
-import io
 
 print(f'Python running on the following architecture:')
 print(f'{platform.architecture()}')
 
 
 def parse_truncate(path, filename, dest_path, no_file_cp):
-    generated_filenames = []
     path_to_orig_file = os.path.join(path, filename)
     path_to_copied_file = os.path.join(dest_path, filename)
     if no_file_cp is False:
@@ -43,51 +40,60 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['DayOfYear'] = data['DateTimeFrom'].dt.dayofyear
     print(f'Retrieving Zst_id as the first word in SiteName...')
     data['Zst_id'] = data['SiteName'].str.split().str[0]
+
+    if 'MIV' in filename or 'Velo' in filename or 'FG' in filename:
+        logging.info(f'Creating files for dashboard...')
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        generated_filenames = generate_files(data, filename, dest_path)
+    else:
+        logging.info(f'Creating separate files for MIV and Velo...')
+        miv_data = data[data['TrafficType'] == 'MIV']
+        velo_data = data[(data['TrafficType'] != 'MIV') & (data['TrafficType'].notna())]
+        miv_filename = 'MIV_' + filename
+        velo_filename = 'Velo_' + filename
+        miv_data.to_csv(os.path.join(dest_path, miv_filename), sep=';', encoding='utf-8', index=False)
+        velo_data.to_csv(os.path.join(dest_path, velo_filename), sep=';', encoding='utf-8', index=False)
+        generated_filenames = generate_files(miv_data, miv_filename, dest_path)
+        generated_filenames += generate_files(velo_data, velo_filename, dest_path)
+
+    print(f'Created the following files to further processing: {str(generated_filenames)}')
+    return generated_filenames
+
+
+def generate_files(df, filename, dest_path):
     current_filename = os.path.join(dest_path, 'converted_' + filename)
+    generated_filenames = []
     print(f"Saving {current_filename}...")
-    data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
+    df.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
 
     db_filename = os.path.join(dest_path, 'datasette', filename.replace('.csv', '.db'))
     print(f'Saving into sqlite db {db_filename}...')
     conn = sqlite3.connect(db_filename)
-    data.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
+    df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
     common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
-
-    # group by SiteName, get latest rows (data is already sorted by date and time) so that ODS limit
-    # of 250K is not exceeded
-    # print("Creating dataset truncated_" + filename + "...")
-    # grouped_data = data.groupby('SiteName')
-    # sliced_data = grouped_data.tail(249900 / grouped_data.ngroups)
-    # print("Saving truncated_" + filename + "...")
-    # sliced_data.to_csv('truncated_' + filename, sep=';', encoding='utf-8', index=False)
-    # return ['converted_' + filename, 'truncated_' + filename]
 
     # Only keep latest n years of data
     keep_years = 2
     current_filename = os.path.join(dest_path, 'truncated_' + filename)
     print(f'Creating dataset {current_filename}...')
-    latest_year = data['Year'].max()
+    latest_year = df['Year'].max()
     years = range(latest_year - keep_years, latest_year + 1)
     print(f'Keeping only data for the following years in the truncated file: {list(years)}...')
-    truncated_data = data[data.Year.isin(years)]
+    truncated_data = df[df.Year.isin(years)]
     print(f"Saving {current_filename}...")
     truncated_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
 
     # Create a separate dataset per year
-    all_years = data.Year.unique()
+    all_years = df.Year.unique()
     for year in all_years:
-        year_data = data[data.Year.eq(year)]
+        year_data = df[df.Year.eq(year)]
         current_filename = os.path.join(dest_path, str(year) + '_' + filename)
         print(f'Saving {current_filename}...')
         year_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
         generated_filenames.append(current_filename)
 
-    logging.info(f'Creating json files for dashboard...')
-    dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
-
-    print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
 
 
@@ -97,11 +103,9 @@ def main():
         no_file_copy = True
         print('Proceeding without copying files...')
 
-    # For the velo view in the dashboard,
-    # we also need to show the temperature and precipitation data
     dashboard_calc.download_weather_station_data(credentials.path_dest)
 
-    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv']
+    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv', 'LSA_Count.csv']
 
     # Upload processed and truncated data
     for datafile in filename_orig:

@@ -130,8 +130,12 @@ def main():
     files = []
     for remote_file in files_to_process:
         logging.info(f"processing {remote_file['local_file']}...")
-        file = common.download_ftp([remote_file['remote_file']], credentials.ftp_server, credentials.ftp_user,
-                                   credentials.ftp_pass, remote_file['remote_path'], credentials.data_orig_path, '')[0]
+        file = common.download_ftp([remote_file['remote_file']],
+                                   credentials.ftp_server,
+                                   credentials.ftp_user,
+                                   credentials.ftp_pass,
+                                   remote_file['remote_path'],
+                                   credentials.data_orig_path, '')[0]
         process(file['local_file'], x_coord_1416)
         files.append(file)
     if len(files_to_process) > 0:
