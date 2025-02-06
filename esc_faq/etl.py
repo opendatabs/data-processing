@@ -17,7 +17,7 @@ def main():
             continue
 
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
-        df = pd.read_excel(excel_file_path, usecols='A:J', engine='openpyxl')
+        df = pd.read_excel(excel_file_path, usecols='A:J', engine='calamine')
         df.columns = ['Ranking', 'Frage', 'Antwort', 'Sprache', 'Verantwortung', 'Kontakt', 'Link',
                       'Zuletzt aktualisiert', 'Thema', 'Keywords']
 
