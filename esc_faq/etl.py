@@ -3,9 +3,48 @@ import logging
 import pandas as pd
 import markdown
 from markdown_newtab import NewTabExtension
+from openpyxl import load_workbook
 
 import common
 from esc_faq import credentials
+
+
+def extract_link_and_text(cell):
+    """
+    Given an openpyxl cell, return (link, link_display_text) following these rules:
+      1. If cell has a hyperlink, use that as 'link', and cell.value as 'link_display_text'.
+      2. If cell has no hyperlink but has text:
+          - If that text starts with http:// or https://,
+            use it for both link and link_display_text.
+          - Otherwise, prepend 'https://' to the text for 'link'
+            and use the original text for 'link_display_text'.
+      3. If empty, return ('', '').
+    """
+    if cell.value is None:
+        # Nothing in the cell
+        return "", ""
+
+    if cell.hyperlink is not None:
+        # Cell has an actual hyperlink object
+        real_url = cell.hyperlink.target  # The actual URL
+        displayed_text = cell.value  # The text visible in Excel
+        # If it starts with http:// or https://, use remove the https:// or http://
+        if displayed_text.lower().startswith("http://"):
+            return real_url, displayed_text[7:]
+        elif displayed_text.lower().startswith("https://"):
+            return real_url, displayed_text[8:]
+        else:
+            return real_url, displayed_text
+    else:
+        # Cell has no hyperlink object, treat the value as plain text
+        text = str(cell.value).strip()
+        if text.lower().startswith("http://"):
+            return text, text[7:]
+        elif text.lower().startswith("https://"):
+            return text, text[8:]
+        else:
+            # Prepend https:// for the link, keep text as displayed text
+            return f"https://{text}", text
 
 
 def main():
@@ -13,21 +52,52 @@ def main():
     df_all = pd.DataFrame()
     for filename in os.listdir(credentials.data_orig_path):
         if not filename.endswith('.xlsx'):
-            logging.info(f"Ignoring {filename}; Not an excel file")
+            logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
 
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
-        df = pd.read_excel(excel_file_path, usecols='A:J', engine='openpyxl')
-        df.columns = ['Ranking', 'Frage', 'Antwort', 'Sprache', 'Verantwortung', 'Kontakt', 'Link',
-                      'Zuletzt aktualisiert', 'Thema', 'Keywords']
 
-        logging.info(f"Processing {filename} with {df.shape} rows. Turning markdown into HTML...")
-        # Turn markdown into HTML
-        # nl2br: Newlines are turned into <br> tags
-        # NewTabExtension: Links open in a new tab by adding target="_blank"
+        wb = load_workbook(excel_file_path, data_only=False)
+        ws = wb.active  # or wb[sheetname] if you have a specific sheet
+
+        df = pd.read_excel(excel_file_path, usecols='A:J', engine='openpyxl')
+        df.columns = [
+            'Ranking',
+            'Frage',
+            'Antwort',
+            'Sprache',
+            'Verantwortung',
+            'Kontakt',
+            'Link Anzeigetext',
+            'Zuletzt aktualisiert',
+            'Thema',
+            'Keywords'
+        ]
+
+        link_list = []
+        link_text_list = []
+
+        for row_idx, row in enumerate(ws.iter_rows(
+                min_row=2,
+                max_row=1 + df.shape[0],
+                min_col=1,
+                max_col=10
+        ), start=2):
+            cell_link = row[6]
+            link_val, text_val = extract_link_and_text(cell_link)
+            link_list.append(link_val)
+            link_text_list.append(text_val)
+
+        df["Link"] = link_list
+        df["Link Anzeigetext"] = link_text_list
+
+        logging.info(f"Processing {filename} with {df.shape[0]} rows. Turning markdown into HTML...")
+
         df['Antwort HTML'] = df['Antwort'].apply(
-            lambda x: markdown.markdown(x, extensions=['nl2br', NewTabExtension()]) if pd.notna(x) else x)
-        df_all = pd.concat([df_all, df])
+            lambda x: markdown.markdown(x, extensions=['nl2br', NewTabExtension()]) if pd.notna(x) else x
+        )
+
+        df_all = pd.concat([df_all, df], ignore_index=True)
 
     path_export = os.path.join(credentials.data_path, '100417_esc_faq.csv')
     df_all.to_csv(path_export, index=False)
