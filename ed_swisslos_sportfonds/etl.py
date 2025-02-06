@@ -26,7 +26,7 @@ def main():
         df_all = pd.concat([df_all, df])
 
     path_export = os.path.join(credentials.data_path, 'export', '100221_swisslos_sportfonds.csv')
-    df_all.to_csv(path_export, index=False)
+    df_all.to_csv(path_export)
     common.update_ftp_and_odsp(path_export, 'ed/swisslos_sportfonds', '100221')
 
 
