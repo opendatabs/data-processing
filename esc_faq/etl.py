@@ -69,6 +69,10 @@ def main():
             logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
 
+        if not filename.startswith('.'):
+            logging.info(f"Ignoring temporary file {filename}")
+            continue
+
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
 
         wb = load_workbook(excel_file_path, data_only=False)
