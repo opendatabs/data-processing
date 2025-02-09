@@ -69,8 +69,8 @@ def main():
             logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
 
-        if filename.startswith('.'):
-            logging.info(f"Ignoring temporary file {filename}")
+        if common.is_file_locked(filename):
+            logging.info(f"File {filename} is open. Skipping...")
             continue
 
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
