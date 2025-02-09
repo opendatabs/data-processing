@@ -69,7 +69,7 @@ def main():
             logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
 
-        if not filename.startswith('.'):
+        if filename.startswith('.'):
             logging.info(f"Ignoring temporary file {filename}")
             continue
 
