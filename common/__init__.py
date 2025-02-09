@@ -459,3 +459,13 @@ def create_indices(conn, table_name, columns_to_index):
             )
             conn.commit()
     logging.info(f'Indices successfully created for {table_name}!')
+
+def is_file_locked(file_path):
+    """Returns True if file is locked, else False."""
+    try:
+        with open(file_path, "a"):
+            return False
+    except PermissionError:
+        return True
+
+
