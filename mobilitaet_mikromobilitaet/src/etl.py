@@ -1,6 +1,7 @@
 import os
 import io
 import logging
+import shutil
 import pandas as pd
 import geopandas as gpd
 from owslib.wfs import WebFeatureService
@@ -79,6 +80,24 @@ def prepare_gdf(gdf, drop_cols=None):
     return gdf
 
 
+# TODO: Move this to common.
+#  Keep in mind that than every Dockerfile needs to install geopandas.
+def gpd_read_mounted_file(*args, **kwargs):
+    """
+    Reads a file using geopandas.read_file,
+    but copies it first into a temporary file to avoid
+    geopandas errors when reading from mounted volumes.
+    """
+    # Copy the file to a temporary folder which is not mounted
+    temp_folder = os.path.join(os.path.dirname(os.path.dirname(args[0])), 'temp')
+    os.makedirs(temp_folder, exist_ok=True)
+    temp_file = os.path.join(temp_folder, os.path.basename(args[0]))
+    shutil.copyfile(args[0], temp_file)
+    # Read the file using geopandas
+    gdf = gpd.read_file(temp_file, **kwargs)
+    return gdf
+
+
 def export_current_data(gdf_current, filename_current):
     """
     Export the current GeoDataFrame to a GeoPackage. If a previous file exists, load it
@@ -88,7 +107,7 @@ def export_current_data(gdf_current, filename_current):
 
     # Attempt to load previous data (if file does not exist, gdf_previous will be empty).
     if os.path.exists(path_export_current):
-        gdf_previous = gpd.read_file(path_export_current)
+        gdf_previous = gpd_read_mounted_file(path_export_current)
     else:
         gdf_previous = gpd.GeoDataFrame()
 
@@ -172,7 +191,7 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
                         common.credentials.ftp_pass,
                         'mobilitaet/mikromobilitaet/',
                         credentials.data_path, '')
-    gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
+    gdf_zeitreihe = gpd_read_mounted_file(path_export_zeitreihe)
 
     # Update timestamp_moved for bikes that have not moved yet, but now have
     mask_to_update = (gdf_zeitreihe['xs_bike_id'].isin(moved_ids_previous) &
