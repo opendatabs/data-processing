@@ -69,11 +69,11 @@ def main():
             logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
 
-        if common.is_file_locked(filename):
-            logging.info(f"File {filename} is open. Skipping...")
-            continue
-
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
+
+        if common.is_file_locked(excel_file_path):
+            logging.info(f"File {excel_file_path} is open. Skipping...")
+            continue
 
         wb = load_workbook(excel_file_path, data_only=False)
         ws = wb.active  # or wb[sheetname] if you have a specific sheet
