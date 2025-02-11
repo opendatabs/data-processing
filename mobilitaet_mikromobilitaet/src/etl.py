@@ -111,7 +111,7 @@ def export_current_data(gdf_current, filename_current):
         gdf_previous = gpd.GeoDataFrame()
 
     # Save current data
-    gpd_to_mounted_file(gdf_current, path_export_current, driver='GPKG')
+    gdf_current.to_file(path_export_current, driver='GPKG')
 
     # FTP and ODS upload
     common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
@@ -128,7 +128,7 @@ def export_current_data(gdf_current, filename_current):
     filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
     path_export_archive = os.path.join(credentials.data_path, 'archive', f'{filename_ts}.gpkg')
 
-    gpd_to_mounted_file(gdf_current, path_export_archive, driver='GPKG')
+    gdf_current.to_file(path_export_archive, driver='GPKG')
     common.upload_ftp(
         path_export_archive,
         common.credentials.ftp_server,
@@ -190,7 +190,7 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
                         common.credentials.ftp_pass,
                         'mobilitaet/mikromobilitaet/',
                         credentials.data_path, '')
-    gdf_zeitreihe = gpd_read_mounted_file(path_export_zeitreihe)
+    gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
 
     # Update timestamp_moved for bikes that have not moved yet, but now have
     mask_to_update = (gdf_zeitreihe['xs_bike_id'].isin(moved_ids_previous) &
@@ -201,7 +201,7 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
 
     # Save and upload updated timeseries
-    gpd_to_mounted_file(gdf_zeitreihe, path_export_zeitreihe, driver='GPKG')
+    gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
     common.upload_ftp(path_export_zeitreihe,
                       common.credentials.ftp_server,
                       common.credentials.ftp_user,
