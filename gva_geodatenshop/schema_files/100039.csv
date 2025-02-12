@@ -1,0 +1,5 @@
+name;label;description
+bez_id;Bezirks-ID;Eindeutiger Identifikator des Bezirks
+bez_label;Bezirkslabel;Nummerierung des Bezirks
+bez_name;Bezirksname;Name des Bezirks
+wov_id;Wohnviertels-ID;Eindeutiger Identifikater des Wohnviertels
