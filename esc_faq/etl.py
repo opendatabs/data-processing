@@ -117,6 +117,10 @@ def main():
 
         df_all = pd.concat([df_all, df], ignore_index=True)
 
+    if df_all.empty:
+        logging.error("No data found. Exiting...")
+        return
+
     path_export = os.path.join(credentials.data_path, '100417_esc_faq.csv')
     df_all.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export=path_export,
