@@ -199,7 +199,7 @@ def save_daily_stats(df_stats, prefix, date_str):
         logging.warning(f"No stats to save for {prefix} on {date_str}.")
         return
 
-    output_folder = os.path.join(credentials.data_path, "stats", prefix, date_str[4:])
+    output_folder = os.path.join(credentials.data_path, "stats", prefix, date_str[:4])
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -208,7 +208,7 @@ def save_daily_stats(df_stats, prefix, date_str):
     logging.info(f"Saved daily stats to {output_file}")
 
     # Archiving
-    remote_path = f"mobilitaet/mikromobilitaet/stats/{prefix}/{date_str[4:]}"
+    remote_path = f"mobilitaet/mikromobilitaet/stats/{prefix}/{date_str[:4]}"
     common.ensure_ftp_dir(
         common.credentials.ftp_server,
         common.credentials.ftp_user,
