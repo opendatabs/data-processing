@@ -227,7 +227,7 @@ def save_daily_stats(df_stats, prefix, date_str):
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    date_str_start = "2025-02-01"
+    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
