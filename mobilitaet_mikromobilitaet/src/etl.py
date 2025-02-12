@@ -84,17 +84,18 @@ def prepare_gdf(gdf, drop_cols=None):
 #  Keep in mind that than every Dockerfile needs to install geopandas.
 def gpd_to_mounted_file(gdf, path, *args, **kwargs):
     """
-    Writes a file using geopandas.to_file
+    Writes a file using geopandas.to_file,
     but writes it first into a temporary file to avoid
     geopandas errors when reading from mounted volumes.
     """
     # Copy the file to a temporary folder which is not mounted
-    temp_folder = os.path.join(os.path.dirname(os.path.dirname(path)), 'temp')
-    os.makedirs(temp_folder, exist_ok=True)
     filename = os.path.basename(path)
-    temp_path = os.path.join(temp_folder, filename)
+    temp_path = os.path.join(credentials.temp_path, filename)
     # Writes the file using geopandas
     gdf.to_file(temp_path, *args, **kwargs)
+    shutil.copy(temp_path, path)
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
 
 
 def export_current_data(gdf_current, filename_current):
@@ -111,7 +112,7 @@ def export_current_data(gdf_current, filename_current):
         gdf_previous = gpd.GeoDataFrame()
 
     # Save current data
-    gdf_current.to_file(path_export_current, driver='GPKG')
+    gpd_to_mounted_file(gdf_current, path_export_current, driver='GPKG')
 
     # FTP and ODS upload
     common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
@@ -128,7 +129,7 @@ def export_current_data(gdf_current, filename_current):
     filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
     path_export_archive = os.path.join(credentials.data_path, 'archive', f'{filename_ts}.gpkg')
 
-    gdf_current.to_file(path_export_archive, driver='GPKG')
+    gpd_to_mounted_file(gdf_current, path_export_archive, driver='GPKG')
     common.upload_ftp(
         path_export_archive,
         common.credentials.ftp_server,
@@ -201,7 +202,7 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
 
     # Save and upload updated timeseries
-    gdf_zeitreihe.to_file(path_export_zeitreihe, driver='GPKG')
+    gpd_to_mounted_file(gdf_zeitreihe, path_export_zeitreihe, driver='GPKG')
     common.upload_ftp(path_export_zeitreihe,
                       common.credentials.ftp_server,
                       common.credentials.ftp_user,
