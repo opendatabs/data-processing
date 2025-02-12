@@ -231,7 +231,7 @@ def main():
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
-        # get_files_from_ftp_for_day(date_str)
+        get_files_from_ftp_for_day(date_str)
 
         gdf_daily_points, missing_timestamps_str = combine_daily_files_to_gdf(date_str)
 
