@@ -45,7 +45,7 @@ def get_files_from_ftp_for_day(date_str):
     year_month = date_obj.strftime('%Y-%m')
 
     ftp_folder = f"mobilitaet/mikromobilitaet/archiv/{year_month}"
-    local_folder = os.path.join(credentials.data_path, "archive")
+    local_folder = os.path.join(credentials.temp_path, "archive_downloaded")
 
     # List all files in that FTP folder
     common.download_ftp(
@@ -66,7 +66,7 @@ def combine_daily_files_to_gdf(date_str):
 
     Returns the combined GeoDataFrame and a list of missing timestamps.
     """
-    local_folder = os.path.join(credentials.data_path, "archive")
+    local_folder = os.path.join(credentials.temp_path, "archive_downloaded")
 
     gdf_list = []
     for file in os.listdir(local_folder):
@@ -75,7 +75,7 @@ def combine_daily_files_to_gdf(date_str):
         path = os.path.join(local_folder, file)
         gdf_part = gpd.read_file(path)
         # Remove the file after reading
-        # os.remove(path)
+        os.remove(path)
         # Make sure everything is in a single projected CRS (EPSG:2056) for spatial ops
         if gdf_part.crs is not None and gdf_part.crs.to_epsg() != 2056:
             gdf_part = gdf_part.to_crs(epsg=2056)
@@ -251,7 +251,7 @@ def main():
         save_daily_stats(df_bezirke_stats, prefix="bezirke", date_str=date_str)
         save_daily_stats(df_verbotszonen_stats, prefix="verbotszonen", date_str=date_str)
 
-    for ods_id in ['100416', '100418']:
+    for ods_id in ['100414', '100418']:
         odsp.publish_ods_dataset_by_id(ods_id)
 
 
