@@ -127,9 +127,9 @@ def export_current_data(gdf_current, filename_current):
     )
     current_time = pd.Timestamp.now().tz_localize('Europe/Zurich')
     filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
-    path_export_archive = os.path.join(credentials.temp_path, 'archive_to_upload', folder, f'{filename_ts}.gpkg')
+    path_export_archive = os.path.join(credentials.temp_path, 'archive_to_upload', f'{filename_ts}.gpkg')
 
-    gpd_to_mounted_file(gdf_current, path_export_archive, driver='GPKG')
+    gdf_current.to_file(path_export_archive, driver='GPKG')
     common.upload_ftp(
         path_export_archive,
         common.credentials.ftp_server,
