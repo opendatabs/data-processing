@@ -104,7 +104,7 @@ def combine_daily_files_to_gdf(date_str):
     return gdf_combined, missing_timestamps_str
 
 
-def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, missing_timestamps_str):
+def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, date_str, missing_timestamps_str):
     """
     Spatially joins point data (e.g., scooters/bikes) to a polygon layer and computes
     various daily statistics.
@@ -136,7 +136,7 @@ def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, missing_tim
     min_time = gdf_joined['timestamp'].min().floor('10T')
     max_time = gdf_joined['timestamp'].max().ceil('10T')
     all_timestamps = pd.date_range(start=min_time, end=max_time, freq='10T', tz='Europe/Zurich')
-    # Remove timestamps which are completetly missing in the data
+    # Remove timestamps which are completely missing in the data
     all_timestamps = all_timestamps[~all_timestamps.strftime('%Y-%m-%d_%H-%M%z').isin(missing_timestamps_str)]
 
     # Create a DataFrame with all combinations of group columns and timestamps
@@ -185,6 +185,7 @@ def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, missing_tim
     # Merge everything together
     grouped_stats = counting_stats.merge(range_stats, on=group_cols, how="left")
     grouped_stats = grouped_stats.merge(gdf_polygons, on=polygon_id_column, how="left")
+    grouped_stats['date'] = date_str
 
     return grouped_stats
 
@@ -227,7 +228,7 @@ def save_daily_stats(df_stats, prefix, date_str):
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    date_str_start = '2025-02-01'
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
@@ -245,8 +246,16 @@ def main():
         #    * Sperr- und Parkverbotszonen (100332)
         gdf_verbotszonen = download_spatial_descriptors("100332")
 
-        df_bezirke_stats = compute_daily_stats(gdf_daily_points, gdf_bezirke, "bez_id", missing_timestamps_str)
-        df_verbotszonen_stats = compute_daily_stats(gdf_daily_points, gdf_verbotszonen, "id_verbot", missing_timestamps_str)
+        df_bezirke_stats = compute_daily_stats(gdf_daily_points,
+                                               gdf_bezirke,
+                                               "bez_id",
+                                               date_str,
+                                               missing_timestamps_str)
+        df_verbotszonen_stats = compute_daily_stats(gdf_daily_points,
+                                                    gdf_verbotszonen,
+                                                    "id_verbot",
+                                                    date_str,
+                                                    missing_timestamps_str)
 
         save_daily_stats(df_bezirke_stats, prefix="bezirke", date_str=date_str)
         save_daily_stats(df_verbotszonen_stats, prefix="verbotszonen", date_str=date_str)
