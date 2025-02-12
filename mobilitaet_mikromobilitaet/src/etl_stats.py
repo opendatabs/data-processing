@@ -251,7 +251,7 @@ def main():
         save_daily_stats(df_bezirke_stats, prefix="bezirke", date_str=date_str)
         save_daily_stats(df_verbotszonen_stats, prefix="verbotszonen", date_str=date_str)
 
-    for ods_id in ['100414', '100418']:
+    for ods_id in ['100416', '100418']:
         odsp.publish_ods_dataset_by_id(ods_id)
 
 
