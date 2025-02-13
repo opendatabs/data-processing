@@ -105,7 +105,9 @@ def main():
 
     dashboard_calc.download_weather_station_data(credentials.path_dest)
 
-    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv', 'LSA_Count.csv']
+    filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv',
+                     'LSA_Count.csv',
+                     'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv']
 
     # Upload processed and truncated data
     for datafile in filename_orig:
