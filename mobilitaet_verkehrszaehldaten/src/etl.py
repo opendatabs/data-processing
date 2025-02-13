@@ -43,7 +43,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
 
     if 'MIV' in filename or 'Velo' in filename or 'FG' in filename:
         logging.info(f'Creating files for dashboard...')
-        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        if 'FLIR' not in filename:
+            dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(data, filename, dest_path)
     else:
         logging.info(f'Creating separate files for MIV and Velo...')
