@@ -40,6 +40,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['DayOfYear'] = data['DateTimeFrom'].dt.dayofyear
     print(f'Retrieving Zst_id as the first word in SiteName...')
     data['Zst_id'] = data['SiteName'].str.split().str[0]
+    data['Zst_id'] = data['Zst_id'].apply(lambda x: x if any(c.isdigit() for c in x) else pd.NA)
 
     if 'MIV' in filename or 'Velo' in filename or 'FG' in filename:
         logging.info(f'Creating files for dashboard...')
