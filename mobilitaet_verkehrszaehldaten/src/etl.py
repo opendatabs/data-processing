@@ -38,17 +38,11 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     data['Weekday'] = data['DateTimeFrom'].dt.weekday
     data['HourFrom'] = data['DateTimeFrom'].dt.hour
     data['DayOfYear'] = data['DateTimeFrom'].dt.dayofyear
-    print(f'Retrieving Zst_id as the first word in SiteName...')
-    data['Zst_id'] = data['SiteName'].str.split().str[0]
-    data['Zst_id'] = data['Zst_id'].apply(lambda x: x if any(c.isdigit() for c in x) else pd.NA)
 
-    if 'MIV' in filename or 'Velo' in filename or 'FG' in filename:
-        logging.info(f'Creating files for dashboard...')
-        if 'FLIR' not in filename:
-            dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
-        generated_filenames = generate_files(data, filename, dest_path)
-    else:
+    # 'LSA_Count.csv'
+    if 'LSA' in filename:
         logging.info(f'Creating separate files for MIV and Velo...')
+        data['Zst_id'] = data['SiteCode']
         miv_data = data[data['TrafficType'] == 'MIV']
         velo_data = data[(data['TrafficType'] != 'MIV') & (data['TrafficType'].notna())]
         miv_filename = 'MIV_' + filename
@@ -57,6 +51,19 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         velo_data.to_csv(os.path.join(dest_path, velo_filename), sep=';', encoding='utf-8', index=False)
         generated_filenames = generate_files(miv_data, miv_filename, dest_path)
         generated_filenames += generate_files(velo_data, velo_filename, dest_path)
+    else:
+        # 'MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv',
+        if 'FLIR' not in filename:
+            print(f'Retrieving Zst_id as the first word in SiteName...')
+            data['Zst_id'] = data['SiteName'].str.split().str[0]
+            logging.info(f'Creating files for dashboard for the following data: {filename}...')
+            dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+            generated_filenames = generate_files(data, filename, dest_path)
+        # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
+        else:
+            print(f'Retrieving Zst_id as the SiteCode...')
+            data['Zst_id'] = data['SiteCode']
+            generated_filenames = generate_files(data, filename, dest_path)
 
     print(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
