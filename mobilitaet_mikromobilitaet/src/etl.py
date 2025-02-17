@@ -185,12 +185,6 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     append new moved data, and push changes back to FTP and ODS.
     """
     path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
-    common.download_ftp(['zeitreihe_verfuegbarkeit.gpkg'],
-                        common.credentials.ftp_server,
-                        common.credentials.ftp_user,
-                        common.credentials.ftp_pass,
-                        'mobilitaet/mikromobilitaet/',
-                        credentials.data_path, '')
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
 
     # Update timestamp_moved for bikes that have not moved yet, but now have
@@ -203,11 +197,6 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
 
     # Save and upload updated timeseries
     gpd_to_mounted_file(gdf_zeitreihe, path_export_zeitreihe, driver='GPKG')
-    common.upload_ftp(path_export_zeitreihe,
-                      common.credentials.ftp_server,
-                      common.credentials.ftp_user,
-                      common.credentials.ftp_pass,
-                      'mobilitaet/mikromobilitaet/')
 
     return gdf_zeitreihe
 
