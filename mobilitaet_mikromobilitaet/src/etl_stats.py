@@ -162,6 +162,7 @@ def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, date_str, m
 
     # Compute counting stats
     counting_stats = df_count_grouped.groupby(group_cols, dropna=False).agg(
+        sum=("count", "sum"),
         mean=("count", "mean"),
         min=("count", "min"),
         max=("count", "max"),
