@@ -265,7 +265,7 @@ for index, row in joined_data.iterrows():
                     'keyword': str(row['keyword']),
                     'dcat_ap_ch.domain': dcat_ap_ch_domain,
                     'dcat_ap_ch.rights': 'NonCommercialAllowed-CommercialAllowed-ReferenceRequired',
-                    'dcat.contact_name': 'Fachstelle für OGD Basel-Stadt',
+                    'dcat.contact_name': 'Open Data Basel-Stadt',
                     'dcat.contact_email': 'opendata@bs.ch',
                     # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
                     # 'dcat.contact_name': geocat_try(['gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text',
