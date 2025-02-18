@@ -266,7 +266,7 @@ def main():
                           'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type',
                           'xs_max_range_meters', 'num_measures', 'mean', 'min', 'max'])
         save_daily_stats(df_verbotszonen_stats, "verbotszonen", date_str,
-                         ['date', 'id_verbot', 'name', 'reg_art', 'geometry', 'xs_provider_name',
+                         ['date', 'id_verbot', 'name', 'regart', 'geometry', 'xs_provider_name',
                           'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type', 'xs_max_range_meters',
                           'num_measures', 'mean', 'min', 'max'])
         save_daily_stats(df_gemeinden_stats, "gemeinden", date_str,
