@@ -14,6 +14,7 @@ CONFIGS = {
     'bezirke': {
         'ods_id_shapes': '100039',
         'ods_id': '100416',
+        'remove_empty_polygon_columns': False,
         'group_cols': [
             'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
             'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'
@@ -27,6 +28,7 @@ CONFIGS = {
     'verbotszonen': {
         'ods_id_shapes': '100332',
         'ods_id': '100418',
+        'remove_empty_polygon_columns': True,
         'group_cols': [
             'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
             'xs_propulsion_type', 'xs_max_range_meters', 'id_verbot'
@@ -40,6 +42,7 @@ CONFIGS = {
     'gemeinden': {
         'ods_id_shapes': '100017',
         'ods_id': '100422',
+        'remove_empty_polygon_columns': True,
         'group_cols': ['xs_provider_name', 'objid'],
         'output_cols': [
             'date', 'objid', 'name', 'geometry', 'xs_provider_name',
@@ -142,7 +145,7 @@ def combine_daily_files_to_gdf(date_str):
     return gdf_combined, missing_timestamps_str
 
 
-def compute_daily_stats(gdf_points, gdf_polygons, group_cols, date_str, missing_timestamps_str):
+def compute_daily_stats(gdf_points, gdf_polygons, group_cols, date_str, missing_timestamps_str, remove_empty_polygon_columns):
     """
     Spatially joins point data (e.g., scooters/bikes) to a polygon layer and computes
     various daily statistics.
@@ -213,9 +216,15 @@ def compute_daily_stats(gdf_points, gdf_polygons, group_cols, date_str, missing_
 
     # Merge everything together
     grouped_stats = counting_stats.merge(range_stats, on=group_cols, how="left")
-    grouped_stats = grouped_stats.merge(gdf_polygons, on=group_cols[-1], how="left")
+    polygon_id_column = group_cols[-1]
+    grouped_stats = grouped_stats.merge(gdf_polygons, on=polygon_id_column, how="left")
     grouped_stats['date'] = date_str
     grouped_stats['num_measures'] = len(all_timestamps)
+
+    # Remove rows where polygon_id is NaN if remove_empty_polygon_columns is True
+    if remove_empty_polygon_columns:
+        grouped_stats = grouped_stats.dropna(subset=[polygon_id_column])
+        logging.info(f"Removed rows with NaN values in {polygon_id_column}")
 
     return grouped_stats
 
@@ -278,7 +287,8 @@ def main():
                 gdf_shapes,
                 config['group_cols'],
                 date_str,
-                missing_timestamps_str
+                missing_timestamps_str,
+                config['remove_empty_polygon_columns']
             )
             
             save_daily_stats(
