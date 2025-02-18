@@ -104,7 +104,7 @@ def combine_daily_files_to_gdf(date_str):
     return gdf_combined, missing_timestamps_str
 
 
-def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, date_str, missing_timestamps_str):
+def compute_daily_stats(gdf_points, gdf_polygons, group_cols, date_str, missing_timestamps_str):
     """
     Spatially joins point data (e.g., scooters/bikes) to a polygon layer and computes
     various daily statistics.
@@ -119,16 +119,6 @@ def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, date_str, m
         return pd.DataFrame()
 
     gdf_joined = gpd.sjoin(gdf_points, gdf_polygons, how="left", predicate="intersects")
-
-    group_cols = [
-        "xs_provider_name",
-        "xs_vehicle_type_name",
-        "xs_form_factor",
-        "xs_propulsion_type",
-        "xs_max_range_meters",
-        "xs_rental_uris",
-        polygon_id_column
-    ]
 
     # Ensure the timestamp column is in datetime format
     gdf_joined['timestamp'] = pd.to_datetime(gdf_joined['timestamp']).dt.tz_convert('Europe/Zurich')
@@ -185,13 +175,14 @@ def compute_daily_stats(gdf_points, gdf_polygons, polygon_id_column, date_str, m
 
     # Merge everything together
     grouped_stats = counting_stats.merge(range_stats, on=group_cols, how="left")
-    grouped_stats = grouped_stats.merge(gdf_polygons, on=polygon_id_column, how="left")
+    grouped_stats = grouped_stats.merge(gdf_polygons, on=group_cols[-1], how="left")
     grouped_stats['date'] = date_str
+    grouped_stats['num_measures'] = len(all_timestamps)
 
     return grouped_stats
 
 
-def save_daily_stats(df_stats, prefix, date_str):
+def save_daily_stats(df_stats, prefix, date_str, columns_of_interest):
     """
     Save the daily stats to a CSV and upload to the FTP.
     Publish the ODS dataset with the given ODS ID.
@@ -206,6 +197,7 @@ def save_daily_stats(df_stats, prefix, date_str):
         os.makedirs(output_folder)
 
     output_file = os.path.join(output_folder, f"{prefix}_stats_{date_str}.csv")
+    df_stats = df_stats[columns_of_interest]
     df_stats.to_csv(output_file, index=False, encoding="utf-8")
     logging.info(f"Saved daily stats to {output_file}")
 
@@ -246,22 +238,42 @@ def main():
                                         on='wov_id', how='left')
         #    * Sperr- und Parkverbotszonen (100332)
         gdf_verbotszonen = download_spatial_descriptors("100332")
+        #    * Gemeinden (100017)
+        gdf_gemeinden = download_spatial_descriptors("100017")
 
         df_bezirke_stats = compute_daily_stats(gdf_daily_points,
                                                gdf_bezirke,
-                                               "bez_id",
+                                               ['xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
+                                                'xs_propulsion_type', 'xs_max_range_meters', 'xs_rental_uris',
+                                                'bez_id'],
                                                date_str,
                                                missing_timestamps_str)
         df_verbotszonen_stats = compute_daily_stats(gdf_daily_points,
                                                     gdf_verbotszonen,
-                                                    "id_verbot",
+                                                    ['xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
+                                                     'xs_propulsion_type', 'xs_max_range_meters', 'xs_rental_uris',
+                                                     'id_verbot'],
                                                     date_str,
                                                     missing_timestamps_str)
+        df_gemeinden_stats = compute_daily_stats(gdf_daily_points,
+                                                 gdf_gemeinden,
+                                                 ['xs_provider_name', 'objid'],
+                                                 date_str,
+                                                 missing_timestamps_str)
 
-        save_daily_stats(df_bezirke_stats, prefix="bezirke", date_str=date_str)
-        save_daily_stats(df_verbotszonen_stats, prefix="verbotszonen", date_str=date_str)
+        save_daily_stats(df_bezirke_stats, "bezirke", date_str,
+                         ['date', 'bez_id', 'bez_name', 'wov_id', 'wov_name', 'gemeinde_na', 'geometry',
+                          'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type',
+                          'xs_max_range_meters', 'num_measures', 'mean', 'min', 'max'])
+        save_daily_stats(df_verbotszonen_stats, "verbotszonen", date_str,
+                         ['date', 'id_verbot', 'name', 'reg_art', 'geometry', 'xs_provider_name',
+                          'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type', 'xs_max_range_meters',
+                          'num_measures', 'mean', 'min', 'max'])
+        save_daily_stats(df_gemeinden_stats, "gemeinden", date_str,
+                         ['date', 'objid', 'name', 'geometry', 'xs_provider_name',
+                          'num_measures', 'mean', 'min', 'max'])
 
-    for ods_id in ['100416', '100418']:
+    for ods_id in ['100416', '100418', '100422']:
         odsp.publish_ods_dataset_by_id(ods_id)
 
 
