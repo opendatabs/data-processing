@@ -10,6 +10,44 @@ import common
 import ods_publish.etl_id as odsp
 from mobilitaet_mikromobilitaet import credentials
 
+CONFIGS = {
+    'bezirke': {
+        'ods_id_shapes': '100039',
+        'ods_id': '100416',
+        'group_cols': [
+            'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
+            'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'
+        ],
+        'output_cols': [
+            'date', 'bez_id', 'bez_name', 'wov_id', 'wov_name', 'gemeinde_na', 'geometry',
+            'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type',
+            'xs_max_range_meters', 'num_measures', 'mean', 'min', 'max'
+        ]
+    },
+    'verbotszonen': {
+        'ods_id_shapes': '100332',
+        'ods_id': '100418',
+        'group_cols': [
+            'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
+            'xs_propulsion_type', 'xs_max_range_meters', 'id_verbot'
+        ],
+        'output_cols': [
+            'date', 'id_verbot', 'name', 'regart', 'geometry', 'xs_provider_name',
+            'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type', 'xs_max_range_meters',
+            'num_measures', 'mean', 'min', 'max'
+        ]
+    },
+    'gemeinden': {
+        'ods_id_shapes': '100017',
+        'ods_id': '100422',
+        'group_cols': ['xs_provider_name', 'objid'],
+        'output_cols': [
+            'date', 'objid', 'name', 'geometry', 'xs_provider_name',
+            'num_measures', 'mean', 'min', 'max'
+        ]
+    }
+}
+
 
 def download_spatial_descriptors(ods_id):
     """
@@ -229,50 +267,28 @@ def main():
 
         gdf_daily_points, missing_timestamps_str = combine_daily_files_to_gdf(date_str)
 
-        # Download spatial descriptors
-        #    * Bezirke Basel-Stadt (100039)
-        gdf_bezirke = download_spatial_descriptors("100039")
-        #    * Wohnviertel Basel-Stadt (100042) to get wov_name and gemeinde_name of the bezirk
-        gdf_wohnviertel = download_spatial_descriptors("100042")
-        gdf_bezirke = gdf_bezirke.merge(gdf_wohnviertel[['wov_id', 'wov_name', 'gemeinde_na']],
-                                        on='wov_id', how='left')
-        #    * Sperr- und Parkverbotszonen (100332)
-        gdf_verbotszonen = download_spatial_descriptors("100332")
-        #    * Gemeinden (100017)
-        gdf_gemeinden = download_spatial_descriptors("100017")
+        for stats_type, config in CONFIGS.items():
+            gdf_shapes = download_spatial_descriptors(config['ods_id_shapes'])
+            if stats_type == 'bezirke': # Merge with Wohnviertel Basel-Stadt (100042) to get wov_name and gemeinde_name of the bezirk
+                gdf_wohnviertel = download_spatial_descriptors("100042")
+                gdf_shapes = gdf_shapes.merge(gdf_wohnviertel[['wov_id', 'wov_name', 'gemeinde_na']], on='wov_id', how='left')
 
-        df_bezirke_stats = compute_daily_stats(gdf_daily_points,
-                                               gdf_bezirke,
-                                               ['xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
-                                                'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'],
-                                               date_str,
-                                               missing_timestamps_str)
-        df_verbotszonen_stats = compute_daily_stats(gdf_daily_points,
-                                                    gdf_verbotszonen,
-                                                    ['xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
-                                                     'xs_propulsion_type', 'xs_max_range_meters', 'id_verbot'],
-                                                    date_str,
-                                                    missing_timestamps_str)
-        df_gemeinden_stats = compute_daily_stats(gdf_daily_points,
-                                                 gdf_gemeinden,
-                                                 ['xs_provider_name', 'objid'],
-                                                 date_str,
-                                                 missing_timestamps_str)
+            df_stats = compute_daily_stats(
+                gdf_daily_points,
+                gdf_shapes,
+                config['group_cols'],
+                date_str,
+                missing_timestamps_str
+            )
+            
+            save_daily_stats(
+                df_stats,
+                stats_type,
+                date_str,
+                config['output_cols']
+            )
 
-        save_daily_stats(df_bezirke_stats, "bezirke", date_str,
-                         ['date', 'bez_id', 'bez_name', 'wov_id', 'wov_name', 'gemeinde_na', 'geometry',
-                          'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type',
-                          'xs_max_range_meters', 'num_measures', 'mean', 'min', 'max'])
-        save_daily_stats(df_verbotszonen_stats, "verbotszonen", date_str,
-                         ['date', 'id_verbot', 'name', 'regart', 'geometry', 'xs_provider_name',
-                          'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type', 'xs_max_range_meters',
-                          'num_measures', 'mean', 'min', 'max'])
-        save_daily_stats(df_gemeinden_stats, "gemeinden", date_str,
-                         ['date', 'objid', 'name', 'geometry', 'xs_provider_name',
-                          'num_measures', 'mean', 'min', 'max'])
-
-    for ods_id in ['100416', '100418', '100422']:
-        odsp.publish_ods_dataset_by_id(ods_id)
+            odsp.publish_ods_dataset_by_id(config['ods_id'])
 
 
 if __name__ == "__main__":
