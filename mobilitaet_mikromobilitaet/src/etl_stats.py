@@ -244,15 +244,13 @@ def main():
         df_bezirke_stats = compute_daily_stats(gdf_daily_points,
                                                gdf_bezirke,
                                                ['xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
-                                                'xs_propulsion_type', 'xs_max_range_meters', 'xs_rental_uris',
-                                                'bez_id'],
+                                                'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'],
                                                date_str,
                                                missing_timestamps_str)
         df_verbotszonen_stats = compute_daily_stats(gdf_daily_points,
                                                     gdf_verbotszonen,
                                                     ['xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
-                                                     'xs_propulsion_type', 'xs_max_range_meters', 'xs_rental_uris',
-                                                     'id_verbot'],
+                                                     'xs_propulsion_type', 'xs_max_range_meters', 'id_verbot'],
                                                     date_str,
                                                     missing_timestamps_str)
         df_gemeinden_stats = compute_daily_stats(gdf_daily_points,
