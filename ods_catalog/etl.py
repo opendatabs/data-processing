@@ -3,6 +3,9 @@ from io import StringIO
 import common
 from ods_catalog import credentials
 import logging
+import pandas as pd 
+import openpyxl
+
 
 def main():
     # Get the new (published) datasets from ODS
@@ -22,11 +25,47 @@ def main():
 
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100057')
-    new_col = ['Title', 'Dataset identifier', 'Issued', 'url_dataset']
+
+
+    new_col = ['Title', 'Issued', 'url_dataset']
     df_list = df[new_col]
     df_sorted = df_list.sort_values(by="Issued", ascending=False)
+    # Make sure the 'Issued' column is a date
+    df_sorted['Issued'] = pd.to_datetime(df_sorted['Issued'], errors='coerce', format='%Y-%m-%d')
+    # Remove missing values
+    df_sorted = df_sorted.dropna(subset=['Issued'])
+    # Create Excel Workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Datensätze"
+    
+    current_month = None
+    column_width = 100  # Wider column for better readability
+    ws.column_dimensions['A'].width = column_width
+    bold_font = openpyxl.styles.Font(bold=True)
+    
+    for _, row in df_sorted.iterrows():
+        month_year = row['Issued'].strftime("%m. %Y")
+        issued_date = row['Issued'].strftime('%d.%m.%Y')
+        entry_title = f"{row['Title']} / {issued_date}"
+        entry_url = row['url_dataset']
+        
+        # Add month as heading
+        if month_year != current_month:
+            ws.append([month_year])
+            ws.cell(row=ws.max_row, column=1).font = bold_font  # Fett formatieren
+            current_month = month_year
+        
+        # Add Title + Date  
+        ws.append([entry_title])
+        
+        # Add uRL
+        ws.append([entry_url])
+        
+        # blank line for better readability
+        ws.append([""])
     path_export_xlsx = os.path.join(credentials.data_path,'Datensatzliste.xlsx')
-    df_sorted.to_excel(path_export_xlsx, index=False)
+    wb.save(path_export_xlsx)
 
 
 if __name__ == "__main__":
