@@ -14,10 +14,4 @@ CMD ["python3", "-m", "ods_catalog.etl"]
 # cd ods_catalog
 # docker build -t ods_catalog .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ods-ods_catalog ods_catalog python3 -m ods_catalog.etl
-
-# For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd ods_catalog
-# docker build -t ods_catalog --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
-# cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name ods_catalog ods_catalog python3 -m ods_catalog.etl
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /code/data-processing/data:/mnt/OGD-DataExch/StatA/FST-OGD --name ods-ods_catalog ods_catalog python3 -m ods_catalog.etl
