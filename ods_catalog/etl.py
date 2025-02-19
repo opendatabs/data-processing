@@ -4,7 +4,6 @@ import common
 from ods_catalog import credentials
 import logging
 
-
 def main():
     # Get the new (published) datasets from ODS
     url_new_datasets = 'https://data.bs.ch/explore/dataset/100055/download/'
@@ -20,8 +19,14 @@ def main():
     df = common.pandas_read_csv(StringIO(r.text), sep=';', dtype=str)
     # Push the new datasets to ODS
     path_export = os.path.join(credentials.data_path, '100057_ods_catalog_published.csv')
+
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'FST-OGD', '100057')
+    new_col = ['Title', 'Dataset identifier', 'Issued', 'url_dataset']
+    df_list = df[new_col]
+    df_sorted = df_list.sort_values(by="Issued", ascending=False)
+    path_export_xlsx = os.path.join(credentials.data_path,'Datensatzliste.xlsx')
+    df_sorted.to_excel(path_export_xlsx, index=False)
 
 
 if __name__ == "__main__":
