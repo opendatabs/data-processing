@@ -63,6 +63,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         else:
             logging.info(f'Retrieving Zst_id as the SiteCode...')
             data['Zst_id'] = data['SiteCode']
+            logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
+            data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
             generated_filenames = generate_files(data, filename, dest_path)
 
     logging.info(f'Created the following files to further processing: {str(generated_filenames)}')
