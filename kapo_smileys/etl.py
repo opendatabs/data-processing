@@ -18,7 +18,7 @@ import io
 def csv_to_sqlite(export_file_all):
     df = pd.read_csv(export_file_all)
     # Create a SQLite database
-    conn = sqlite3.connect(export_file_all.replace('all_data.csv', 'smileys.db'))
+    conn = sqlite3.connect(export_file_all.replace('all_data.csv', 'datasette/smileys.db'))
     cursor = conn.cursor()
 
     # Create a table with the appropriate column types
@@ -54,7 +54,7 @@ def csv_to_sqlite(export_file_all):
     # Import the CSV data into the SQLite table
     df.to_sql('kapo_smileys', conn, if_exists='replace', index=False)
     # Upload to FTP
-    common.upload_ftp(export_file_all.replace('all_data.csv', 'smileys.db'),
+    common.upload_ftp(export_file_all.replace('all_data.csv', 'datasette/smileys.db'),
                       credentials.ftp_server,
                       credentials.ftp_user,
                       credentials.ftp_pass,
