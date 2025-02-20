@@ -62,8 +62,6 @@ def main():
         # Add uRL
         ws.append([entry_url])
         
-        # blank line for better readability
-        ws.append([""])
     path_export_xlsx = os.path.join(credentials.data_path,'Datensatzliste.xlsx')
     wb.save(path_export_xlsx)
 
