@@ -19,7 +19,7 @@ def main():
         gdf.set_geometry('geometry', inplace=True)
         gdf = gdf.set_crs('EPSG:2056')
         gdf = gdf.to_crs('EPSG:4326')
-        logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid...")
+        logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each spraying based on centroid...")
         gdf_plz = download_spatial_descriptors('100016')
         gdf['plz'] = gdf['geometry'].apply(lambda x: get_first_value(x, gdf_plz, 'plz'))
         gdf_viertel = download_spatial_descriptors('100042')
