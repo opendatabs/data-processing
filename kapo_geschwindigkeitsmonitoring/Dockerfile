@@ -3,7 +3,7 @@ WORKDIR /code/data-processing
 
 #Install SpatiaLite dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends spatialite-bin
+    apt-get install spatialite-bin
 
 #Install your existing Python libraries
 RUN python3 -m pip install --no-cache-dir pandas==2.2.0
