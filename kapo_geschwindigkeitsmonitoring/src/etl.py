@@ -11,6 +11,8 @@ from charset_normalizer import from_path
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 import sqlite3
+from shapely import wkb
+from shapely.geometry import mapping
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -145,9 +147,18 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     ]
     logging.info(f'Creating SQLite connection for {db_filename}...')
     conn = sqlite3.connect(db_filename)
+    # Load the SpatiaLite extension module
+    conn.enable_load_extension(True)
+    conn.load_extension("/usr/local/lib/mod_spatialite.dylib")
+    # Initialize spatial metadata once
+    conn.execute("SELECT InitSpatialMetadata(1);")
     logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
     df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
+    # Add a geometry column in EPSG:2056
+    conn.execute(f"SELECT AddGeometryColumn('{table_name_direction}', 'the_geom', 2056, 'POINT', 'XY');")
     common.create_indices(conn, table_name_direction, columns_to_index_direction)
+    # Create a spatial index
+    conn.execute(f"SELECT CreateSpatialIndex('{table_name_direction}', 'the_geom');")
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
