@@ -145,18 +145,28 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     ]
     logging.info(f'Creating SQLite connection for {db_filename}...')
     conn = sqlite3.connect(db_filename)
+    df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
+    common.create_indices(conn, table_name_direction, columns_to_index_direction)
     # Load the SpatiaLite extension module
     conn.enable_load_extension(True)
     conn.load_extension("/usr/lib/x86_64-linux-gnu/mod_spatialite.so")
     # Initialize spatial metadata once
     conn.execute("SELECT InitSpatialMetadata(1);")
     logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
-    df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
     # Add a geometry column in EPSG:2056
-    conn.execute(f"SELECT AddGeometryColumn('{table_name_direction}', 'the_geom', 2056, 'POINT', 2);")
-    common.create_indices(conn, table_name_direction, columns_to_index_direction)
+    conn.execute(
+        f"SELECT AddGeometryColumn('{table_name_direction}', 'geometry', 2056, 'POINT', 2);"
+    )
+    # Convert the existing WKB data into the new Spatialite geometry column
+    conn.execute(f"""
+        UPDATE {table_name_direction}
+        SET geometry = GeomFromWKB(the_geom, 2056)
+    """)
     # Create a spatial index
-    conn.execute(f"SELECT CreateSpatialIndex('{table_name_direction}', 'the_geom');")
+    conn.execute(
+        f"SELECT CreateSpatialIndex('{table_name_direction}', 'geometry');"
+    )
+
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
