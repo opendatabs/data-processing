@@ -71,7 +71,7 @@ def main():
 
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
 
-        if False and common.is_file_locked(excel_file_path):
+        if common.is_file_locked(excel_file_path):
             logging.info(f"File {excel_file_path} is open. Skipping...")
             continue
 
