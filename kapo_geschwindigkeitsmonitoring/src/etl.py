@@ -147,7 +147,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn = sqlite3.connect(db_filename)
     # Load the SpatiaLite extension module
     conn.enable_load_extension(True)
-    conn.load_extension("mod_spatialite")
+    conn.load_extension("/usr/local/lib/mod_spatialite.dylib")
     # Initialize spatial metadata once
     conn.execute("SELECT InitSpatialMetadata(1);")
     logging.info(f'Adding metadata to SQLite table {table_name_direction}...')

@@ -1,11 +1,14 @@
-FROM python:3.11-bullseye
+FROM python:3.12-bullseye
+
+# Install SpatiaLite dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        spatialite-bin \
+        libsqlite3-mod-spatialite
+
 WORKDIR /code/data-processing
 
-#Install SpatiaLite dependencies
-RUN apt-get update && \
-    apt-get install -y spatialite-bin
-
-#Install your existing Python libraries
+# Install your existing Python libraries
 RUN python3 -m pip install --no-cache-dir pandas==2.2.0
 RUN python3 -m pip install --no-cache-dir requests==2.31.0
 RUN python3 -m pip install --no-cache-dir filehash==0.2.dev1
