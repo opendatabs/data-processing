@@ -154,13 +154,23 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn.execute("SELECT InitSpatialMetadata(1);")
     logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
     # Add a geometry column in EPSG:2056
-    conn.execute(
-        f"SELECT AddGeometryColumn('{table_name_direction}', 'geometry', 2056, 'POINT', 2);"
-    )
+    conn.execute(f"""
+        SELECT AddGeometryColumn(
+            '{table_name_direction}', 
+            'geometry', 
+            4326, 
+            'POINT', 
+            2
+        );
+    """)
     # Convert the existing WKB data into the new Spatialite geometry column
     conn.execute(f"""
         UPDATE {table_name_direction}
-        SET geometry = GeomFromWKB(the_geom, 2056)
+        SET geometry = 
+            ST_Transform(
+                GeomFromWKB(the_geom, 2056), 
+                4326
+            )
     """)
     # Create a spatial index
     conn.execute(
