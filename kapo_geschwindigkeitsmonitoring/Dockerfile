@@ -21,7 +21,7 @@ RUN python3 -m pip install --no-cache-dir pytest==8.0.0
 # 3) Install Datasette
 RUN python3 -m pip install --no-cache-dir datasette
 
-# 4) Run script
+# 4) Run script after installing extension using Datasette
 CMD ["datasette", "--load-extension=/usr/lib/x86_64-linux-gnu/mod_spatialite.so", "--help"]
 CMD ["python3", "-m", "kapo_geschwindigkeitsmonitoring.src.etl"]
 
