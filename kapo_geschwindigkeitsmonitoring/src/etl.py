@@ -11,8 +11,6 @@ from charset_normalizer import from_path
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
 import sqlite3
-from shapely import wkb
-from shapely.geometry import mapping
 
 
 # Add missing line breaks for lines with more than 5 columns
