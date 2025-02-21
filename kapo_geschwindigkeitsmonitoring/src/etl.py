@@ -147,13 +147,13 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn = sqlite3.connect(db_filename)
     # Load the SpatiaLite extension module
     conn.enable_load_extension(True)
-    conn.load_extension("/usr/local/lib/mod_spatialite.dylib")
+    conn.load_extension("mod_spatialite")
     # Initialize spatial metadata once
     conn.execute("SELECT InitSpatialMetadata(1);")
     logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
     df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
     # Add a geometry column in EPSG:2056
-    conn.execute(f"SELECT AddGeometryColumn('{table_name_direction}', 'the_geom', 2056, 'POINT', 'XY');")
+    conn.execute(f"SELECT AddGeometryColumn('{table_name_direction}', 'the_geom', 2056, 'POINT', 2);")
     common.create_indices(conn, table_name_direction, columns_to_index_direction)
     # Create a spatial index
     conn.execute(f"SELECT CreateSpatialIndex('{table_name_direction}', 'the_geom');")
