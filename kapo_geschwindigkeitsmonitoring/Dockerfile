@@ -5,10 +5,6 @@ WORKDIR /code/data-processing
 RUN apt-get update && \
     apt-get install -y --no-install-recommends spatialite-bin
 
-# Install Datasette and enable SpatiaLite extension
-RUN python3 -m pip install --no-cache-dir datasette
-RUN datasette --load-extension=/usr/lib/x86_64-linux-gnu/mod_spatialite.so
-
 #Install your existing Python libraries
 RUN python3 -m pip install --no-cache-dir pandas==2.2.0
 RUN python3 -m pip install --no-cache-dir requests==2.31.0
