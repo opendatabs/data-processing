@@ -198,7 +198,7 @@ output_file <- "/code/data-processing/stata_konoer/data/data_sprayereien.csv"
 write.csv(spray, file = output_file, row.names = FALSE)
 
 # Last but not least, get the Metadata
-urlMetadata <- "https://data.bs.ch/explore/dataset/100057/download/?format=csv&timezone=Europe/Zurich"
+urlMetadata <- "https://data.bs.ch/explore/dataset/100057/download/?format=csv&timezone=Europe/Zurich&use_labels=true"
 metadata <- get_dataset(urlMetadata, pw_file = "pw.txt", output_file = "100057.csv")
 # TODO: Check if some processing is necessary
 write.csv(metadata, file = "/code/data-processing/stata_konoer/data/data_metadata.csv", row.names = FALSE)
