@@ -107,7 +107,7 @@ def create_metadata_per_direction_df(df_metadata):
     df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote',
-                               'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                               'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
