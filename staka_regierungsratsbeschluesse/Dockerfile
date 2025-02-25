@@ -3,12 +3,12 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /code/data-processing
 # Copy uv files and install dependencies
-COPY pyproject.toml ./
-COPY uv.lock ./
+COPY pyproject.toml ./staka_regierungsratsbeschluesse
+COPY uv.lock ./staka_regierungsratsbeschluesse
 RUN uv sync
-COPY . .
+COPY . ./staka_regierungsratsbeschluesse
 
-CMD ["uv", "run", "staka_regierungsratsbeschluesse/etl.py"]
+CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
 
 # Docker commands to create image and run container:
 # cd staka_regierungsratsbeschluesse
