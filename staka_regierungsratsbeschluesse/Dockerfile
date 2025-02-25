@@ -7,7 +7,7 @@ COPY pyproject.toml ./
 COPY uv.lock ./
 RUN uv sync --frozen
 
-CMD ["uv", "run", "-m" "staka_regierungsratsbeschluesse.etl"]
+CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
 
 # Docker commands to create image and run container:
 # cd staka_regierungsratsbeschluesse
