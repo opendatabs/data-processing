@@ -5,10 +5,10 @@ WORKDIR /code/data-processing
 # Copy uv files and install dependencies
 COPY pyproject.toml ./
 COPY uv.lock ./
-RUN uv sync --frozen
+RUN uv sync
 COPY . .
 
-CMD ["uv", "run", "staka_regierungsratsbeschluesse/etl.py"]
+CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
 
 # Docker commands to create image and run container:
 # cd staka_regierungsratsbeschluesse
