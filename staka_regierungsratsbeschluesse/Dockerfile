@@ -3,10 +3,10 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /code/data-processing
 # Copy uv files and install dependencies
-COPY staka_regierungsratsbeschluesse/pyproject.toml ./staka_regierungsratsbeschluesse/
-COPY staka_regierungsratsbeschluesse/uv.lock ./staka_regierungsratsbeschluesse/
-RUN cd staka_regierungsratsbeschluesse && uv sync --frozen¨
-COPY . .
+COPY pyproject.toml ./staka_regierungsratsbeschluesse/
+COPY uv.lock ./staka_regierungsratsbeschluesse/
+RUN cd staka_regierungsratsbeschluesse 
+RUN uv sync --frozen
 
 CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
 
