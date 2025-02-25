@@ -3,7 +3,7 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /code/data-processing
 # Copy uv files and install dependencies
-RUN cd ./staka_regierungsratsbeschluesse
+RUN cd staka_regierungsratsbeschluesse
 COPY pyproject.toml ./staka_regierungsratsbeschluesse
 COPY uv.lock ./staka_regierungsratsbeschluesse
 RUN uv sync
