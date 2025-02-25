@@ -6,6 +6,7 @@ WORKDIR /code/data-processing
 COPY pyproject.toml ./
 COPY uv.lock ./
 RUN uv sync --frozen
+COPY . .
 
 CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
 
