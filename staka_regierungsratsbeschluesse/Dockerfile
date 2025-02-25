@@ -8,7 +8,7 @@ COPY uv.lock .
 RUN uv sync --frozen
 COPY . .
 
-CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
+CMD ["uv", "run", "-m", "etl"]
 
 # Docker commands to create image and run container:
 # cd staka_regierungsratsbeschluesse
