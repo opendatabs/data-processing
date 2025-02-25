@@ -8,8 +8,6 @@ COPY uv.lock .
 RUN uv sync --frozen
 COPY . .
 
-WORKDIR /code/data-processing
-
 CMD ["uv", "run", "-m", "staka_regierungsratsbeschluesse.etl"]
 
 # Docker commands to create image and run container:
