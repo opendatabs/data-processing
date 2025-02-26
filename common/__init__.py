@@ -87,6 +87,35 @@ def upload_ftp(filename, server, user, password, remote_path):
     os.chdir(curr_dir)
     return
 
+# TODO: TEST THIS
+# Delete file from FTP Server
+# Retry with some delay in between if any explicitly defined error is raised
+@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
+def delete_ftp(filename, server, user, password, remote_path):
+    logging.info("Deleting " + filename + " from FTP server directory " + remote_path + '...')
+    ftp = ftplib.FTP(server)
+    ftp.login(user, password)
+    ftp.cwd(remote_path)
+    ftp.delete(filename)
+    ftp.quit()
+    return
+
+
+# TODO: TEST THIS
+# Delete every file from a directory on an FTP server
+# Retry with some delay in between if any explicitly defined error is raised
+@retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
+def delete_dir_content_ftp(server, user, password, remote_path):
+    logging.info("Deleting all files from FTP server directory " + remote_path + '...')
+    ftp = ftplib.FTP(server)
+    ftp.login(user, password)
+    ftp.cwd(remote_path)
+    files = ftp.nlst()
+    for file in files:
+        ftp.delete(file)
+    ftp.quit()
+    return
+
 
 # todo: Refactor this into two methods, one for listing only, one for file downloading - this is a mess
 # Download files from FTP server
