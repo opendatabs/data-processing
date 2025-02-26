@@ -53,6 +53,7 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
         date_text = button.get_text(strip=True)
         # Convert the date format
         date_text = datetime.datetime.strptime(date_text, "%d.%m.%Y").strftime("%Y-%m-%d")
+        logging.info(f"   Found Sitzung: {date_text}")
         
         # Each anchor inside this block corresponds to a single “Geschäft”.
         links = block.find_all("a", href=re.compile(r"^/regierungsratsbeschluesse/"))
@@ -202,6 +203,7 @@ def main():
     path_export = os.path.join(DATA_PATH, 'export', 'regierungsratsbeschluesse.csv')
 
     if just_process_last_sitzung:
+        logging.info('Processing only the last sitzung...')
         sitzungen = scrape_sitzung_overview(1, just_process_last_sitzung)
 
         for s in sitzungen:
@@ -213,6 +215,7 @@ def main():
         df = pd.concat([df, df_new_sitzung], ignore_index=True)
         df = df.drop_duplicates(subset=['praesidial_nr', 'sitzung_datum'], keep='last')
     else:
+        logging.info('Processing all sitzungen...')
         while True:
             sitzungen = scrape_sitzung_overview(page_number)
             if not sitzungen:
