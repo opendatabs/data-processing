@@ -19,6 +19,9 @@ if __name__ == "__main__":
             common.upload_ftp(os.path.join(DATA_ORIG_PATH, file), os.getenv("FTP_SERVER"), os.getenv("FTP_USER"), os.getenv("FTP_PASS"), 
                               'harvesters/stata/ftp-csv')
         ct.update_hash_file(os.path.join(DATA_ORIG_PATH, 'OpendataSoft_Export_Stata.csv'))
+        # Run ods_harvest/etl.py
+        logging.info('Running ods_harvest/etl.py...')
+        os.system('python3 ../ods_harvest/etl.py stata-ftp-csv')
     else:
         logging.info('File has not changed, skipping upload...')
     logging.info('Job successful!')
