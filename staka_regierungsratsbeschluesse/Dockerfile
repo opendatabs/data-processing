@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-WORKDIR /code/data-processing
+WORKDIR /code/data-processing/staka_regierungsratsbeschluesse
 # Copy uv files and install dependencies
 COPY pyproject.toml .
 COPY uv.lock .
