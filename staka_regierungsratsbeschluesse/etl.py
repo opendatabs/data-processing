@@ -139,58 +139,58 @@ def scrape_detail_page(url, expected_date):
     # We want the row that matches the `expected_date` for "Sitzung vom"
     tables = soup.find_all("table", class_="government-resolutions-data-table")
     if len(tables) > 1:
-        sitzungen_table = tables[1]
-        
-        rows = sitzungen_table.find_all("tr")
-        chunk_size = 3
-        for i in range(0, len(rows), chunk_size):
-            chunk = rows[i:i+chunk_size]
-            if len(chunk) < 3:
-                break
+        for i in range(1, len(tables)):
+            sitzungen_table = tables[i]
             
-            # Sitzung vom: Verify the date
-            sitzung_label = chunk[0].find("th").get_text(strip=True)
-            sitzung_date = chunk[0].find("td").get_text(strip=True)
-
-            # Convert the date format
-            sitzung_date = datetime.datetime.strptime(sitzung_date, "%d.%m.%Y").strftime("%Y-%m-%d")
-            
-            if sitzung_label == "Sitzung vom" and sitzung_date == expected_date:
-
-                # Traktanden
-                traktanden_label = chunk[1].find("th").get_text(strip=True)
-                traktanden_value = chunk[1].find("td").get_text(strip=True)
-                if traktanden_label == "Traktanden":
-                    data['traktanden'] = traktanden_value
+            rows = sitzungen_table.find_all("tr")
+            chunk_size = 3
+            for j in range(0, len(rows), chunk_size):
+                chunk = rows[j:j+chunk_size]
+                if len(chunk) < 3:
+                    break
                 
-                # Dokumente
-                dokumente_label = chunk[2].find("th").get_text(strip=True)
-                dokumente_td = chunk[2].find("td")
-                if dokumente_label == "Dokumente" and dokumente_td:
-                    # We want to find all <a> links
-                    all_links = dokumente_td.find_all("a")
+                # Sitzung vom: Verify the date
+                sitzung_label = chunk[0].find("th").get_text(strip=True)
+                sitzung_date = chunk[0].find("td").get_text(strip=True)
+
+                # Convert the date format
+                sitzung_date = datetime.datetime.strptime(sitzung_date, "%d.%m.%Y").strftime("%Y-%m-%d")
+                
+                if sitzung_label == "Sitzung vom" and sitzung_date == expected_date:
+                    # Traktanden
+                    traktanden_label = chunk[1].find("th").get_text(strip=True)
+                    traktanden_value = chunk[1].find("td").get_text(strip=True)
+                    if traktanden_label == "Traktanden":
+                        data['traktanden'] = traktanden_value
                     
-                    regierungsratsbeschluss_url = None
-                    weitere = []
-                    
-                    for link in all_links:
-                        link_text = link.get_text(strip=True)
-                        link_href = link["href"]
-                        # If the href is relative, build the full URL
-                        if link_href.startswith("/"):
-                            link_href = BASE_URL + link_href
+                    # Dokumente
+                    dokumente_label = chunk[2].find("th").get_text(strip=True)
+                    dokumente_td = chunk[2].find("td")
+                    if dokumente_label == "Dokumente" and dokumente_td:
+                        # We want to find all <a> links
+                        all_links = dokumente_td.find_all("a")
                         
-                        # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
-                        if "Regierungsratsbeschluss" in link_text:
-                            regierungsratsbeschluss_url = link_href
-                        else:
-                            weitere.append(link_href)
+                        regierungsratsbeschluss_url = None
+                        weitere = []
+                        
+                        for link in all_links:
+                            link_text = link.get_text(strip=True)
+                            link_href = link["href"]
+                            # If the href is relative, build the full URL
+                            if link_href.startswith("/"):
+                                link_href = BASE_URL + link_href
+                            
+                            # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
+                            if "Regierungsratsbeschluss" in link_text:
+                                regierungsratsbeschluss_url = link_href
+                            else:
+                                weitere.append(link_href)
+                        
+                        data['regierungsratsbeschluss'] = regierungsratsbeschluss_url
+                        data['weitere_dokumente'] = ", ".join(weitere) if weitere else None
                     
-                    data['regierungsratsbeschluss'] = regierungsratsbeschluss_url
-                    data['weitere_dokumente'] = ", ".join(weitere) if weitere else None
-                
-                # We got what we needed; break out of the loop
-                break
+                    # We got what we needed; break out of the loop
+                    break
 
     return data
 
