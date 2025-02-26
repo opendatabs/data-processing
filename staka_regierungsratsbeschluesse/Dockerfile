@@ -8,6 +8,9 @@ COPY uv.lock .
 RUN uv sync --frozen
 COPY . .
 
+# PYTHONPATH needs to be the parent directory because of the common local module imports
+ENV PYTHONPATH="/code/data-processing"
+
 CMD ["uv", "run", "-m", "etl"]
 
 # Docker commands to create image and run container:
