@@ -197,7 +197,7 @@ def scrape_detail_page(url, expected_date):
 
 
 def main():
-    just_process_last_sitzung = False
+    just_process_last_sitzung = True
 
     all_data = []
     page_number = 1
