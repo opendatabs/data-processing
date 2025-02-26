@@ -104,7 +104,8 @@ def scrape_detail_page(url, expected_date):
         'sitzung_datum': expected_date,
         'traktanden': None,
         'regierungsratsbeschluss': None,
-        'weitere_dokumente': None
+        'weitere_dokumente': None,
+        'url': url
     }
     
     # --- First table: Präsidial-Nr., Titel, Federführung, Parlamentarisch ---
