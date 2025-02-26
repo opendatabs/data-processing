@@ -18,7 +18,7 @@ DETAIL_PREFIX = "https://www.bs.ch/regierungsratsbeschluesse"
 
 DATA_PATH = os.getenv("DATA_PATH")
 
-def scrape_sitzung_overview(page_number):
+def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
     """
     Returns a list of dicts:
       [
@@ -66,6 +66,8 @@ def scrape_sitzung_overview(page_number):
                 "date": date_text,
                 "detail_link": detail_url
             })
+        if just_process_last_sitzung:
+            break
     
     return results
 
@@ -193,23 +195,38 @@ def scrape_detail_page(url, expected_date):
 
 
 def main():
+    just_process_last_sitzung = True
+
     all_data = []
     page_number = 1
-    
-    while True:
-        sitzungen = scrape_sitzung_overview(page_number)
-        if not sitzungen:
-            # No more sitzungen found on this page, so we stop.
-            break
-        
+    path_export = os.path.join(DATA_PATH, 'export', 'regierungsratsbeschluesse.csv')
+
+    if just_process_last_sitzung:
+        sitzungen = scrape_sitzung_overview(1, just_process_last_sitzung)
+
         for s in sitzungen:
             detail_data = scrape_detail_page(s["detail_link"], s["date"])
             all_data.append(detail_data)
         
-        page_number += 1
+        df = pd.read_csv(path_export)
+        df_new_sitzung = pd.DataFrame(all_data)
+        df = pd.concat([df, df_new_sitzung], ignore_index=True)
+        df = df.drop_duplicates(subset=['praesidial_nr', 'sitzung_datum'], keep='last')
+    else:
+        while True:
+            sitzungen = scrape_sitzung_overview(page_number)
+            if not sitzungen:
+                # No more sitzungen found on this page, so we stop.
+                break
+            
+            for s in sitzungen:
+                detail_data = scrape_detail_page(s["detail_link"], s["date"])
+                all_data.append(detail_data)
+            
+            page_number += 1
     
-    df = pd.DataFrame(all_data)
-    path_export = os.path.join(DATA_PATH, 'export', 'regierungsratsbeschluesse.csv')
+        df = pd.DataFrame(all_data)
+    
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/regierungsratsbeschluesse', '100427')
 
