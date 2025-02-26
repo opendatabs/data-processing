@@ -214,7 +214,7 @@ def main():
         df = pd.read_csv(path_export)
         df_new_sitzung = pd.DataFrame(all_data)
         df = pd.concat([df, df_new_sitzung], ignore_index=True)
-        df = df.drop_duplicates(subset=['praesidial_nr', 'sitzung_datum'], keep='last')
+        df = df.drop_duplicates()
     else:
         logging.info('Processing all sitzungen...')
         while True:
