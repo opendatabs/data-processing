@@ -71,18 +71,7 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
 def scrape_detail_page(url):
     """
     Scrape the detail page for a single Geschäft.
-    Return a dict with:
-      {
-         'praesidial_nr': str,
-         'titel': str,
-         'federfuehrung': str,
-         'parlamentarisch_text': str,
-         'parlamentarisch_url': str,
-         'sitzung_datum': str,
-         'traktanden': str,
-         'regierungsratsbeschluss': str,
-         'weitere_dokumente': str
-      }
+    Return a list of dicts, one for each Sitzung.
     Some fields may be empty if not found.
     """
     logging.info(f"   Scraping detail page: {url}")
@@ -181,7 +170,8 @@ def scrape_detail_page(url):
                 'sitzung_datum': sitzung_datum,
                 'traktanden': traktanden,
                 'regierungsratsbeschluss': regierungsratsbeschluss_url,
-                'weitere_dokumente': weitere_dokumente
+                'weitere_dokumente': weitere_dokumente,
+                'url': url
             })
     else:
         data.append({
@@ -193,7 +183,8 @@ def scrape_detail_page(url):
             'sitzung_datum': sitzung_datum,
             'traktanden': traktanden,
             'regierungsratsbeschluss': regierungsratsbeschluss_url,
-            'weitere_dokumente': weitere_dokumente
+            'weitere_dokumente': weitere_dokumente,
+            'url': url
         })
         logging.warning(f"   Less than 2 tables found for url {url}")
 
