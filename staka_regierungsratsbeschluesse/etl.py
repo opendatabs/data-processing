@@ -43,7 +43,7 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
     # Then links <a href="/regierungsratsbeschluesse/..."></a> are inside <li class="text-base">.
     
     sitzung_blocks = soup.find_all("div", class_="mb-25")
-    results = []
+    detail_urls = []
     
     for block in sitzung_blocks:
         button = block.find("button")
@@ -51,8 +51,6 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
             continue
         
         date_text = button.get_text(strip=True)
-        # Convert the date format
-        date_text = datetime.datetime.strptime(date_text, "%d.%m.%Y").strftime("%Y-%m-%d")
         logging.info(f"   Found Sitzung: {date_text}")
         
         # Each anchor inside this block corresponds to a single “Geschäft”.
@@ -63,17 +61,14 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
             href_clean = href.split("?")[0]
             detail_url = BASE_URL + href_clean
             
-            results.append({
-                "date": date_text,
-                "detail_link": detail_url
-            })
+            detail_urls.append(detail_url)
         if just_process_last_sitzung:
             break
     
-    return results
+    return detail_urls
 
 
-def scrape_detail_page(url, expected_date):
+def scrape_detail_page(url):
     """
     Scrape the detail page for a single Geschäft.
     Return a dict with:
@@ -94,110 +89,119 @@ def scrape_detail_page(url, expected_date):
     r = common.requests_get(url)
     r.raise_for_status()
     soup = BeautifulSoup(r.text, "html.parser")
-    
-    data = {
-        'praesidial_nr': None,
-        'titel': None,
-        'federfuehrung': None,
-        'parlamentarisch_text': None,
-        'parlamentarisch_url': None,
-        'sitzung_datum': expected_date,
-        'traktanden': None,
-        'regierungsratsbeschluss': None,
-        'weitere_dokumente': None,
-        'url': url
-    }
-    
-    # --- First table: Präsidial-Nr., Titel, Federführung, Parlamentarisch ---
-    geschaeft_table = soup.find("table", class_="government-resolutions-data-table")
+
+    data = []
+    # Initialize all fields to None
+    praesidial_nr, titel, federfuehrung, parlamentarisch_text, parlamentarisch_url = None, None, None, None, None
+    # Initialize all fields to None
+    sitzung_datum, traktanden, regierungsratsbeschluss_url, weitere_dokumente = None, None, None, None
+
+    tables = soup.find_all("table", class_="government-resolutions-data-table")
+    # --- Geschäft: Präsidial-Nr., Titel, Federführung, Parlamentarisch ---
+    geschaeft_table = tables[0] if tables else None
     if geschaeft_table:
         rows = geschaeft_table.find_all("tr")
         for row in rows:
             th = row.find("th")
             td = row.find("td")
             if not th or not td:
+                logging.warning(f"   No th or td found for url {url} and tr {row}")
                 continue
             
             label = th.get_text(strip=True)
             value = td.get_text(strip=True)
-            
+
             if label == "Präsidial-Nr.":
-                data['praesidial_nr'] = value
+                praesidial_nr = value
             elif label == "Titel":
-                data['titel'] = value
+                titel = value
             elif label == "Federführung":
-                data['federfuehrung'] = value
+                federfuehrung = value
             elif label == "Parlamentarisch":
-                # We expect the text to be something like "Ja" or "Nein"
-                # plus a link to the GRIBS site if it exists
-                # e.g. "Ja" <a href="...">[Grossratsinformationssystem - GRIBS]</a>
-                data['parlamentarisch_text'] = value.replace("[Grossratsinformationssystem - GRIBS]", "").strip()
-                a = td.find("a")
-                if a:
-                    data['parlamentarisch_url'] = a["href"]
-    
-    # --- Second table: Sitzung vom, Traktanden, Dokumente ---
-    # We want the row that matches the `expected_date` for "Sitzung vom"
-    tables = soup.find_all("table", class_="government-resolutions-data-table")
+                parlamentarisch_text = value
+                # Find the link to the PDF
+                link = td.find("a")
+                parlamentarisch_url = BASE_URL + link["href"] if link else None
+            else:
+                logging.warning(f"   Unknown label: {label}")
+    else:
+        logging.warning(f"   No table found for url {url}")
+    # --- Sitzung: Sitzung vom, Traktanden, Dokumente ---
+    # One Geschäft can have multiple Sitzungen.
     if len(tables) > 1:
         for i in range(1, len(tables)):
-            sitzungen_table = tables[i]
+            sitzung_table = tables[i]
             
-            rows = sitzungen_table.find_all("tr")
-            chunk_size = 3
-            for j in range(0, len(rows), chunk_size):
-                chunk = rows[j:j+chunk_size]
-                if len(chunk) < 3:
-                    break
-                
-                # Sitzung vom: Verify the date
-                sitzung_label = chunk[0].find("th").get_text(strip=True)
-                sitzung_date = chunk[0].find("td").get_text(strip=True)
+            rows = sitzung_table.find_all("tr")
+            for row in rows:
+                th = row.find("th")
+                td = row.find("td")
+                if not th or not td:
+                    logging.warning(f"   No th or td found for url {url} and tr {row}")
+                    continue
 
-                # Convert the date format
-                sitzung_date = datetime.datetime.strptime(sitzung_date, "%d.%m.%Y").strftime("%Y-%m-%d")
-                
-                if sitzung_label == "Sitzung vom" and sitzung_date == expected_date:
-                    # Traktanden
-                    traktanden_label = chunk[1].find("th").get_text(strip=True)
-                    traktanden_value = chunk[1].find("td").get_text(strip=True)
-                    if traktanden_label == "Traktanden":
-                        data['traktanden'] = traktanden_value
-                    
-                    # Dokumente
-                    dokumente_label = chunk[2].find("th").get_text(strip=True)
-                    dokumente_td = chunk[2].find("td")
-                    if dokumente_label == "Dokumente" and dokumente_td:
-                        # We want to find all <a> links
-                        all_links = dokumente_td.find_all("a")
-                        
-                        regierungsratsbeschluss_url = None
-                        weitere = []
-                        
-                        for link in all_links:
-                            link_text = link.get_text(strip=True)
-                            link_href = link["href"]
-                            # If the href is relative, build the full URL
-                            if link_href.startswith("/"):
-                                link_href = BASE_URL + link_href
-                            
-                            # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
-                            if "Regierungsratsbeschluss" in link_text:
-                                regierungsratsbeschluss_url = link_href
-                            else:
-                                weitere.append(link_href)
-                        
-                        data['regierungsratsbeschluss'] = regierungsratsbeschluss_url
-                        data['weitere_dokumente'] = ", ".join(weitere) if weitere else None
-                    
-                    # We got what we needed; break out of the loop
-                    break
+                label = th.get_text(strip=True)
+                value = td.get_text(strip=True)
+
+                if label == "Sitzung vom":
+                    sitzung_datum = datetime.datetime.strptime(value, "%d.%m.%Y").strftime("%Y-%m-%d")
+                # Traktanden
+                elif label == "Traktanden":
+                    traktanden = value
+                # Dokumente
+                elif label == "Dokumente":
+                    # We want to find all <a> links
+                    all_links = td.find_all("a")
+
+                    regierungsratsbeschluss_url = None
+                    weitere = []
+
+                    for link in all_links:
+                        link_text = link.get_text(strip=True)
+                        link_href = link["href"]
+                        # If the href is relative, build the full URL
+                        if link_href.startswith("/"):
+                            link_href = BASE_URL + link_href
+
+                        # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
+                        if "Regierungsratsbeschluss" in link_text:
+                            regierungsratsbeschluss_url = link_href
+                        else:
+                            weitere.append(link_href)
+                        weitere_dokumente = ",".join(weitere)
+                else:
+                    logging.warning(f"   Unknown label: {label}")
+
+            data.append({
+                'praesidial_nr': praesidial_nr,
+                'titel': titel,
+                'federfuehrung': federfuehrung,
+                'parlamentarisch_text': parlamentarisch_text,
+                'parlamentarisch_url': parlamentarisch_url,
+                'sitzung_datum': sitzung_datum,
+                'traktanden': traktanden,
+                'regierungsratsbeschluss': regierungsratsbeschluss_url,
+                'weitere_dokumente': weitere_dokumente
+            })
+    else:
+        data.append({
+            'praesidial_nr': praesidial_nr,
+            'titel': titel,
+            'federfuehrung': federfuehrung,
+            'parlamentarisch_text': parlamentarisch_text,
+            'parlamentarisch_url': parlamentarisch_url,
+            'sitzung_datum': sitzung_datum,
+            'traktanden': traktanden,
+            'regierungsratsbeschluss': regierungsratsbeschluss_url,
+            'weitere_dokumente': weitere_dokumente
+        })
+        logging.warning(f"   Less than 2 tables found for url {url}")
 
     return data
 
 
 def main():
-    just_process_last_sitzung = True
+    just_process_last_sitzung = False
 
     all_data = []
     page_number = 1
@@ -207,14 +211,13 @@ def main():
         logging.info('Processing only the last sitzung...')
         sitzungen = scrape_sitzung_overview(1, just_process_last_sitzung)
 
-        for s in sitzungen:
-            detail_data = scrape_detail_page(s["detail_link"], s["date"])
+        for sitzung in sitzungen:
+            detail_data = scrape_detail_page(sitzung)
             all_data.append(detail_data)
         
         df = pd.read_csv(path_export)
         df_new_sitzung = pd.DataFrame(all_data)
         df = pd.concat([df, df_new_sitzung], ignore_index=True)
-        df = df.drop_duplicates()
     else:
         logging.info('Processing all sitzungen...')
         while True:
@@ -223,14 +226,15 @@ def main():
                 # No more sitzungen found on this page, so we stop.
                 break
             
-            for s in sitzungen:
-                detail_data = scrape_detail_page(s["detail_link"], s["date"])
-                all_data.append(detail_data)
+            for sitzung in sitzungen:
+                detail_data = scrape_detail_page(sitzung)
+                all_data += detail_data
             
             page_number += 1
-    
+
         df = pd.DataFrame(all_data)
-    
+    # Drop duplicates since we are scraping multiple tables for each sitzung
+    df = df.drop_duplicates()
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, 'staka/regierungsratsbeschluesse', '100427')
 
