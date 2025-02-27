@@ -1,7 +1,6 @@
 import os
 import re
 import logging
-import requests
 import pandas as pd
 import datetime
 from bs4 import BeautifulSoup
@@ -107,10 +106,10 @@ def scrape_detail_page(url):
             elif label == "Federführung":
                 federfuehrung = value
             elif label == "Parlamentarisch":
-                parlamentarisch_text = value
+                parlamentarisch_text = "Ja" if value.startswith("Ja") else value
                 # Find the link to the PDF
                 link = td.find("a")
-                parlamentarisch_url = BASE_URL + link["href"] if link else None
+                parlamentarisch_url = link["href"] if link else None
             else:
                 logging.warning(f"   Unknown label: {label}")
     else:
