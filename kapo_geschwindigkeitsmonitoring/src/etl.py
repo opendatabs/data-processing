@@ -92,13 +92,13 @@ def create_metadata_per_direction_df(df_metadata):
     logging.info(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
     # Manual stacking of the columns for Richtung 1 and 2
     df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
-                                'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                                'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung1 = df_richtung1.rename(
         columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85',
                  'Ue_Quote_1': 'Ue_Quote'})
     df_richtung1['Richtung ID'] = 1
     df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2',
-                                'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                                'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung2 = df_richtung2.rename(
         columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85',
                  'Ue_Quote_2': 'Ue_Quote'})
@@ -107,7 +107,7 @@ def create_metadata_per_direction_df(df_metadata):
     df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote',
-                               'the_geom', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                               'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
@@ -145,14 +145,44 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     ]
     logging.info(f'Creating SQLite connection for {db_filename}...')
     conn = sqlite3.connect(db_filename)
-    logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
     df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
     common.create_indices(conn, table_name_direction, columns_to_index_direction)
+    # Load the SpatiaLite extension module
+    conn.enable_load_extension(True)
+    conn.load_extension("/usr/lib/x86_64-linux-gnu/mod_spatialite.so")
+    # Initialize spatial metadata once
+    conn.execute("SELECT InitSpatialMetadata(1);")
+    logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
+    # Add a geometry column in EPSG:2056
+    conn.execute(f"""
+        SELECT AddGeometryColumn(
+            '{table_name_direction}', 
+            'geometry', 
+            4326, 
+            'POINT', 
+            2
+        );
+    """)
+    # Convert the existing WKB data into the new Spatialite geometry column
+    conn.execute(f"""
+        UPDATE {table_name_direction}
+        SET geometry = 
+            ST_Transform(
+                GeomFromWKB(the_geom, 2056), 
+                4326
+            )
+    """)
+    # Create a spatial index
+    conn.execute(
+        f"SELECT CreateSpatialIndex('{table_name_direction}', 'geometry');"
+    )
+
     # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
                  ).to_sql(name=table_name, con=conn, if_exists='replace', index=False)
-
+    # Drop the_geom_json column since it is not needed anymore
+    df_metadata_per_direction = df_metadata_per_direction.drop(columns=['the_geom_json'])
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
