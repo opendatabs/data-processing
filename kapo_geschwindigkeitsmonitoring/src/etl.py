@@ -181,7 +181,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
                  ).to_sql(name=table_name, con=conn, if_exists='replace', index=False)
-
+    # Drop the_geom_json column since it is not needed anymore
+    df_metadata_per_direction = df_metadata_per_direction.drop(columns=['the_geom_json'])
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
