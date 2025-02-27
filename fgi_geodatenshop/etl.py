@@ -233,6 +233,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 'dcat.contact_email': 'opendata@bs.ch',
                 'dcat.created': dcat_created,
                 'dcat.creator': herausgeber,
+                'dcat.accrualperiodicity': row['dcat.accrualperiodicity'],
                 'attributions': 'Geodaten Kanton Basel-Stadt',
                 'publisher': herausgeber,
                 'dcat.issued': row['dcat.issued'],
