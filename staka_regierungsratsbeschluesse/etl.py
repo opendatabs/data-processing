@@ -203,7 +203,7 @@ def main():
 
         for sitzung in sitzungen:
             detail_data = scrape_detail_page(sitzung)
-            all_data.append(detail_data)
+            all_data += detail_data
         
         df = pd.read_csv(path_export)
         df_new_sitzung = pd.DataFrame(all_data)
