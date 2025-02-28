@@ -223,7 +223,7 @@ def _(
     scrape_detail_page,
     scrape_sitzung_overview,
 ):
-    just_process_last_sitzung = False
+    just_process_last_sitzung = True
 
     all_data = []
     page_number = 1
