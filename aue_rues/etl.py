@@ -78,6 +78,18 @@ def push_older_data_files():
     pass
 
 
+def push_data_files_corrected():
+    data_path_2024 = os.path.join(os.path.dirname(__file__), 'data_orig', '20250203_Export_Bafu_2024.csv')
+
+    df = pd.read_csv(data_path_2024, sep=';', encoding='cp1252')
+    df = df.rename(
+        columns={'von': 'Startzeitpunkt', 'bis': 'Endezeitpunkt', 'Temp_S3 [°C]': 'RUS.W.O.S3.TE',
+                 'pH_S3 [-]': 'RUS.W.O.S3.PH', 'O2_S3 [mg_O2/L]': 'RUS.W.O.S3.O2', 'LF_S3 [µS/cm_25°C]': 'RUS.W.O.S3.LF'})
+    df = add_seconds(df)
+    common.batched_ods_realtime_push(df, url=credentials.ods_push_url, chunk_size=25000)
+    pass
+
+
 def add_seconds(df):
     df.Startzeitpunkt = df.Startzeitpunkt + ':00'
     df.Endezeitpunkt = df.Endezeitpunkt + ':00'
@@ -87,6 +99,7 @@ def add_seconds(df):
 def main():
     # Uncomment to parse, transform and push older files (corrected etc.)
     # push_older_data_files()
+    # push_data_files_corrected()
 
     csv_files = download_latest_data()
     push_data_files_old(csv_files)
