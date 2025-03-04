@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import pandas as pd
 import markdown
@@ -75,18 +76,16 @@ def main():
         ws = wb.active  # or wb[sheetname] if you have a specific sheet
 
         df = pd.read_excel(excel_file_path, usecols='A:J', engine='openpyxl')
-        df.columns = [
-            'Ranking',
-            'Frage',
-            'Antwort',
-            'Sprache',
-            'Verantwortung',
-            'Kontakt',
-            'Link Anzeigetext',
-            'Zuletzt aktualisiert',
-            'Thema',
-            'Keywords'
-        ]
+        df = df.rename(columns=lambda x: 'Ranking' if x.startswith('Ranking') else x)
+        df = df.rename(columns=lambda x: 'Frage' if x.startswith('Frage') else x)
+        df = df.rename(columns=lambda x: 'Antwort' if x.startswith('Antwort') else x)
+        df = df.rename(columns=lambda x: 'Sprache' if x.startswith('Sprache') else x)
+        df = df.rename(columns=lambda x: 'Verantwortung' if x.startswith('Verantwortung') else x)
+        df = df.rename(columns=lambda x: 'Kontakt' if x.startswith('Kontakt') else x)
+        df = df.rename(columns=lambda x: 'Link Anzeigetext' if x.startswith('Link') else x)
+        df = df.rename(columns=lambda x: 'Zuletzt aktualisiert' if x.startswith('Zuletzt aktualisiert') else x)
+        df = df.rename(columns=lambda x: 'Thema' if x.startswith('Thema') else x)
+        df = df.rename(columns=lambda x: 'Keywords' if x.startswith('Keywords') else x)
 
         link_list = []
         link_text_list = []
