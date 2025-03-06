@@ -4,6 +4,7 @@ import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from gva_metadata import credentials
 import time
@@ -13,12 +14,16 @@ import requests
 
 
 # ChromeDriver Setup
-driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
-service = Service(driver_path)  # Replace with your ChromeDriver path
-options = Options()
-options.add_argument("--headless")  # Runs without a visible browser
-driver = webdriver.Chrome(service=service, options=options)
+# driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
+# service = Service(driver_path)  # Replace with your ChromeDriver path
+# options = Options()
+# options.add_argument("--headless")  # Runs without a visible browser
+# driver = webdriver.Chrome(service=service, options=options)
 
+options = Options()
+options.add_argument("--headless") 
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=options)
 # URL of the Website
 url = "https://shop.geo.bs.ch/geodaten-katalog/"
 driver.get(url)
@@ -134,7 +139,7 @@ try:
         file_name = "100410_geodatenkatalog.csv"
         file_path = os.path.join(credentials.data_path, file_name)
         df.to_csv(file_path, index=False, sep=';')
-        common.update_ftp_and_odsp(file_path, '/gva/geodatenkatalog', '100410.csv')
+        common.update_ftp_and_odsp(file_path, '/gva/geodatenkatalog', '100410')
         logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
 
 except Exception as e:
