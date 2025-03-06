@@ -124,9 +124,9 @@ try:
         df["Zugriff"] = df["öffentlich"].fillna(df["beschränkt öffentlich"])
         df.drop(columns=["öffentlich", "beschränkt öffentlich"], inplace=True)
         df['Zugriff'] = df['Zugriff'] + f": \"https://www.geo.bs.ch/erweiterte-berechtigung\""
-
+        df["Page"] = "https://rstam-aloush.github.io/geoportal-poc/?param="+df["Abkuerzung"]
         # Sort the columns in the desired order
-        desired_columns = ["Kategorie", "Thema", "Abkuerzung", "Beschreibung", "Aktualisierung", "Geodaten-Shop",
+        desired_columns = ["Kategorie", "Thema", "Abkuerzung", "Page", "Beschreibung", "Aktualisierung", "Geodaten-Shop",
                            "Metadaten", "MapBS", "Geobasisdaten", "Ebenen", "WMS", "WFS", "WMTS", "Bild-URL",
                            "Zugriff"]
         existing_columns = [col for col in desired_columns if col in df.columns]
