@@ -14,12 +14,16 @@ import requests
 
 
 # ChromeDriver Setup
-driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
-service = Service(driver_path)  # Replace with your ChromeDriver path
-options = Options()
-options.add_argument("--headless")  # Runs without a visible browser
-driver = webdriver.Chrome(service=service, options=options)
+# driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
+# service = Service(driver_path)  # Replace with your ChromeDriver path
+# options = Options()
+# options.add_argument("--headless")  # Runs without a visible browser
+# driver = webdriver.Chrome(service=service, options=options)
 
+options = Options()
+options.add_argument("--headless") 
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=options)
 # URL of the Website
 url = "https://shop.geo.bs.ch/geodaten-katalog/"
 driver.get(url)
@@ -125,7 +129,7 @@ try:
         df["Zugriff"] = df["öffentlich"].fillna(df["beschränkt öffentlich"])
         df.drop(columns=["öffentlich", "beschränkt öffentlich"], inplace=True)
         df['Zugriff'] = df['Zugriff'] + f": \"https://www.geo.bs.ch/erweiterte-berechtigung\""
-        df["Page"] = "https://rstam-aloush.github.io/geoportal-poc/?param="+df["Abkuerzung"]
+        df["Page"] = "https://opendatabs.github.io/geoportal-poc/?param="+df["Abkuerzung"]
         # Sort the columns in the desired order
         desired_columns = ["Kategorie", "Thema", "Abkuerzung", "Page", "Beschreibung", "Aktualisierung", "Geodaten-Shop",
                            "Metadaten", "MapBS", "Geobasisdaten", "Ebenen", "WMS", "WFS", "WMTS", "Bild-URL",
@@ -135,7 +139,7 @@ try:
         file_name = "100410_geodatenkatalog.csv"
         file_path = os.path.join(credentials.data_path, file_name)
         df.to_csv(file_path, index=False, sep=';')
-        common.update_ftp_and_odsp(file_path, '/gva/geodatenkatalog', '100410.csv')
+        common.update_ftp_and_odsp(file_path, '/gva/geodatenkatalog', '100410')
         logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
 
 except Exception as e:
