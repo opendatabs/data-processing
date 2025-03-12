@@ -53,7 +53,8 @@ MONTHLY_CONFIGS = {
             'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'
         ],
         'output_cols': [
-            'date', 'bez_id', 'bez_name', 'wov_id', 'wov_name', 'gemeinde_na', 'geometry',
+            'date', 'weekday', 'timerange_start', 'timerange_end',
+            'bez_id', 'bez_name', 'wov_id', 'wov_name', 'gemeinde_na', 'geometry',
             'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor', 'xs_propulsion_type',
             'xs_max_range_meters', 'num_measures', 'mean', 'min', 'max'
         ]
