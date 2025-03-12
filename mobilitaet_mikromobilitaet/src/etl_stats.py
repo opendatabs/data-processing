@@ -100,11 +100,10 @@ def combine_files_to_gdf(dates, start_hour=0, end_hour=24):
     all_missing_timestamps = []
     for date_str in dates:
         date_obj = pd.to_datetime(date_str)
-        if start_hour == 0 and end_hour == 24:
-            start_dt = date_obj.replace(hour=0, minute=0)
-            end_dt = start_dt + pd.Timedelta(days=1)
+        start_dt = date_obj.replace(hour=start_hour, minute=0)
+        if end_hour == 24:
+            end_dt = date_obj.replace(hour=0, minute=0) + pd.Timedelta(days=1)
         else:
-            start_dt = date_obj.replace(hour=start_hour, minute=0)
             end_dt = date_obj.replace(hour=end_hour, minute=0)
 
         # Generate the list of all 10-min timestamps in [start_hour, end_hour).
@@ -195,22 +194,14 @@ def compute_stats(gdf_points, gdf_polygons, group_cols, remove_empty_polygon_col
     period_end = gdf_joined['timestamp'].max().ceil('10T')
     all_timestamps = pd.date_range(start=period_start, end=period_end, freq='10T', tz='Europe/Zurich')
     if start_hour is not None and end_hour is not None:
-        # Identify all calendar days in the data
-        start_day = period_start.normalize()
-        end_day = period_end.normalize()
-        days = gdf_joined['timestamp'].dt.normalize().unique()
-
         # Build a partial set of timestamps for each day
         all_timestamp_list = []
+        days = gdf_joined['timestamp'].dt.normalize().unique()
         for day in days:
             daily_start = day + pd.Timedelta(hours=start_hour)
             daily_end = day + pd.Timedelta(hours=end_hour)
-            if daily_end > period_end:
-                daily_end = period_end
-            if daily_start < period_start:
-                daily_start = period_start
 
-            # Generate just the 10-minute intervals we care about
+            # Generate just the 10-minute intervals we care about in [start_hour, end_hour)
             if daily_start < daily_end:
                 times = pd.date_range(
                     start=daily_start,
@@ -366,7 +357,7 @@ def process_monthly_timerange_stats(year, month):
         ("12:00", "15:00"),
         ("15:00", "18:00"),
         ("18:00", "21:00"),
-        ("21:00", "23:59")
+        ("21:00", "24:00")
     ]
     # Define start and end of month.
     start_date = pd.Timestamp(year=year, month=month, day=1)
