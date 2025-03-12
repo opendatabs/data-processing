@@ -109,7 +109,7 @@ def combine_files_to_gdf(dates, start_hour=0, end_hour=24):
 
         # Generate the list of all 10-min timestamps in [start_hour, end_hour).
         all_timestamps = pd.date_range(
-            start_dt, end_dt, freq='10T', inclusive='left', tz='Europe/Zurich'
+            start_dt, end_dt, freq='10min', inclusive='left', tz='Europe/Zurich'
         )
         
         found_timestamps = []
@@ -191,9 +191,9 @@ def compute_stats(gdf_points, gdf_polygons, group_cols, remove_empty_polygon_col
     # Ensure the timestamp column is in datetime format
     gdf_joined['timestamp'] = pd.to_datetime(gdf_joined['timestamp']).dt.tz_convert('Europe/Zurich')
 
-    period_start = gdf_joined['timestamp'].min().floor('10T')
-    period_end = gdf_joined['timestamp'].max().ceil('10T')
-    all_timestamps = pd.date_range(start=period_start, end=period_end, freq='10T', tz='Europe/Zurich')
+    period_start = gdf_joined['timestamp'].min().floor('10min')
+    period_end = gdf_joined['timestamp'].max().ceil('10min')
+    all_timestamps = pd.date_range(start=period_start, end=period_end, freq='10min', tz='Europe/Zurich')
     if start_hour is not None and end_hour is not None:
         # Build a partial set of timestamps for each day
         all_timestamp_list = []
@@ -207,7 +207,7 @@ def compute_stats(gdf_points, gdf_polygons, group_cols, remove_empty_polygon_col
                 times = pd.date_range(
                     start=daily_start,
                     end=daily_end,
-                    freq='10T',
+                    freq='10min',
                     tz='Europe/Zurich',
                     inclusive='left'
                 )
@@ -419,7 +419,7 @@ def main():
         process_daily_stats(date_str)
 
     # If today is the first of the month, process the previous month for timerange stats.
-    if datetime.now().day == 12:
+    if datetime.now().day == 1:
         last_month_date = datetime.now() - relativedelta(months=1)
         process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
 
