@@ -16,5 +16,5 @@ CMD ["uv", "run", "-m", "src.etl_stats"]
 
 # Docker commands to create image and run container:
 # cd mobilitaet_mikromobilitaet
-# docker build -t mobilitaet_mikromobilitaet_stats .
+# docker build -t mobilitaet_mikromobilitaet_stats . -f Dockerfile.stats
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet_stats mobilitaet_mikromobilitaet_stats uv run -m src.etl_stats

@@ -3,7 +3,6 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /code/data-processing/mobilitaet_mikromobilitaet
 # Copy uv files and install dependencies
-RUN cd ..
 COPY pyproject.toml .
 COPY uv.lock .
 RUN uv sync --frozen --no-cache
@@ -40,5 +39,5 @@ CMD ["uv", "run", "-m", "src.etl"]
 
 # Docker commands to create image and run container:
 # cd mobilitaet_mikromobilitaet
-# docker build -t mobilitaet_mikromobilitaet .
+# docker build -t mobilitaet_mikromobilitaet . -f Dockerfile.etl
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet uv run -m src.etl
