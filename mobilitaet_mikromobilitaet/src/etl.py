@@ -7,7 +7,12 @@ import geopandas as gpd
 from owslib.wfs import WebFeatureService
 
 import common
-from mobilitaet_mikromobilitaet import credentials
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATA_PATH = os.getenv("DATA_PATH")
+TEMP_PATH = os.getenv("TEMP_PATH")
 
 
 def create_map_links(geometry, p1, p2):
@@ -90,7 +95,7 @@ def gpd_to_mounted_file(gdf, path, *args, **kwargs):
     """
     # Copy the file to a temporary folder which is not mounted
     filename = os.path.basename(path)
-    temp_path = os.path.join(credentials.temp_path, filename)
+    temp_path = os.path.join(TEMP_PATH, filename)
     # Writes the file using geopandas
     gdf.to_file(temp_path, *args, **kwargs)
     shutil.copy(temp_path, path)
@@ -103,7 +108,7 @@ def export_current_data(gdf_current, filename_current):
     Export the current GeoDataFrame to a GeoPackage. If a previous file exists, load it
     and return it for subsequent comparison. Also handle FTP upload and archiving.
     """
-    path_export_current = os.path.join(credentials.data_path, filename_current)
+    path_export_current = os.path.join(DATA_PATH, filename_current)
 
     # Attempt to load previous data (if file does not exist, gdf_previous will be empty).
     if os.path.exists(path_export_current):
@@ -119,24 +124,11 @@ def export_current_data(gdf_current, filename_current):
 
     # Archiving
     folder = pd.Timestamp.now().strftime('%Y-%m')
-    common.ensure_ftp_dir(
-        common.credentials.ftp_server,
-        common.credentials.ftp_user,
-        common.credentials.ftp_pass,
-        f'mobilitaet/mikromobilitaet/archiv/{folder}'
-    )
+
     current_time = pd.Timestamp.now().tz_localize('Europe/Zurich')
     filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
-    path_export_archive = os.path.join(credentials.temp_path, 'archive_to_upload', f'{filename_ts}.gpkg')
-
-    gdf_current.to_file(path_export_archive, driver='GPKG')
-    common.upload_ftp(
-        path_export_archive,
-        common.credentials.ftp_server,
-        common.credentials.ftp_user,
-        common.credentials.ftp_pass,
-        f'mobilitaet/mikromobilitaet/archiv/{folder}'
-    )
+    path_export_archive = os.path.join(DATA_PATH, 'archiv', folder, f'{filename_ts}.gpkg')
+    gpd_to_mounted_file(gdf_current, path_export_archive, driver='GPKG')
     os.remove(path_export_archive)
 
     return gdf_previous
@@ -184,7 +176,7 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     Load the existing timeseries data from FTP, update 'timestamp_moved' for bikes that moved or no longer exist,
     append new moved data, and push changes back to FTP and ODS.
     """
-    path_export_zeitreihe = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.gpkg')
+    path_export_zeitreihe = os.path.join(DATA_PATH, 'zeitreihe_verfuegbarkeit.gpkg')
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
 
     # Update timestamp_moved for bikes that have not moved yet, but now have
@@ -199,31 +191,6 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     gpd_to_mounted_file(gdf_zeitreihe, path_export_zeitreihe, driver='GPKG')
 
     return gdf_zeitreihe
-
-
-def push_to_ods(gdf_moved):
-    """
-    Convert geometry to geo_point_2d and push to ODS in real-time.
-    """
-    # Extract the geo_point_2d from the geometry and switch them
-    gdf_moved['geo_point_2d'] = (
-        gdf_moved['geometry']
-        .astype(str)
-        .str.replace('POINT ', '', regex=False)
-        .str.replace('(', '', regex=False)
-        .str.replace(')', '', regex=False)
-    )
-    gdf_moved['geo_point_2d'] = (
-        gdf_moved['geo_point_2d']
-        .str.split(' ')
-        .apply(lambda x: f'{x[1]}, {x[0]}')
-    )
-
-    # Drop geometry and 'Map Links' before pushing
-    df_to_push = gdf_moved.drop(columns=['geometry', 'Map Links']).copy()
-
-    # Push to ODS
-    common.ods_realtime_push_df(df_to_push, credentials.push_url)
 
 
 def convert_to_csv(gdf_zeitreihe):
@@ -248,7 +215,7 @@ def convert_to_csv(gdf_zeitreihe):
     df_zeitreihe = gdf_zeitreihe.drop(columns=['geometry', 'Map Links']).copy()
 
     # Save as CSV
-    path_export_csv = os.path.join(credentials.data_path, 'zeitreihe_verfuegbarkeit.csv')
+    path_export_csv = os.path.join(DATA_PATH, 'zeitreihe_verfuegbarkeit.csv')
     df_zeitreihe.to_csv(path_export_csv, index=False)
 
 

@@ -1,7 +1,15 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
+FROM python:3.12-slim
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+WORKDIR /code/data-processing/mobilitaet_mikromobilitaet
+# Copy uv files and install dependencies
+COPY pyproject.toml .
+COPY uv.lock .
+RUN uv sync --frozen --no-cache
+COPY . .
+
+# PYTHONPATH needs to be the parent directory because of the common local module imports
+ENV PYTHONPATH="/code/data-processing"
 
 # Set environment variables for timezone and locale
 ENV DEBIAN_FRONTEND=noninteractive
@@ -26,19 +34,10 @@ RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
 RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata
 
-
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir charset_normalizer==3.3.2
-RUN python3 -m pip install --user --no-cache-dir owslib==0.31.0
-CMD ["python3", "-m", "mobilitaet_mikromobilitaet.src.etl"]
+CMD ["uv", "run", "-m", "src.etl"]
 
 
 # Docker commands to create image and run container:
 # cd mobilitaet_mikromobilitaet
 # docker build -t mobilitaet_mikromobilitaet .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet python3 -m mobilitaet_mikromobilitaet.etl
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet uv run -m src.etl
