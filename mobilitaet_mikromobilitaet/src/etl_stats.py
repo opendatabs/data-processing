@@ -406,8 +406,8 @@ def process_monthly_timerange_stats(year, month):
                 config['output_cols'],
                 timerange_label=timerange_label
             )
-        # Publish dataset after processing each weekday.
-        odsp.publish_ods_dataset_by_id(MONTHLY_CONFIGS['bezirke']['ods_id'])
+    # Publish dataset after processing each weekday.
+    odsp.publish_ods_dataset_by_id(MONTHLY_CONFIGS['bezirke']['ods_id'])
 
 
 def main():
