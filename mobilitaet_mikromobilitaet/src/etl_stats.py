@@ -46,7 +46,7 @@ CONFIGS = {
 MONTHLY_CONFIGS = {
     'bezirke': {
         'ods_id_shapes': '100039',
-        'ods_id': '100418',
+        'ods_id': '100428',
         'remove_empty_polygon_columns': False,
         'group_cols': [
             'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
