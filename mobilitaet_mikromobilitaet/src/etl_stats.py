@@ -408,7 +408,7 @@ def process_monthly_timerange_stats(year, month):
             # Using the date_str from the month start as an identifier.
             save_stats(
                 df_stats,
-                'bezirke',
+                'bezirke_timerange',
                 start_date.strftime("%Y-%m"),
                 config['output_cols'],
                 timerange_label=timerange_label
