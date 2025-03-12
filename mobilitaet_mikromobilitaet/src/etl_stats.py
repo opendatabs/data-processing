@@ -348,6 +348,14 @@ def process_monthly_timerange_stats(year, month):
     Process stats for a given month. For each weekday (Monday to Sunday) and for each timerange,
     aggregate stats across all days (including missing timestamps).
     """
+
+    # Download shapes for the given config. Here we assume processing for one config, e.g. 'bezirke'
+    config = MONTHLY_CONFIGS['bezirke']
+    gdf_shapes = download_spatial_descriptors(config['ods_id_shapes'])
+    # For 'bezirke' we also merge additional attributes.
+    gdf_wohnviertel = download_spatial_descriptors("100042")
+    gdf_shapes = gdf_shapes.merge(gdf_wohnviertel[['wov_id', 'wov_name', 'gemeinde_na']], on='wov_id', how='left')
+
     # Define timeranges (adjust as needed)
     timeranges = [
         ("00:00", "03:00"),
@@ -373,13 +381,6 @@ def process_monthly_timerange_stats(year, month):
         for start_str, end_str in timeranges:
             date_strs = [day.strftime("%Y-%m-%d") for day in days_of_week]
             gdf_daily_points, missing_timestamps_str = combine_files_to_gdf(date_strs, start_hour=int(start_str[:2]), end_hour=int(end_str[:2]))
-            
-            # Download shapes for the given config. Here we assume processing for one config, e.g. 'bezirke'
-            config = MONTHLY_CONFIGS['bezirke']
-            gdf_shapes = download_spatial_descriptors(config['ods_id_shapes'])
-            # For 'bezirke' we also merge additional attributes.
-            gdf_wohnviertel = download_spatial_descriptors("100042")
-            gdf_shapes = gdf_shapes.merge(gdf_wohnviertel[['wov_id', 'wov_name', 'gemeinde_na']], on='wov_id', how='left')
             
             df_stats = compute_stats(
                 gdf_daily_points,
