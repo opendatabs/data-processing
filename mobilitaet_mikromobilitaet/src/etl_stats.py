@@ -419,7 +419,7 @@ def main():
         process_daily_stats(date_str)
 
     # If today is the first of the month, process the previous month for timerange stats.
-    if datetime.now().day == 1:
+    if datetime.now().day == 12:
         last_month_date = datetime.now() - relativedelta(months=1)
         process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
 
