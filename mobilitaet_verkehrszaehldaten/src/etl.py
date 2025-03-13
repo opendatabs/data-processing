@@ -54,23 +54,24 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         velo_filename = 'Velo_' + filename
         miv_data.to_csv(os.path.join(dest_path, miv_filename), sep=';', encoding='utf-8', index=False)
         velo_data.to_csv(os.path.join(dest_path, velo_filename), sep=';', encoding='utf-8', index=False)
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(miv_data, miv_filename, dest_path)
         generated_filenames += generate_files(velo_data, velo_filename, dest_path)
+    # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
+    elif 'FLIR' in filename:
+        logging.info(f'Retrieving Zst_id as the SiteCode...')
+        data['Zst_id'] = data['SiteCode']
+        logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
+        data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        generated_filenames = generate_files(data, filename, dest_path)
+    # 'MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv'
     else:
-        # 'MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv',
-        if 'FLIR' not in filename:
-            logging.info(f'Retrieving Zst_id as the first word in SiteName...')
-            data['Zst_id'] = data['SiteName'].str.split().str[0]
-            logging.info(f'Creating files for dashboard for the following data: {filename}...')
-            dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
-            generated_filenames = generate_files(data, filename, dest_path)
-        # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
-        else:
-            logging.info(f'Retrieving Zst_id as the SiteCode...')
-            data['Zst_id'] = data['SiteCode']
-            logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
-            data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
-            generated_filenames = generate_files(data, filename, dest_path)
+        logging.info(f'Retrieving Zst_id as the first word in SiteName...')
+        data['Zst_id'] = data['SiteName'].str.split().str[0]
+        logging.info(f'Creating files for dashboard for the following data: {filename}...')
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        generated_filenames = generate_files(data, filename, dest_path)
 
     logging.info(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
