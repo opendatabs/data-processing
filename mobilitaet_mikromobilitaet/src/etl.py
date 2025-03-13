@@ -129,7 +129,6 @@ def export_current_data(gdf_current, filename_current):
     filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
     path_export_archive = os.path.join(DATA_PATH, 'archiv', folder, f'{filename_ts}.gpkg')
     gpd_to_mounted_file(gdf_current, path_export_archive, driver='GPKG')
-    os.remove(path_export_archive)
 
     return gdf_previous
 
