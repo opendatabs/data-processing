@@ -3,16 +3,21 @@ from shutil import copy2
 import pandas as pd
 import common
 from common import change_tracking as ct
-from mobilitaet_verkehrszaehldaten import credentials
 from mobilitaet_verkehrszaehldaten.src import dashboard_calc
 import sys
 import os
 import platform
 import sqlite3
 
-logging.info(f'Python running on the following architecture:')
-logging.info(f'{platform.architecture()}')
+from dotenv import load_dotenv
 
+load_dotenv()
+
+PATH_ORIG = os.getenv("PATH_ORIG")
+PATH_DEST = os.getenv("PATH_DEST")
+FTP_SERVER = os.getenv("FTP_SERVER")
+FTP_USER = os.getenv("FTP_USER")
+FTP_PASS = os.getenv("FTP_PASS")
 
 def parse_truncate(path, filename, dest_path, no_file_cp):
     path_to_orig_file = os.path.join(path, filename)
@@ -49,23 +54,24 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         velo_filename = 'Velo_' + filename
         miv_data.to_csv(os.path.join(dest_path, miv_filename), sep=';', encoding='utf-8', index=False)
         velo_data.to_csv(os.path.join(dest_path, velo_filename), sep=';', encoding='utf-8', index=False)
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(miv_data, miv_filename, dest_path)
         generated_filenames += generate_files(velo_data, velo_filename, dest_path)
+    # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
+    elif 'FLIR' in filename:
+        logging.info(f'Retrieving Zst_id as the SiteCode...')
+        data['Zst_id'] = data['SiteCode']
+        logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
+        data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        generated_filenames = generate_files(data, filename, dest_path)
+    # 'MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv'
     else:
-        # 'MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv',
-        if 'FLIR' not in filename:
-            logging.info(f'Retrieving Zst_id as the first word in SiteName...')
-            data['Zst_id'] = data['SiteName'].str.split().str[0]
-            logging.info(f'Creating files for dashboard for the following data: {filename}...')
-            dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
-            generated_filenames = generate_files(data, filename, dest_path)
-        # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
-        else:
-            logging.info(f'Retrieving Zst_id as the SiteCode...')
-            data['Zst_id'] = data['SiteCode']
-            logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
-            data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
-            generated_filenames = generate_files(data, filename, dest_path)
+        logging.info(f'Retrieving Zst_id as the first word in SiteName...')
+        data['Zst_id'] = data['SiteName'].str.split().str[0]
+        logging.info(f'Creating files for dashboard for the following data: {filename}...')
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        generated_filenames = generate_files(data, filename, dest_path)
 
     logging.info(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
@@ -82,7 +88,7 @@ def generate_files(df, filename, dest_path):
     logging.info(f'Saving into sqlite db {db_filename}...')
     conn = sqlite3.connect(db_filename)
     df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
-    common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+    common.upload_ftp(db_filename, FTP_SERVER, FTP_USER, FTP_PASS, '')
 
     # Only keep latest n years of data
     keep_years = 2
@@ -114,7 +120,7 @@ def main():
         no_file_copy = True
         logging.info('Proceeding without copying files...')
 
-    dashboard_calc.download_weather_station_data(credentials.path_dest)
+    dashboard_calc.download_weather_station_data(PATH_DEST)
 
     filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv',
                      'LSA_Count.csv',
@@ -122,25 +128,28 @@ def main():
 
     # Upload processed and truncated data
     for datafile in filename_orig:
-        datafile_with_path = os.path.join(credentials.path_orig, datafile)
+        datafile_with_path = os.path.join(PATH_ORIG, datafile)
         if ct.has_changed(datafile_with_path):
-            file_names = parse_truncate(credentials.path_orig, datafile, credentials.path_dest, no_file_copy)
+            file_names = parse_truncate(PATH_ORIG, datafile, PATH_DEST, no_file_copy)
             if not no_file_copy:
                 for file in file_names:
-                    common.upload_ftp(file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+                    common.upload_ftp(file, FTP_SERVER, FTP_USER, FTP_PASS, '')
                     os.remove(file)
             ct.update_hash_file(datafile_with_path)
 
     # Upload original unprocessed data
     if not no_file_copy:
         for orig_file in filename_orig:
-            path_to_file = os.path.join(credentials.path_dest, orig_file)
+            path_to_file = os.path.join(PATH_DEST, orig_file)
             if ct.has_changed(path_to_file):
-                common.upload_ftp(path_to_file, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+                common.upload_ftp(path_to_file, FTP_SERVER, FTP_USER, FTP_PASS, '')
                 ct.update_hash_file(path_to_file)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f'Executing {__file__}...')
+    logging.info(f'Python running on the following architecture:')
+    logging.info(f'{platform.architecture()}')
     main()
+    logging.info('Job successful!')
