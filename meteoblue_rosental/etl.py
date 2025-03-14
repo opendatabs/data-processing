@@ -1,17 +1,20 @@
 import logging
 import common
 import pandas as pd
-from meteoblue_rosental import credentials
 import os
 from datetime import datetime
 import pathlib
 
-fields = 'timestamp,precipitation,relativeHumidityHC,solarRadiation,' \
-         'airTemperatureHC,windSpeedUltraSonic,windDirUltraSonic'
+from dotenv import load_dotenv
 
-url = f'http://measurement-api.meteoblue.com/v1/rawdata/pesslCityClimateBasel/cCBaselPesslMeasurement/' \
-      f'get?stations=0020F940&fields={fields}&sort=desc&apikey={credentials.apikey}'
+load_dotenv()
 
+API_KEY = os.getenv("API_KEY")
+FTP_SERVER = os.getenv("FTP_SERVER")
+FTP_USER = os.getenv("FTP_USER")
+FTP_PASS = os.getenv("FTP_PASS")
+PUSH_URL = os.getenv("PUSH_URL")
+PUSH_KEY = os.getenv("PUSH_KEY")
 
 def main():
     df = get_data()
@@ -21,21 +24,44 @@ def main():
     df.to_csv(filename, index=False)
     ftp_dir = 'Rosental-Mitte/backup_wetterstation'
     logging.info(f'upload data to {ftp_dir}')
-    common.upload_ftp(filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, ftp_dir)
-    logging.info("push data to ODS realtime API")
-    logging.info("push for dataset 100294")
-    push_url = credentials.ods_live_realtime_push_url
-    push_key = credentials.ods_live_realtime_push_key
-    common.ods_realtime_push_df(df, url=push_url, push_key=push_key)
+    common.upload_ftp(filename, FTP_SERVER, FTP_USER, FTP_PASS, ftp_dir)
+    logging.info("push data to ODS realtime API to dataset 100294")
+    common.ods_realtime_push_df(df, url=PUSH_URL, push_key=PUSH_KEY)
 
 
 def get_data():
-    req = common.requests_get(url)
+    provider = 'pesslCityClimateBasel'
+    url = f'https://measurements-api.meteoblue.com/v2/provider/{provider}/measurement/get'
+    params = {
+        'stations': ['0020F940'],
+        'fields': [
+            'timestamp',
+            'precipitation',
+            'relativeHumidity_unknown',
+            'globalRadiation',
+            'airTemperature_unknown',
+            'windSpeed_unknown',
+            'windDirection'
+            ],
+        'sort': 'desc',
+        'velocityUnit': 'm/s',
+        'limit': '1000',
+        'apikey': API_KEY
+    }
+    req = common.requests_get(url, params)
     data = req.json()['columns']
     df_import = pd.DataFrame.from_dict(data)
     df_export = pd.DataFrame()
     for column in df_import['column']:
         df_export[column] = list(df_import.loc[(df_import['column'] == column), 'values'])[0]
+    # Rename columns since the names are still from the API v1
+    df_export.rename(columns={
+        'relativeHumidity_unknown': 'relativeHumidityHC',
+        'globalRadiation': 'solarRadiation',
+        'airTemperature_unknown': 'airTemperatureHC',
+        'windSpeed_unknown': 'windSpeedUltraSonic',
+        'windDirection': 'windDirUltraSonic'
+    }, inplace=True)
     return df_export
 
 
@@ -44,13 +70,3 @@ if __name__ == "__main__":
     logging.info(f'Executing {__file__}...')
     main()
     logging.info('Job successful!')
-
-# Realtime API boostrap data:
-# {"timestamp": "2023-04-13T04:00:01Z",
-#     "precipitation": 0.5,
-#     "relativeHumidityHC": 0.5,
-#     "solarRadiation": 0.5,
-#     "airTemperatureHC": 0.5,
-#     "windSpeedUltraSonic": 0.5,
-#     "windDirUltraSonic": 0.5}
-

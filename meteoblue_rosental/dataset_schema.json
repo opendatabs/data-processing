@@ -1,0 +1,9 @@
+{
+    "timestamp": "2023-04-13T04:00:01Z",
+    "precipitation": 0.5,
+    "relativeHumidityHC": 0.5,
+    "solarRadiation": 0.5,
+    "airTemperatureHC": 0.5,
+    "windSpeedUltraSonic": 0.5,
+    "windDirUltraSonic": 0.5
+}
