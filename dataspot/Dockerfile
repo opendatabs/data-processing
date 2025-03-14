@@ -1,16 +1,20 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir charset_normalizer==3.3.2
-CMD ["python3", "-m", "dataspot.etl"]
+FROM python:3.12-slim
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+WORKDIR /code/data-processing/meteoblue_rosental
+# Copy uv files and install dependencies
+COPY pyproject.toml .
+COPY uv.lock .
+RUN uv sync --frozen --no-cache
+COPY . .
+
+# PYTHONPATH needs to be the parent directory because of the common local module imports
+ENV PYTHONPATH="/code/data-processing"
+
+CMD ["uv run", "-m", "etl"]
 
 
 # Docker commands to create image and run container:
-# cd dataspot
-# docker build -t dataspot .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name dataspot dataspot
+# cd meteoblue_rosental
+# docker build -t meteoblue_rosental .
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue_rosental meteoblue_rosental uv run -m etl

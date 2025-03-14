@@ -5,10 +5,26 @@ import common
 from dataspot_auth import DataspotAuth
 from io import BytesIO
 import logging
-from dataspot import credentials
+
+from dotenv import load_dotenv
+load_dotenv('.dataspot.env')
+
+DATA_PATH=os.getenv("DATA_PATH")
+
+ods_id = {
+    'Datensaetze':100433,
+    'Bestandteile':100434,
+    'Sammlungen':100435,
+    'Distributionen':100436,
+    'Verantwortungen':100437,
+    'Zusatzinformationen':100438,
+    'Bereitstellungen':100439,
+    'Literals':100440
+    }
+S_id = pd.Series(data=ods_id)
+
 
 def download_datennutzungskatalog_excel():
-
     auth = DataspotAuth()
     url = auth.get_base_url() + "/api/metadatenmanagement/schemes/Datennutzungskatalog/download?format=xlsx&language=de"
     headers = auth.get_headers()
@@ -22,16 +38,7 @@ def encode_for_url(text):
         return ""
     return urllib.parse.quote(text.strip())  
 
-ods_id = {'Datensaetze':100433,
-         'Bestandteile':100434,
-          'Sammlungen':100435,
-           'Distributionen':100436,
-           'Verantwortungen':100437,
-           'Zusatzinformationen':100438,
-           'Bereitstellungen':100439,
-           'Literals':100440
-           }
-S_id = pd.Series(data=ods_id)
+
 def main():
     data = download_datennutzungskatalog_excel()
     excel_data = pd.read_excel(BytesIO(data), sheet_name=None)
@@ -50,7 +57,7 @@ def main():
         if sheet_name not in ["Datensätze", "Bestandteile"]:
             if sheet_name == '__literals__':
               sheet_name = 'Literals'     
-            save_path = os.path.join(credentials.data_path, f'{S_id[sheet_name]}_{sheet_name}.csv')
+            save_path = os.path.join(DATA_PATH, f'{S_id[sheet_name]}_{sheet_name}.csv')
             df.to_csv(save_path, sep=";", index=False)
             # In FTP Server speichern 
             common.update_ftp_and_odsp(save_path,'dataspot',S_id[sheet_name])
@@ -79,13 +86,12 @@ def main():
     # Wende die neue Spaltenreihenfolge auf das DataFrame an
     df_data = df_data[new_order]
 
-    save_path = os.path.join(credentials.data_path, f'{S_id['Datensaetze']}_Datensaetze.csv') 
+    save_path = os.path.join(DATA_PATH, f'{S_id['Datensaetze']}_Datensaetze.csv') 
     df_data.to_csv(save_path, sep=";", index=False)
     common.update_ftp_and_odsp(save_path,'dataspot',S_id['Datensaetze'])  
-    save_path = os.path.join(credentials.data_path, f'{S_id['Bestandteile']}_Bestandteile.csv') 
+    save_path = os.path.join(DATA_PATH, f'{S_id['Bestandteile']}_Bestandteile.csv') 
     df_bestand.to_csv(save_path, sep=";", index=False)  
     common.update_ftp_and_odsp(save_path,'dataspot',S_id['Bestandteile'])
-
 
 
 if __name__ == "__main__":
