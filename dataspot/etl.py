@@ -22,7 +22,16 @@ def encode_for_url(text):
         return ""
     return urllib.parse.quote(text.strip())  
 
-
+ods_id = {'Datensaetze':100433,
+         'Bestandteile':100434,
+          'Sammlungen':100435,
+           'Distributionen':100436,
+           'Verantwortungen':100437,
+           'Zusatzinformationen':100438,
+           'Bereitstellungen':100439,
+           'Literals':100440
+           }
+S_id = pd.Series(data=ods_id)
 def main():
     data = download_datennutzungskatalog_excel()
     excel_data = pd.read_excel(BytesIO(data), sheet_name=None)
@@ -38,9 +47,13 @@ def main():
                 df = df.drop(columns=["Erstellt von"])  # Entferne die Spalte "Erstellt von"
                 df.reset_index(drop=True)
         # Allte Tabellen speichern ( Ausser Datensätze und Betandteil) 
-        if sheet_name not in ["Datensätze", "Bestandteile"]: 
-            save_path = os.path.join(credentials.data_path, f'{sheet_name}.csv')
+        if sheet_name not in ["Datensätze", "Bestandteile"]:
+            if sheet_name == '__literals__':
+              sheet_name = 'Literals'     
+            save_path = os.path.join(credentials.data_path, f'{S_id[sheet_name]}_{sheet_name}.csv')
             df.to_csv(save_path, sep=";", index=False)
+            # In FTP Server speichern 
+            common.update_ftp_and_odsp(save_path,'dataspot',S_id[sheet_name])
         else: 
             if sheet_name == "Datensätze":
                 df_data= df
@@ -66,13 +79,14 @@ def main():
     # Wende die neue Spaltenreihenfolge auf das DataFrame an
     df_data = df_data[new_order]
 
-    save_path = os.path.join(credentials.data_path, 'Datensaetze.csv') 
-    df_data.to_csv(save_path, sep=";", index=False)  
-    save_path = os.path.join(credentials.data_path, 'Bestandteile.csv') 
+    save_path = os.path.join(credentials.data_path, f'{S_id['Datensaetze']}_Datensaetze.csv') 
+    df_data.to_csv(save_path, sep=";", index=False)
+    common.update_ftp_and_odsp(save_path,'dataspot',S_id['Datensaetze'])  
+    save_path = os.path.join(credentials.data_path, f'{S_id['Bestandteile']}_Bestandteile.csv') 
     df_bestand.to_csv(save_path, sep=";", index=False)  
+    common.update_ftp_and_odsp(save_path,'dataspot',S_id['Bestandteile'])
 
-### TO Do 
-# save the files in ftp Server 
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
