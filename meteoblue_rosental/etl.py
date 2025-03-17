@@ -62,6 +62,7 @@ def get_data():
         'windSpeed_unknown': 'windSpeedUltraSonic',
         'windDirection': 'windDirUltraSonic'
     }, inplace=True)
+    df_export['timestamp'] = pd.to_datetime(df_export['timestamp'], unit='s').dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     return df_export
 
 
