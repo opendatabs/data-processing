@@ -172,8 +172,7 @@ def compare_geometries_and_filter_moved(gdf_previous, gdf_current):
 
 def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     """
-    Load the existing timeseries data from FTP, update 'timestamp_moved' for bikes that moved or no longer exist,
-    append new moved data, and push changes back to FTP and ODS.
+    Load the existing timeseries data, update 'timestamp_moved' for bikes that moved or no longer exist and append new
     """
     path_export_zeitreihe = os.path.join(DATA_PATH, 'zeitreihe_verfuegbarkeit.gpkg')
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)

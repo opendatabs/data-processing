@@ -412,14 +412,16 @@ def process_monthly_timerange_stats(year, month):
 
 def main():
     # Process daily stats for each day between a given start and end date.
-    date_str_start = '2025-03-12'
+    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
+        logging.info(f"Processing daily stats for {date_str}...")
         process_daily_stats(date_str)
 
     # If today is the first of the month, process the previous month for timerange stats.
-    if datetime.now().day == 17:
+    if datetime.now().day == 1:
+        logging.info(f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})...")
         last_month_date = datetime.now() - relativedelta(months=1)
         process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
 
