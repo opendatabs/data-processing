@@ -39,5 +39,5 @@ CMD ["uv", "run", "-m", "src.etl"]
 
 # Docker commands to create image and run container:
 # cd jfs_gartenbaeder
-# docker build -t jfs_gartenbaeder . -f Dockerfile.etl
+# docker build -t jfs_gartenbaeder .
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name jfs_gartenbaeder jfs_gartenbaeder uv run -m etl
