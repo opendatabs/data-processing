@@ -3,8 +3,13 @@ import pandas as pd
 import common
 import logging
 import os
-from jfs_gartenbaeder import credentials
 from datetime import datetime
+
+from dotenv import load_dotenv
+load_dotenv()
+
+DATA_PATH = os.getenv("DATA_PATH")
+EXPORT_PATH = os.getenv("EXPORT_PATH")
 
 
 def main():
@@ -73,7 +78,7 @@ def main():
         'Europe/Zurich', ambiguous=True)
     df_aktuell = df_aktuell.dropna()
     df_aktuell['Zeitpunkt_Job'] = pd.to_datetime(datetime.now()).tz_localize('Europe/Zurich')
-    path_export = os.path.join(credentials.path_new, '100388_gartenbaeder_temp_live.csv')
+    path_export = os.path.join(EXPORT_PATH, '100388_gartenbaeder_temp_live.csv')
     df_aktuell.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100388')
     df_aktuell = df_aktuell.drop(columns=['URL_Sportanlage'])
@@ -81,13 +86,16 @@ def main():
     # Download the whole time series from the FTP server and merge it with the current data
     common.download_ftp(['100384_gartenbaeder_temp_alle.csv'], common.credentials.ftp_server,
                         common.credentials.ftp_user, common.credentials.ftp_pass,
-                        '/jfs/gartenbaeder', credentials.path_new, '')
-    df = pd.read_csv(os.path.join(credentials.path_new, '100384_gartenbaeder_temp_alle.csv'))
+                        '/jfs/gartenbaeder', EXPORT_PATH, '')
+    df = pd.read_csv(os.path.join(EXPORT_PATH, '100384_gartenbaeder_temp_alle.csv'))
     df['Koordinaten'] = df['Name'].map(coordinates)
     df = pd.concat([df, df_aktuell])
     df = df.drop_duplicates()
-    path_export = os.path.join(credentials.path_new, '100384_gartenbaeder_temp_alle.csv')
+    path_export = os.path.join(EXPORT_PATH, '100384_gartenbaeder_temp_alle.csv')
+    path_backup = os.path.join(DATA_PATH, 'backup_100384_gartenbaeder_temp_alle.csv')
     df.to_csv(path_export, index=False)
+    # In case the FTP writes an empty file, backup
+    df.to_csv(path_backup, index=False)
     common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100384')
 
 
