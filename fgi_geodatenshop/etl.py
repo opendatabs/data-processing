@@ -251,7 +251,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
     if len(metadata_for_ods) > 0:
         ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
         ods_metadata_filename = os.path.join(credentials.data_path, 'Opendatasoft_Export_GVA_GPKG.csv')
-        ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';')
+        ods_metadata.to_csv(ods_metadata_filename, index=False, sep=';', encoding='utf-8')
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
         logging.info(f'Uploading ODS harvester file {ods_metadata_filename} to FTP Server...')
         common.upload_ftp(ods_metadata_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
