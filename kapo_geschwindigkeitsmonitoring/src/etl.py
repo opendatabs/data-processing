@@ -276,20 +276,6 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
 
 def create_measures_per_year(df_all):
-    db_filename = os.path.join(credentials.path, 'datasette', 'Geschwindigkeitsmonitoring_Jahre.db')
-    base_table_name = os.path.splitext(os.path.basename(db_filename))[0]
-    logging.info(f"Creating or opening SQLite connection for {db_filename}...")
-    conn = sqlite3.connect(db_filename)
-    columns_to_index = [
-        "Timestamp",
-        "Messung-ID",
-        "Richtung ID",
-        "Messbeginn",
-        "Messende",
-        "Zone",
-        "Ort",
-        "Strasse"
-    ]
     # Create a separate data file per year
     df_all['messbeginn_jahr'] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     for year_value, year_df in df_all.groupby('messbeginn_jahr'):
@@ -301,27 +287,6 @@ def create_measures_per_year(df_all):
         common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
                           password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
         os.remove(current_filename)
-
-        # SQLite
-        table_name_for_year = str(year_value)
-        logging.info(f"Writing {year_df.shape[0]} rows for year {year_value} into '{table_name_for_year}'...")
-        year_df.to_sql(
-            name=table_name_for_year,
-            con=conn,
-            if_exists='replace',
-            index=False
-        )
-        common.create_indices(conn, table_name_for_year, columns_to_index)
-
-    conn.close()
-    if ct.has_changed(filename=db_filename, method='hash'):
-        common.upload_ftp(db_filename,
-                          credentials.ftp_server,
-                          credentials.ftp_user,
-                          credentials.ftp_pass,
-                          credentials.ftp_remote_path_data)
-        ct.update_hash_file(db_filename)
-    logging.info(f"Finished writing all data into {db_filename} (grouped by year).")
 
 
 if __name__ == "__main__":
