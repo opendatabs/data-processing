@@ -416,8 +416,6 @@ def main():
         logging.info(f"Processing daily stats for {date_str}...")
         process_daily_stats(date_str)
 
-    
-
     # If today is the first of the month, process the previous month for timerange stats.
     if datetime.now().day == 1:
         logging.info(f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})...")
