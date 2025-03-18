@@ -39,7 +39,7 @@ def main():
     con = pg.connect(credentials.pg_connection)
     logging.info(f'Reading data into dataframe...')
     df_meta_raw = psql.read_sql("""SELECT *, ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056) as the_geom_temp,
-        ST_AsGeoJSON(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056)) as the_geom_json,
+        ST_AsGeoJSON(ST_Transform(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056),4326))) as the_geom_json,
         ST_AsEWKT(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056)) as the_geom_EWKT,
         ST_AsText('Point(' || x_coord || ' ' || y_coord || ')') as the_geom_WKT
         FROM projekte.geschwindigkeitsmonitoring""", con)
