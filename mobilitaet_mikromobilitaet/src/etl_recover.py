@@ -49,7 +49,7 @@ def reconstruct_archived_files(start_time, end_time, interval_minutes=10):
         ].copy()
         gdf_filtered.loc[:, 'timestamp_moved'] = None
         # Bring timestamp back to its original format
-        gdf_filtered['timestamp'] = current_time.strftime('%Y-%m-%d %H:%M:%S%z')
+        gdf_filtered['timestamp'] = pd.to_datetime(current_time).tz_localize('Europe/Zurich').strftime('%Y-%m-%d %H:%M:%S%z')
         if not gdf_filtered.empty:
             os.makedirs(os.path.dirname(path_export_archive), exist_ok=True)
             gpd_to_mounted_file(gdf_filtered, path_export_archive, driver='GPKG')

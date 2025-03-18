@@ -409,7 +409,7 @@ def process_monthly_timerange_stats(year, month):
 
 def main():
     # Process daily stats for each day between a given start and end date.
-    date_str_start = '2025-03-12'
+    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
