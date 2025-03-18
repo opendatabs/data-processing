@@ -20,7 +20,7 @@ CONFIGS = {
     'bezirke': {
         'ods_id_shapes': '100039',
         'ods_id': '100416',
-        'remove_empty_polygon_columns': False,
+        'fill_empty_polygon_column': 'gemeinde_na',
         'group_cols': [
             'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
             'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'
@@ -34,7 +34,7 @@ CONFIGS = {
     'gemeinden': {
         'ods_id_shapes': '100017',
         'ods_id': '100422',
-        'remove_empty_polygon_columns': True,
+         'fill_empty_polygon_column': None,
         'group_cols': ['xs_provider_name', 'objid'],
         'output_cols': [
             'date', 'objid', 'name', 'geometry', 'xs_provider_name',
@@ -47,7 +47,7 @@ MONTHLY_CONFIGS = {
     'bezirke': {
         'ods_id_shapes': '100039',
         'ods_id': '100428',
-        'remove_empty_polygon_columns': False,
+        'fill_empty_polygon_column': 'gemeinde_na',
         'group_cols': [
             'xs_provider_name', 'xs_vehicle_type_name', 'xs_form_factor',
             'xs_propulsion_type', 'xs_max_range_meters', 'bez_id'
@@ -174,7 +174,7 @@ def combine_files_to_gdf(dates, start_hour=0, end_hour=24):
     return gdf_combined, all_missing_timestamps
 
 
-def compute_stats(gdf_points, gdf_polygons, group_cols, remove_empty_polygon_columns,
+def compute_stats(gdf_points, gdf_polygons, group_cols, fill_empty_polygon_column,
                   missing_timestamps_str=None, start_hour=None, end_hour=None):
     """
     Spatially joins point data to a polygon layer and computes statistics.
@@ -269,7 +269,9 @@ def compute_stats(gdf_points, gdf_polygons, group_cols, remove_empty_polygon_col
     grouped_stats['num_measures'] = len(all_timestamps)
 
     # Remove rows where polygon_id is NaN if remove_empty_polygon_columns is True
-    if remove_empty_polygon_columns:
+    if fill_empty_polygon_column:
+        grouped_stats[fill_empty_polygon_column] = grouped_stats[fill_empty_polygon_column].fillna("ausserkantonal")
+    else:
         grouped_stats = grouped_stats.dropna(subset=[polygon_id_column])
         logging.info(f"Removed rows with NaN values in {polygon_id_column}")
 
@@ -331,7 +333,7 @@ def process_daily_stats(date_str):
             gdf_daily_points,
             gdf_shapes,
             config['group_cols'],
-            config['remove_empty_polygon_columns'],
+            config['fill_empty_polygon_column'],
             missing_timestamps_str
         )
         df_stats['date'] = date_str
@@ -386,7 +388,7 @@ def process_monthly_timerange_stats(year, month):
                 gdf_daily_points,
                 gdf_shapes,
                 config['group_cols'],
-                config['remove_empty_polygon_columns'],
+                config['fill_empty_polygon_column'],
                 missing_timestamps_str,
                 start_hour=int(start_str[:2]),
                 end_hour=int(end_str[:2])
@@ -409,7 +411,7 @@ def process_monthly_timerange_stats(year, month):
 
 def main():
     # Process daily stats for each day between a given start and end date.
-    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    date_str_start = '2025-02-01'
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
