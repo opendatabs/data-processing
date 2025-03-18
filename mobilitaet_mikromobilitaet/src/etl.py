@@ -106,10 +106,9 @@ def gpd_to_mounted_file(gdf, path, *args, **kwargs):
 def export_current_data(gdf_current, filename_current):
     """
     Export the current GeoDataFrame to a GeoPackage. If a previous file exists, load it
-    and return it for subsequent comparison. Also handle FTP upload and archiving.
+    and return it for subsequent comparison.
     """
     path_export_current = os.path.join(DATA_PATH, filename_current)
-
     # Attempt to load previous data (if file does not exist, gdf_previous will be empty).
     if os.path.exists(path_export_current):
         gdf_previous = gpd.read_file(path_export_current)
@@ -118,9 +117,6 @@ def export_current_data(gdf_current, filename_current):
 
     # Save current data
     gpd_to_mounted_file(gdf_current, path_export_current, driver='GPKG')
-
-    # FTP and ODS upload
-    common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
 
     # Archiving
     folder = pd.Timestamp.now().strftime('%Y-%m')
@@ -138,6 +134,7 @@ def compare_geometries_and_filter_moved(gdf_previous, gdf_current):
     Compare the geometries from gdf_previous and gdf_current to find bikes
     that moved more than 100m or are new (previous geometry is missing).
     Skip rows where xs_provider_name is 'Bird'.
+    Bird changes the ID every minute, so it's not possible to track movement.
 
     :return: (moved_ids_current, moved_ids_previous, gdf_current_moved)
     """
@@ -252,6 +249,10 @@ def main():
     gdf_zeitreihe = update_timeseries(moved_ids_previous, gdf_current_moved, current_timestamp)
 
     convert_to_csv(gdf_zeitreihe)
+
+    # FTP and ODS upload (in the end to avoid incomplete data, if something fails)
+    path_export_current = os.path.join(DATA_PATH, filename_current)
+    common.update_ftp_and_odsp(path_export_current, 'mobilitaet/mikromobilitaet', '100415')
 
     logging.info("Job successful!")
 

@@ -46,8 +46,8 @@ def reconstruct_archived_files(start_time, end_time, interval_minutes=10):
         gdf_filtered = gdf_timeseries[
             (gdf_timeseries['timestamp'] <= current_time) &
             ((gdf_timeseries['timestamp_moved'].isna()) | (gdf_timeseries['timestamp_moved'] >= current_time))
-        ]
-        gdf_filtered['timestamp_moved'] = None
+        ].copy()  # Use .copy() to avoid SettingWithCopyWarning
+        gdf_filtered.loc[:, 'timestamp_moved'] = None
         # Bring timestamp back to its original format
         gdf_filtered['timestamp'] = gdf_filtered['timestamp'].dt.tz_localize('Europe/Zurich').dt.strftime('%Y-%m-%d %H:%M:%S%z')
         if not gdf_filtered.empty:

@@ -341,7 +341,6 @@ def process_daily_stats(date_str):
             date_str,
             config['output_cols']
         )
-        odsp.publish_ods_dataset_by_id(config['ods_id'])
 
 
 def process_monthly_timerange_stats(year, month):
@@ -406,24 +405,29 @@ def process_monthly_timerange_stats(year, month):
                 config['output_cols'],
                 timerange_label=timerange_label
             )
-    # Publish dataset after processing each weekday.
-    odsp.publish_ods_dataset_by_id(MONTHLY_CONFIGS['bezirke']['ods_id'])
 
 
 def main():
     # Process daily stats for each day between a given start and end date.
-    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    date_str_start = '2025-03-12'
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
         logging.info(f"Processing daily stats for {date_str}...")
         process_daily_stats(date_str)
 
+    
+
     # If today is the first of the month, process the previous month for timerange stats.
     if datetime.now().day == 1:
         logging.info(f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})...")
         last_month_date = datetime.now() - relativedelta(months=1)
         process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
+
+    # Publish datasets after processing
+    for _, config in CONFIGS.items():
+        odsp.publish_ods_dataset_by_id(config['ods_id'])
+    odsp.publish_ods_dataset_by_id(MONTHLY_CONFIGS['bezirke']['ods_id'])
 
 
 if __name__ == "__main__":
