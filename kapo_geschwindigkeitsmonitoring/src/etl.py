@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 PG_CONNECTION = os.getenv('PG_CONNECTION')
-PATH = os.getenv('PATH')
+DATA_PATH = os.getenv('DATA_PATH')
 FILENAME = os.getenv('FILENAME')
 DETAIL_DATA_Q_DRIVE = os.getenv('DETAIL_DATA_Q_DRIVE')
 DETAIL_DATA_Q_BASE_PATH = os.getenv('DETAIL_DATA_Q_BASE_PATH')
