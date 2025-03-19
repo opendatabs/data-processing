@@ -18,10 +18,12 @@ ENV LANG=de_CH.UTF-8
 ENV LANGUAGE=de_CH:de
 ENV LC_ALL=de_CH.UTF-8
 
-# Install required system packages
+# Install required system packages 
+# Need to run apt-get update first. Otherwise, the installation of locales will fail.
+# Need to run rm -rf /var/lib/apt/lists/* to clean up the package cache and reduce the image size.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales \
-    tzdata \
+    locales=2.36-9+deb12u10 \
+    tzdata=2025a-0+deb12u1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure the system locale
