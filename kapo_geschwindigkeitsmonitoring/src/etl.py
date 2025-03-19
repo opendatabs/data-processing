@@ -29,7 +29,7 @@ FTP_REMOTE_PATH_METADATA = os.getenv('FTP_REMOTE_PATH_METADATA')
 
 # Add missing line breaks for lines with more than 5 columns
 def fix_data(filename, measure_id, encoding):
-    filename_fixed = os.path.join(PATH, 'fixed', measure_id + os.path.basename(filename))
+    filename_fixed = os.path.join(DATA_PATH, 'fixed', measure_id + os.path.basename(filename))
     # logging.info(f'Fixing data if necessary and writing to {filename_fixed}...')
     with open(filename, 'r', encoding=encoding) as input_file, \
             open(filename_fixed, 'w', encoding=encoding) as output_file:
@@ -80,7 +80,7 @@ def main():
 
 
 def create_metadata_per_location_df(df):
-    raw_metadata_filename = os.path.join(PATH, FILENAME.replace('.csv', '_raw_metadata.csv'))
+    raw_metadata_filename = os.path.join(DATA_PATH, FILENAME.replace('.csv', '_raw_metadata.csv'))
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
@@ -90,7 +90,7 @@ def create_metadata_per_location_df(df):
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
-    metadata_filename = os.path.join(PATH, FILENAME.replace('.csv', '_metadata.csv'))
+    metadata_filename = os.path.join(DATA_PATH, FILENAME.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
     df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
@@ -122,7 +122,7 @@ def create_metadata_per_direction_df(df_metadata):
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote',
                                'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
-    richtung_filename = os.path.join(PATH, FILENAME.replace('.csv', '_richtung.csv'))
+    richtung_filename = os.path.join(DATA_PATH, FILENAME.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
     df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
@@ -140,7 +140,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     logging.info(f'Removing metadata without data...')
     df_meta_raw = df_meta_raw.dropna(subset=['Verzeichnis'])
 
-    db_filename = os.path.join(PATH, 'datasette', 'Geschwindigkeitsmonitoring.db')
+    db_filename = os.path.join(DATA_PATH, 'datasette', 'Geschwindigkeitsmonitoring.db')
     table_name_direction = 'Kennzahlen_pro_Richtung'
     table_name = 'Einzelmessungen'
     # Columns to index
@@ -214,7 +214,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
         for i, file in enumerate(raw_files):
             file = file.replace('\\', '/')
-            filename_current_measure = os.path.join(PATH, 'processed', f'{str(measure_id)}_{i}.csv')
+            filename_current_measure = os.path.join(DATA_PATH, 'processed', f'{str(measure_id)}_{i}.csv')
             result = from_path(file)
             enc = result.best().encoding
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
@@ -276,7 +276,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         ct.update_hash_file(db_filename)
 
     all_df = pd.concat(dfs)
-    pkl_filename = os.path.join(PATH, FILENAME.replace('.csv', '_data.pkl'))
+    pkl_filename = os.path.join(DATA_PATH, FILENAME.replace('.csv', '_data.pkl'))
     all_df.to_pickle(pkl_filename)
 
     logging.info(f'All data processed and saved to {db_filename} and {pkl_filename}...')
@@ -295,7 +295,7 @@ def create_measures_per_year(df_all):
     df_all['messbeginn_jahr'] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     for year_value, year_df in df_all.groupby('messbeginn_jahr'):
         # CSV
-        current_filename = os.path.join(PATH, FILENAME.replace('.csv', f'_{str(year_value)}.csv'))
+        current_filename = os.path.join(DATA_PATH, FILENAME.replace('.csv', f'_{str(year_value)}.csv'))
         logging.info(f'Saving year {year_value} into {current_filename}...')
         year_df.to_csv(current_filename, index=False)
         common.upload_ftp(filename=current_filename, server=FTP_SERVER, user=FTP_USER,
