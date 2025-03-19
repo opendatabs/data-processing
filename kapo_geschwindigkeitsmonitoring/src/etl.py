@@ -147,6 +147,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn = sqlite3.connect(db_filename)
     df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
     common.create_indices(conn, table_name_direction, columns_to_index_direction)
+    '''
     # Load the SpatiaLite extension module
     conn.enable_load_extension(True)
     conn.load_extension("/usr/lib/x86_64-linux-gnu/mod_spatialite.so")
@@ -176,8 +177,9 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn.execute(
         f"SELECT CreateSpatialIndex('{table_name_direction}', 'geometry');"
     )
+    '''
 
-    # Ensure table is created if not exists, set up the schema by writing an empty DataFrame.
+    # Set up the schema by writing an empty DataFrame.
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
                  ).to_sql(name=table_name, con=conn, if_exists='replace', index=False)
