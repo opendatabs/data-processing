@@ -19,10 +19,7 @@ ENV LANGUAGE=de_CH:de
 ENV LC_ALL=de_CH.UTF-8
 
 # Install required system packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales \
-    tzdata \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get install -y --no-install-recommends locales=2.36-9+deb12u10 tzdata=2025a-0+deb12u1
 
 # Configure the system locale
 RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
@@ -40,4 +37,4 @@ CMD ["uv", "run", "-m", "src.etl"]
 # Docker commands to create image and run container:
 # cd mobilitaet_mikromobilitaet
 # docker build -t mobilitaet_mikromobilitaet . -f Dockerfile.etl
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet uv run -m src.etl
+# docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data-processing/mobilitaet_mikromobilitaet/data -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet uv run -m src.etl
