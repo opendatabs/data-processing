@@ -53,7 +53,7 @@ def main():
     con = pg.connect(PG_CONNECTION)
     logging.info(f'Reading data into dataframe...')
     df_meta_raw = psql.read_sql("""SELECT *, ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056) as the_geom_temp,
-        ST_AsGeoJSON(ST_Transform(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056),4326)) as the_geom_json,
+        ST_AsGeoJSON(ST_Transform(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056),4326)) as geometry,
         ST_AsEWKT(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056)) as the_geom_EWKT,
         ST_AsText('Point(' || x_coord || ' ' || y_coord || ')') as the_geom_WKT
         FROM projekte.geschwindigkeitsmonitoring""", con)
@@ -85,7 +85,7 @@ def create_metadata_per_location_df(df):
     df.to_csv(raw_metadata_filename, index=False)
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
 
-    df_metadata = df[['ID', 'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
+    df_metadata = df[['ID', 'the_geom', 'geometry', 'Strasse', 'Strasse_Nr', 'Ort', 'Geschwindigkeit',
                       'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
@@ -106,13 +106,13 @@ def create_metadata_per_direction_df(df_metadata):
     logging.info(f'Creating dataframe with one row per Messung-ID and Richtung-ID...')
     # Manual stacking of the columns for Richtung 1 and 2
     df_richtung1 = df_metadata[['ID', 'Richtung_1', 'Fzg_1', 'V50_1', 'V85_1', 'Ue_Quote_1',
-                                'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                                'the_geom', 'geometry', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung1 = df_richtung1.rename(
         columns={'ID': 'Messung-ID', 'Richtung_1': 'Richtung', 'Fzg_1': 'Fzg', 'V50_1': 'V50', 'V85_1': 'V85',
                  'Ue_Quote_1': 'Ue_Quote'})
     df_richtung1['Richtung ID'] = 1
     df_richtung2 = df_metadata[['ID', 'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2',
-                                'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                                'the_geom', 'geometry', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     df_richtung2 = df_richtung2.rename(
         columns={'ID': 'Messung-ID', 'Richtung_2': 'Richtung', 'Fzg_2': 'Fzg', 'V50_2': 'V50', 'V85_2': 'V85',
                  'Ue_Quote_2': 'Ue_Quote'})
@@ -121,7 +121,7 @@ def create_metadata_per_direction_df(df_metadata):
     df_richtung = df_richtung.sort_values(by=['Messung-ID', 'Richtung ID'])
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote',
-                               'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
+                               'the_geom', 'geometry', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
     richtung_filename = os.path.join(DATA_PATH, FILENAME.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
@@ -160,6 +160,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     logging.info(f'Creating SQLite connection for {db_filename}...')
     conn = sqlite3.connect(db_filename)
     df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists='replace', index=False)
+    conn.execute(f"ALTER TABLE {table_name_direction} DROP COLUMN the_geom;")
     common.create_indices(conn, table_name_direction, columns_to_index_direction)
     '''
     # Load the SpatiaLite extension module
@@ -197,8 +198,8 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     pd.DataFrame(columns=['Geschwindigkeit', 'Zeit', 'Datum', 'Richtung ID', 'Fahrzeuglänge', 'Messung-ID',
                           'Datum_Zeit', 'Timestamp']
                  ).to_sql(name=table_name, con=conn, if_exists='replace', index=False)
-    # Drop the_geom_json column since it is not needed anymore
-    df_metadata_per_direction = df_metadata_per_direction.drop(columns=['the_geom_json'])
+    # Drop geometry column since it is not needed anymore
+    df_metadata_per_direction = df_metadata_per_direction.drop(columns=['geometry'])
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
