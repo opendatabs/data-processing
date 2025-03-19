@@ -19,7 +19,7 @@ ENV LANGUAGE=de_CH:de
 ENV LC_ALL=de_CH.UTF-8
 
 # Install required system packages
-RUN apt-get install -y --no-install-recommends locales=2.36-9+deb12u9 tzdata=2024b-0+deb12u1
+RUN apt-get install -y --no-install-recommends locales=2.36-9 tzdata=2024b-0
 
 # Configure the system locale
 RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
