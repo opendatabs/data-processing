@@ -9,7 +9,7 @@ dependencies = [
     "filehash>=0.2.dev1",
     "more-itertools>=10.6.0",
     "pandas>=2.2.3",
-    "psycopg2==2.9.9",
+    "psycopg2-binary>=2.9.10",
     "pyarrow>=19.0.1",
     "pytest>=8.3.5",
     "python-dotenv>=1.0.1",
