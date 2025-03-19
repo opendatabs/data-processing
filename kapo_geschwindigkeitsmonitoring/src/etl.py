@@ -1,21 +1,35 @@
+import os
+import glob
 import logging
 import numpy as np
 import pandas as pd
-import glob
 import pandas.io.sql as psql
-import os
-import common
-from kapo_geschwindigkeitsmonitoring import credentials
 import psycopg2 as pg
+import sqlite3
 from charset_normalizer import from_path
+
+import common
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
-import sqlite3
+from dotenv import load_dotenv
+
+load_dotenv()
+PG_CONNECTION = os.getenv('PG_CONNECTION')
+PATH = os.getenv('PATH')
+FILENAME = os.getenv('FILENAME')
+DETAIL_DATA_Q_DRIVE = os.getenv('DETAIL_DATA_Q_DRIVE')
+DETAIL_DATA_Q_BASE_PATH = os.getenv('DETAIL_DATA_Q_BASE_PATH')
+FTP_SERVER = os.getenv('FTP_SERVER')
+FTP_USER = os.getenv('FTP_USER')
+FTP_PASS = os.getenv('FTP_PASS')
+FTP_REMOTE_PATH_DATA = os.getenv('FTP_REMOTE_PATH_DATA')
+FTP_REMOTE_PATH_ALL_DATA = os.getenv('FTP_REMOTE_PATH_ALL_DATA')
+FTP_REMOTE_PATH_METADATA = os.getenv('FTP_REMOTE_PATH_METADATA')
 
 
 # Add missing line breaks for lines with more than 5 columns
 def fix_data(filename, measure_id, encoding):
-    filename_fixed = os.path.join(credentials.path, 'fixed', measure_id + os.path.basename(filename))
+    filename_fixed = os.path.join(PATH, 'fixed', measure_id + os.path.basename(filename))
     # logging.info(f'Fixing data if necessary and writing to {filename_fixed}...')
     with open(filename, 'r', encoding=encoding) as input_file, \
             open(filename_fixed, 'w', encoding=encoding) as output_file:
@@ -36,7 +50,7 @@ def fix_data(filename, measure_id, encoding):
 
 def main():
     logging.info(f'Connecting to DB...')
-    con = pg.connect(credentials.pg_connection)
+    con = pg.connect(PG_CONNECTION)
     logging.info(f'Reading data into dataframe...')
     df_meta_raw = psql.read_sql("""SELECT *, ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056) as the_geom_temp,
         ST_AsGeoJSON(ST_Transform(ST_GeomFromText('Point(' || x_coord || ' ' || y_coord || ')', 2056),4326)) as the_geom_json,
@@ -66,7 +80,7 @@ def main():
 
 
 def create_metadata_per_location_df(df):
-    raw_metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_raw_metadata.csv'))
+    raw_metadata_filename = os.path.join(PATH, FILENAME.replace('.csv', '_raw_metadata.csv'))
     logging.info(f'Saving raw metadata (as received from db) csv and pickle to {raw_metadata_filename}...')
     df.to_csv(raw_metadata_filename, index=False)
     df.to_pickle(raw_metadata_filename.replace('.csv', '.pkl'))
@@ -76,13 +90,13 @@ def create_metadata_per_location_df(df):
                       'Richtung_2', 'Fzg_2', 'V50_2', 'V85_2', 'Ue_Quote_2', 'Messbeginn', 'Messende',
                       'messbeginn_jahr', 'dataset_id', 'link_zu_einzelmessungen']]
     df_metadata = df_metadata.rename(columns={'Geschwindigkeit': 'Zone'})
-    metadata_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_metadata.csv'))
+    metadata_filename = os.path.join(PATH, FILENAME.replace('.csv', '_metadata.csv'))
     logging.info(f'Exporting processed metadata csv and pickle to {metadata_filename}...')
     df_metadata.to_csv(metadata_filename, index=False)
     df_metadata.to_pickle(metadata_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=metadata_filename, method='hash'):
-        common.upload_ftp(filename=metadata_filename, server=credentials.ftp_server, user=credentials.ftp_user,
-                          password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+        common.upload_ftp(filename=metadata_filename, server=FTP_SERVER, user=FTP_USER,
+                          password=FTP_PASS, remote_path=FTP_REMOTE_PATH_METADATA)
         odsp.publish_ods_dataset_by_id('100112')
         ct.update_hash_file(metadata_filename)
     return df_metadata
@@ -108,13 +122,13 @@ def create_metadata_per_direction_df(df_metadata):
     # Changing column order
     df_richtung = df_richtung[['Messung-ID', 'Richtung ID', 'Richtung', 'Fzg', 'V50', 'V85', 'Ue_Quote',
                                'the_geom', 'the_geom_json', 'Strasse', 'Strasse_Nr', 'Ort', 'Zone', 'Messbeginn', 'Messende']]
-    richtung_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_richtung.csv'))
+    richtung_filename = os.path.join(PATH, FILENAME.replace('.csv', '_richtung.csv'))
     logging.info(f'Exporting richtung csv and pickle data to {richtung_filename}...')
     df_richtung.to_csv(richtung_filename, index=False)
     df_richtung.to_pickle(richtung_filename.replace('.csv', '.pkl'))
     if ct.has_changed(filename=richtung_filename, method='hash'):
-        common.upload_ftp(filename=richtung_filename, server=credentials.ftp_server, user=credentials.ftp_user,
-                          password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_metadata)
+        common.upload_ftp(filename=richtung_filename, server=FTP_SERVER, user=FTP_USER,
+                          password=FTP_PASS, remote_path=FTP_REMOTE_PATH_METADATA)
         odsp.publish_ods_dataset_by_id('100115')
         ct.update_hash_file(richtung_filename)
     return df_richtung
@@ -126,7 +140,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     logging.info(f'Removing metadata without data...')
     df_meta_raw = df_meta_raw.dropna(subset=['Verzeichnis'])
 
-    db_filename = os.path.join(credentials.path, 'datasette', 'Geschwindigkeitsmonitoring.db')
+    db_filename = os.path.join(PATH, 'datasette', 'Geschwindigkeitsmonitoring.db')
     table_name_direction = 'Kennzahlen_pro_Richtung'
     table_name = 'Einzelmessungen'
     # Columns to index
@@ -188,8 +202,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
-        metadata_file_path = credentials.detail_data_q_drive + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(
-            credentials.detail_data_q_base_path, '')
+        metadata_file_path = DETAIL_DATA_Q_DRIVE + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(DETAIL_DATA_Q_BASE_PATH, '')
         data_search_string = os.path.join(metadata_file_path, "**/*.txt")
         raw_files = glob.glob(data_search_string, recursive=True)
 
@@ -201,7 +214,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
         for i, file in enumerate(raw_files):
             file = file.replace('\\', '/')
-            filename_current_measure = os.path.join(credentials.path, 'processed', f'{str(measure_id)}_{i}.csv')
+            filename_current_measure = os.path.join(PATH, 'processed', f'{str(measure_id)}_{i}.csv')
             result = from_path(file)
             enc = result.best().encoding
             logging.info(f'Fixing errors and reading data into dataframe from {file}...')
@@ -246,29 +259,29 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     for obj in files_to_upload:
         if ct.has_changed(filename=obj['filename'], method='hash'):
             common.upload_ftp(filename=obj['filename'],
-                              server=credentials.ftp_server,
-                              user=credentials.ftp_user,
-                              password=credentials.ftp_pass,
-                              remote_path=f'{credentials.ftp_remote_path_data}/{obj["dataset_id"]}')
+                              server=FTP_SERVER,
+                              user=FTP_USER,
+                              password=FTP_PASS,
+                              remote_path=f'{FTP_REMOTE_PATH_DATA}/{obj["dataset_id"]}')
             ct.update_hash_file(obj['filename'])
 
     common.create_indices(conn, table_name, columns_to_index)
     conn.close()
     if ct.has_changed(filename=db_filename, method='hash'):
         common.upload_ftp(db_filename,
-                          credentials.ftp_server,
-                          credentials.ftp_user,
-                          credentials.ftp_pass,
-                          credentials.ftp_remote_path_data)
+                          FTP_SERVER,
+                          FTP_USER,
+                          FTP_PASS,
+                          FTP_REMOTE_PATH_DATA)
         ct.update_hash_file(db_filename)
 
     all_df = pd.concat(dfs)
-    pkl_filename = os.path.join(credentials.path, credentials.filename.replace('.csv', '_data.pkl'))
+    pkl_filename = os.path.join(PATH, FILENAME.replace('.csv', '_data.pkl'))
     all_df.to_pickle(pkl_filename)
 
     logging.info(f'All data processed and saved to {db_filename} and {pkl_filename}...')
     if ct.has_changed(filename=pkl_filename, method='hash'):
-        common.upload_ftp(db_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, '')
+        common.upload_ftp(db_filename, FTP_SERVER, FTP_USER, FTP_PASS, '')
         odsp.publish_ods_dataset_by_id('100097')
         odsp.publish_ods_dataset_by_id('100200')
         odsp.publish_ods_dataset_by_id('100358')
@@ -282,12 +295,11 @@ def create_measures_per_year(df_all):
     df_all['messbeginn_jahr'] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
     for year_value, year_df in df_all.groupby('messbeginn_jahr'):
         # CSV
-        current_filename = os.path.join(credentials.path,
-                                        credentials.filename.replace('.csv', f'_{str(year_value)}.csv'))
+        current_filename = os.path.join(PATH, FILENAME.replace('.csv', f'_{str(year_value)}.csv'))
         logging.info(f'Saving year {year_value} into {current_filename}...')
         year_df.to_csv(current_filename, index=False)
-        common.upload_ftp(filename=current_filename, server=credentials.ftp_server, user=credentials.ftp_user,
-                          password=credentials.ftp_pass, remote_path=credentials.ftp_remote_path_all_data)
+        common.upload_ftp(filename=current_filename, server=FTP_SERVER, user=FTP_USER,
+                          password=FTP_PASS, remote_path=FTP_REMOTE_PATH_ALL_DATA)
         os.remove(current_filename)
 
 
