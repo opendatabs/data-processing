@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
 WORKDIR /code/data-processing/jfs_gartenbaeder
 # Copy uv files and install dependencies
 COPY pyproject.toml .
