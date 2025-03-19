@@ -18,8 +18,13 @@ ENV LANG=de_CH.UTF-8
 ENV LANGUAGE=de_CH:de
 ENV LC_ALL=de_CH.UTF-8
 
-# Install required system packages
-RUN apt-get install -y --no-install-recommends locales tzdata
+# Install required system packages 
+# Need to run apt-get update first. Otherwise, the installation of locales will fail.
+# Need to run rm -rf /var/lib/apt/lists/* to clean up the package cache and reduce the image size.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales=2.36-9+deb12u9 \
+    tzdata=2024b-0+deb12u1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Configure the system locale
 RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
