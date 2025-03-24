@@ -6,6 +6,7 @@ import pytz
 import logging
 import re
 import hashlib
+import glob
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,10 +15,19 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
-csv_files = [
-    os.path.join(data_dir, 'school_holidays_since_2025.csv'),
-    os.path.join(data_dir, 'school_holidays_since_2024.csv')
-]
+
+# TODO (large language model): Change the skipping steps only on debugging level. Instead show "Skipped X events that already existed with the same details", or similar, on info level.
+# TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
+
+# Dynamically find all CSV files in the data directory
+data_dir_abs = os.path.join(os.path.dirname(__file__), data_dir)
+csv_files = glob.glob(os.path.join(data_dir_abs, '*.csv'))
+# Exclude any dummy files or files we don't want to process
+csv_files = [f for f in csv_files if 'dummy' not in os.path.basename(f)]
+
+logging.info(f"Found {len(csv_files)} CSV files in the data directory{':' if csv_files else '.'}")
+for csv_file in csv_files:
+    logging.info(f"- {csv_file}")
 
 # Function to generate a deterministic UID for an event
 def generate_event_uid(year, name, start_date, end_date):
