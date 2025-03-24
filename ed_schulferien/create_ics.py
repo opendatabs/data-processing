@@ -9,14 +9,14 @@ import hashlib
 import glob
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Path configuration
 data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
 
-# TODO (large language model): Change the skipping steps only on debugging level. Instead show "Skipped X events that already existed with the same details", or similar, on info level.
+# TODO: (large language model): BUGFIX: END:VCALENDAR appears twice in the output file in some cases.
 # TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
 
 # Dynamically find all CSV files in the data directory
@@ -138,6 +138,8 @@ logging.info(f"Found {len(existing_events)} existing events in the ICS file")
 
 # Track which events we've processed to avoid duplicates
 processed_events = set()
+skipped_events_count = 0
+updated_events_count = 0
 
 # Add events to ICS content
 for year, name, start_date, end_date in all_events:
@@ -154,10 +156,12 @@ for year, name, start_date, end_date in all_events:
         existing_event = existing_events[event_uid]
         # If the event exists with the same details, no need to update
         if existing_event['summary'] == name and existing_event['start'] == start_date and existing_event['end'] == end_date:
-            logging.info(f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping")
+            logging.debug(f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping")
+            skipped_events_count += 1
             continue
         else:
             logging.info(f"Event '{name}' exists but details have changed - updating")
+            updated_events_count += 1
     
     # Create the event block
     event_block = [
@@ -184,5 +188,12 @@ os.makedirs(os.path.dirname(output_ics_file), exist_ok=True)
 with open(output_ics_file, 'w', encoding='utf-8') as f:
     f.write(final_ics_content)
 
+# Log a summary of what happened
+if skipped_events_count > 0:
+    logging.info(f"Skipped {skipped_events_count} events that already existed with the same details")
+if updated_events_count > 0:
+    logging.info(f"Updated {updated_events_count} events that had changed details")
+    
+logging.info(f"Added {len(processed_events) - skipped_events_count - updated_events_count} new events")
 logging.info(f"ICS file created successfully at {output_ics_file}")
 logging.info("TODO: Upload the ICS file to the appropriate location")
