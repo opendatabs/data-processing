@@ -16,8 +16,13 @@ data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
 
-# TODO: (large language model): BUGFIX: END:VCALENDAR appears twice in the output file in some cases.
+# TODO: Make sure that conflicts are solved by taking the newest file, i.e. the one with the higher year number.
+# TODO: (large language model): BUGFIX: Skipped files are effectively deleted from the ics file.
 # TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
+# TODO: (large language model): call it from etl.py
+# TODO: Write unit tests to make sure that the correct dates are being used iny any (edge) cases. Which cases could realistically happen? Usually, only the newest file is being updated.
+# TODO: (renato): Upload it.
+
 
 # Dynamically find all CSV files in the data directory
 data_dir_abs = os.path.join(os.path.dirname(__file__), data_dir)
@@ -80,9 +85,13 @@ def parse_existing_ics(file_path):
     
     return existing_events
 
-# Read the template
+# Read the template and get just the header (everything up to BEGIN:VEVENT)
+template_lines = []
 with open(template_file, 'r', encoding='utf-8') as f:
-    template_content = f.read()
+    for line in f:
+        if line.strip() == "BEGIN:VEVENT":
+            break
+        template_lines.append(line.strip())
 
 # Get current time in UTC format for DTSTAMP
 zurich_tz = pytz.timezone('Europe/Zurich')
@@ -90,19 +99,8 @@ now_zurich = zurich_tz.localize(datetime.datetime.now())
 now_utc = now_zurich.astimezone(pytz.UTC)
 dtstamp = now_utc.strftime("%Y%m%dT%H%M%SZ")
 
-# Start with the template content, but remove the sample event
-lines = template_content.splitlines()
-ics_content = []
-for line in lines:
-    if not (line.startswith('BEGIN:VEVENT') or 
-            line.startswith('END:VEVENT') or 
-            line.startswith('DTSTAMP:') or 
-            line.startswith('DTSTART;') or 
-            line.startswith('DTEND;') or 
-            line.startswith('SUMMARY:') or 
-            line.startswith('UID:') or
-            line.startswith('LOCATION:')):
-        ics_content.append(line)
+# Use the template header as the base for our content
+ics_content = template_lines
 
 # Collect all events from CSV files
 all_events = []
