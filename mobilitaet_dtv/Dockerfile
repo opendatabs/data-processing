@@ -16,5 +16,5 @@ CMD ["uv", "run", "-m", "etl"]
 
 # Docker commands to create image and run container:
 # cd mobilitaet_dtv
-# docker build -t mobilitaet_dtv . -f Dockerfile.etl
+# docker build -t mobilitaet_dtv . -f Dockerfile
 # docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_dtv mobilitaet_dtv uv run -m etl
