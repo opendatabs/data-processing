@@ -2,21 +2,28 @@ import logging
 import os
 import numpy as np
 import pandas as pd
+
 import common
-from mobilitaet_dtv import credentials
 from common import change_tracking as ct
 import ods_publish.etl_id as odsp
+from dotenv import load_dotenv
+
+load_dotenv()
+
+RAW_METADATA_FILENAME = os.getenv('RAW_METADATA_FILENAME')
+RICHTUNG_METADATA_FILENAME = os.getenv('RICHTUNG_METADATA_FILENAME')
+DATA_FILENAME = os.getenv('DATA_FILENAME')
 
 
 def main():
-    if ct.has_changed(credentials.raw_metadata_filename) or ct.has_changed(credentials.richtung_metadata_filename) or ct.has_changed(credentials.data_filename):
+    if ct.has_changed(RAW_METADATA_FILENAME) or ct.has_changed(RICHTUNG_METADATA_FILENAME) or ct.has_changed(DATA_FILENAME):
         logging.info(f'Reading pickle data files created by kapo_geschwindigkitsmonitoring.etl:')
-        logging.info(f'Reading into df from pickle {credentials.raw_metadata_filename}...')
-        df_metadata_raw = pd.read_pickle(credentials.raw_metadata_filename)
-        logging.info(f'Reading into df from pickle {credentials.richtung_metadata_filename}...')
-        df_metadata_richtung = pd.read_pickle(credentials.richtung_metadata_filename)
-        logging.info(f'Reading into df from pickle {credentials.data_filename}...')
-        df_data = pd.read_pickle(credentials.data_filename)
+        logging.info(f'Reading into df from pickle {RAW_METADATA_FILENAME}...')
+        df_metadata_raw = pd.read_pickle(RAW_METADATA_FILENAME)
+        logging.info(f'Reading into df from pickle {RICHTUNG_METADATA_FILENAME}...')
+        df_metadata_richtung = pd.read_pickle(RICHTUNG_METADATA_FILENAME)
+        logging.info(f'Reading into df from pickle {DATA_FILENAME}...')
+        df_data = pd.read_pickle(DATA_FILENAME)
         logging.info(f'Data now in memory!')
 
         logging.info(f'Calculating Laengenklasse...')
@@ -72,13 +79,10 @@ def main():
         export_filename = os.path.join(os.path.dirname(__file__), 'data', 'dtv.csv')
         logging.info(f'Exporting data to {export_filename}...')
         df_export.to_csv(export_filename, index=False)
-        if ct.has_changed(export_filename):
-            common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'mobilitaet/dtv')
-            odsp.publish_ods_dataset_by_id('100199')
-            ct.update_hash_file(export_filename)
-        ct.update_hash_file(credentials.raw_metadata_filename)
-        ct.update_hash_file(credentials.richtung_metadata_filename)
-        ct.update_hash_file(credentials.data_filename)
+        common.update_ftp_and_odsp(export_filename, 'mobilitaet_dtv', '100199')
+        ct.update_hash_file(RAW_METADATA_FILENAME)
+        ct.update_hash_file(RICHTUNG_METADATA_FILENAME)
+        ct.update_hash_file(DATA_FILENAME)
 
 
 if __name__ == "__main__":
