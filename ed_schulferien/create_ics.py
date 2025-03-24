@@ -4,9 +4,11 @@ import uuid
 import datetime
 import pytz
 import logging
+import re
+import hashlib
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Path configuration
 data_dir = 'data'
@@ -16,6 +18,57 @@ csv_files = [
     os.path.join(data_dir, 'school_holidays_since_2025.csv'),
     os.path.join(data_dir, 'school_holidays_since_2024.csv')
 ]
+
+# Function to generate a deterministic UID for an event
+def generate_event_uid(year, name, start_date, end_date):
+    # Create a unique string combining all event properties
+    event_str = f"{year}_{name}_{start_date}_{end_date}"
+    # Create a hash and use it as the basis for the UUID
+    hash_obj = hashlib.md5(event_str.encode())
+    # Convert to a UUID format
+    return str(uuid.UUID(hex=hash_obj.hexdigest()))
+
+# Function to parse existing ICS file if it exists
+def parse_existing_ics(file_path):
+    if not os.path.exists(file_path):
+        return {}
+    
+    existing_events = {}
+    current_event = None
+    event_uid = None
+    event_summary = None
+    event_start = None
+    event_end = None
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line == "BEGIN:VEVENT":
+                    current_event = {}
+                elif line == "END:VEVENT":
+                    if event_uid and (event_summary or event_start or event_end):
+                        existing_events[event_uid] = {
+                            'summary': event_summary,
+                            'start': event_start,
+                            'end': event_end
+                        }
+                    current_event = None
+                    event_uid = event_summary = event_start = event_end = None
+                elif current_event is not None:
+                    if line.startswith("UID:"):
+                        event_uid = line[4:]
+                    elif line.startswith("SUMMARY:"):
+                        event_summary = line[8:]
+                    elif line.startswith("DTSTART;VALUE=DATE:"):
+                        event_start = line[19:]
+                    elif line.startswith("DTEND;VALUE=DATE:"):
+                        event_end = line[17:]
+    except Exception as e:
+        logging.error(f"Error parsing existing ICS file: {e}")
+        return {}
+    
+    return existing_events
 
 # Read the template
 with open(template_file, 'r', encoding='utf-8') as f:
@@ -69,11 +122,34 @@ for csv_file in csv_files:
 # Sort events by start date
 all_events.sort(key=lambda x: x[2])
 
-# TODO (large language model): Check whether the event already exists and hasn't changed, then it should not be updated.
+# Check if events already exist in the ICS file
+existing_events = parse_existing_ics(output_ics_file)
+logging.info(f"Found {len(existing_events)} existing events in the ICS file")
+
+# Track which events we've processed to avoid duplicates
+processed_events = set()
 
 # Add events to ICS content
 for year, name, start_date, end_date in all_events:
-    event_uid = str(uuid.uuid4())
+    # Generate a deterministic UID for this event
+    event_uid = generate_event_uid(year, name, start_date, end_date)
+    
+    # Skip if we've already processed this event
+    if event_uid in processed_events:
+        continue
+    processed_events.add(event_uid)
+    
+    # Check if this event already exists in the ICS file
+    if event_uid in existing_events:
+        existing_event = existing_events[event_uid]
+        # If the event exists with the same details, no need to update
+        if existing_event['summary'] == name and existing_event['start'] == start_date and existing_event['end'] == end_date:
+            logging.info(f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping")
+            continue
+        else:
+            logging.info(f"Event '{name}' exists but details have changed - updating")
+    
+    # Create the event block
     event_block = [
         "",  # Add blank line before event
         "BEGIN:VEVENT",
