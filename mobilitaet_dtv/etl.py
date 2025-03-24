@@ -27,7 +27,7 @@ def main():
         logging.info(f'Data now in memory!')
 
         logging.info(f'Calculating Laengenklasse...')
-        bins =      [np.NINF, 3.5,    8,                 np.inf]
+        bins =      [-np.inf, 3.5,    8,                 np.inf]
         # labels =    ['klein', 'mittel', 'gross']
         labels =    ['lt_3.5m',         '3.5_to_lt_8m',    'gte_8m']
         df_data['Laengenklasse'] = pd.cut(df_data['Fahrzeuglänge'], bins=bins, labels=labels, right=False, include_lowest=True)
