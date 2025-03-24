@@ -3,6 +3,10 @@ import csv
 import uuid
 import datetime
 import pytz
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Path configuration
 data_dir = 'data'
@@ -52,13 +56,12 @@ for csv_file in csv_files:
                 start_date_formatted = start_date.replace('-', '')
                 end_date_formatted = end_date.replace('-', '')
 
-                # TODO (large language model): Change print to logging statement
-                # Also make sure that the dates are exactly 8 characters long and numbers only, if not, skip the event
+                # Make sure that the dates are exactly 8 characters long and numbers only, if not, skip the event
                 if len(start_date_formatted) != 8 or not start_date_formatted.isdigit():
-                    print(f"Invalid start date: {start_date_formatted}")
+                    logging.warning(f"Invalid start date: {start_date_formatted}")
                     continue
                 if len(end_date_formatted) != 8 or not end_date_formatted.isdigit():
-                    print(f"Invalid end date: {end_date_formatted}")
+                    logging.warning(f"Invalid end date: {end_date_formatted}")
                     continue
                 
                 all_events.append((year, name, start_date_formatted, end_date_formatted))
@@ -95,5 +98,5 @@ os.makedirs(os.path.dirname(output_ics_file), exist_ok=True)
 with open(output_ics_file, 'w', encoding='utf-8') as f:
     f.write(final_ics_content)
 
-print(f"ICS file created successfully at {output_ics_file}")
-print("TODO: Upload the ICS file to the appropriate location")
+logging.info(f"ICS file created successfully at {output_ics_file}")
+logging.info("TODO: Upload the ICS file to the appropriate location")
