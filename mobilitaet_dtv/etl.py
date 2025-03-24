@@ -79,7 +79,7 @@ def main():
         export_filename = os.path.join(os.path.dirname(__file__), 'data', 'dtv.csv')
         logging.info(f'Exporting data to {export_filename}...')
         df_export.to_csv(export_filename, index=False)
-        common.update_ftp_and_odsp(export_filename, 'mobilitaet_dtv', '100199')
+        common.update_ftp_and_odsp(export_filename, 'mobilitaet/dtv', '100199')
         ct.update_hash_file(RAW_METADATA_FILENAME)
         ct.update_hash_file(RICHTUNG_METADATA_FILENAME)
         ct.update_hash_file(DATA_FILENAME)
