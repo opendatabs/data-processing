@@ -11,7 +11,7 @@ import vobject
 from bs4 import BeautifulSoup
 
 import common
-from ed_schulferien import credentials
+from ed_schulferien import credentials, create_ics
 
 website_to_fetch_from = "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
 
@@ -141,6 +141,33 @@ def clean_data_orig_folder(data_orig_path_abs) -> None:
 
     logging.info(f'All files and folders in "{data_orig_path_abs}" except dummy.txt have been deleted.')
 
+def update_ics_file_on_ftp_server() -> None:
+    # Generate ICS file using create_ics.py
+    logging.info("Generating ICS file...")
+    try:
+        ics_file_name = create_ics.main()
+        logging.info(f"ICS file generation completed successfully: {ics_file_name}")
+
+        # Upload the ICS file to FTP server
+        if os.path.exists(ics_file_name):
+            logging.info(f"Uploading ICS file to FTP server...")
+            remote_path = "ed/schulferien"
+            try:
+                common.upload_ftp(
+                    filename=ics_file_name,
+                    server=common.credentials.ftp_server,
+                    user=common.credentials.ftp_user,
+                    password=common.credentials.ftp_pass,
+                    remote_path=remote_path
+                )
+                logging.info(f"ICS file uploaded successfully to FTP server in folder '{remote_path}'")
+            except Exception as e:
+                logging.error(f"Error uploading ICS file to FTP server: {str(e)}")
+        else:
+            logging.error(f"ICS file not found at path: {ics_file_name}")
+    except Exception as e:
+        logging.error(f"Error generating ICS file: {str(e)}")
+
 def main():
     # TODO: This is really ugly, but the easiest way I found to make it runnable both locally and on the server
     script_dir = pathlib.Path(__file__).parent.absolute()
@@ -168,6 +195,8 @@ def main():
     push_all_data_csv_with_realtime_push(data_path_abs=data_path_abs)
 
     clean_data_orig_folder(data_orig_path_abs=data_orig_path_abs)
+
+    update_ics_file_on_ftp_server()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
