@@ -24,6 +24,12 @@ YEAR_RANGE_START = current_year - 2  # Previous school year (better more than no
 YEAR_RANGE_END = current_year + 3    # Approximately 3 years in the future
 # IMPORTANT: If these year ranges are modified, make sure to update the description in the SchulferienBS.ics.template file as well
 
+# Function to add one day to a date string in YYYYMMDD format
+def add_one_day(date_str):
+    date_obj = datetime.datetime.strptime(date_str, "%Y%m%d")
+    next_day = date_obj + datetime.timedelta(days=1)
+    return next_day.strftime("%Y%m%d")
+
 # Function to extract year from CSV filename
 def extract_year_from_filename(filename):
     match = re.search(r'school_holidays_since_(\d+)\.csv', os.path.basename(filename))
@@ -75,10 +81,10 @@ def parse_existing_ics(file_path):
                         event_uid = line[4:]
                     elif line.startswith("SUMMARY:"):
                         event_summary = line[8:]
-                    elif line.startswith("DTSTART;VALUE=DATE:"):
-                        event_start = line[19:]
-                    elif line.startswith("DTEND;VALUE=DATE:"):
-                        event_end = line[17:]
+                    elif line.startswith("DTSTART:"):
+                        event_start = line[8:]
+                    elif line.startswith("DTEND:"):
+                        event_end = line[6:]
                     elif line.startswith("DTSTAMP:"):
                         event_dtstamp = line[8:]
     except Exception as e:
@@ -194,11 +200,12 @@ def main():
                 event_timestamp = existing_event['dtstamp'] if existing_event['dtstamp'] else dtstamp
                 
                 # We still need to add the existing event to the output
+                end_date_exclusive = add_one_day(end_date)
                 event_block = [
                     "BEGIN:VEVENT",
                     f"DTSTAMP:{event_timestamp}",
-                    f"DTSTART;VALUE=DATE:{start_date}",
-                    f"DTEND;VALUE=DATE:{end_date}",
+                    f"DTSTART:{start_date}",
+                    f"DTEND:{end_date_exclusive}",
                     f"SUMMARY:{name}",
                     f"UID:{event_uid}",
                     "LOCATION:Basel-Stadt, Schweiz",
@@ -211,12 +218,15 @@ def main():
                 # The event will be updated by proceeding with the code below
                 updated_events_count += 1
         
+        # Add one day to end date for exclusive range
+        end_date_exclusive = add_one_day(end_date)
+        
         # Create the event block
         event_block = [
             "BEGIN:VEVENT",
             f"DTSTAMP:{dtstamp}",
-            f"DTSTART;VALUE=DATE:{start_date}",
-            f"DTEND;VALUE=DATE:{end_date}",
+            f"DTSTART:{start_date}",
+            f"DTEND:{end_date_exclusive}",
             f"SUMMARY:{name}",
             f"UID:{event_uid}",
             "LOCATION:Basel-Stadt, Schweiz",
@@ -236,11 +246,14 @@ def main():
                 # Use the original timestamp for preserved events
                 event_timestamp = event['dtstamp'] if event['dtstamp'] else dtstamp
                 
+                # Add one day to end date for exclusive range
+                end_date_exclusive = add_one_day(event['end'])
+                
                 event_block = [
                     "BEGIN:VEVENT",
                     f"DTSTAMP:{event_timestamp}",
-                    f"DTSTART;VALUE=DATE:{event['start']}",
-                    f"DTEND;VALUE=DATE:{event['end']}",
+                    f"DTSTART:{event['start']}",
+                    f"DTEND:{end_date_exclusive}",
                     f"SUMMARY:{summary}",
                     f"UID:{uid}",
                     "LOCATION:Basel-Stadt, Schweiz",
