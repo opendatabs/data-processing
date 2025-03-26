@@ -16,13 +16,19 @@ data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
 
-# TODO: Make sure that conflicts are solved by taking the newest file, i.e. the one with the higher year number.
 # TODO: (large language model): BUGFIX: Skipped files are effectively deleted from the ics file.
 # TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
 # TODO: (large language model): call it from etl.py
 # TODO: Write unit tests to make sure that the correct dates are being used iny any (edge) cases. Which cases could realistically happen? Usually, only the newest file is being updated.
 # TODO: (renato): Upload it.
 
+# Function to extract year from CSV filename
+def extract_year_from_filename(filename):
+    match = re.search(r'school_holidays_since_(\d+)\.csv', os.path.basename(filename))
+    if match:
+        return int(match.group(1))
+    logging.warning(f"No year found in filename: {filename}")
+    return 0  # Default for files that don't match the pattern
 
 # Dynamically find all CSV files in the data directory
 data_dir_abs = os.path.join(os.path.dirname(__file__), data_dir)
@@ -30,9 +36,13 @@ csv_files = glob.glob(os.path.join(data_dir_abs, '*.csv'))
 # Exclude any dummy files or files we don't want to process
 csv_files = [f for f in csv_files if 'dummy' not in os.path.basename(f)]
 
+# Sort files by year (descending) so newer files are processed first
+csv_files.sort(key=extract_year_from_filename, reverse=True)
+
 logging.info(f"Found {len(csv_files)} CSV files in the data directory{':' if csv_files else '.'}")
 for csv_file in csv_files:
-    logging.info(f"- {csv_file}")
+    year = extract_year_from_filename(csv_file)
+    logging.info(f"- {csv_file} (year: {year})")
 
 # Function to generate a deterministic UID for an event
 def generate_event_uid(year, name, start_date, end_date):
