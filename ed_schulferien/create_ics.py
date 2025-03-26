@@ -185,6 +185,19 @@ def main():
             if existing_summary == name and existing_event['start'] == start_date and existing_event['end'] == end_date:
                 logging.debug(f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping")
                 skipped_events_count += 1
+                # We still need to add the existing event to the output
+                event_block = [
+                    "",  # Add blank line before event
+                    "BEGIN:VEVENT",
+                    f"DTSTAMP:{existing_event['dtstamp']}",
+                    f"DTSTART;VALUE=DATE:{start_date}",
+                    f"DTEND;VALUE=DATE:{end_date}",
+                    f"SUMMARY:{name}",
+                    f"UID:{event_uid}",
+                    "LOCATION:Basel-Stadt, Schweiz",
+                    "END:VEVENT"
+                ]
+                ics_content.extend(event_block)
                 continue
             else:
                 logging.info(f"Event '{name}' exists but details have changed - updating")
