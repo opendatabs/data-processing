@@ -195,7 +195,6 @@ def main():
                 
                 # We still need to add the existing event to the output
                 event_block = [
-                    "",  # Add blank line before event
                     "BEGIN:VEVENT",
                     f"DTSTAMP:{event_timestamp}",
                     f"DTSTART;VALUE=DATE:{start_date}",
@@ -214,7 +213,6 @@ def main():
         
         # Create the event block
         event_block = [
-            "",  # Add blank line before event
             "BEGIN:VEVENT",
             f"DTSTAMP:{dtstamp}",
             f"DTSTART;VALUE=DATE:{start_date}",

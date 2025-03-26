@@ -5,7 +5,6 @@ CALSCALE:GREGORIAN
 X-WR-CALNAME:Schulferien Kanton Basel-Stadt
 X-WR-TIMEZONE:Europe/Zurich
 X-WR-CALDESC:Dieser Kalender enthält die Schulferien des Kantons Basel-Stadt. Zur Referenz sind vergangene Ferien des aktuellen und vorherigen Schuljahres sowie zukünftige Ferien für ungefähr 3 Jahre im Voraus enthalten.
-
 BEGIN:VEVENT
 DTSTAMP:20250320T094500Z
 DTSTART;VALUE=DATE:20250320
@@ -14,5 +13,4 @@ SUMMARY:Test-Termin
 UID:<UID>
 LOCATION:Basel-Stadt, Schweiz
 END:VEVENT
-
 END:VCALENDAR
