@@ -58,6 +58,17 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         # dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(miv_data, miv_filename, dest_path)
         generated_filenames += generate_files(velo_data, velo_filename, dest_path)
+        # Add data to databases
+        logging.info(f'Adding data to database MIV')
+        conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
+        miv_data.to_sql('MIV', conn, if_exists='append', index=False)
+        conn.commit()
+        conn.close()
+        logging.info(f'Adding data to database Velo_Fuss')
+        conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'Velo_Fuss.db'))
+        velo_data.to_sql('Velo_Fuss', conn, if_exists='append', index=False)
+        conn.commit()
+        conn.close()
     # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
     elif 'FLIR' in filename:
         logging.info(f'Retrieving Zst_id as the SiteCode...')
@@ -67,6 +78,18 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         # TODO: Add this
         # dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(data, filename, dest_path)
+        if 'MIV' in filename:
+            logging.info(f'Adding data to database MIV')
+            conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
+            data.to_sql('MIV', conn, if_exists='append', index=False)
+            conn.commit()
+            conn.close()
+        else:
+            logging.info(f'Adding data to database Velo_Fuss')
+            conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'Velo_Fuss.db'))
+            data.to_sql('Velo_Fuss', conn, if_exists='append', index=False)
+            conn.commit()
+            conn.close()
     # 'MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv'
     else:
         logging.info(f'Retrieving Zst_id as the first word in SiteName...')
@@ -74,6 +97,24 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         logging.info(f'Creating files for dashboard for the following data: {filename}...')
         dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(data, filename, dest_path)
+        if 'MIV_Class' in filename:
+            logging.info(f'Adding data to database MIV')
+            conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
+            data.to_sql('MIV', conn, if_exists='append', index=False)
+            conn.commit()
+            conn.close()
+        if 'Velo_Fuss_Count' in filename:
+            logging.info(f'Adding data to database Velo_Fuss')
+            conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'Velo_Fuss.db'))
+            data.to_sql('Velo_Fuss', conn, if_exists='append', index=False)
+            conn.commit()
+            conn.close()
+        if 'MIV_Speed' in filename:
+            logging.info(f'Adding data to database MIV_Geschwindigkeitsklassen')
+            conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV_Geschwindigkeitsklassen.db'))
+            data.to_sql('MIV_Geschwindigkeitsklassen', conn, if_exists='append', index=False)
+            conn.commit()
+            conn.close()
 
     logging.info(f'Created the following files to further processing: {str(generated_filenames)}')
     return generated_filenames
@@ -85,12 +126,6 @@ def generate_files(df, filename, dest_path):
     logging.info(f"Saving {current_filename}...")
     df.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     generated_filenames.append(current_filename)
-
-    db_filename = os.path.join(dest_path, 'datasette', filename.replace('.csv', '.db'))
-    logging.info(f'Saving into sqlite db {db_filename}...')
-    conn = sqlite3.connect(db_filename)
-    df.to_sql(name=db_filename.split(os.sep)[-1].replace('.db', ''), con=conn, if_exists='replace', index=False)
-    common.upload_ftp(db_filename, FTP_SERVER, FTP_USER, FTP_PASS, '')
 
     # Only keep latest n years of data
     keep_years = 2
@@ -116,6 +151,153 @@ def generate_files(df, filename, dest_path):
     return generated_filenames
 
 
+def create_databases():
+    '''
+    Creates three empty SQLite databases for the MIV, Velo_Fuss and MIV_Geschwindigkeitsklassen data.
+    '''
+    logging.info('Creating databases...')
+    logging.info('Creating MIV database...')
+    conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE MIV (
+        Zst_id TEXT
+        SiteCode TEXT,
+        SiteName TEXT, 
+        DateTimeFrom TEXT, 
+        DateTimeTo TEXT, 
+        DirectionName TEXT, 
+        LaneCode INT,
+        LaneName TEXT, 
+        ValuesApproved INT,
+        ValuesEdited INT,
+        TrafficType TEXT, 
+        Total INT,
+        MR INT,
+        PW INT,
+        PW+ INT,
+        Lief INT,
+        Lief+ INT,
+        Lief+Aufl INT,
+        LW INT,
+        LW+ INT,
+        Sattelzug INT,
+        Bus INT,
+        andere INT,
+        Year INT, 
+        Month INT, 
+        Day INT, 
+        Weekday INT, 
+        HourFrom INT, 
+        Date TEXT, 
+        TimeFrom TEXT, 
+        TimeTo TEXT, 
+        DayOfYear INT
+    )
+    ''')
+    conn.commit()
+    conn.close()
+
+    logging.info('Creating Velo_Fuss database...')
+    conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'Velo_Fuss.db'))
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE Velo_Fuss (
+        Zst_id TEXT,
+        SiteCode TEXT,
+        SiteName TEXT,
+        DateTimeFrom TEXT,
+        DateTimeTo TEXT,
+        DirectionName TEXT,
+        LaneCode INT,
+        LaneName TEXT,
+        ValuesApproved INT,
+        ValuesEdited INT,
+        TrafficType TEXT,
+        Total INT,
+        Year INT,
+        Month INT,
+        Day INT,
+        Weekday INT,
+        HourFrom INT,
+        Date TEXT,
+        TimeFrom TEXT,
+        TimeTo TEXT,
+        DayOfYear INT
+    )
+    ''')
+    conn.commit()
+    conn.close()
+
+    logging.info('Creating MIV_Geschwindigkeitsklassen database...')
+    conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV_Geschwindigkeitsklassen.db'))
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE MIV_Geschwindigkeitsklassen (
+        Zst_id TEXT,
+        SiteCode TEXT,
+        SiteName TEXT,
+        DateTimeFrom TEXT,
+        DateTimeTo TEXT,
+        DirectionName TEXT,
+        LaneCode INT,
+        LaneName TEXT,
+        ValuesApproved INT,
+        ValuesEdited INT,
+        TrafficType TEXT,
+        Total INT,
+        '<20' INT,
+        '20-30' INT,
+        '30-40' INT,
+        '40-50' INT,
+        '50-60' INT,
+        '60-70' INT,
+        '70-80' INT,
+        '80-90' INT,
+        '90-100' INT,
+        '100-110' INT,
+        '110-120' INT,
+        '120-130' INT,
+        '>130' INT,
+        Year INT,
+        Month INT,
+        Day INT,
+        Weekday INT,
+        HourFrom INT,
+        Date TEXT,
+        TimeFrom TEXT,
+        TimeTo TEXT,
+        DayOfYear INT
+    )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+def create_indices_databases():
+    columns_to_index_miv = ['Zst_id', 'SiteCode', 'SiteName', 'DateTimeFrom', 'DateTimeTo', 'DirectionName', 'LaneCode',
+                            'LaneName', 'ValuesApproved', 'ValuesEdited', 'Year', 'Month', 'Day', 'Weekday',
+                            'HourFrom', 'Date', 'TimeFrom', 'TimeTo', 'DayOfYear']
+    columns_to_index_velo_fuss = ['Zst_id', 'SiteCode', 'SiteName', 'DateTimeFrom', 'DateTimeTo', 'DirectionName',
+                                  'LaneCode', 'LaneName', 'ValuesApproved', 'ValuesEdited', 'Year', 'Month', 'Day',
+                                  'Weekday', 'HourFrom', 'Date', 'TimeFrom', 'TimeTo', 'DayOfYear']
+    
+    conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
+    common.create_indices(conn, 'MIV', columns_to_index_miv)
+    conn.commit()
+    conn.close()
+
+    conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'Velo_Fuss.db'))
+    common.create_indices(conn, 'Velo_Fuss', columns_to_index_velo_fuss)
+    conn.commit()
+    conn.close()
+
+    conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV_Geschwindigkeitsklassen.db'))
+    common.create_indices(conn, 'MIV_Geschwindigkeitsklassen', columns_to_index_miv)
+    conn.commit()
+    conn.close()
+
+
 def main():
     no_file_copy = False
     if 'no_file_copy' in sys.argv:
@@ -123,6 +305,7 @@ def main():
         logging.info('Proceeding without copying files...')
 
     dashboard_calc.download_weather_station_data(PATH_DEST)
+    create_databases()
 
     filename_orig = ['MIV_Class_10_1.csv', 'Velo_Fuss_Count.csv', 'MIV_Speed.csv',
                      'LSA_Count.csv',
@@ -146,6 +329,8 @@ def main():
             if ct.has_changed(path_to_file):
                 common.upload_ftp(path_to_file, FTP_SERVER, FTP_USER, FTP_PASS, '')
                 ct.update_hash_file(path_to_file)
+    
+    create_indices_databases()
 
 
 if __name__ == "__main__":
