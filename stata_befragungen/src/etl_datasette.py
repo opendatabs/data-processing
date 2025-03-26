@@ -41,11 +41,11 @@ def main():
     ]
 
     for ds in datasets:
-        convert_to_datasette(data_file=ds['data_file'], var_file=ds['var_file'], export_folder=ds['export_folder'],
-                            export_file=ds['export_file'], ftp_folder=ds['ftp_folder'])
+        convert_to_sqlite(data_file=ds['data_file'], var_file=ds['var_file'], export_folder=ds['export_folder'],
+                          export_file=ds['export_file'], ftp_folder=ds['ftp_folder'])
 
 
-def convert_to_datasette(data_file, var_file, export_folder, export_file, ftp_folder):
+def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folder):
     if ct.has_changed(data_file):
         # Load the data
         data = pd.read_csv(data_file)
