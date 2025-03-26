@@ -255,13 +255,12 @@ def main():
     # Add final newline and END:VCALENDAR
     ics_content.extend(["END:VCALENDAR"])
 
-    # Create the final ICS content
-    final_ics_content = '\n'.join(ics_content)
-
-    # Write to output file
+    # Create the final ICS content with proper CRLF line endings (RFC 5545)
+    # Write to output file in binary mode to avoid platform-specific newline handling
     os.makedirs(os.path.dirname(output_ics_file), exist_ok=True)
-    with open(output_ics_file, 'w', encoding='utf-8') as f:
-        f.write(final_ics_content)
+    with open(output_ics_file, 'wb') as f:
+        for line in ics_content:
+            f.write(f"{line}\r\n".encode('utf-8'))
 
     # Log a summary of what happened
     if skipped_events_count > 0:
