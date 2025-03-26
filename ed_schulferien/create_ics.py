@@ -237,7 +237,6 @@ def main():
                 event_timestamp = event['dtstamp'] if event['dtstamp'] else dtstamp
                 
                 event_block = [
-                    "",  # Add blank line before event
                     "BEGIN:VEVENT",
                     f"DTSTAMP:{event_timestamp}",
                     f"DTSTART;VALUE=DATE:{event['start']}",
@@ -254,7 +253,7 @@ def main():
                 deleted_events_count += 1
 
     # Add final newline and END:VCALENDAR
-    ics_content.extend(["", "END:VCALENDAR", ""])
+    ics_content.extend(["END:VCALENDAR"])
 
     # Create the final ICS content
     final_ics_content = '\n'.join(ics_content)
