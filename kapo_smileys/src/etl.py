@@ -4,12 +4,20 @@ import os
 import shapefile  # library pyshp
 import common
 import pandas as pd
+import sqlite3
 import pytz
 from datetime import timedelta
 import numpy as np
 from common import change_tracking as ct
 import zipfile
 import io
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATA_PATH = os.getenv('DATA_PATH')
+DATA_ORIG_PATH = os.getenv('DATA_ORIG_PATH')
 
 
 # see https://gist.github.com/aerispaha/f098916ac041c286ae92d037ba5c37ba
@@ -23,11 +31,11 @@ def read_shapefile(shp_path):
     return df
 
 
-def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
-    messdaten_path = os.path.join(curr_dir, 'data_orig', 'Datenablage')
-    list_path = os.path.join(curr_dir, 'data', 'list_files.txt')
+def parse_messdaten(df_einsatz_days, df_einsaetze):
+    messdaten_path = os.path.join(DATA_ORIG_PATH, 'Datenablage')
+    list_path = os.path.join(DATA_PATH, 'list_files.txt')
     common.list_files(messdaten_path, list_path, recursive=True)
-    if ct.has_changed(list_path):
+    if True or ct.has_changed(list_path):
         messdaten_folders = glob.glob(os.path.join(messdaten_path, '*'))
         messdaten_dfs = []
         stat_dfs = []
@@ -40,19 +48,19 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
                 logging.warning(f'Data in the folder {folder}, but either id_standort {id_standort} '
                                 'not in Einsatzplan or with non-valid values!')
                 continue
-            df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days,
-                                                                                      df_einsaetze, id_standort)
+            df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(folder, df_einsatz_days, df_einsaetze, id_standort)
             messdaten_dfs.append(df_all_pro_standort)
             stat_dfs.append(df_stat_pro_standort)
 
         all_df = pd.concat(messdaten_dfs)
-        export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
+        export_file_all = os.path.join(DATA_PATH, 'all_data.csv')
         all_df.to_csv(export_file_all, index=False)
 
         stat_df = pd.concat(stat_dfs)
-        export_file_stats = os.path.join(curr_dir, 'data', 'all_stat.csv')
+        export_file_stats = os.path.join(DATA_PATH, 'all_stat.csv')
         stat_df.to_csv(export_file_stats, index=False)
 
+        df_to_sqlite(all_df)
         ct.update_hash_file(list_path)
         return export_file_all, export_file_stats
     return None, None
@@ -67,7 +75,7 @@ def is_dt(datetime, timezone):
         return False
 
 
-def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze, id_standort):
+def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_standort):
     logging.info(f'Working through folder {folder}...')
     # Go recursively into folders until TXT files are found
     tagesdaten_files = glob.glob(os.path.join(folder, '**', '*.TXT'), recursive=True)
@@ -114,7 +122,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         df_m = df_m[df_m.Phase != 'Vor Vormessung']
 
         messdaten_dfs_pro_standort.append(df_m)
-        export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
+        export_file_single = os.path.join(DATA_PATH, f'{day_str}_{id_standort}.csv')
         df_m.to_csv(export_file_single, index=False)
         if not df_m.empty:
             common.upload_ftp(export_file_single, remote_path=f'kapo/smileys/data/zyklus{int(df_m.Zyklus.iloc[0])}')
@@ -169,9 +177,8 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
     return df_all_pro_standort, df_stats_pro_standort
 
 
-def parse_einsatzplaene(curr_dir):
-    einsatzplan_files = glob.glob(
-        os.path.join(curr_dir, 'data_orig', 'Einsatzplan', 'Zyklus_[0-9][0-9]_20[0-9][0-9].xlsx'))
+def parse_einsatzplaene():
+    einsatzplan_files = glob.glob(os.path.join(DATA_ORIG_PATH, 'Einsatzplan', 'Zyklus_[0-9][0-9]_20[0-9][0-9].xlsx'))
     einsatzplan_dfs = []
     for f in einsatzplan_files:
         # Throws error with openpyxl versions bigger than 3.0.10 since files are filtered
@@ -208,13 +215,120 @@ def parse_einsatzplaene(curr_dir):
     return df_einsaetze
 
 
+def df_to_sqlite(df):
+    # Extract the two tables from the DataFrame
+    df_einsatzplan = df[['id_standort', 'Zyklus', 'Strassenname', 'Geschwindigkeit', 'Ort_Abkuerzung',
+                         'Start_Vormessung', 'Start_Betrieb', 'Start_Nachmessung', 'Ende', 'Messung_Jahr', 'Ort']]
+    df_einsatzplan['geometry'] = df['geo_point_2d'].apply(lambda x: f'{{"type": "Point", "coordinates": [{x}]}}')
+    df_einzelmessungen = df[['id_standort', 'Zyklus', 'Phase', 'Messung_Datum', 'Messung_Zeit', 'V_Einfahrt',
+                             'V_Ausfahrt', 'Messung_Timestamp', 'V_Delta']]
+    sqlite_path = os.path.join(DATA_PATH, 'datasette', 'Smiley-Geschwindigkeitsmessungen.db')
+
+    # Connect to SQLite database (or create it if it doesn't exist)
+    conn = sqlite3.connect(sqlite_path)
+    cursor = conn.cursor()
+
+    # Create the Einsatzplan table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Einsatzplan (
+        id_standort INTEGER,
+        Zyklus INTEGER,
+        Strassenname TEXT,
+        Geschwindigkeit INTEGER,
+        Ort_Abkuerzung TEXT,
+        Start_Vormessung TEXT,
+        Start_Betrieb TEXT,
+        Start_Nachmessung TEXT,
+        Ende TEXT,
+        Messung_Jahr INTEGER,
+        Ort TEXT,
+        geometry TEXT,
+        PRIMARY KEY (id_standort, Zyklus)
+    )
+    ''')
+
+    df_einsatzplan.to_sql('Einsatzplan', conn, if_exists='replace', index=False)
+
+    # Create the Einzelmessungen table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Einzelmessungen (
+        id_standort INTEGER,
+        Zyklus INTEGER,
+        Phase TEXT,
+        Messung_Datum TEXT,
+        Messung_Zeit TEXT,
+        V_Einfahrt INTEGER,
+        V_Ausfahrt INTEGER,
+        Messung_Timestamp TEXT,
+        V_Delta INTEGER,
+        FOREIGN KEY (id_standort, Zyklus) REFERENCES Einsatzplan (id_standort, Zyklus)
+    )
+    ''')
+
+    df_einzelmessungen.to_sql('Einzelmessungen', conn, if_exists='replace', index=False)
+
+    # Create a view merging Einsatzplan and Einzelmessungen on id_standort and Zyklus
+    cursor.execute('''
+    CREATE VIEW IF NOT EXISTS View_Einsatzplan_Einzelmessungen AS
+    SELECT 
+        e.id_standort,
+        e.Zyklus,
+        e.Strassenname,
+        e.Geschwindigkeit,
+        e.Ort_Abkuerzung,
+        e.Start_Vormessung,
+        e.Start_Betrieb,
+        e.Start_Nachmessung,
+        e.Ende,
+        e.Messung_Jahr,
+        e.Ort,
+        e.geometry,
+        em.Phase,
+        em.Messung_Datum,
+        em.Messung_Zeit,
+        em.V_Einfahrt,
+        em.V_Ausfahrt,
+        em.Messung_Timestamp,
+        em.V_Delta
+    FROM Einsatzplan e
+    JOIN Einzelmessungen em ON e.id_standort = em.id_standort AND e.Zyklus = em.Zyklus
+    ''')
+
+    # Create a view for statistics similar to df_stats_pro_standort
+    cursor.execute('''
+    CREATE VIEW IF NOT EXISTS View_Stats_Pro_Standort AS
+    SELECT 
+        em.id_standort,
+        em.Zyklus,
+        em.Phase,
+        e.Strassenname,
+        e.Geschwindigkeit,
+        COUNT(*) AS Anzahl_Messungen,
+        MIN(em.Messung_Timestamp) AS Messbeginn_Phase,
+        MAX(em.Messung_Timestamp) AS Messende_Phase,
+        MAX(em.V_Einfahrt) AS V_max,
+        MIN(em.V_Einfahrt) AS V_min,
+        ROUND(AVG(em.V_Einfahrt), 2) AS V_avg,
+        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY em.V_Einfahrt), 2) AS V_50,
+        ROUND(PERCENTILE_CONT(0.85) WITHIN GROUP (ORDER BY em.V_Einfahrt), 2) AS V_85,
+        ROUND(AVG(CASE WHEN em.V_Einfahrt > e.Geschwindigkeit THEN 1 ELSE 0 END) * 100, 2) AS V_Einfahrt_pct_ueber_limite,
+        ROUND(AVG(CASE WHEN em.V_Ausfahrt > e.Geschwindigkeit THEN 1 ELSE 0 END) * 100, 2) AS V_Ausfahrt_pct_ueber_limite
+    FROM Einzelmessungen em
+    JOIN Einsatzplan e ON em.id_standort = e.id_standort AND em.Zyklus = e.Zyklus
+    GROUP BY em.id_standort, em.Zyklus, em.Phase, e.Strassenname, e.Geschwindigkeit
+    ''')
+
+    # Commit changes and close the connection
+    conn.commit()
+    conn.close()
+
+
 def main():
-    curr_dir = os.path.dirname(os.path.realpath(__file__))
     logging.info(f'Parsing Einsatzplaene...')
-    df_einsaetze = parse_einsatzplaene(curr_dir)
+    df_einsaetze = parse_einsatzplaene()
     req = common.requests_get(
         'https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp')
-    shp_path = os.path.join(curr_dir, 'data', 'Smiley-Standorte')
+    shp_path = os.path.join(DATA_PATH, 'Smiley-Standorte')
     zip_file = io.BytesIO(req.content)
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
         zip_ref.extractall(shp_path)
@@ -234,7 +348,7 @@ def main():
                                  for i, row in df_einsaetze.iterrows()], ignore_index=True)
     df_einsatz_days['day_str'] = df_einsatz_days.datum_aktiv.dt.strftime('%y%m%d')
     logging.info(f'Parsing Messdaten...')
-    export_file_all, export_file_stats = parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze)
+    export_file_all, export_file_stats = parse_messdaten(df_einsatz_days, df_einsaetze)
     if export_file_all is None or export_file_stats is None:
         logging.info('No new data found. Exiting...')
         return
