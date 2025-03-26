@@ -1,25 +1,24 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-# Reading filtered excel file with pandas.read_excel() requires openpyxl 3.0.10
-# openpyxl 3.0.10 requires pandas 2.1.4 or lower
-RUN python3 -m pip install --user --no-cache-dir pandas==2.1.4
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir openpyxl==3.0.10
-RUN python3 -m pip install --user --no-cache-dir pytest==8.0.0rc2
-RUN python3 -m pip install --user --no-cache-dir pyshp==2.3.1
-CMD ["python3", "-m", "kapo_smileys.etl"]
+FROM python:3.12-slim
+# Install SpatiaLite dependencies
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends \
+#         spatialite-bin \
+#         libsqlite3-mod-spatialite
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
+WORKDIR /code/data-processing/kapo_smileys
+# Copy uv files and install dependencies
+COPY pyproject.toml .
+COPY uv.lock .
+RUN uv sync --frozen --no-cache
+COPY . .
 
+# PYTHONPATH needs to be the parent directory because of the common local module imports
+ENV PYTHONPATH="/code/data-processing"
+
+CMD ["uv", "run", "-m", "src.etl"]
 
 # Docker commands to create image and run container:
 # cd kapo_smileys
 # docker build -t kapo_smileys .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/kapo-smileys:/code/data-processing/kapo_smileys/data_orig --name kapo_smileys kapo_smileys
-
-# For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd kapo_smileys
-# docker build -t kapo_smileys --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
-# cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing  -v "//bs.ch/dfs/BS/PD/PD-StatA-FST-OGD-DataExch/kapo-smileys":/code/data-processing/kapo_smileys/data_orig --name kapo_smileys kapo_smileys
+# docker run -it --rm -v /mnt/OGD-DataExch/KaPo/VP-Geschwindigkeitsmonitoring:/code/data-processing/kapo_smileys/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_smileys kapo_smileys uv run -m src.etl
