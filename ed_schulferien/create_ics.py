@@ -9,14 +9,14 @@ import hashlib
 import glob
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Path configuration
 data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
 
-# TODO: (large language model): BUGFIX: Skipped files are effectively deleted from the ics file.
+# TODO: (large language model): strip the summary before writing, reading, and before checking whether details have updated. Does it make sense to do it at all these places? Do I need to add it somewhere else?
 # TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
 # TODO: (large language model): call it from etl.py
 # TODO: Write unit tests to make sure that the correct dates are being used iny any (edge) cases. Which cases could realistically happen? Usually, only the newest file is being updated.
@@ -169,6 +169,7 @@ for year, name, start_date, end_date in all_events:
             continue
         else:
             logging.info(f"Event '{name}' exists but details have changed - updating")
+            # TODO (large language model): Actually update it.
             updated_events_count += 1
     
     # Create the event block
@@ -184,6 +185,24 @@ for year, name, start_date, end_date in all_events:
         "END:VEVENT"
     ]
     ics_content.extend(event_block)
+
+# Add any existing events that weren't in the CSV files
+preserved_events_count = 0
+for uid, event in existing_events.items():
+    if uid not in processed_events:
+        event_block = [
+            "",  # Add blank line before event
+            "BEGIN:VEVENT",
+            f"DTSTAMP:{dtstamp}",
+            f"DTSTART;VALUE=DATE:{event['start']}",
+            f"DTEND;VALUE=DATE:{event['end']}",
+            f"SUMMARY:{event['summary']}",
+            f"UID:{uid}",
+            "LOCATION:Basel-Stadt, Schweiz",
+            "END:VEVENT"
+        ]
+        ics_content.extend(event_block)
+        preserved_events_count += 1
 
 # Add final newline and END:VCALENDAR
 ics_content.extend(["", "END:VCALENDAR", ""])
@@ -201,6 +220,8 @@ if skipped_events_count > 0:
     logging.info(f"Skipped {skipped_events_count} events that already existed with the same details")
 if updated_events_count > 0:
     logging.info(f"Updated {updated_events_count} events that had changed details")
+if preserved_events_count > 0:
+    logging.info(f"Preserved {preserved_events_count} existing events that were not in the CSV files")
     
 logging.info(f"Added {len(processed_events) - skipped_events_count - updated_events_count} new events")
 logging.info(f"ICS file created successfully at {output_ics_file}")
