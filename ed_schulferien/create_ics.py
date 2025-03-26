@@ -16,9 +16,15 @@ data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
 
-# TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
+# Year range configuration
+# Based on the template description: "Zur Referenz sind vergangene Ferien des aktuellen und vorherigen Schuljahres 
+# sowie zukünftige Ferien für ungefähr 3 Jahre im Voraus enthalten."
+current_year = datetime.datetime.now().year
+YEAR_RANGE_START = current_year - 1  # Previous school year
+YEAR_RANGE_END = current_year + 3    # Approximately 3 years in the future
+# IMPORTANT: If these year ranges are modified, make sure to update the description in the SchulferienBS.ics.template file as well
+
 # TODO: (large language model): call it from etl.py
-# TODO: Write unit tests to make sure that the correct dates are being used iny any (edge) cases. Which cases could realistically happen? Usually, only the newest file is being updated.
 # TODO: (large language model): Implement Kommentar_Orhan
 # TODO: (renato): Upload it.
 
@@ -137,7 +143,14 @@ for csv_file in csv_files:
                     logging.warning(f"Invalid end date: {end_date_formatted}")
                     continue
                 
-                all_events.append((year, name, start_date_formatted, end_date_formatted))
+                # Extract the year from the start date to filter events by year range
+                event_year = int(start_date_formatted[:4])
+                
+                # Filter events to only include those in the configured year range
+                if YEAR_RANGE_START <= event_year <= YEAR_RANGE_END:
+                    all_events.append((year, name, start_date_formatted, end_date_formatted))
+                else:
+                    logging.debug(f"Skipping event outside year range: {name} ({start_date_formatted} to {end_date_formatted})")
 
 # Sort events by start date
 all_events.sort(key=lambda x: x[2])
@@ -150,6 +163,7 @@ logging.info(f"Found {len(existing_events)} existing events in the ICS file")
 processed_events = set()
 skipped_events_count = 0
 updated_events_count = 0
+deleted_events_count = 0
 
 # Add events to ICS content
 for year, name, start_date, end_date in all_events:
@@ -197,20 +211,26 @@ for year, name, start_date, end_date in all_events:
 preserved_events_count = 0
 for uid, event in existing_events.items():
     if uid not in processed_events:
-        summary = event['summary'].strip() if event['summary'] else ""
-        event_block = [
-            "",  # Add blank line before event
-            "BEGIN:VEVENT",
-            f"DTSTAMP:{dtstamp}",
-            f"DTSTART;VALUE=DATE:{event['start']}",
-            f"DTEND;VALUE=DATE:{event['end']}",
-            f"SUMMARY:{summary}",
-            f"UID:{uid}",
-            "LOCATION:Basel-Stadt, Schweiz",
-            "END:VEVENT"
-        ]
-        ics_content.extend(event_block)
-        preserved_events_count += 1
+        # Check if the event's year is within the configured range
+        event_year = int(event['start'][:4])
+        if YEAR_RANGE_START <= event_year <= YEAR_RANGE_END:
+            summary = event['summary'].strip() if event['summary'] else ""
+            event_block = [
+                "",  # Add blank line before event
+                "BEGIN:VEVENT",
+                f"DTSTAMP:{dtstamp}",
+                f"DTSTART;VALUE=DATE:{event['start']}",
+                f"DTEND;VALUE=DATE:{event['end']}",
+                f"SUMMARY:{summary}",
+                f"UID:{uid}",
+                "LOCATION:Basel-Stadt, Schweiz",
+                "END:VEVENT"
+            ]
+            ics_content.extend(event_block)
+            preserved_events_count += 1
+        else:
+            logging.debug(f"Deleting old event outside year range: {event['summary']} ({event['start']} to {event['end']})")
+            deleted_events_count += 1
 
 # Add final newline and END:VCALENDAR
 ics_content.extend(["", "END:VCALENDAR", ""])
@@ -230,7 +250,10 @@ if updated_events_count > 0:
     logging.info(f"Updated {updated_events_count} events that had changed details")
 if preserved_events_count > 0:
     logging.info(f"Preserved {preserved_events_count} existing events that were not in the CSV files")
+if deleted_events_count > 0:
+    logging.info(f"Deleted {deleted_events_count} old events outside the configured year range")
     
 logging.info(f"Added {len(processed_events) - skipped_events_count - updated_events_count} new events")
+logging.info(f"ICS file contains events from {YEAR_RANGE_START} to {YEAR_RANGE_END}")
 logging.info(f"ICS file created successfully at {output_ics_file}")
 logging.info("TODO: Upload the ICS file to the appropriate location")
