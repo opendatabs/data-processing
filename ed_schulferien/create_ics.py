@@ -52,6 +52,7 @@ def parse_existing_ics(file_path):
     event_summary = None
     event_start = None
     event_end = None
+    event_dtstamp = None
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -64,10 +65,11 @@ def parse_existing_ics(file_path):
                         existing_events[event_uid] = {
                             'summary': event_summary.strip() if event_summary else None,
                             'start': event_start,
-                            'end': event_end
+                            'end': event_end,
+                            'dtstamp': event_dtstamp
                         }
                     current_event = None
-                    event_uid = event_summary = event_start = event_end = None
+                    event_uid = event_summary = event_start = event_end = event_dtstamp = None
                 elif current_event is not None:
                     if line.startswith("UID:"):
                         event_uid = line[4:]
@@ -77,6 +79,8 @@ def parse_existing_ics(file_path):
                         event_start = line[19:]
                     elif line.startswith("DTEND;VALUE=DATE:"):
                         event_end = line[17:]
+                    elif line.startswith("DTSTAMP:"):
+                        event_dtstamp = line[8:]
     except Exception as e:
         logging.error(f"Error parsing existing ICS file: {e}")
         return {}
@@ -185,11 +189,15 @@ def main():
             if existing_summary == name and existing_event['start'] == start_date and existing_event['end'] == end_date:
                 logging.debug(f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping")
                 skipped_events_count += 1
+                
+                # Use the original timestamp for unchanged events
+                event_timestamp = existing_event['dtstamp'] if existing_event['dtstamp'] else dtstamp
+                
                 # We still need to add the existing event to the output
                 event_block = [
                     "",  # Add blank line before event
                     "BEGIN:VEVENT",
-                    f"DTSTAMP:{existing_event['dtstamp']}",
+                    f"DTSTAMP:{event_timestamp}",
                     f"DTSTART;VALUE=DATE:{start_date}",
                     f"DTEND;VALUE=DATE:{end_date}",
                     f"SUMMARY:{name}",
@@ -226,10 +234,14 @@ def main():
             event_year = int(event['start'][:4])
             if YEAR_RANGE_START <= event_year <= YEAR_RANGE_END:
                 summary = event['summary'].strip() if event['summary'] else ""
+                
+                # Use the original timestamp for preserved events
+                event_timestamp = event['dtstamp'] if event['dtstamp'] else dtstamp
+                
                 event_block = [
                     "",  # Add blank line before event
                     "BEGIN:VEVENT",
-                    f"DTSTAMP:{dtstamp}",
+                    f"DTSTAMP:{event_timestamp}",
                     f"DTSTART;VALUE=DATE:{event['start']}",
                     f"DTEND;VALUE=DATE:{event['end']}",
                     f"SUMMARY:{summary}",
