@@ -24,9 +24,8 @@ YEAR_RANGE_START = current_year - 1  # Previous school year
 YEAR_RANGE_END = current_year + 3    # Approximately 3 years in the future
 # IMPORTANT: If these year ranges are modified, make sure to update the description in the SchulferienBS.ics.template file as well
 
-# TODO: (large language model): call it from etl.py
-# TODO: (large language model): Implement Kommentar_Orhan
 # TODO: (renato): Upload it.
+# TODO: (large language model): call it from etl.py
 
 # Function to extract year from CSV filename
 def extract_year_from_filename(filename):
