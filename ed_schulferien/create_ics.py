@@ -9,17 +9,17 @@ import hashlib
 import glob
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Path configuration
 data_dir = 'data'
 output_ics_file = os.path.join(os.path.dirname(__file__), 'data', 'SchulferienBS.ics')
 template_file = os.path.join(os.path.dirname(__file__), 'SchulferienBS.ics.template')
 
-# TODO: (large language model): strip the summary before writing, reading, and before checking whether details have updated. Does it make sense to do it at all these places? Do I need to add it somewhere else?
 # TODO: (large language model): Only cover the years as explained in the @SchulferienBS.ics.template description. Hardcode it in the code, and make sure that when I update the numbers in the code, they are also updated in the documentation (either by somehow linking the variable in the docs), or by simply reminding me with a comment.
 # TODO: (large language model): call it from etl.py
 # TODO: Write unit tests to make sure that the correct dates are being used iny any (edge) cases. Which cases could realistically happen? Usually, only the newest file is being updated.
+# TODO: (large language model): Implement Kommentar_Orhan
 # TODO: (renato): Upload it.
 
 # Function to extract year from CSV filename
@@ -74,7 +74,7 @@ def parse_existing_ics(file_path):
                 elif line == "END:VEVENT":
                     if event_uid and (event_summary or event_start or event_end):
                         existing_events[event_uid] = {
-                            'summary': event_summary,
+                            'summary': event_summary.strip() if event_summary else None,
                             'start': event_start,
                             'end': event_end
                         }
@@ -121,6 +121,8 @@ for csv_file in csv_files:
             next(reader)  # Skip header
             for row in reader:
                 year, name, start_date, end_date = row
+                # Strip whitespace from the name
+                name = name.strip()
                 # Remove any time portion and convert to proper format for iCalendar (YYYYMMDD)
                 start_date = start_date.split(' ')[0]
                 end_date = end_date.split(' ')[0]
@@ -151,6 +153,9 @@ updated_events_count = 0
 
 # Add events to ICS content
 for year, name, start_date, end_date in all_events:
+    # Strip whitespace from the name
+    name = name.strip()
+    
     # Generate a deterministic UID for this event
     event_uid = generate_event_uid(year, name, start_date, end_date)
     
@@ -162,14 +167,16 @@ for year, name, start_date, end_date in all_events:
     # Check if this event already exists in the ICS file
     if event_uid in existing_events:
         existing_event = existing_events[event_uid]
+        existing_summary = existing_event['summary'].strip() if existing_event['summary'] else ""
+        
         # If the event exists with the same details, no need to update
-        if existing_event['summary'] == name and existing_event['start'] == start_date and existing_event['end'] == end_date:
+        if existing_summary == name and existing_event['start'] == start_date and existing_event['end'] == end_date:
             logging.debug(f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping")
             skipped_events_count += 1
             continue
         else:
             logging.info(f"Event '{name}' exists but details have changed - updating")
-            # TODO (large language model): Actually update it.
+            # The event will be updated by proceeding with the code below
             updated_events_count += 1
     
     # Create the event block
@@ -190,13 +197,14 @@ for year, name, start_date, end_date in all_events:
 preserved_events_count = 0
 for uid, event in existing_events.items():
     if uid not in processed_events:
+        summary = event['summary'].strip() if event['summary'] else ""
         event_block = [
             "",  # Add blank line before event
             "BEGIN:VEVENT",
             f"DTSTAMP:{dtstamp}",
             f"DTSTART;VALUE=DATE:{event['start']}",
             f"DTEND;VALUE=DATE:{event['end']}",
-            f"SUMMARY:{event['summary']}",
+            f"SUMMARY:{summary}",
             f"UID:{uid}",
             "LOCATION:Basel-Stadt, Schweiz",
             "END:VEVENT"
