@@ -21,4 +21,4 @@ CMD ["uv", "run", "-m", "src.etl"]
 # Docker commands to create image and run container:
 # cd kapo_smileys
 # docker build -t kapo_smileys .
-# docker run -it --rm -v /mnt/OGD-DataExch/KaPo/VP-Geschwindigkeitsmonitoring:/code/data-processing/kapo_smileys/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_smileys kapo_smileys uv run -m src.etl
+# docker run -it --rm -v /mnt/OGD-DataExch/kapo-smileys:/code/data-processing/kapo_smileys/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_smileys kapo_smileys uv run -m src.etl
