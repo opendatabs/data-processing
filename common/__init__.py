@@ -71,7 +71,8 @@ def requests_delete(*args, **kwargs):
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
-def upload_ftp(filename, server, user, password, remote_path):
+def upload_ftp(filename, server=credentials.ftp_server, user=credentials.ftp_user, 
+               password=credentials.ftp_pass, remote_path=''):
     logging.info("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
     curr_dir = os.getcwd()

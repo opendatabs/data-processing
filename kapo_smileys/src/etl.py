@@ -2,77 +2,14 @@ import glob
 import logging
 import os
 import shapefile  # library pyshp
-import sqlite3
 import common
 import pandas as pd
 import pytz
 from datetime import timedelta
 import numpy as np
 from common import change_tracking as ct
-import ods_publish.etl_id as odsp
-from kapo_smileys import credentials
 import zipfile
 import io
-
-
-def csv_to_sqlite(export_file_all):
-    df = pd.read_csv(export_file_all)
-    # Create a SQLite database
-    conn = sqlite3.connect(export_file_all.replace('all_data.csv', 'datasette/smileys.db'))
-    cursor = conn.cursor()
-
-    # Create a table with the appropriate column types
-    create_table_query = '''
-    CREATE TABLE IF NOT EXISTS kapo_smileys (
-        id_standort INTEGER,
-        Zyklus INTEGER,
-        Messung_Datum TEXT,
-        Messung_Zeit TEXT,
-        V_Einfahrt INTEGER,
-        V_Ausfahrt INTEGER,
-        Messung_Timestamp TEXT,
-        V_Delta INTEGER,
-        Strassenname TEXT,
-        Geschwindigkeit INTEGER,
-        Messung_Phase TEXT,
-        Ort_Abkuerzung TEXT,
-        Start_Vormessung TEXT,
-        Start_Betrieb TEXT,
-        Start_Nachmessung TEXT,
-        Ende TEXT,
-        Messung_Jahr INTEGER,
-        Ort TEXT,
-        geo_point_2d TEXT,
-        geo_shape TEXT,
-        Phase TEXT
-    )
-    '''
-
-    cursor.execute(create_table_query)
-    conn.commit()
-
-    # Import the CSV data into the SQLite table
-    df.to_sql('kapo_smileys', conn, if_exists='replace', index=False)
-    # Upload to FTP
-    common.upload_ftp(export_file_all.replace('all_data.csv', 'datasette/smileys.db'),
-                      credentials.ftp_server,
-                      credentials.ftp_user,
-                      credentials.ftp_pass,
-                      'kapo/smileys')
-
-    index_queries = [
-        "CREATE INDEX IF NOT EXISTS idx_id_standort ON kapo_smileys (id_standort);",
-        "CREATE INDEX IF NOT EXISTS idx_Zyklus ON kapo_smileys (Zyklus);",
-        "CREATE INDEX IF NOT EXISTS idx_Phase ON kapo_smileys (Phase);",
-        "CREATE INDEX IF NOT EXISTS idx_Messung_Datum ON kapo_smileys (Messung_Datum);"
-    ]
-
-    for query in index_queries:
-        cursor.execute(query)
-
-    # Commit changes and close the connection
-    conn.commit()
-    conn.close()
 
 
 # see https://gist.github.com/aerispaha/f098916ac041c286ae92d037ba5c37ba
@@ -87,7 +24,6 @@ def read_shapefile(shp_path):
 
 
 def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
-    any_changes = False
     messdaten_path = os.path.join(curr_dir, 'data_orig', 'Datenablage')
     list_path = os.path.join(curr_dir, 'data', 'list_files.txt')
     common.list_files(messdaten_path, list_path, recursive=True)
@@ -112,24 +48,14 @@ def parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze):
         all_df = pd.concat(messdaten_dfs)
         export_file_all = os.path.join(curr_dir, 'data', 'all_data.csv')
         all_df.to_csv(export_file_all, index=False)
-        if ct.has_changed(export_file_all):
-            common.upload_ftp(export_file_all, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'kapo/smileys/all_data')
-            any_changes = True
-            csv_to_sqlite(export_file_all)
-            ct.update_hash_file(export_file_all)
 
         stat_df = pd.concat(stat_dfs)
-        export_file_stat = os.path.join(curr_dir, 'data', 'all_stat.csv')
-        stat_df.to_csv(export_file_stat, index=False)
-        if ct.has_changed(export_file_stat):
-            common.upload_ftp(export_file_stat, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              'kapo/smileys/all_data')
-            any_changes = True
-            ct.update_hash_file(export_file_stat)
+        export_file_stats = os.path.join(curr_dir, 'data', 'all_stat.csv')
+        stat_df.to_csv(export_file_stats, index=False)
+
         ct.update_hash_file(list_path)
-        return any_changes
-    return False
+        return export_file_all, export_file_stats
+    return None, None
 
 
 def is_dt(datetime, timezone):
@@ -191,8 +117,7 @@ def parse_single_messdaten_folder(curr_dir, folder, df_einsatz_days, df_einsatze
         export_file_single = os.path.join(curr_dir, 'data', f'{day_str}_{id_standort}.csv')
         df_m.to_csv(export_file_single, index=False)
         if not df_m.empty:
-            common.upload_ftp(export_file_single, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                              f'kapo/smileys/data/zyklus{int(df_m.Zyklus.iloc[0])}')
+            common.upload_ftp(export_file_single, remote_path=f'kapo/smileys/data/zyklus{int(df_m.Zyklus.iloc[0])}')
             os.remove(export_file_single)
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
@@ -309,11 +234,14 @@ def main():
                                  for i, row in df_einsaetze.iterrows()], ignore_index=True)
     df_einsatz_days['day_str'] = df_einsatz_days.datum_aktiv.dt.strftime('%y%m%d')
     logging.info(f'Parsing Messdaten...')
-    any_changes = parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze)
-    if any_changes:
-        odsp.publish_ods_dataset_by_id('100268')
-        odsp.publish_ods_dataset_by_id('100277')
-    pass
+    export_file_all, export_file_stats = parse_messdaten(curr_dir, df_einsatz_days, df_einsaetze)
+    if export_file_all is None or export_file_stats is None:
+        logging.info('No new data found. Exiting...')
+        return
+    else:
+        logging.info(f'Updating FTP and ODS...')
+        common.update_ftp_and_odsp(export_file_all, 'kapo/smileys/all_data','100268')
+        common.update_ftp_and_odsp(export_file_stats, 'kapo/smileys/all_data','100277')
 
 
 if __name__ == "__main__":
