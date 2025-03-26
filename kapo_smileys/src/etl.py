@@ -181,7 +181,6 @@ def parse_einsatzplaene():
     einsatzplan_files = glob.glob(os.path.join(DATA_ORIG_PATH, 'Einsatzplan', 'Zyklus_[0-9][0-9]_20[0-9][0-9].xlsx'))
     einsatzplan_dfs = []
     for f in einsatzplan_files:
-        # Throws error with openpyxl versions bigger than 3.0.10 since files are filtered
         df = pd.read_excel(f, parse_dates=['Datum_VM', 'Datum_SB', 'Datum_NM', 'Datum_Ende'], engine='openpyxl',
                            skiprows=1)
         df.replace(['', ' ', 'nan nan'], np.nan, inplace=True)
@@ -226,9 +225,11 @@ def df_to_sqlite(df):
 
     # Connect to SQLite database (or create it if it doesn't exist)
     conn = sqlite3.connect(sqlite_path)
+    logging.info(f'Creating SQLite database {sqlite_path}...')
     cursor = conn.cursor()
 
     # Create the Einsatzplan table
+    logging.info(f'Creating table Einsatzplan...')
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Einsatzplan (
         id_standort INTEGER,
@@ -246,10 +247,10 @@ def df_to_sqlite(df):
         PRIMARY KEY (id_standort, Zyklus)
     )
     ''')
-
     df_einsatzplan.to_sql('Einsatzplan', conn, if_exists='replace', index=False)
 
     # Create the Einzelmessungen table
+    logging.info(f'Creating table Einzelmessungen...')
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Einzelmessungen (
         id_standort INTEGER,
@@ -264,9 +265,18 @@ def df_to_sqlite(df):
         FOREIGN KEY (id_standort, Zyklus) REFERENCES Einsatzplan (id_standort, Zyklus)
     )
     ''')
-
     df_einzelmessungen.to_sql('Einzelmessungen', conn, if_exists='replace', index=False)
 
+    logging.info(f'Creating indices...')
+    columns_to_index_einsatzplan = ['Zyklus', 'Geschwindigkeit', 'Ort_Abkuerzung', 'Messung_Jahr']
+    common.create_indices(conn, 'Einsatzplan', columns_to_index_einsatzplan)
+    
+    columns_to_index_einzelmessungen = ['id_standort', 'Zyklus', 'Phase']
+    common.create_indices(conn, 'Einzelmessungen', columns_to_index_einzelmessungen)
+
+    logging.info('Removing views...')
+    cursor.execute('DROP VIEW IF EXISTS View_Einsatzplan_Einzelmessungen')
+    logging.info(f'Creating views...')
     # Create a view merging Einsatzplan and Einzelmessungen on id_standort and Zyklus
     cursor.execute('''
     CREATE VIEW IF NOT EXISTS View_Einsatzplan_Einzelmessungen AS
@@ -292,30 +302,6 @@ def df_to_sqlite(df):
         em.V_Delta
     FROM Einsatzplan e
     JOIN Einzelmessungen em ON e.id_standort = em.id_standort AND e.Zyklus = em.Zyklus
-    ''')
-
-    # Create a view for statistics similar to df_stats_pro_standort
-    cursor.execute('''
-    CREATE VIEW IF NOT EXISTS View_Stats_Pro_Standort AS
-    SELECT 
-        em.id_standort,
-        em.Zyklus,
-        em.Phase,
-        e.Strassenname,
-        e.Geschwindigkeit,
-        COUNT(*) AS Anzahl_Messungen,
-        MIN(em.Messung_Timestamp) AS Messbeginn_Phase,
-        MAX(em.Messung_Timestamp) AS Messende_Phase,
-        MAX(em.V_Einfahrt) AS V_max,
-        MIN(em.V_Einfahrt) AS V_min,
-        ROUND(AVG(em.V_Einfahrt), 2) AS V_avg,
-        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY em.V_Einfahrt), 2) AS V_50,
-        ROUND(PERCENTILE_CONT(0.85) WITHIN GROUP (ORDER BY em.V_Einfahrt), 2) AS V_85,
-        ROUND(AVG(CASE WHEN em.V_Einfahrt > e.Geschwindigkeit THEN 1 ELSE 0 END) * 100, 2) AS V_Einfahrt_pct_ueber_limite,
-        ROUND(AVG(CASE WHEN em.V_Ausfahrt > e.Geschwindigkeit THEN 1 ELSE 0 END) * 100, 2) AS V_Ausfahrt_pct_ueber_limite
-    FROM Einzelmessungen em
-    JOIN Einsatzplan e ON em.id_standort = e.id_standort AND em.Zyklus = e.Zyklus
-    GROUP BY em.id_standort, em.Zyklus, em.Phase, e.Strassenname, e.Geschwindigkeit
     ''')
 
     # Commit changes and close the connection
