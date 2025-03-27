@@ -155,6 +155,13 @@ def create_databases():
     '''
     Creates three empty SQLite databases for the MIV, Velo_Fuss and MIV_Geschwindigkeitsklassen data.
     '''
+    logging.info('Delete databases...')
+    try:
+        os.remove(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
+        os.remove(os.path.join(PATH_DEST, 'datasette', 'Velo_Fuss.db'))
+        os.remove(os.path.join(PATH_DEST, 'datasette', 'MIV_Geschwindigkeitsklassen.db'))
+    except FileNotFoundError:
+        pass
     logging.info('Creating databases...')
     logging.info('Creating MIV database...')
     conn = sqlite3.connect(os.path.join(PATH_DEST, 'datasette', 'MIV.db'))
