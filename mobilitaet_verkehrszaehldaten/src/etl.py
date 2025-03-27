@@ -178,7 +178,7 @@ def create_databases():
         'PW+' INT,
         Lief INT,
         'Lief+' INT,
-        'Lief+Aufl' INT,
+        'Lief+Aufl.' INT,
         LW INT,
         'LW+' INT,
         Sattelzug INT,
