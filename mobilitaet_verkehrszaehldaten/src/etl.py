@@ -180,7 +180,7 @@ def create_databases():
         'Lief+' INT,
         'Lief+Aufl' INT,
         LW INT,
-        LW+ INT,
+        'LW+' INT,
         Sattelzug INT,
         Bus INT,
         andere INT,
