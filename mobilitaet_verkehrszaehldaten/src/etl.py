@@ -161,7 +161,7 @@ def create_databases():
     cursor = conn.cursor()
     cursor.execute('''
     CREATE TABLE MIV (
-        Zst_id TEXT
+        Zst_id TEXT,
         SiteCode TEXT,
         SiteName TEXT, 
         DateTimeFrom TEXT, 
