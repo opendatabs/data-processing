@@ -218,7 +218,7 @@ def df_to_sqlite(df):
     # Extract the two tables from the DataFrame
     df_einsatzplan = df[['id_standort', 'Zyklus', 'Strassenname', 'Geschwindigkeit', 'Ort_Abkuerzung', 'Start_Vormessung', 
                         'Start_Betrieb', 'Start_Nachmessung', 'Ende', 'Messung_Jahr', 'Ort', 'geo_point_2d']].drop_duplicates()
-    df_einsatzplan['geometry'] = df_einsatzplan['geo_point_2d'].apply(lambda x: f'{{"type": "Point", "coordinates": [{x}]}}')
+    df_einsatzplan['geometry'] = df_einsatzplan['geo_point_2d'].apply(lambda x: f'{{"type": "Point", "coordinates": [{", ".join(x.split(", ")[::-1])}]}}')
     df_einsatzplan.drop(columns=['geo_point_2d'], inplace=True)
     df_einzelmessungen = df[['id_standort', 'Zyklus', 'Phase', 'Messung_Datum', 'Messung_Zeit', 'V_Einfahrt',
                              'V_Ausfahrt', 'Messung_Timestamp', 'V_Delta']]
