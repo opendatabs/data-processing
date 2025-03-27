@@ -325,7 +325,7 @@ def main():
     # Upload processed and truncated data
     for datafile in filename_orig:
         datafile_with_path = os.path.join(PATH_ORIG, datafile)
-        if ct.has_changed(datafile_with_path):
+        if True or ct.has_changed(datafile_with_path):
             file_names = parse_truncate(PATH_ORIG, datafile, PATH_DEST, no_file_copy)
             if not no_file_copy:
                 for file in file_names:
