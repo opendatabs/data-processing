@@ -73,6 +73,10 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
     elif 'FLIR' in filename:
         logging.info(f'Retrieving Zst_id as the SiteCode...')
         data['Zst_id'] = data['SiteCode']
+        if 'Fahrrad' in data.columns:
+            data.drop(columns=['Fahrrad'], inplace=True)
+        if 'Fussgänger' in data.columns:
+            data.drop(columns=['Fussgänger'], inplace=True)
         logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
         data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
         # TODO: Add this
