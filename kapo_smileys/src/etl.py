@@ -35,7 +35,7 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
     messdaten_path = os.path.join(DATA_ORIG_PATH, 'Datenablage')
     list_path = os.path.join(DATA_PATH, 'list_files.txt')
     common.list_files(messdaten_path, list_path, recursive=True)
-    if True or ct.has_changed(list_path):
+    if ct.has_changed(list_path):
         messdaten_folders = glob.glob(os.path.join(messdaten_path, '*'))
         messdaten_dfs = []
         stat_dfs = []
