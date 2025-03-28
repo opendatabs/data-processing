@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 import datetime
 from bs4 import BeautifulSoup
+from staka_regierungsratsbeschluesse.src.pdf2md import Converter
 
 import common
 from dotenv import load_dotenv
@@ -119,7 +120,7 @@ def scrape_detail_page(url):
     if len(tables) > 1:
         for i in range(1, len(tables)):
             sitzung_table = tables[i]
-            
+            rb_markdowns = {}
             rows = sitzung_table.find_all("tr")
             for row in rows:
                 th = row.find("th")
@@ -154,6 +155,8 @@ def scrape_detail_page(url):
                         # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
                         if "Regierungsratsbeschluss" in link_text:
                             regierungsratsbeschluss_url = link_href
+                            rb_markdowns = convert_pdf_to_md(regierungsratsbeschluss_url, 'regierungsratsbeschluss')
+
                         else:
                             weitere.append(link_href)
                         weitere_dokumente = ",".join(weitere)
@@ -171,7 +174,7 @@ def scrape_detail_page(url):
                 'regierungsratsbeschluss': regierungsratsbeschluss_url,
                 'weitere_dokumente': weitere_dokumente,
                 'url': url
-            })
+            } | rb_markdowns)
     else:
         data.append({
             'praesidial_nr': praesidial_nr,
@@ -188,6 +191,36 @@ def scrape_detail_page(url):
         logging.warning(f"   Less than 2 tables found for url {url}")
 
     return data
+
+
+def convert_pdf_to_md(pdf_url, prefix):
+    # Download the PDF
+    logging.info(f"   Downloading PDF: {pdf_url}")
+    pdf_path = os.path.join(DATA_PATH, 'pdf', 'temp_regierungsratsbeschluss.pdf')
+    try:
+        r_pdf = common.requests_get(pdf_url)
+        r_pdf.raise_for_status()
+        with open(pdf_path, "wb") as f:
+            f.write(r_pdf.content)
+    except:
+        logging.error(f"Failed to download PDF: {pdf_url}")
+        return
+    
+    # Convert the PDF to Markdown
+    methods = ["docling", "pymupdf4llm", "pdfplumber+chatgpt-4o", "chatgpt-4o-vision", "mistral-ocr", "pymupdf"]
+    markdowns = {}
+    for m in methods:
+        converter = Converter(lib=m, input_file=pdf_path)
+        try:
+            converter.convert()
+            markdown_path = converter.output_file
+            with open(markdown_path, "r", encoding="utf-8") as f:
+                markdowns[f'{prefix}_{m}'] = f.read()
+        except:
+            logging.error(f"Failed to convert PDF using method: {m}")
+            continue
+    
+    return markdowns
 
 
 def main():
