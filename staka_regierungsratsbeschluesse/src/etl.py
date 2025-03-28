@@ -5,6 +5,7 @@ import pandas as pd
 import datetime
 from bs4 import BeautifulSoup
 from staka_regierungsratsbeschluesse.src.pdf2md import Converter
+from pathlib import Path
 
 import common
 from dotenv import load_dotenv
@@ -120,7 +121,7 @@ def scrape_detail_page(url):
     if len(tables) > 1:
         for i in range(1, len(tables)):
             sitzung_table = tables[i]
-            rb_markdowns = {}
+            rb_markdowns = dict()
             rows = sitzung_table.find_all("tr")
             for row in rows:
                 th = row.find("th")
@@ -196,18 +197,19 @@ def scrape_detail_page(url):
 def convert_pdf_to_md(pdf_url, prefix):
     # Download the PDF
     logging.info(f"   Downloading PDF: {pdf_url}")
-    pdf_path = os.path.join(DATA_PATH, 'pdf', 'temp_regierungsratsbeschluss.pdf')
+    pdf_path = Path(DATA_PATH) / 'pdf' / 'temp_regierungsratsbeschluss.pdf'
     try:
         r_pdf = common.requests_get(pdf_url)
-        r_pdf.raise_for_status()
-        with open(pdf_path, "wb") as f:
-            f.write(r_pdf.content)
+        with open(pdf_path, "wb") as file:
+            for chunk in r_pdf.iter_content(chunk_size=1024):
+                file.write(chunk)
+        print(f"PDF downloaded successfully as {pdf_path}")
     except:
-        logging.error(f"Failed to download PDF: {pdf_url}")
-        return
+        print("Failed to download PDF.")
+        return dict()
     
     # Convert the PDF to Markdown
-    methods = ["docling", "pymupdf4llm", "pdfplumber+chatgpt-4o", "chatgpt-4o-vision", "mistral-ocr", "pymupdf"]
+    methods = ["docling", "pymupdf4llm", "pymupdf"]
     markdowns = {}
     for m in methods:
         converter = Converter(lib=m, input_file=pdf_path)
@@ -224,7 +226,7 @@ def convert_pdf_to_md(pdf_url, prefix):
 
 
 def main():
-    just_process_last_sitzung = True
+    just_process_last_sitzung = False
 
     all_data = []
     page_number = 1
