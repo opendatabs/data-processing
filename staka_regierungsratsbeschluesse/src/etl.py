@@ -226,7 +226,7 @@ def convert_pdf_to_md(pdf_url, prefix):
 
 
 def main():
-    just_process_last_sitzung = True
+    just_process_last_sitzung = False
 
     all_data = []
     page_number = 1

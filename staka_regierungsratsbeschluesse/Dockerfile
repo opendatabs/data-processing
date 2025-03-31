@@ -27,4 +27,4 @@ CMD ["uv", "run", "-m", "src.etl"]
 # Docker commands to create image and run container:
 # cd staka_regierungsratsbeschluesse
 # docker build -t staka_regierungsratsbeschluesse .
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name staka_regierungsratsbeschluesse staka_regierungsratsbeschluesse uv run -m src.etl
+# docker run -it --rm -e https_proxy="http://your-proxy-server:port" -v /data/dev/workspace/data-processing:/code/data-processing --name staka_regierungsratsbeschluesse staka_regierungsratsbeschluesse uv run -m src.etl
