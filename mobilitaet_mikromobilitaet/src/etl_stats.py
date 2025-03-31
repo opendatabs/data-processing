@@ -189,7 +189,8 @@ def compute_stats(gdf_points, gdf_polygons, group_cols, fill_empty_polygon_colum
     gdf_joined = gpd.sjoin(gdf_points, gdf_polygons, how="left", predicate="intersects")
 
     # Ensure the timestamp column is in datetime format
-    gdf_joined['timestamp'] = pd.to_datetime(gdf_joined['timestamp']).dt.tz_convert('Europe/Zurich')
+    gdf_joined['timestamp'] = pd.to_datetime(gdf_joined['timestamp'], utc=True)
+    gdf_joined['timestamp'] = gdf_joined['timestamp'].dt.tz_convert('Europe/Zurich')
 
     period_start = gdf_joined['timestamp'].min().floor('10min')
     period_end = gdf_joined['timestamp'].max().ceil('10min')
