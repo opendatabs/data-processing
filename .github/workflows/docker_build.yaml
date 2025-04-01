@@ -91,4 +91,15 @@ jobs:
             ${{ ( (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' ) && format('ghcr.io/{0}/{1}:latest', github.repository, matrix.project) || '' }}
           cache-from: type=gha,scope=${{ matrix.project }} # Scope cache per project
           cache-to: type=gha,mode=max,scope=${{ matrix.project }} # Scope cache per project
- 
+        
+      - name: Make container public
+        # Only do this when you have actually pushed a new image
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | gh auth login --with-token
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            "/user/packages/container/ghcr.io/${{ github.repository }}/${{ matrix.project }}/visibility" \
+            --raw-field "visibility=public"
+    
