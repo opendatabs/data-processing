@@ -1,0 +1,86 @@
+name: Build Docker
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+  
+jobs:
+  # 1. Job to determine which projects changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      # Output a JSON array string of directory names that changed or need building
+      projects: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Use dorny/paths-filter to identify changed project directories
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Base branch for comparison on PRs
+          base: ${{ github.base_ref }}
+          # Enable listing of changed files (needed for output format)
+          list-files: shell
+          # Define filters for each project directory.
+          # The key will be used if files match the patterns.
+          filters: |
+            kapo_geschwindigkeitsmonitoring:
+              - 'kapo_geschwindigkeitsmonitoring/Dockerfile'
+              - 'kapo_geschwindigkeitsmonitoring/pyproject.toml'
+              - 'kapo_geschwindigkeitsmonitoring/uv.lock'
+            mobilitaet_verkehrszaehldaten:
+              - 'mobilitaet_verkehrszaehldaten/Dockerfile'
+              - 'mobilitaet_verkehrszaehldaten/pyproject.toml'
+              - 'mobilitaet_verkehrszaehldaten/uv.lock'
+
+  # 2. Job to build and potentially push images based on the matrix
+  build_and_push:
+    needs: changes
+    # Only run if the 'projects' output is not empty
+    if: ${{ needs.changes.outputs.projects != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Prevent other matrix jobs from cancelling if one fails
+      matrix:
+        # Dynamically generate the matrix from the JSON output of the 'changes' job
+        project: ${{ fromJSON(needs.changes.outputs.projects) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        # Only log in if we might push
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: osaeedi
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build and Push Docker image for ${{ matrix.project }}
+        uses: docker/build-push-action@v5
+        with:
+          # Set context relative to the project directory defined in the matrix
+          context: ./${{ matrix.project }}
+          # Point to the Dockerfile within that project directory
+          file: ./${{ matrix.project }}/Dockerfile
+          # Push only on merge to main or manual trigger
+          push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+          # Tagging: Include project name in the image tag
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.project }}:${{ github.sha }}
+            ${{ ( (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' ) && format('ghcr.io/{0}/{1}:latest', github.repository, matrix.project) || '' }}
+          cache-from: type=gha,scope=${{ matrix.project }} # Scope cache per project
+          cache-to: type=gha,mode=max,scope=${{ matrix.project }} # Scope cache per project
+ 
