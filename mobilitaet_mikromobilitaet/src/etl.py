@@ -123,6 +123,8 @@ def export_current_data(gdf_current, filename_current):
 
     current_time = pd.Timestamp.now().tz_localize('Europe/Zurich')
     filename_ts = current_time.strftime('%Y-%m-%d_%H-%M%z')
+    # create folder if not exists
+    os.makedirs(os.path.join(DATA_PATH, 'archiv', folder), exist_ok=True)
     path_export_archive = os.path.join(DATA_PATH, 'archiv', folder, f'{filename_ts}.gpkg')
     gpd_to_mounted_file(gdf_current, path_export_archive, driver='GPKG')
 
