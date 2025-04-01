@@ -92,11 +92,15 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.project }} # Scope cache per project
           cache-to: type=gha,mode=max,scope=${{ matrix.project }} # Scope cache per project
         
+      - name: Install GitHub CLI
+        uses: actions/setup-gh-cli@v2
+
       - name: Make container public
-        # Only do this when you have actually pushed a new image
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
         run: |
+          # Use your Personal Access Token instead of GITHUB_TOKEN
           echo "${{ secrets.GHCR_TOKEN }}" | gh auth login --with-token
+
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github.v3+json" \
