@@ -93,7 +93,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.project }} # Scope cache per project
         
       - name: Install GitHub CLI
-        uses: cli/gh-actions@v2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
 
       - name: Make container public
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
