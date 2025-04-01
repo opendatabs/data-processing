@@ -35,6 +35,14 @@ jobs:
               - 'kapo_geschwindigkeitsmonitoring/Dockerfile'
               - 'kapo_geschwindigkeitsmonitoring/pyproject.toml'
               - 'kapo_geschwindigkeitsmonitoring/uv.lock'
+            mobilitaet_mikromobilitaet:
+              - 'mobilitaet_mikromobilitaet/Dockerfile'
+              - 'mobilitaet_mikromobilitaet/pyproject.toml'
+              - 'mobilitaet_mikromobilitaet/uv.lock'
+            mobilitaet_mikromobilitaet_stats:
+              - 'mobilitaet_mikromobilitaet_stats/Dockerfile'
+              - 'mobilitaet_mikromobilitaet_stats/pyproject.toml'
+              - 'mobilitaet_mikromobilitaet_stats/uv.lock'
             mobilitaet_verkehrszaehldaten:
               - 'mobilitaet_verkehrszaehldaten/Dockerfile'
               - 'mobilitaet_verkehrszaehldaten/pyproject.toml'
