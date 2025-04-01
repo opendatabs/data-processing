@@ -12,10 +12,6 @@ ENV PYTHONPATH="/code/data-processing"
 
 CMD ["uv", "run", "-m", "src.etl"]
 
-# Docker commands to create image and run container locally:
-# cd mobilitaet_verkehrszaehldaten
-# docker build -t mobilitaet_verkehrszaehldaten .
-# docker run -it --rm -v /mnt/MOB-StatA:/code/data-processing/mobilitaet_verkehrszaehldaten/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_verkehrszaehldaten mobilitaet_verkehrszaehldaten
 
 # Run the container with the published image:
 # docker run -it --rm -v /mnt/MOB-StatA:/code/data-processing/mobilitaet_verkehrszaehldaten/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_verkehrszaehldaten ghcr.io/opendatabs/data-processing/mobilitaet_verkehrszaehldaten:latest
