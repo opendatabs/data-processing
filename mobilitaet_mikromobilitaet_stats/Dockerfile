@@ -14,10 +14,5 @@ ENV PYTHONPATH="/code/data-processing"
 CMD ["uv", "run", "-m", "etl"]
 
 
-# Docker commands to create image and run container locally:
-# cd mobilitaet_mikromobilitaet_stats
-# docker build -t mobilitaet_mikromobilitaet_stats .
-# docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data-processing/mobilitaet_mikromobilitaet_stats/data -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet_stats mobilitaet_mikromobilitaet_stats
-
 # Run the container with the published image:
 # docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data-processing/mobilitaet_mikromobilitaet_stats/data -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet_stats ghcr.io/opendatabs/data-processing/mobilitaet_mikromobilitaet_stats:latest
