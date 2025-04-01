@@ -7,7 +7,6 @@ COPY pyproject.toml .
 COPY uv.lock .
 RUN uv sync --frozen --no-cache
 
-
 # PYTHONPATH needs to be the parent directory because of the common local module imports
 ENV PYTHONPATH="/code/data-processing"
 
@@ -39,7 +38,7 @@ RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
 CMD ["uv", "run", "-m", "src.etl"]
 
 
-# Docker commands to create image and run container:
+# Docker commands to create image and run container locally:
 # cd mobilitaet_mikromobilitaet
-# docker build -t mobilitaet_mikromobilitaet . -f Dockerfile.etl
-# docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data-processing/mobilitaet_mikromobilitaet/data -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet uv run -m src.etl
+# docker build -t mobilitaet_mikromobilitaet .
+# docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data-processing/mobilitaet_mikromobilitaet/data -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet mobilitaet_mikromobilitaet
