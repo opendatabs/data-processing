@@ -11,7 +11,6 @@ WORKDIR /code/data-processing/kapo_geschwindigkeitsmonitoring
 COPY pyproject.toml .
 COPY uv.lock .
 RUN uv sync --frozen --no-cache
-COPY . .
 
 # PYTHONPATH needs to be the parent directory because of the common local module imports
 ENV PYTHONPATH="/code/data-processing"
