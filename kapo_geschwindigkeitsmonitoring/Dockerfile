@@ -18,10 +18,5 @@ ENV PYTHONPATH="/code/data-processing"
 CMD ["uv", "run", "-m", "src.etl"]
 
 
-# Docker commands to create image and run container locally:
-# cd kapo_geschwindigkeitsmonitoring
-# docker build -t kapo_geschwindigkeitsmonitoring .
-# docker run -it --rm -v /mnt/OGD-DataExch/KaPo/VP-Geschwindigkeitsmonitoring:/code/data-processing/kapo_geschwindigkeitsmonitoring/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name kapo_geschwindigkeitsmonitoring kapo_geschwindigkeitsmonitoring
-
 # Run the container with the published image:
 # docker run -it --rm -v /mnt/OGD-DataExch/KaPo/VP-Geschwindigkeitsmonitoring:/code/data-processing/kapo_geschwindigkeitsmonitoring/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name kapo_geschwindigkeitsmonitoring ghcr.io/opendatabs/data-processing/kapo_geschwindigkeitsmonitoring:latest
