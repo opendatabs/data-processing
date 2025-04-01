@@ -6,7 +6,7 @@ WORKDIR /code/data-processing/stata_harvester
 COPY pyproject.toml .
 COPY uv.lock .
 RUN uv sync --frozen --no-cache
-COPY . .
+
 # PYTHONPATH needs to be the parent directory
 ENV PYTHONPATH="/code/data-processing"
 
