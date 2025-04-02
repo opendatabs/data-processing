@@ -31,10 +31,30 @@ jobs:
           # Define filters for each project directory.
           # The key will be used if files match the patterns.
           filters: |
+            dataspot:
+              - 'dataspot/Dockerfile'
+              - 'dataspot/pyproject.toml'
+              - 'dataspot/uv.lock'
+            jfs_gartenbaeder:
+              - 'jfs_gartenbaeder/Dockerfile'
+              - 'jfs_gartenbaeder/pyproject.toml'
+              - 'jfs_gartenbaeder/uv.lock'
             kapo_geschwindigkeitsmonitoring:
               - 'kapo_geschwindigkeitsmonitoring/Dockerfile'
               - 'kapo_geschwindigkeitsmonitoring/pyproject.toml'
               - 'kapo_geschwindigkeitsmonitoring/uv.lock'
+            kapo_smileys:
+              - 'kapo_smileys/Dockerfile'
+              - 'kapo_smileys/pyproject.toml'
+              - 'kapo_smileys/uv.lock'
+            meteoblue_rosental:
+              - 'meteoblue_rosental/Dockerfile'
+              - 'meteoblue_rosental/pyproject.toml'
+              - 'meteoblue_rosental/uv.lock'
+            mobilitaet_dtv:
+              - 'mobilitaet_dtv/Dockerfile'
+              - 'mobilitaet_dtv/pyproject.toml'
+              - 'mobilitaet_dtv/uv.lock'
             mobilitaet_mikromobilitaet:
               - 'mobilitaet_mikromobilitaet/Dockerfile'
               - 'mobilitaet_mikromobilitaet/pyproject.toml'
@@ -47,6 +67,14 @@ jobs:
               - 'mobilitaet_verkehrszaehldaten/Dockerfile'
               - 'mobilitaet_verkehrszaehldaten/pyproject.toml'
               - 'mobilitaet_verkehrszaehldaten/uv.lock'
+            staka_regierungsratsbeschluesse:
+              - 'staka_regierungsratsbeschluesse/Dockerfile'
+              - 'staka_regierungsratsbeschluesse/pyproject.toml'
+              - 'staka_regierungsratsbeschluesse/uv.lock'
+            stata_harvester:
+              - 'stata_harvester/Dockerfile'
+              - 'stata_harvester/pyproject.toml'
+              - 'stata_harvester/uv.lock'
 
   # 2. Job to build and potentially push images based on the matrix
   build_and_push:
