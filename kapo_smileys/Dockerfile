@@ -17,7 +17,5 @@ ENV PYTHONPATH="/code/data-processing"
 
 CMD ["uv", "run", "-m", "src.etl"]
 
-# Docker commands to create image and run container:
-# cd kapo_smileys
-# docker build -t kapo_smileys .
-# docker run -it --rm -v /mnt/OGD-DataExch/kapo-smileys:/code/data-processing/kapo_smileys/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_smileys kapo_smileys uv run -m src.etl
+# Run the container with the published image:
+# docker run -it --rm -v /mnt/OGD-DataExch/kapo-smileys:/code/data-processing/kapo_smileys/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_smileys ghcr.io/opendatabs/data-processing/kapo_smileys:latest

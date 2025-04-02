@@ -39,7 +39,5 @@ RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
 CMD ["uv", "run", "-m", "src.etl"]
 
 
-# Docker commands to create image and run container:
-# cd jfs_gartenbaeder
-# docker build -t jfs_gartenbaeder .
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name jfs_gartenbaeder jfs_gartenbaeder uv run -m etl
+# Run the container with the published image:
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name jfs_gartenbaeder ghcr.io/opendatabs/data-processing/jfs_gartenbaeder:latest

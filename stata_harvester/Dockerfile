@@ -12,7 +12,6 @@ ENV PYTHONPATH="/code/data-processing"
 
 CMD ["uv", "run", "-m", "etl"]
 
-# Docker commands to create image and run container:
-# cd stata_harvester
-# docker build -t stata_harvester .
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name stata_harvester stata_harvester
+
+# Run the container with the published image:
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name stata_harvester ghcr.io/opendatabs/data-processing/stata_harvester:latest

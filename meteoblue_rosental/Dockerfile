@@ -14,7 +14,5 @@ ENV PYTHONPATH="/code/data-processing"
 CMD ["uv run", "-m", "etl"]
 
 
-# Docker commands to create image and run container:
-# cd meteoblue_rosental
-# docker build -t meteoblue_rosental .
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue_rosental meteoblue_rosental uv run -m etl
+# Run the container with the published image:
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue_rosental ghcr.io/opendatabs/data-processing/meteoblue_rosental:latest
