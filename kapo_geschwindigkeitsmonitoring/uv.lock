@@ -56,6 +56,17 @@ wheels = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+source = { git = "https://github.com/opendatabs/common#2db77ac7794f7ffbb24f7ecc5b00aba3c605d572" }
+dependencies = [
+    { name = "filehash" },
+    { name = "more-itertools" },
+    { name = "pandas" },
+    { name = "requests" },
+]
+
+[[package]]
 name = "filehash"
 version = "0.2.dev1"
 source = { registry = "https://pypi.org/simple" }
@@ -88,8 +99,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "charset-normalizer" },
-    { name = "filehash" },
-    { name = "more-itertools" },
+    { name = "common" },
     { name = "pandas" },
     { name = "psycopg2-binary" },
     { name = "pyarrow" },
@@ -101,8 +111,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "charset-normalizer", specifier = ">=3.4.1" },
-    { name = "filehash", specifier = ">=0.2.dev1" },
-    { name = "more-itertools", specifier = ">=10.6.0" },
+    { name = "common", git = "https://github.com/opendatabs/common" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "pyarrow", specifier = ">=19.0.1" },
