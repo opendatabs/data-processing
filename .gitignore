@@ -1,7 +1,7 @@
 .idea
 __pycache__/
 common/*
-!common/.gitkeep
+!common/README.md
 **/credentials.py
 **/*.env
 **/pw.txt
