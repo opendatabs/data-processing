@@ -1,21 +1,4 @@
-FROM python:3.12-slim
-
-# Install required packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        git \
-        build-essential \
-        curl \
-        ca-certificates \
-        gnupg && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-    
-# Install SpatiaLite dependencies
-# RUN apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#         spatialite-bin \
-#         libsqlite3-mod-spatialite
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
