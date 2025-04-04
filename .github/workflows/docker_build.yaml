@@ -63,7 +63,7 @@ jobs:
       - name: Process filter output
         id: process
         run: |
-          echo "${{ steps.filter.outputs.output }}" > full.json
+          echo '${{ steps.filter.outputs.output }}' > full.json
 
           baseChanged=$(jq '.base.matched' full.json)
           echo "base_changed=$baseChanged" >> "$GITHUB_OUTPUT"
