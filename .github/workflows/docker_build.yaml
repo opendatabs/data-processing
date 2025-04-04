@@ -64,13 +64,15 @@ jobs:
         id: process
         run: |
           CHANGES='${{ steps.filter.outputs.changes }}'
-          echo "CHANGES = $CHANGES"
+          echo "Detected changes = $CHANGES"
 
           if [[ "$CHANGES" == *"base"* ]]; then
-            echo "Base changed => do something"
+            echo "base_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "projects=$CHANGES" >> "$GITHUB_OUTPUT"
+          echo "changed_filters=$CHANGES" >> "$GITHUB_OUTPUT"
 
   # --------------------------------------------------------------
   # Build/push the base image if needed
