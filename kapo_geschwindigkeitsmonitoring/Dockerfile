@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 # Install git for uv
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git build-essential
 # Install SpatiaLite dependencies
 # RUN apt-get update && \
 #     apt-get install -y --no-install-recommends \
