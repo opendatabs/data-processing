@@ -63,18 +63,11 @@ jobs:
       - name: Process filter output
         id: process
         run: |
-          # Save the entire JSON output from paths-filter
           echo "${{ steps.filter.outputs.output }}" > full.json
 
-          # Let jq read that JSON (which looks like { "base": {"matched":true, "files":[]}, "dataspot": {...}, ... })
-          # 1) Determine if 'base' changed
           baseChanged=$(jq '.base.matched' full.json)
-          # That yields "true" or "false" (a JSON boolean, but we can treat it as string here).
           echo "base_changed=$baseChanged" >> "$GITHUB_OUTPUT"
 
-          # 2) Build a final array of subprojects
-          #    - If base changed => include *all* filters except "base".
-          #    - If base did not change => include only filters that matched themselves, excluding "base" if it matched.
           jq '
             if .base.matched then
               [ keys[] | select(. != "base") ]
