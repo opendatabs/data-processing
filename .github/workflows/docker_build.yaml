@@ -60,23 +60,17 @@ jobs:
             stata_harvester:
               - 'stata_harvester/*'
 
-      - name: Process filter output
+      - name: Process changes
         id: process
         run: |
-          echo '${{ steps.filter.outputs.output }}' > full.json
+          CHANGES='${{ steps.filter.outputs.changes }}'
+          echo "CHANGES = $CHANGES"
 
-          baseChanged=$(jq '.base.matched' full.json)
-          echo "base_changed=$baseChanged" >> "$GITHUB_OUTPUT"
+          if [[ "$CHANGES" == *"base"* ]]; then
+            echo "Base changed => do something"
+          fi
 
-          jq '
-            if .base.matched then
-              [ keys[] | select(. != "base") ]
-            else
-              [ to_entries[] | select(.value.matched == true and .key != "base") | .key ]
-            end
-          ' full.json > projects.json
-
-          echo "projects=$(cat projects.json)" >> "$GITHUB_OUTPUT"
+          echo "projects=$CHANGES" >> "$GITHUB_OUTPUT"
 
   # --------------------------------------------------------------
   # Build/push the base image if needed
