@@ -1,3 +1,4 @@
+# Base image from the github.com/opendatabs/data-processing repo
 FROM ghcr.io/opendatabs/data-processing/base:latest
 
 COPY uv.lock pyproject.toml /code/
