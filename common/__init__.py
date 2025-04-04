@@ -14,6 +14,7 @@ import smtplib
 from more_itertools import chunked
 
 from common import change_tracking
+from common import credentials
 from common.retry import retry
 import ods_publish.etl_id as odsp
 from email.mime.text import MIMEText
