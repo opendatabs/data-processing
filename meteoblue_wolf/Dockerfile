@@ -18,12 +18,12 @@ CMD ["python3", "-m", "meteoblue_wolf.etl"]
 
 # Docker commands to create image and run container:
 # cd meteoblue_wolf
-# docker build -t meteoblue-wolf .
+# docker build -t meteoblue_wolf .
 # cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue-wolf meteoblue-wolf
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue_wolf meteoblue_wolf
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd meteoblue_wolf
-# docker build -t meteoblue-wolf --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
+# docker build -t meteoblue_wolf --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name meteoblue-wolf meteoblue-wolf
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name meteoblue_wolf meteoblue_wolf

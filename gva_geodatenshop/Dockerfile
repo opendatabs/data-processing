@@ -15,12 +15,12 @@ CMD ["python3", "-m", "gva_geodatenshop.etl"]
 
 # Docker commands to create image and run container:
 # cd gva_geodatenshop
-# docker build -t gva-geodatenshop .
+# docker build -t gva_geodatenshop .
 # cd ..
-# docker run -it --rm -v /mnt/OGD-GVA:/code/data-processing/gva_geodatenshop/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name gva-geodatenshop gva-geodatenshop
+# docker run -it --rm -v /mnt/OGD-GVA:/code/data-processing/gva_geodatenshop/data_orig -v /data/dev/workspace/data-processing:/code/data-processing --name gva_geodatenshop gva_geodatenshop
 
 # For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
 # cd gva_geodatenshop
-# docker build -t gva-geodatenshop --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
+# docker build -t gva_geodatenshop --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
 # cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "//bs.ch/dfs/BS/PD/PD-StatA-FST-OGD-Data-GVA":/code/data-processing/gva_geodatenshop/data_orig -v "C:\dev\workspace\data-processing":/code/data-processing --name gva-geodatenshop gva-geodatenshop
+# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "//bs.ch/dfs/BS/PD/PD-StatA-FST-OGD-Data-GVA":/code/data-processing/gva_geodatenshop/data_orig -v "C:\dev\workspace\data-processing":/code/data-processing --name gva_geodatenshop gva_geodatenshop
