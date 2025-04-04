@@ -98,6 +98,8 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build and push the base image
+        # Only run if base_changed == 'true'
+        if: ${{ needs.changes.outputs.base_changed == 'true' }}
         uses: docker/build-push-action@v5
         with:
           # Build from the repository root
@@ -121,12 +123,7 @@ jobs:
   # --------------------------------------------------------------
   build_and_push:
     needs: [changes, build_base]
-    if: >
-      ${{ 
-        needs.changes.outputs.projects != '[]'
-        &&
-        ( needs.build_base.result == 'success' || needs.build_base.result == 'skipped' )
-      }}
+    if: ${{ needs.changes.outputs.projects != '[]' }}
     runs-on: ubuntu-latest
 
     strategy:
