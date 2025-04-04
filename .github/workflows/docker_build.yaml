@@ -8,114 +8,169 @@ on:
     branches:
       - master
   workflow_dispatch:
-  
+
 jobs:
-  # 1. Job to determine which projects changed
   changes:
     runs-on: ubuntu-latest
+
     outputs:
-      # Output a JSON array string of directory names that changed or need building
-      projects: ${{ steps.filter.outputs.changes }}
+      base_changed: ${{ steps.process.outputs.base_changed }}
+      projects: ${{ steps.process.outputs.projects }}
+
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v4
 
-      # Use dorny/paths-filter to identify changed project directories
-      - uses: dorny/paths-filter@v3
+      - name: Detect changed paths
         id: filter
+        uses: dorny/paths-filter@v3
         with:
-          # Base branch for comparison on PRs
+          # Use the base branch for PR comparisons
           base: ${{ github.base_ref }}
-          # Enable listing of changed files (needed for output format)
-          list-files: shell
-          # Define filters for each project directory.
-          # The key will be used if files match the patterns.
+
+          # Output a JSON object describing matched filters & changed files
+          list-files: json
+
+          # Define all filters: "base" plus each subproject
           filters: |
+            base:
+              - 'Dockerfile'
+              - 'common/*'
+              - 'ods_publish/*'
             dataspot:
-              - 'dataspot/Dockerfile'
-              - 'dataspot/pyproject.toml'
-              - 'dataspot/uv.lock'
+              - 'dataspot/*'
             jfs_gartenbaeder:
-              - 'jfs_gartenbaeder/Dockerfile'
-              - 'jfs_gartenbaeder/pyproject.toml'
-              - 'jfs_gartenbaeder/uv.lock'
+              - 'jfs_gartenbaeder/*'
             kapo_geschwindigkeitsmonitoring:
-              - 'kapo_geschwindigkeitsmonitoring/Dockerfile'
-              - 'kapo_geschwindigkeitsmonitoring/pyproject.toml'
-              - 'kapo_geschwindigkeitsmonitoring/uv.lock'
+              - 'kapo_geschwindigkeitsmonitoring/*'
             kapo_smileys:
-              - 'kapo_smileys/Dockerfile'
-              - 'kapo_smileys/pyproject.toml'
-              - 'kapo_smileys/uv.lock'
+              - 'kapo_smileys/*'
             meteoblue_rosental:
-              - 'meteoblue_rosental/Dockerfile'
-              - 'meteoblue_rosental/pyproject.toml'
-              - 'meteoblue_rosental/uv.lock'
+              - 'meteoblue_rosental/*'
             mobilitaet_dtv:
-              - 'mobilitaet_dtv/Dockerfile'
-              - 'mobilitaet_dtv/pyproject.toml'
-              - 'mobilitaet_dtv/uv.lock'
+              - 'mobilitaet_dtv/*'
             mobilitaet_mikromobilitaet:
-              - 'mobilitaet_mikromobilitaet/Dockerfile'
-              - 'mobilitaet_mikromobilitaet/pyproject.toml'
-              - 'mobilitaet_mikromobilitaet/uv.lock'
+              - 'mobilitaet_mikromobilitaet/*'
             mobilitaet_mikromobilitaet_stats:
-              - 'mobilitaet_mikromobilitaet_stats/Dockerfile'
-              - 'mobilitaet_mikromobilitaet_stats/pyproject.toml'
-              - 'mobilitaet_mikromobilitaet_stats/uv.lock'
+              - 'mobilitaet_mikromobilitaet_stats/*'
             mobilitaet_verkehrszaehldaten:
-              - 'mobilitaet_verkehrszaehldaten/Dockerfile'
-              - 'mobilitaet_verkehrszaehldaten/pyproject.toml'
-              - 'mobilitaet_verkehrszaehldaten/uv.lock'
+              - 'mobilitaet_verkehrszaehldaten/*'
             staka_regierungsratsbeschluesse:
-              - 'staka_regierungsratsbeschluesse/Dockerfile'
-              - 'staka_regierungsratsbeschluesse/pyproject.toml'
-              - 'staka_regierungsratsbeschluesse/uv.lock'
+              - 'staka_regierungsratsbeschluesse/*'
             stata_harvester:
-              - 'stata_harvester/Dockerfile'
-              - 'stata_harvester/pyproject.toml'
-              - 'stata_harvester/uv.lock'
+              - 'stata_harvester/*'
 
-  # 2. Job to build and potentially push images based on the matrix
-  build_and_push:
+      - name: Process filter output
+        id: process
+        run: |
+          # Save the entire JSON output from paths-filter
+          echo "${{ steps.filter.outputs.output }}" > full.json
+
+          # Let jq read that JSON (which looks like { "base": {"matched":true, "files":[]}, "dataspot": {...}, ... })
+          # 1) Determine if 'base' changed
+          baseChanged=$(jq '.base.matched' full.json)
+          # That yields "true" or "false" (a JSON boolean, but we can treat it as string here).
+          echo "base_changed=$baseChanged" >> "$GITHUB_OUTPUT"
+
+          # 2) Build a final array of subprojects
+          #    - If base changed => include *all* filters except "base".
+          #    - If base did not change => include only filters that matched themselves, excluding "base" if it matched.
+          jq '
+            if .base.matched then
+              [ keys[] | select(. != "base") ]
+            else
+              [ to_entries[] | select(.value.matched == true and .key != "base") | .key ]
+            end
+          ' full.json > projects.json
+
+          echo "projects=$(cat projects.json)" >> "$GITHUB_OUTPUT"
+
+  # --------------------------------------------------------------
+  # Build/push the base image if needed
+  # --------------------------------------------------------------
+  build_base:
     needs: changes
-    # Only run if the 'projects' output is not empty
-    if: ${{ needs.changes.outputs.projects != '[]' }}
+    # Only run if base_changed == 'true'
+    if: ${{ needs.changes.outputs.base_changed == 'true' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false # Prevent other matrix jobs from cancelling if one fails
-      matrix:
-        # Dynamically generate the matrix from the JSON output of the 'changes' job
-        project: ${{ fromJSON(needs.changes.outputs.projects) }}
-
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
-        # Only log in if we might push
+      - name: Login to GHCR
         if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: osaeedi
+          username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build and Push Docker image for ${{ matrix.project }}
+      - name: Build and push the base image
         uses: docker/build-push-action@v5
         with:
-          # Set context relative to the project directory defined in the matrix
-          context: ./${{ matrix.project }}
-          # Point to the Dockerfile within that project directory
-          file: ./${{ matrix.project }}/Dockerfile
-          # Push only on merge to master or manual trigger
+          # Build from the repository root
+          context: .
+          file: ./Dockerfile
+          # Only push on merges to master or manual triggers
           push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
-          # Tagging: Include project name in the image tag
+          tags: |
+            ghcr.io/${{ github.repository }}/base:${{ github.sha }}
+            ${{ (
+                  (github.event_name == 'push' && github.ref == 'refs/heads/master')
+                  || github.event_name == 'workflow_dispatch'
+               ) && format('ghcr.io/{0}/base:latest', github.repository)
+               || ''
+            }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,mode=max,scope=base
+
+  # --------------------------------------------------------------
+  # Build all subprojects
+  # --------------------------------------------------------------
+  build_and_push:
+    # Wait for both 'changes' job to complete AND 'build_base' job to complete/skip
+    needs: [changes, build_base]
+
+    # Only run if 'projects' is not an empty array
+    if: ${{ needs.changes.outputs.projects != '[]' }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.changes.outputs.projects) }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build & push Docker image for ${{ matrix.project }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.project }}
+          file: ./${{ matrix.project }}/Dockerfile
+          push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
           tags: |
             ghcr.io/${{ github.repository }}/${{ matrix.project }}:${{ github.sha }}
-            ${{ ( (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' ) && format('ghcr.io/{0}/{1}:latest', github.repository, matrix.project) || '' }}
-          cache-from: type=gha,scope=${{ matrix.project }} # Scope cache per project
-          cache-to: type=gha,mode=max,scope=${{ matrix.project }} # Scope cache per project
+            ${{ (
+                  (github.event_name == 'push' && github.ref == 'refs/heads/master')
+                  || github.event_name == 'workflow_dispatch'
+               ) && format('ghcr.io/{0}/{1}:latest', github.repository, matrix.project)
+               || ''
+            }}
+          cache-from: type=gha,scope=${{ matrix.project }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.project }}
