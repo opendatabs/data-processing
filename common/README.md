@@ -1,1 +1,0 @@
-This is now in this repository: [https://github.com/opendatabs/common](https://github.com/opendatabs/common)
