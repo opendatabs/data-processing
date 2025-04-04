@@ -72,7 +72,6 @@ jobs:
             echo "base_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-          # **Also** set `projects` to the same JSON array so the matrix can read it
           echo "projects=$CHANGES" >> "$GITHUB_OUTPUT"
 
   # --------------------------------------------------------------
