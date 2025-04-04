@@ -1,7 +1,5 @@
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
 WORKDIR /code/data-processing/kapo_geschwindigkeitsmonitoring
 # Copy uv files and install dependencies
 COPY pyproject.toml .
