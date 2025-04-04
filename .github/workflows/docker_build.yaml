@@ -122,9 +122,8 @@ jobs:
   build_and_push:
     # Wait for both 'changes' job to complete AND 'build_base' job to complete/skip
     needs: [changes, build_base]
-
     # Only run if 'projects' is not an empty array
-    if: ${{ needs.changes.outputs.projects != '[]' }}
+    if: ${{ needs.changes.outputs.changed_filters != '[]' }}
     runs-on: ubuntu-latest
 
     strategy:
