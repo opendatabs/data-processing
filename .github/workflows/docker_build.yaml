@@ -119,17 +119,20 @@ jobs:
   # --------------------------------------------------------------
   # Build all subprojects
   # --------------------------------------------------------------
-  build_and_push:
-    # Wait for both 'changes' job to complete AND 'build_base' job to complete/skip
-    needs: [changes, build_base]
-    # Only run if 'projects' is not an empty array
-    if: ${{ needs.changes.outputs.projects != '[]' }}
-    runs-on: ubuntu-latest
+build_and_push:
+  needs: [changes, build_base]
+  if: >
+    ${{ 
+      needs.changes.outputs.projects != '[]'
+      &&
+      ( needs.build_base.result == 'success' || needs.build_base.result == 'skipped' )
+    }}
+  runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        project: ${{ fromJSON(needs.changes.outputs.projects) }}
+  strategy:
+    fail-fast: false
+    matrix:
+      project: ${{ fromJSON(needs.changes.outputs.projects) }}
 
     steps:
       - name: Check out code
