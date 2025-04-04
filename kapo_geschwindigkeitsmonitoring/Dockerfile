@@ -6,3 +6,7 @@ RUN uv sync --frozen
 COPY . /code/
 
 CMD ["uv", "run", "-m", "src.etl"]
+
+
+# Run the container with the published image:
+# docker run -it --rm -v /mnt/OGD-DataExch/KaPo/VP-Geschwindigkeitsmonitoring:/code/data_orig -v /data/dev/workspace/data-processing/kapo_geschwindigkeitsmonitoring/data:/code/data -v /data/dev/workspace/data-processing/common/change_tracking:/code/common/change_tracking --name kapo_geschwindigkeitsmonitoring ghcr.io/opendatabs/data-processing/kapo_geschwindigkeitsmonitoring:latest
