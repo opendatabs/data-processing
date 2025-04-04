@@ -1,11 +1,22 @@
 FROM python:3.12-slim
-# Install git for uv
-RUN apt-get update && apt-get install -y git build-essential
+
+# Install required packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        build-essential \
+        curl \
+        ca-certificates \
+        gnupg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+    
 # Install SpatiaLite dependencies
 # RUN apt-get update && \
 #     apt-get install -y --no-install-recommends \
 #         spatialite-bin \
 #         libsqlite3-mod-spatialite
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
 WORKDIR /code/data-processing/kapo_geschwindigkeitsmonitoring
