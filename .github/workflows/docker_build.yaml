@@ -119,7 +119,7 @@ jobs:
   # --------------------------------------------------------------
   # Build all subprojects
   # --------------------------------------------------------------
-build_and_push:
+  build_and_push:
   needs: [changes, build_base]
   if: >
     ${{ 
