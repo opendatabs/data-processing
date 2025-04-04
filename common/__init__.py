@@ -1,7 +1,6 @@
 import io
 import requests
 import os
-import json
 import ftplib
 import time
 import urllib3
@@ -13,8 +12,8 @@ import dateutil
 import smtplib
 from more_itertools import chunked
 
-from common import change_tracking
 from common import credentials
+from common import change_tracking
 from common.retry import retry
 import ods_publish.etl_id as odsp
 from email.mime.text import MIMEText
@@ -22,21 +21,11 @@ from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
 # see https://pypi.org/project/backports.zoneinfo/
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
     from backports import zoneinfo
-
-load_dotenv()
-PROXIES = json.loads(os.getenv('PROXIES', '{}'))
-EMAIL_RECEIVERS = json.loads(os.getenv('EMAIL_RECEIVERS', '[]'))
-EMAIL_SERVER = os.getenv('EMAIL_SERVER')
-EMAIL = os.getenv('EMAIL')
-FTP_SERVER = os.getenv('FTP_SERVER')
-FTP_USER = os.getenv('FTP_USER')
-FTP_PASS = os.getenv('FTP_PASS')
 
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
@@ -46,35 +35,35 @@ ftp_errors_to_handle = ftplib.error_temp, ftplib.error_perm, BrokenPipeError, Co
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_get(*args, **kwargs):
-    r = requests.get(*args, proxies=PROXIES, **kwargs)
+    r = requests.get(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_post(*args, **kwargs):
-    r = requests.post(*args, proxies=PROXIES, **kwargs)
+    r = requests.post(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_patch(*args, **kwargs):
-    r = requests.patch(*args, proxies=PROXIES, **kwargs)
+    r = requests.patch(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_put(*args, **kwargs):
-    r = requests.put(*args, proxies=PROXIES, **kwargs)
+    r = requests.put(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
 
 @retry(http_errors_to_handle, tries=6, delay=5, backoff=1)
 def requests_delete(*args, **kwargs):
-    r = requests.delete(*args, proxies=PROXIES, **kwargs)
+    r = requests.delete(*args, proxies=credentials.proxies, **kwargs)
     r.raise_for_status()
     return r
 
@@ -82,8 +71,8 @@ def requests_delete(*args, **kwargs):
 # Upload file to FTP Server
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(ftp_errors_to_handle, tries=6, delay=10, backoff=1)
-def upload_ftp(filename, server=FTP_SERVER, user=FTP_USER, 
-               password=FTP_PASS, remote_path=''):
+def upload_ftp(filename, server=credentials.ftp_server, user=credentials.ftp_user, 
+               password=credentials.ftp_pass, remote_path=''):
     logging.info("Uploading " + filename + " to FTP server directory " + remote_path + '...')
     # change to desired directory first
     curr_dir = os.getcwd()
@@ -442,18 +431,18 @@ def get_text_from_url(url):
 
 def send_email(msg):
     # initialize connection to email server
-    host = EMAIL_SERVER
+    host = credentials.email_server
     smtp = smtplib.SMTP(host)
 
     # send email
-    smtp.sendmail(from_addr=EMAIL,
-                  to_addrs=EMAIL_RECEIVERS,
+    smtp.sendmail(from_addr=credentials.email,
+                  to_addrs=credentials.email_receivers,
                   msg=msg.as_string())
     smtp.quit()
 
 
-def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str, ftp_server=FTP_SERVER,
-                        ftp_user=FTP_USER, ftp_pass=FTP_PASS) -> None:
+def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str, ftp_server=credentials.ftp_server,
+                        ftp_user=credentials.ftp_user, ftp_pass=credentials.ftp_pass) -> None:
     """
     Updates a dataset by uploading it to an FTP server and publishing it into data.bs.ch.
 
