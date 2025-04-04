@@ -34,8 +34,8 @@ EMAIL_RECEIVERS = json.loads(os.getenv('EMAIL_RECEIVERS', '[]'))
 EMAIL_SERVER = os.getenv('EMAIL_SERVER')
 EMAIL = os.getenv('EMAIL')
 FTP_SERVER = os.getenv('FTP_SERVER')
-FTP_USER = os.getenv('FTP_USER_OGD')
-FTP_PASS = os.getenv('FTP_PASS_OGD')
+FTP_USER = os.getenv('FTP_USER')
+FTP_PASS = os.getenv('FTP_PASS')
 
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
