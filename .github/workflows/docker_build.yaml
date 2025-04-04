@@ -79,8 +79,6 @@ jobs:
   # --------------------------------------------------------------
   build_base:
     needs: changes
-    # Only run if base_changed == 'true'
-    if: ${{ needs.changes.outputs.base_changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
