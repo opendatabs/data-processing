@@ -69,6 +69,9 @@ def main():
         if not filename.endswith('.xlsx'):
             logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
+        if filename.startswith("~$"):
+            logging.info(f"Ignoring {filename}; Temporary file.")
+            continue
         logging.info(f"Processing {filename}...")
         excel_file_path = os.path.join(credentials.data_orig_path, filename)
 
