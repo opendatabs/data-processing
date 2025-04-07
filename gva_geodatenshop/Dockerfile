@@ -9,7 +9,7 @@ RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir charset_normalizer==3.3.2
 RUN python3 -m pip install --user --no-cache-dir openpyxl==3.2.0b1
-RUN python3 -m pip install --user --no-cache-dir geopandas==0.14.3
+RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
 CMD ["python3", "-m", "gva_geodatenshop.etl"]
 
 

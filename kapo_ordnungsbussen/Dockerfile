@@ -11,7 +11,7 @@ RUN python3 -m pip install --user --no-cache-dir openpyxl==3.2.0b1
 RUN python3 -m pip install --user --no-cache-dir pytest==8.0.0rc2
 RUN python3 -m pip install --user --no-cache-dir geopy==2.4.1
 RUN python3 -m pip install --user --no-cache-dir rapidfuzz==3.6.1
-RUN python3 -m pip install --user --no-cache-dir geopandas==0.14.2
+RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
 RUN python3 -m pip install --user --no-cache-dir fiona==1.9.4 # geopandas dependency
 RUN python3 -m pip install --user --no-cache-dir shapely==2.0.2
 RUN python3 -m pip install --user --no-cache-dir tqdm==4.66.5

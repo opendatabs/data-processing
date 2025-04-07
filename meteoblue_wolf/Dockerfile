@@ -9,7 +9,7 @@ RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
 RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
 RUN python3 -m pip install --user --no-cache-dir python-dateutil==2.8.2
 RUN python3 -m pip install --user --no-cache-dir pycryptodome==3.20.0
-RUN python3 -m pip install --user --no-cache-dir geopandas==0.14.3
+RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
 CMD ["python3", "-m", "meteoblue_wolf.etl"]
 
 # docker build -t meteoblue .
