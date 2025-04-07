@@ -67,9 +67,9 @@ def main():
         logging.info('Re-projecting points...')
         df_points = df_points.to_crs('EPSG:4326')
         logging.info('Spatially joining points with Wohnviertel...')
-        gdf_wv = gpd.sjoin(df_points, df_wv, how='left', op="within", rsuffix='wv', lsuffix='points')
+        gdf_wv = gpd.sjoin(df_points, df_wv, how='left', predicate="within", rsuffix='wv', lsuffix='points')
         logging.info('Spatially joining points with Bezirk...')
-        gdf_wv_bez = gpd.sjoin(gdf_wv, df_bez, how='left', op="within", rsuffix='bez', lsuffix='points')
+        gdf_wv_bez = gpd.sjoin(gdf_wv, df_bez, how='left', predicate="within", rsuffix='bez', lsuffix='points')
         logging.info('Dropping unnecessary columns...')
         gdf_wv_bez.drop(columns=['index_wv', 'index_bez', 'wov_id_points', 'meldung_erfassungszeit', 'geometry'],
                         inplace=True)
