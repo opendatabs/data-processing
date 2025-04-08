@@ -1,3 +1,4 @@
+import urllib.parse
 import pandas as pd
 from datetime import datetime
 import logging
@@ -12,6 +13,8 @@ from gva_geodatenshop import credentials
 import geopandas as gpd
 import shutil
 import requests
+import urllib
+
 
 # Returns value from geocat
 def geocat_value(key):
@@ -66,6 +69,9 @@ def open_csv(file_path):
 
 # Function to create Map_links
 def create_map_links(geometry, p1, p2):
+    # encode p1, p2 
+    p1 = urllib.parse.quote(p1)
+    p2 = urllib.parse.quote(p2)
     # check whether the data is a geo point or geo shape
     logging.info(f'the type of the geometry is {geometry.geom_type}')
    # geometry_types = gdf.iloc[0][geometry].geom_type
