@@ -12,6 +12,7 @@ import requests
 from datetime import datetime
 from common import change_tracking as ct
 import shutil
+import urllib.parse
 
 
 # Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
@@ -92,6 +93,9 @@ def process_wfs_data(wfs):
 
 # Function to create Map_links
 def create_map_links(geometry, p1, p2):
+    # encode p1, p2 
+    p1 = urllib.parse.quote(p1)
+    p2 = urllib.parse.quote(p2)
     # check whether the data is a geo point or geo shape
     logging.info(f'the type of the geometry is {geometry.geom_type}')
     # geometry_types = gdf.iloc[0][geometry].geom_type
