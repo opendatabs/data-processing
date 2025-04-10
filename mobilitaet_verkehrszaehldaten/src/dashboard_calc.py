@@ -31,7 +31,11 @@ def create_files_for_dashboard(df, filename, dest_path):
                           '70-80', '80-90', '90-100', '100-110', '110-120', '120-130', '>130'],
         'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.',
                                'LW', 'LW+', 'Sattelzug', 'Bus', 'andere'],
-        'Velo_Fuss_Count.csv': ['Total']
+        'FLIR_KtBS_MIV6.csv': ['Total', 'MR', 'PW', 'Lief', 'LW', 'Sattelzug', 'Bus'],
+        'Velo_Fuss_Count.csv': ['Total'],
+        'LSA_Count.csv': ['Total'],
+        'FLIR_KtBS_Velo.csv': ['Total'],
+        'FLIR_KtBS_FG.csv': ['Total']
     }
 
     # Create a separate dataset per site and traffic type

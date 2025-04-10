@@ -54,8 +54,8 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
         velo_filename = 'Velo_' + filename
         miv_data.to_csv(os.path.join(dest_path, miv_filename), sep=';', encoding='utf-8', index=False)
         velo_data.to_csv(os.path.join(dest_path, velo_filename), sep=';', encoding='utf-8', index=False)
-        # TODO: Add this
-        # dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        dashboard_calc.create_files_for_dashboard(velo_data, filename, dest_path)
+        dashboard_calc.create_files_for_dashboard(miv_data, filename, dest_path)
         generated_filenames = generate_files(miv_data, miv_filename, dest_path)
         generated_filenames += generate_files(velo_data, velo_filename, dest_path)
         # Add data to databases
@@ -79,8 +79,7 @@ def parse_truncate(path, filename, dest_path, no_file_cp):
             data.drop(columns=['Fussgänger'], inplace=True)
         logging.info(f'Updating TrafficType depending on the filename for FLIR data...')
         data['TrafficType'] = 'MIV' if 'MIV6' in filename else 'Velo' if 'Velo' in filename else 'Fussgänger'
-        # TODO: Add this
-        # dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
+        dashboard_calc.create_files_for_dashboard(data, filename, dest_path)
         generated_filenames = generate_files(data, filename, dest_path)
         if 'MIV' in filename:
             logging.info(f'Adding data to database MIV')
