@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
-WORKDIR /code/data-processing/meteoblue_rosental
+WORKDIR /code/data-processing/dataspot
 # Copy uv files and install dependencies
 COPY pyproject.toml .
 COPY uv.lock .
@@ -14,4 +14,4 @@ CMD ["uv run", "-m", "etl"]
 
 
 # Run the container with the published image:
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue_rosental ghcr.io/opendatabs/data-processing/meteoblue_rosental:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name dataspot ghcr.io/opendatabs/data-processing/dataspot:latest
