@@ -103,9 +103,10 @@ def upload_list_of_lists():
     filenames = ['dtv_MIV.json', 'dtv_MIV_Speed.json', 'dtv_Velo.json', 'dtv_Fussgaenger.json']
     for filename in filenames:
         current_path = os.path.join(PATH_DEST, filename)
-        common.upload_ftp(current_path, FTP_SERVER, FTP_USER, FTP_PASS,
-                            f'verkehrszaehl_dashboard/data')
-        os.remove(current_path)
+        if os.path.exists(current_path):
+            common.upload_ftp(current_path, FTP_SERVER, FTP_USER, FTP_PASS,
+                                f'verkehrszaehl_dashboard/data')
+            os.remove(current_path)
 
 
 def aggregate_hourly(site_data, categories, subfolder, site, filename):
