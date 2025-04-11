@@ -331,6 +331,8 @@ def calculate_dtv_zst_miv(df, df_locations, filename):
         'FLIR_KtBS_MIV6.csv': ['Total', 'MR', 'PW', 'Lief', 'LW', 'Sattelzug', 'Bus'],
         'LSA_Count.csv': ['Total']
     }
+    # Drop Velo in the TrafficType column (just to be sure)
+    df = df[df['TrafficType'] != 'Velo']
     if filename in aggregation_dict:
         columns = aggregation_dict[filename]
         df_tv = df.groupby(['Zst_id', 'Date', 'TrafficType'])[columns].sum().reset_index()
