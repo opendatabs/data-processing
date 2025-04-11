@@ -11,19 +11,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+PATH_DEST = os.getenv("PATH_DEST")
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER")
 FTP_PASS = os.getenv("FTP_PASS")
 
 
-def create_files_for_dashboard(df, filename, dest_path):
+def create_files_for_dashboard(df, filename):
     """
     Creates JSON files for the dashboard based on the provided DataFrame.
 
     Parameters:
     - df (pd.DataFrame): The input DataFrame containing the data.
     - filename (str): The name of the file to process.
-    - dest_path (str): The destination path where JSON files will be saved.
     """
     # Define categories based on filename
     categories = {
@@ -56,7 +56,7 @@ def create_files_for_dashboard(df, filename, dest_path):
                 subfolder = traffic_type
 
             # Save the original site data
-            current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}.csv')
+            current_filename = os.path.join(PATH_DEST, 'sites', subfolder, f'{str(site)}.csv')
             logging.info(f'Saving {current_filename}...')
             site_data.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
 
@@ -69,50 +69,52 @@ def create_files_for_dashboard(df, filename, dest_path):
                 site_data['Date'] = pd.to_datetime(site_data['Date'], format='%d.%m.%Y').dt.strftime('%Y-%m-%d')
 
                 # Perform aggregations
-                aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename)
-                aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
-                aggregate_monthly(site_data, categories, dest_path, subfolder, site, filename)
-                aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename)
+                aggregate_hourly(site_data, categories, subfolder, site, filename)
+                aggregate_daily(site_data, categories, subfolder, site, filename)
+                aggregate_monthly(site_data, categories, subfolder, site, filename)
+                aggregate_yearly(site_data, categories, subfolder, site, filename)
 
                 ct.update_hash_file(current_filename)
 
     # Calculate DTV per ZST and traffic type
     df_locations = download_locations()
-    if 'MIV' in filename:
+    unique_traffic_types = df.TrafficType.unique()
+    if 'MIV' in unique_traffic_types:
         df_dtv = calculate_dtv_zst_miv(df, df_locations, filename)
         if 'MIV_Speed' in filename:
-            current_filename = os.path.join(dest_path, 'dtv_MIV_Speed.json')
+            current_filename = os.path.join(PATH_DEST, 'dtv_MIV_Speed.json')
         else:
-            current_filename = os.path.join(dest_path, 'dtv_MIV.json')
+            current_filename = os.path.join(PATH_DEST, 'dtv_MIV.json')
         logging.info(f'Saving {current_filename}...')
         save_as_list_of_lists(df_dtv, current_filename)
-        common.upload_ftp(current_filename, FTP_SERVER, FTP_USER, FTP_PASS,
-                          f'verkehrszaehl_dashboard/data')
-        os.remove(current_filename)
     else:
         df_dtv_velo, df_dtv_fuss = calculate_dtv_zst_velo_fuss(df, df_locations)
-        current_filename_velo = os.path.join(dest_path, 'dtv_Velo.json')
-        logging.info(f'Saving {current_filename_velo}...')
-        save_as_list_of_lists(df_dtv_velo, current_filename_velo)
-        common.upload_ftp(current_filename_velo, FTP_SERVER, FTP_USER, FTP_PASS,
-                          f'verkehrszaehl_dashboard/data')
-        os.remove(current_filename_velo)
-        current_filename_fuss = os.path.join(dest_path, 'dtv_Fussgaenger.json')
-        logging.info(f'Saving {current_filename_fuss}...')
-        save_as_list_of_lists(df_dtv_fuss, current_filename_fuss)
-        common.upload_ftp(current_filename_fuss, FTP_SERVER, FTP_USER, FTP_PASS,
-                          f'verkehrszaehl_dashboard/data')
-        os.remove(current_filename_fuss)
+        if not df_dtv_velo.empty:
+            current_filename_velo = os.path.join(PATH_DEST, 'dtv_Velo.json')
+            logging.info(f'Saving {current_filename_velo}...')
+            save_as_list_of_lists(df_dtv_velo, current_filename_velo)
+        if not df_dtv_fuss.empty:
+            current_filename_fuss = os.path.join(PATH_DEST, 'dtv_Fussgaenger.json')
+            logging.info(f'Saving {current_filename_fuss}...')
+            save_as_list_of_lists(df_dtv_fuss, current_filename_fuss)
 
 
-def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename):
+def upload_list_of_lists():
+    filenames = ['dtv_MIV.json', 'dtv_MIV_Speed.json', 'dtv_Velo.json', 'dtv_Fussgaenger.json']
+    for filename in filenames:
+        current_path = os.path.join(PATH_DEST, filename)
+        common.upload_ftp(current_path, FTP_SERVER, FTP_USER, FTP_PASS,
+                            f'verkehrszaehl_dashboard/data')
+        os.remove(current_path)
+
+
+def aggregate_hourly(site_data, categories, subfolder, site, filename):
     """
     Performs hourly aggregation and saves the data.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
     - categories (dict): Dictionary mapping filenames to category lists.
-    - dest_path (str): Destination path for saving files.
     - subfolder (str): Subfolder name.
     - site (str/int): Site identifier.
     - filename (str): Name of the file being processed.
@@ -144,7 +146,7 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
         df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
         # Save the hourly data
-        current_filename_hourly = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_{category}_hourly.csv')
+        current_filename_hourly = os.path.join(PATH_DEST, 'sites', subfolder, f'{str(site)}_{category}_hourly.csv')
         logging.info(f'Saving {current_filename_hourly}...')
         df_agg.to_csv(current_filename_hourly, sep=';', encoding='utf-8', index=False)
         common.upload_ftp(current_filename_hourly, FTP_SERVER, FTP_USER, FTP_PASS,
@@ -152,14 +154,13 @@ def aggregate_hourly(site_data, categories, dest_path, subfolder, site, filename
         os.remove(current_filename_hourly)
 
 
-def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename):
+def aggregate_daily(site_data, categories, subfolder, site, filename):
     """
     Performs daily aggregation and saves the data.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
     - categories (dict): Dictionary mapping filenames to category lists.
-    - dest_path (str): Destination path for saving files.
     - subfolder (str): Subfolder name.
     - site (str/int): Site identifier.
     - filename (str): Name of the file being processed.
@@ -188,7 +189,7 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the daily data
-    current_filename_daily = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_daily.csv')
+    current_filename_daily = os.path.join(PATH_DEST, 'sites', subfolder, f'{str(site)}_daily.csv')
     logging.info(f'Saving {current_filename_daily}...')
     df_agg.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, FTP_SERVER, FTP_USER, FTP_PASS,
@@ -196,14 +197,13 @@ def aggregate_daily(site_data, categories, dest_path, subfolder, site, filename)
     os.remove(current_filename_daily)
 
 
-def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filename):
+def aggregate_monthly(site_data, categories, subfolder, site, filename):
     """
     Aggregates data over months.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
     - categories (dict): Dictionary mapping filenames to category lists.
-    - dest_path (str): Destination path for saving files.
     - subfolder (str): Subfolder name.
     - site (str/int): Site identifier.
     - filename (str): Name of the file being processed.
@@ -226,7 +226,7 @@ def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filenam
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the aggregated data
-    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_monthly.csv')
+    current_filename = os.path.join(PATH_DEST, 'sites', subfolder, f'{str(site)}_monthly.csv')
     logging.info(f'Saving {current_filename}...')
     df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, FTP_SERVER, FTP_USER, FTP_PASS,
@@ -234,14 +234,13 @@ def aggregate_monthly(site_data, categories, dest_path, subfolder, site, filenam
     os.remove(current_filename)
 
 
-def aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename):
+def aggregate_yearly(site_data, categories, subfolder, site, filename):
     """
     Aggregates data over years.
 
     Parameters:
     - site_data (pd.DataFrame): DataFrame containing site data.
     - categories (dict): Dictionary mapping filenames to category lists.
-    - dest_path (str): Destination path for saving files.
     - subfolder (str): Subfolder name.
     - site (str/int): Site identifier.
     - filename (str): Name of the file being processed.
@@ -276,7 +275,7 @@ def aggregate_yearly(site_data, categories, dest_path, subfolder, site, filename
     df_agg = df_agg.drop(columns=['Direction_LaneName'])
 
     # Save the aggregated data
-    current_filename = os.path.join(dest_path, 'sites', subfolder, f'{str(site)}_yearly.csv')
+    current_filename = os.path.join(PATH_DEST, 'sites', subfolder, f'{str(site)}_yearly.csv')
     logging.info(f'Saving {current_filename}...')
     df_agg.to_csv(current_filename, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename, FTP_SERVER, FTP_USER, FTP_PASS,
@@ -318,7 +317,6 @@ def calculate_dtv_zst_miv(df, df_locations, filename):
     Parameters:
     - df (pd.DataFrame): The input DataFrame containing the data.
     - df_locations (pd.DataFrame): DataFrame containing location data.
-    - dest_path (str): The destination path where files will be saved.
     - filename (str): The name of the file to process.
 
     Returns:
@@ -328,7 +326,9 @@ def calculate_dtv_zst_miv(df, df_locations, filename):
         'MIV_Speed.csv': ['Total', '<20', '20-30', '30-40', '40-50', '50-60', '60-70',
                           '70-80', '80-90', '90-100', '100-110', '110-120', '120-130', '>130'],
         'MIV_Class_10_1.csv': ['Total', 'MR', 'PW', 'PW+', 'Lief', 'Lief+', 'Lief+Aufl.',
-                               'LW', 'LW+', 'Sattelzug', 'Bus', 'andere']
+                               'LW', 'LW+', 'Sattelzug', 'Bus', 'andere'],
+        'FLIR_KtBS_MIV6.csv': ['Total', 'MR', 'PW', 'Lief', 'LW', 'Sattelzug', 'Bus'],
+        'LSA_Count.csv': ['Total']
     }
     if filename in aggregation_dict:
         columns = aggregation_dict[filename]
@@ -354,9 +354,6 @@ def calculate_dtv_zst_velo_fuss(df, df_locations):
     Parameters:
     - df (pd.DataFrame): The input DataFrame containing the data.
     - df_locations (pd.DataFrame): DataFrame containing location data.
-    - dest_path (str): The destination path where files will be saved.
-    - filename (str): The name of the file to process.
-
     Returns:
     - tuple: A tuple containing two DataFrames for Velo and Fussgänger data.
     """
@@ -394,6 +391,11 @@ def save_as_list_of_lists(df, filename):
     for col in df.select_dtypes(include=['datetime64[ns]', 'datetime64', 'datetimetz']):
         df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S') 
 
+    # Read the existing JSON file if it exists
+    if os.path.exists(filename):
+        df_existing = pd.read_json(filename, orient='records')
+        df = pd.concat([df_existing, df], ignore_index=True)
+
     # Convert DataFrame to list of lists
     data_as_list = [df.columns.tolist()] + df.to_numpy().tolist()
 
@@ -403,7 +405,7 @@ def save_as_list_of_lists(df, filename):
     logging.info(f"Saved {filename} in list-of-lists format.")
 
 
-def download_weather_station_data(dest_path):
+def download_weather_station_data():
     """
     Downloads weather station data and returns a DataFrame with the data.
 
@@ -431,7 +433,7 @@ def download_weather_station_data(dest_path):
     df = df.sort_values(by='Date')
 
     # Save the daily data
-    current_filename_daily = os.path.join(dest_path, 'weather', 'weather_daily.csv')
+    current_filename_daily = os.path.join(PATH_DEST, 'weather', 'weather_daily.csv')
     logging.info(f'Saving {current_filename_daily}...')
     df.to_csv(current_filename_daily, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_daily, FTP_SERVER, FTP_USER, FTP_PASS,
@@ -443,7 +445,7 @@ def download_weather_station_data(dest_path):
     # Remove current year
     df_agg = df_agg[df_agg['Year'] != pd.Timestamp.now().year]
     # Save the yearly data
-    current_filename_yearly = os.path.join(dest_path, 'weather', 'weather_yearly.csv')
+    current_filename_yearly = os.path.join(PATH_DEST, 'weather', 'weather_yearly.csv')
     logging.info(f'Saving {current_filename_yearly}...')
     df_agg.to_csv(current_filename_yearly, sep=';', encoding='utf-8', index=False)
     common.upload_ftp(current_filename_yearly, FTP_SERVER, FTP_USER, FTP_PASS,
