@@ -396,7 +396,13 @@ def save_as_list_of_lists(df, filename):
 
     # Read the existing JSON file if it exists
     if os.path.exists(filename):
-        df_existing = pd.read_json(filename, orient='records')
+        with open(filename, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        # data[0] are the column names
+        columns = data[0]
+        # data[1:] are the data rows
+        rows = data[1:]
+        df_existing = pd.DataFrame(rows, columns=columns)
         df = pd.concat([df_existing, df], ignore_index=True)
 
     # Convert DataFrame to list of lists
