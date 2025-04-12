@@ -347,8 +347,6 @@ def calculate_dtv_zst_miv(df, df_locations, filename):
                               right_on=['id_zst', 'zweck'], how='left').drop(columns=['id_zst', 'zweck'])
         # Drop Velo in the TrafficType column (just to be sure)
         df_dtv = df_dtv[df_dtv['TrafficType'] != 'Velo']
-        # Replace NaN values with 0
-        df_dtv = df_dtv.fillna(0)
         return df_dtv
 
 
@@ -406,6 +404,8 @@ def save_as_list_of_lists(df, filename):
         rows = data[1:]
         df_existing = pd.DataFrame(rows, columns=columns)
         df = pd.concat([df_existing, df], ignore_index=True)
+        # Replace NaN values with -1
+        df = df.fillna(-1)
 
     # Convert DataFrame to list of lists
     data_as_list = [df.columns.tolist()] + df.to_numpy().tolist()
