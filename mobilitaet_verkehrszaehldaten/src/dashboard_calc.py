@@ -347,6 +347,8 @@ def calculate_dtv_zst_miv(df, df_locations, filename):
                               right_on=['id_zst', 'zweck'], how='left').drop(columns=['id_zst', 'zweck'])
         # Drop Velo in the TrafficType column (just to be sure)
         df_dtv = df_dtv[df_dtv['TrafficType'] != 'Velo']
+        # Replace NaN values with 0
+        df_dtv = df_dtv.fillna(0)
         return df_dtv
 
 
@@ -392,7 +394,7 @@ def save_as_list_of_lists(df, filename):
     # Convert datetime columns to string format
     df = df.copy()
     for col in df.select_dtypes(include=['datetime64[ns]', 'datetime64', 'datetimetz']):
-        df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S') 
+        df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
 
     # Read the existing JSON file if it exists
     if os.path.exists(filename):
