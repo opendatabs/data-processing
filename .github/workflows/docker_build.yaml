@@ -35,8 +35,6 @@ jobs:
           filters: |
             base:
               - 'Dockerfile'
-              - 'common/*'
-              - 'ods_publish/*'
             dataspot:
               - 'dataspot/*'
             jfs_gartenbaeder:
