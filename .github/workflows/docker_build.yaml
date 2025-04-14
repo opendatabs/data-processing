@@ -40,6 +40,7 @@ jobs:
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/*'
             kapo_geschwindigkeitsmonitoring:
+              - 'Dockerfile'
               - 'kapo_geschwindigkeitsmonitoring/*'
             kapo_smileys:
               - 'kapo_smileys/*'
