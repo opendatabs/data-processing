@@ -71,9 +71,10 @@ jobs:
             echo "base_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-          CLEAN_CHANGES=$(echo "$CHANGES" | jq 'map(select(. != "base"))')
-          echo "projects=$CLEAN_CHANGES" >> "$GITHUB_OUTPUT"
+          CLEAN_CHANGES=$(echo "$CHANGES" | jq -c 'map(select(. != "base"))')
 
+          echo "projects=$CLEAN_CHANGES" >> "$GITHUB_OUTPUT"
+          
   # --------------------------------------------------------------
   # Build/push the base image if needed
   # --------------------------------------------------------------
