@@ -154,7 +154,7 @@ wheels = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = { git = "https://github.com/opendatabs/common?rev=2b8b5ee86b932da459eca0ffbe6d633b52f20bbf#2b8b5ee86b932da459eca0ffbe6d633b52f20bbf" }
+source = { git = "https://github.com/opendatabs/common?rev=51dd3fe3f8e4575de74cf14e12c9825a4c8c4b52#51dd3fe3f8e4575de74cf14e12c9825a4c8c4b52" }
 dependencies = [
     { name = "docling" },
     { name = "filehash" },
