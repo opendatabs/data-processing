@@ -41,6 +41,9 @@ jobs:
             aue_rues:
               - 'Dockerfile'
               - 'aue_rues/**'
+            aue_schall:
+              - 'Dockerfile'
+              - 'aue_schall/**'
             dataspot:
               - 'dataspot/**'
             jfs_gartenbaeder:
