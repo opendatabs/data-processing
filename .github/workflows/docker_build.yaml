@@ -37,30 +37,30 @@ jobs:
               - 'Dockerfile'
             aue_grundwasser:
               - 'Dockerfile'
-              - 'aue_grundwasser/*'
+              - 'aue_grundwasser/**'
             dataspot:
-              - 'dataspot/*'
+              - 'dataspot/**'
             jfs_gartenbaeder:
-              - 'jfs_gartenbaeder/*'
+              - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
               - 'Dockerfile'
-              - 'kapo_geschwindigkeitsmonitoring/*'
+              - 'kapo_geschwindigkeitsmonitoring/**'
             kapo_smileys:
-              - 'kapo_smileys/*'
+              - 'kapo_smileys/**'
             meteoblue_rosental:
-              - 'meteoblue_rosental/*'
+              - 'meteoblue_rosental/**'
             mobilitaet_dtv:
-              - 'mobilitaet_dtv/*'
+              - 'mobilitaet_dtv/**'
             mobilitaet_mikromobilitaet:
-              - 'mobilitaet_mikromobilitaet/*'
+              - 'mobilitaet_mikromobilitaet/**'
             mobilitaet_mikromobilitaet_stats:
-              - 'mobilitaet_mikromobilitaet_stats/*'
+              - 'mobilitaet_mikromobilitaet_stats/**'
             mobilitaet_verkehrszaehldaten:
-              - 'mobilitaet_verkehrszaehldaten/*'
+              - 'mobilitaet_verkehrszaehldaten/**'
             staka_regierungsratsbeschluesse:
-              - 'staka_regierungsratsbeschluesse/*'
+              - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
-              - 'stata_harvester/*'
+              - 'stata_harvester/**'
 
       - name: Process changes
         id: process
