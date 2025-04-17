@@ -38,6 +38,9 @@ jobs:
             aue_grundwasser:
               - 'Dockerfile'
               - 'aue_grundwasser/**'
+            aue_rues:
+              - 'Dockerfile'
+              - 'aue_rues/**'
             dataspot:
               - 'dataspot/**'
             jfs_gartenbaeder:
