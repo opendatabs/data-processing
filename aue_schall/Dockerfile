@@ -1,23 +1,14 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir python-dotenv==1.1.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-CMD ["python3", "-m", "aue_schall.etl"]
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
+
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
 
 
-# Docker commands to create image and run container:
-# cd aue_schall
-# docker build -t aue_schall .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing  --name aue_schall aue_schall
-
-# For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd aue_schall
-# docker build -t aue_schall --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
-# cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name aue_schall aue_schall
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/aue_schall:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/aue_schall/data:/code/data --name aue_schall ghcr.io/opendatabs/data-processing/aue_schall:latest
