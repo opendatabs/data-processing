@@ -201,13 +201,6 @@ def archive(file):
 
 
 def retrieve_1416_x_coordinates():
-    # bohrkataster_url = 'https://data.bs.ch/explore/dataset/100182/download/?format=csv&use_labels_for_header=true&refine.catnum45=1416'
-    # logging.info(f'Retrieving Bohrkataster data for laufnr 1416 from {bohrkataster_url}...')
-    # r = common.requests_get(bohrkataster_url)
-    # df = pd.read_csv(StringIO(r.text), sep=';')
-    # df_export = df[['Laufnummer', 'Geo Point', 'X-Koordinate', 'Y-Koordinate']].rename(columns={'Geo Point': 'GeoPoint2d', 'X-Koordinate': 'XCoord', 'Y-Koordinate': 'YCoord'})
-    # return df_export.iloc[0]['XCoord']
-
     # Coordinate will not change, return coordinate retrieved from shape through map.geo.bs.ch interface here
     return 2611900
 
