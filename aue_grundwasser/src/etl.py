@@ -201,7 +201,8 @@ def archive(file):
 
 
 def retrieve_1416_x_coordinates():
-    # Coordinate will not change, return coordinate retrieved from shape through map.geo.bs.ch interface here
+    # Coordinate will not change,
+    # return coordinate retrieved from shape through map.geo.bs.ch interface here
     return 2611900
 
 
