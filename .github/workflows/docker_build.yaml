@@ -35,6 +35,9 @@ jobs:
           filters: |
             base:
               - 'Dockerfile'
+            aue_grundwasser:
+              - 'Dockerfile'
+              - 'aue_grundwasser/*'
             dataspot:
               - 'dataspot/*'
             jfs_gartenbaeder:
