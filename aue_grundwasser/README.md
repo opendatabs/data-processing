@@ -1,6 +1,6 @@
-#How to install and use PyProj / GeoPandas on Mac M1 and PyCharm
+# How to install and use PyProj / GeoPandas on Mac M1 and PyCharm
 
-##Use miniforge
+## Use miniforge
 - Geopandas on Mac M1: see https://github.com/geopandas/geopandas/issues/1816#issuecomment-1003093329
 - In terminal (in ARM mode, not Rosetta): 
 ~~~
