@@ -93,9 +93,6 @@ def process(file, x_coords_1416):
     t = Transformer.from_crs("EPSG:2056", "EPSG:4326", always_xy=True)
     df["lon"], df["lat"] = t.transform(df.XCoord.values, df.YCoord.values)
     df["geo_point_2d"] = df.lat.astype(str).str.cat(df.lon.astype(str), sep=",")
-    # print(f'Created geo_point_2d column: ')
-    # print(df['geo_point_2d'])
-    # return
 
     exported_files = []
     for sensornr_filter in [10, 20]:
