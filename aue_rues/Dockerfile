@@ -11,4 +11,4 @@ CMD ["uv", "run", "-m", "etl"]
 
 # Commands to run the container with the published image locally:
 # docker pull ghcr.io/opendatabs/data-processing/aue_rues:latest
-# docker run -it --rm -v :/code/data_orig -v /data/dev/workspace/data-processing/aue_rues/change_tracking:/code/change_tracking --name aue_rues ghcr.io/opendatabs/data-processing/aue_rues:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/aue_rues/data_orig:/code/data_orig --name aue_rues ghcr.io/opendatabs/data-processing/aue_rues:latest
