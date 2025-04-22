@@ -80,6 +80,9 @@ jobs:
             gd_coronavirus_abwassermonitoring:
               - 'Dockerfile'
               - 'gd_coronavirus_abwassermonitoring/**'
+            gva_geodatenshop:
+              - 'Dockerfile'
+              - 'gva_geodatenshop/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
