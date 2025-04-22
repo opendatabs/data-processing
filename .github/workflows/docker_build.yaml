@@ -53,6 +53,9 @@ jobs:
             bafu_hydrodaten_vorhersagen:
               - 'Dockerfile'
               - 'bafu_hydrodaten_vorhersagen/**'
+            bvb_fahrgastzahlen:
+              - 'Dockerfile'
+              - 'bvb_fahrgastzahlen/**'
             dataspot:
               - 'dataspot/**'
             jfs_gartenbaeder:
