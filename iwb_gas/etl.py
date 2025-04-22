@@ -48,7 +48,7 @@ def main():
     df["weekofyear"] = df["Date"].dt.isocalendar().week
     path_export = os.path.join("data", "export", "100304.csv")
     df.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, "iwb_gas", "100304")
+    common.update_ftp_and_odsp(path_export, "iwb/gas", "100304")
 
 
 if __name__ == "__main__":
