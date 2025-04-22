@@ -96,6 +96,7 @@ jobs:
               - 'Dockerfile'
               - 'iwb_netzlast/**'
             jfs_gartenbaeder:
+              - 'Dockerfile'
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
               - 'Dockerfile'
