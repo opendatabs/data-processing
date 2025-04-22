@@ -59,6 +59,9 @@ jobs:
             dataspot:
               - 'Dockerfile'
               - 'dataspot/**'
+            ed_schulferien:
+              - 'Dockerfile'
+              - 'ed_schulferien/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
