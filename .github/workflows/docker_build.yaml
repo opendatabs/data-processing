@@ -77,6 +77,9 @@ jobs:
             gd_abwassermonitoring:
               - 'Dockerfile'
               - 'gd_abwassermonitoring/**'
+            gd_coronavirus_abwassermonitoring:
+              - 'Dockerfile'
+              - 'gd_coronavirus_abwassermonitoring/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
