@@ -30,6 +30,8 @@ def main():
 
 
 def get_leistungen():
+    print(API_USER_KLV)
+    print(API_PASS_KLV)
     req = common.requests_get(
         URL_LEISTUNGEN,
         auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
