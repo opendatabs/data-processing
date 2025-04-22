@@ -95,16 +95,16 @@ def create_map_links(geometry, p1, p2):
     return Map_links
 
 
-data = open_csv(os.path.join("../data_orig", "ogd_datensaetze.csv"))
+data = open_csv(os.path.join("data_orig", "ogd_datensaetze.csv"))
 metadata = pd.read_excel(
-    os.path.join("../data_harvester", "Metadata.xlsx"), na_filter=False
+    os.path.join("data_harvester", "Metadata.xlsx"), na_filter=False
 )
-pub_org = open_csv(os.path.join("../data_harvester", "Publizierende_organisation.csv"))
+pub_org = open_csv(os.path.join("data_harvester", "Publizierende_organisation.csv"))
 
 logging.info("Left-joining data, metadata and publizierende_organisation...")
 data_meta = pd.merge(data, metadata, on="ordnerpfad", how="left")
 joined_data = pd.merge(data_meta, pub_org, on="herausgeber", how="left")
-joined_data.to_csv(os.path.join("../data", "_alldata.csv"), index=False, sep=";")
+joined_data.to_csv(os.path.join("data", "_alldata.csv"), index=False, sep=";")
 
 metadata_for_ods = []
 
@@ -122,7 +122,7 @@ for index, row in joined_data.iterrows():
         # Get files from folder
         files = os.listdir(path)
         # create a temporary folder for data processing
-        temp_folder_path = os.path.join("../data", "temp_folder")
+        temp_folder_path = os.path.join("data", "temp_folder")
         os.makedirs(temp_folder_path, exist_ok=True)
         # make a copy of all files in temporary folder
         [
@@ -196,7 +196,7 @@ for index, row in joined_data.iterrows():
                 folder = shppath.replace("data_orig", "")
                 folder_flat = folder.replace("/", "__").replace("\\", "__")
                 zipfilepath = os.path.join(
-                    "../data", folder_flat + "__" + shpfilename_noext + ".zip"
+                    "data", folder_flat + "__" + shpfilename_noext + ".zip"
                 )
                 logging.info("Creating zip file " + zipfilepath)
                 zipf = zipfile.ZipFile(zipfilepath, "w")
@@ -407,7 +407,7 @@ if len(metadata_for_ods) > 0:
     ods_metadata = pd.concat(
         [pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False
     )
-    ods_metadata_filename = os.path.join("../data", "Opendatasoft_Export_GVA.csv")
+    ods_metadata_filename = os.path.join("data", "Opendatasoft_Export_GVA.csv")
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=";")
 
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
@@ -423,7 +423,7 @@ if len(metadata_for_ods) > 0:
     logging.info("Uploading ODS schema files to FTP Server...")
     for schemafile in ods_metadata["schema_file"].unique():
         if schemafile != "":
-            schemafile_with_path = os.path.join("../schema_files", schemafile)
+            schemafile_with_path = os.path.join("schema_files", schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
                 logging.info(
                     f"Uploading ODS schema file to FTP Server: {schemafile_with_path}..."
