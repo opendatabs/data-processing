@@ -83,6 +83,9 @@ jobs:
             gva_geodatenshop:
               - 'Dockerfile'
               - 'gva_geodatenshop/**'
+            ibs_parkhaus_bewegungen:
+              - 'Dockerfile'
+              - 'ibs_parkhaus_bewegungen/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
