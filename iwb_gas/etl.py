@@ -1,7 +1,6 @@
 import datetime
 import logging
 import os
-import pathlib
 
 import common
 import pandas as pd
