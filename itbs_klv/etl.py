@@ -33,7 +33,8 @@ def get_leistungen():
     req = requests.get(
         URL_LEISTUNGEN,
         auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
-        headers={"host": HOST_KLV}
+        headers={"host": HOST_KLV},
+        verify=False,
     )
     all_leistungen_path = os.path.join("data_orig", "alle_Leistungen.xlsx")
     open(all_leistungen_path, "wb").write(req.content)
@@ -82,7 +83,8 @@ def get_gebuehren():
     req = requests.get(
         URL_GEBUEHREN,
         auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
-        headers={"host": HOST_KLV}
+        headers={"host": HOST_KLV},
+        verify=False,
     )
     all_gebuehren_path = os.path.join("data_orig", "alle_aktiven_Gebuehren.xlsx")
     open(all_gebuehren_path, "wb").write(req.content)
