@@ -1,6 +1,0 @@
-.git
-data_orig/**/*.*
-**/*.csv
-**/*.CSV
-**/credentials.py
-__pycache__

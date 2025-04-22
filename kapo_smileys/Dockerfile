@@ -1,21 +1,14 @@
-FROM python:3.12-slim
-# Install SpatiaLite dependencies
-# RUN apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#         spatialite-bin \
-#         libsqlite3-mod-spatialite
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
-WORKDIR /code/data-processing/kapo_smileys
-# Copy uv files and install dependencies
-COPY pyproject.toml .
-COPY uv.lock .
-RUN uv sync --frozen --no-cache
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-# PYTHONPATH needs to be the parent directory because of the common local module imports
-ENV PYTHONPATH="/code/data-processing"
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
 
 CMD ["uv", "run", "-m", "src.etl"]
 
-# Run the container with the published image:
-# docker run -it --rm -v /mnt/OGD-DataExch/kapo-smileys:/code/data-processing/kapo_smileys/data_orig -v /data/dev/workspace/data-processing:/code/data-processing  --name kapo_smileys ghcr.io/opendatabs/data-processing/kapo_smileys:latest
+
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/kapo_smileys:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/kapo_smileys/data:/code/data -v /mnt/OGD-DataExch/kapo-smileys:/code/data_orig -v /data/dev/workspace/data-processing/kapo_smileys/change_tracking:/code/change_tracking --name kapo_smileys ghcr.io/opendatabs/data-processing/kapo_smileys:latest
