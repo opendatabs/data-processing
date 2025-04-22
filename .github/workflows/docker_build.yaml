@@ -89,6 +89,9 @@ jobs:
             itbs_klv:
               - 'Dockerfile'
               - 'itbs_klv/**'
+            iwb_gas:
+              - 'Dockerfile'
+              - 'iwb_gas/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
