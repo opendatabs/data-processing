@@ -101,6 +101,12 @@ jobs:
             kapo_geschwindigkeitsmonitoring:
               - 'Dockerfile'
               - 'kapo_geschwindigkeitsmonitoring/**'
+            lufthygiene_rosental:
+              - 'Dockerfile'
+              - 'lufthygiene_rosental/**'
+            luftqualitaet_ch:
+              - 'Dockerfile'
+              - 'luftqualitaet_ch/**'
             kapo_ordnungsbussen:
               - 'Dockerfile'
               - 'kapo_ordnungsbussen/**'
