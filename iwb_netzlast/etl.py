@@ -33,7 +33,9 @@ def get_path_realtime_push_file():
     logging.info(
         f"Downloading raw realtime push data from ods to file {raw_data_file}..."
     )
-    r = common.requests_get(ODS_API_KEY)
+    r = common.requests_get(
+        f"https://data.bs.ch/api/records/1.0/download?dataset=100237&apikey={ODS_API_KEY}"
+    )
     # If content just contains the header, do not write to file
     newline_count = r.text.count("\n")
     if newline_count > 1:
