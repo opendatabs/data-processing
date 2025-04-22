@@ -57,6 +57,7 @@ jobs:
               - 'Dockerfile'
               - 'bvb_fahrgastzahlen/**'
             dataspot:
+              - 'Dockerfile'
               - 'dataspot/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
