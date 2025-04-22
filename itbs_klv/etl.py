@@ -11,6 +11,7 @@ load_dotenv()
 
 URL_LEISTUNGEN = os.getenv("URL_LEISTUNGEN")
 URL_GEBUEHREN = os.getenv("URL_GEBUEHREN")
+HOST_KLV = os.getenv("HOST_KLV")
 API_USER_KLV = os.getenv("API_USER_KLV")
 API_PASS_KLV = os.getenv("API_PASS_KLV")
 
@@ -31,7 +32,8 @@ def main():
 def get_leistungen():
     req = requests.get(
         URL_LEISTUNGEN,
-        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV)
+        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
+        headers={"host": HOST_KLV}
     )
     all_leistungen_path = os.path.join("data_orig", "alle_Leistungen.xlsx")
     open(all_leistungen_path, "wb").write(req.content)
@@ -79,7 +81,8 @@ def get_leistungen():
 def get_gebuehren():
     req = requests.get(
         URL_GEBUEHREN,
-        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV)
+        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
+        headers={"host": HOST_KLV}
     )
     all_gebuehren_path = os.path.join("data_orig", "alle_aktiven_Gebuehren.xlsx")
     open(all_gebuehren_path, "wb").write(req.content)
