@@ -19,30 +19,30 @@ YESTERDAY_STRING = datetime.strftime(datetime.today() - timedelta(1), "%Y%m%d")
 
 
 def main():
-    print(f"Connecting to FTP Server to read data...")
+    logging.info(f"Connecting to FTP Server to read data...")
     stations, local_files = download_data_files()
     dfs = {}
     all_data = pd.DataFrame(
         columns=["LocalDateTime", "Value", "Latitude", "Longitude", "EUI"]
     )
-    print("Reading csv files into data frames...")
+    logging.info("Reading csv files into data frames...")
     urllib3.disable_warnings()
     for station in stations:
-        print(f'Retrieving latest timestamp for station "{station}" from ODS...')
+        logging.info(f'Retrieving latest timestamp for station "{station}" from ODS...')
         r = common.requests_get(
             url=f"https://data.bs.ch/api/records/1.0/search/?dataset=100087&q=&rows=1&sort=timestamp&refine.station_id={station}",
             verify=False,
         )
         r.raise_for_status()
         latest_ods_timestamp = r.json()["records"][0]["fields"]["timestamp"]
-        print(f"Latest timestamp is {latest_ods_timestamp}.")
+        logging.info(f"Latest timestamp is {latest_ods_timestamp}.")
         for date_string in [YESTERDAY_STRING, TODAY_STRING]:
             try:
-                print(f"Reading {local_files[(station, date_string)]}...")
+                logging.info(f"Reading {local_files[(station, date_string)]}...")
                 df = pd.read_csv(
                     local_files[(station, date_string)], sep=";", na_filter=False
                 )
-                print(f"Calculating ISO8601 time string...")
+                logging.info(f"Calculating ISO8601 time string...")
                 df["timestamp"] = pd.to_datetime(
                     df.LocalDateTime, format="%d.%m.%Y %H:%M", errors="coerce"
                 ).dt.tz_localize("Europe/Zurich", ambiguous="infer")
@@ -55,12 +55,12 @@ def main():
                 all_data = pd.concat([all_data, df], sort=True)
                 dfs[(station, date_string)] = df
 
-                print(
+                logging.info(
                     f"Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API..."
                 )
                 realtime_df = df[df["timestamp"] > latest_ods_timestamp]
 
-                print(
+                logging.info(
                     f"Pushing {realtime_df.timestamp.count()} rows to ODS realtime API..."
                 )
                 for index, row in realtime_df.iterrows():
@@ -73,7 +73,7 @@ def main():
                         "latitude": row.Latitude,
                         "station_id": row.station_id,
                     }
-                    print(
+                    logging.info(
                         f"Pushing row {index} with with the following data to ODS: {payload}"
                     )
                     r = common.requests_post(
@@ -81,7 +81,7 @@ def main():
                     )
                     r.raise_for_status()
             except KeyError as e:
-                print(f"No file found with keys {(station, date_string)}, ignoring...")
+                logging.info(f"No file found with keys {(station, date_string)}, ignoring...")
 
     all_data = all_data[
         [
@@ -95,17 +95,17 @@ def main():
         ]
     ]
     today_data_file = os.path.join("data", "schall_aktuell.csv")
-    print(f"Exporting yesterday's and today's data to {today_data_file}...")
+    logging.info(f"Exporting yesterday's and today's data to {today_data_file}...")
     all_data.to_csv(today_data_file, index=False)
 
     # todo: Simplify code by pushing yesterday's and today's data to ODS in one batch (as in lufthygiene_pm25)
 
-    print("Creating stations file from current data file...")
+    logging.info("Creating stations file from current data file...")
     df_stations = all_data.drop_duplicates(["EUI"])[
         ["station_id", "Latitude", "Longitude", "EUI"]
     ]
     stations_file = os.path.join("data", "stations/stations.csv")
-    print(f"Exporting stations file to {stations_file}...")
+    logging.info(f"Exporting stations file to {stations_file}...")
     df_stations.to_csv(stations_file, index=False)
 
     common.upload_ftp(stations_file, remote_path="aue/schall_stationen")
@@ -116,16 +116,16 @@ def main():
 @common.retry(common.ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def download_data_files():
     ftp = ftplib.FTP(FTP_SERVER, FTP_USER, FTP_PASS)
-    print(f"Changing to remote dir schall...")
+    logging.info(f"Changing to remote dir schall...")
     ftp.cwd("schall")
-    print("Retrieving list of files...")
+    logging.info("Retrieving list of files...")
     stations = []
     local_files = {}
     for file_name, facts in ftp.mlsd():
         # If we only use today's date we might lose some values just before midnight yesterday.
         for date_string in [YESTERDAY_STRING, TODAY_STRING]:
             if date_string in file_name and "OGD" in file_name:
-                print(
+                logging.info(
                     f"File {file_name} has 'OGD' and '{date_string}' in its filename. "
                     f"Parsing station name from filename..."
                 )
@@ -135,7 +135,7 @@ def download_data_files():
                     .replace("_OGD", "")
                 )
                 stations.append(station)
-                print(f"Downloading {file_name} for station {station}...")
+                logging.info(f"Downloading {file_name} for station {station}...")
                 local_file = os.path.join("data", file_name)
                 with open(local_file, "wb") as f:
                     ftp.retrbinary(f"RETR {file_name}", f.write)
