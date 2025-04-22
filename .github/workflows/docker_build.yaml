@@ -98,6 +98,9 @@ jobs:
             jfs_gartenbaeder:
               - 'Dockerfile'
               - 'jfs_gartenbaeder/**'
+            kapo_ordnungsbussen:
+              - 'Dockerfile'
+              - 'kapo_ordnungsbussen/**'
             kapo_geschwindigkeitsmonitoring:
               - 'Dockerfile'
               - 'kapo_geschwindigkeitsmonitoring/**'
