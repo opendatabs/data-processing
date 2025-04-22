@@ -57,7 +57,7 @@ def main():
         if sheet_name not in ["Datensätze", "Bestandteile"]:
             if sheet_name == "__literals__":
                 sheet_name = "Literals"
-            save_path = os.path.join('../data', f"{S_id[sheet_name]}_{sheet_name}.csv")
+            save_path = os.path.join('data', f"{S_id[sheet_name]}_{sheet_name}.csv")
             df.to_csv(save_path, sep=";", index=False)
             # In FTP Server speichern
             common.update_ftp_and_odsp(save_path, "dataspot", S_id[sheet_name])
@@ -92,10 +92,10 @@ def main():
     # Wende die neue Spaltenreihenfolge auf das DataFrame an
     df_data = df_data[new_order]
 
-    save_path = os.path.join('../data', f"{S_id['Datensaetze']}_Datensaetze.csv")
+    save_path = os.path.join('data', f"{S_id['Datensaetze']}_Datensaetze.csv")
     df_data.to_csv(save_path, sep=";", index=False)
     common.update_ftp_and_odsp(save_path, "dataspot", S_id["Datensaetze"])
-    save_path = os.path.join('../data', f"{S_id['Bestandteile']}_Bestandteile.csv")
+    save_path = os.path.join('data', f"{S_id['Bestandteile']}_Bestandteile.csv")
     df_bestand.to_csv(save_path, sep=";", index=False)
     common.update_ftp_and_odsp(save_path, "dataspot", S_id["Bestandteile"])
 
