@@ -6,7 +6,7 @@ RUN uv sync --frozen
 
 COPY . /code/
 
-CMD ["uv", "run", "-m", "make_dataset"]
+CMD ["uv", "run", "-m", "etl"]
 
 
 # Commands to run the container with the published image locally:
