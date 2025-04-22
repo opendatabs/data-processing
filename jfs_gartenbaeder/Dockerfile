@@ -31,7 +31,7 @@ RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
 RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata
 
-CMD ["uv", "run", "-m", "src.etl"]
+CMD ["uv", "run", "-m", "etl"]
 
 
 # Commands to run the container with the published image locally:

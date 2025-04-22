@@ -84,7 +84,7 @@ def main():
     df_aktuell["Zeitpunkt_Job"] = pd.to_datetime(datetime.now()).tz_localize(
         "Europe/Zurich"
     )
-    path_export = os.path.join("data/export", "100388_gartenbaeder_temp_live.csv")
+    path_export = os.path.join("data", "export", "100388_gartenbaeder_temp_live.csv")
     df_aktuell.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "/jfs/gartenbaeder", "100388")
     df_aktuell = df_aktuell.drop(columns=["URL_Sportanlage"])
@@ -98,11 +98,11 @@ def main():
         "data/export",
         "",
     )
-    df = pd.read_csv(os.path.join("data/export", "100384_gartenbaeder_temp_alle.csv"))
+    df = pd.read_csv(os.path.join("data", "export", "100384_gartenbaeder_temp_alle.csv"))
     df["Koordinaten"] = df["Name"].map(coordinates)
     df = pd.concat([df, df_aktuell])
     df = df.drop_duplicates()
-    path_export = os.path.join("data/export", "100384_gartenbaeder_temp_alle.csv")
+    path_export = os.path.join("data", "export", "100384_gartenbaeder_temp_alle.csv")
     path_backup = os.path.join("data", "backup_100384_gartenbaeder_temp_alle.csv")
     df.to_csv(path_export, index=False)
     # In case the FTP writes an empty file, backup
