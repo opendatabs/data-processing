@@ -65,6 +65,9 @@ jobs:
             ed_swisslos_sportfonds:
               - 'Dockerfile'
               - 'ed_swisslos_sportfonds/**'
+            esc_faq:
+              - 'Dockerfile'
+              - 'esc_faq/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
