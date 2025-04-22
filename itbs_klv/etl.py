@@ -30,10 +30,8 @@ def main():
 
 
 def get_leistungen():
-    req = requests.get(
+    req = common.requests_get(
         URL_LEISTUNGEN,
-        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
-        headers={"host": HOST_KLV},
         verify=False,
     )
     all_leistungen_path = os.path.join("data_orig", "alle_Leistungen.xlsx")
@@ -80,10 +78,8 @@ def get_leistungen():
 
 
 def get_gebuehren():
-    req = requests.get(
+    req = common.requests_get(
         URL_GEBUEHREN,
-        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
-        headers={"host": HOST_KLV},
         verify=False,
     )
     all_gebuehren_path = os.path.join("data_orig", "alle_aktiven_Gebuehren.xlsx")
