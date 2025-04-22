@@ -47,9 +47,7 @@ def main():
     df["dayofyear"] = df["Date"].dt.dayofyear
     df["quarter"] = df["Date"].dt.quarter
     df["weekofyear"] = df["Date"].dt.isocalendar().week
-    path_export = os.path.join(
-        pathlib.Path(__file__).parents[1], "iwb_gas/data/export/100304.csv"
-    )
+    path_export = os.path.join("data", "export", "100304.csv")
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "iwb_gas", "100304")
 
