@@ -50,6 +50,9 @@ jobs:
             bafu_hydrodaten:
               - 'Dockerfile'
               - 'bafu_hydrodaten/**'
+            bafu_hydrodaten_vorhersagen:
+              - 'Dockerfile'
+              - 'bafu_hydrodaten_vorhersagen/**'
             dataspot:
               - 'dataspot/**'
             jfs_gartenbaeder:
