@@ -86,6 +86,9 @@ jobs:
             ibs_parkhaus_bewegungen:
               - 'Dockerfile'
               - 'ibs_parkhaus_bewegungen/**'
+            itbs_klv:
+              - 'Dockerfile'
+              - 'itbs_klv/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
