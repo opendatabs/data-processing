@@ -1,19 +1,14 @@
-FROM python:3.12.3
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.32.3
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir openpyxl==3.2.0b1
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-CMD ["python3", "-m", "ed_swisslos_sportfonds.etl"]
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
 
-# Docker commands to create image and run container:
-# cd ed_swisslos_sportfonds
-# docker build -t ed_swisslos_sportfonds .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ed_swisslos_sportfonds ed_swisslos_sportfonds
-# On Mac, run:
-# docker run -it --rm -v ~/PycharmProjects/data-processing:/code/data-processing --name ed_swisslos_sportfonds ed_swisslos_sportfonds
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
+
+
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/ed_swisslos_sportfonds:latest
+# docker run -it --rm -v /mnt/OGD-DataExch/ED-Swisslos-Sportfonds:/code/data_orig -v /data/dev/workspace/data-processing/ed_swisslos_sportfonds/data:/code/data -v /data/dev/workspace/data-processing/ed_swisslos_sportfonds/change_tracking:/code/change_tracking --name ed_swisslos_sportfonds ghcr.io/opendatabs/data-processing/ed_swisslos_sportfonds:latest
