@@ -71,6 +71,9 @@ jobs:
             euroairport:
               - 'Dockerfile'
               - 'euroairport/**'
+            fgi_geodatenshop:
+              - 'Dockerfile'
+              - 'fgi_geodatenshop/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
