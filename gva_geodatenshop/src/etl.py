@@ -112,7 +112,7 @@ logging.info("Iterating over datasets...")
 for index, row in joined_data.iterrows():
     # Construct folder path
     # path = credentials.path_orig + joined_data.iloc[1]['ordnerpfad'].replace('\\', '/')
-    path = "data_orig" + str(row["ordnerpfad"]).replace("\\", "/")
+    path = "data_orig/" + str(row["ordnerpfad"]).replace("\\", "/")
     logging.info("Checking " + path + "...")
 
     # Exclude raster data for the moment - we don't have them yet
