@@ -98,13 +98,14 @@ jobs:
             jfs_gartenbaeder:
               - 'Dockerfile'
               - 'jfs_gartenbaeder/**'
-            kapo_ordnungsbussen:
-              - 'Dockerfile'
-              - 'kapo_ordnungsbussen/**'
             kapo_geschwindigkeitsmonitoring:
               - 'Dockerfile'
               - 'kapo_geschwindigkeitsmonitoring/**'
+            kapo_ordnungsbussen:
+              - 'Dockerfile'
+              - 'kapo_ordnungsbussen/**'
             kapo_smileys:
+              - 'Dockerfile'
               - 'kapo_smileys/**'
             meteoblue_rosental:
               - 'meteoblue_rosental/**'

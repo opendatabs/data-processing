@@ -1,0 +1,29 @@
+[project]
+name = "kapo-ordnungsbussen"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "fiona>=1.10.1",
+    "geopandas>=1.0.1",
+    "geopy>=2.4.1",
+    "numpy>=2.2.4",
+    "openpyxl>=3.1.5",
+    "pandas>=2.2.3",
+    "pytest>=8.3.5",
+    "python-dotenv>=1.1.0",
+    "rapidfuzz>=3.13.0",
+    "requests>=2.32.3",
+    "shapely>=2.1.0",
+    "tqdm>=4.67.1",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "v0.1.0" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.6",
+]

@@ -1,5 +1,0 @@
-.git
-**/*.csv
-**/*.CSV
-**/credentials.py
-__pycache__
