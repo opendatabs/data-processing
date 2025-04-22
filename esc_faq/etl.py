@@ -1,13 +1,11 @@
-import os
-import re
 import logging
-import pandas as pd
-import markdown
-from markdown_newtab import NewTabExtension
-from openpyxl import load_workbook
+import os
 
 import common
-from esc_faq import credentials
+import markdown
+import pandas as pd
+from markdown_newtab import NewTabExtension
+from openpyxl import load_workbook
 
 
 def cleanup_text_for_display(text):
@@ -15,11 +13,9 @@ def cleanup_text_for_display(text):
     Remove http://, https://, and www. from the text (if present).
     """
     if not text:
-        return ''
+        return ""
     t = str(text)
-    t = t.replace('https://', '') \
-        .replace('http://', '') \
-        .replace('www.', '')
+    t = t.replace("https://", "").replace("http://", "").replace("www.", "")
     return t.strip()
 
 
@@ -65,40 +61,46 @@ def extract_link_and_text(cell):
 def main():
     # Iterate over every excel
     df_all = pd.DataFrame()
-    for filename in os.listdir(credentials.data_orig_path):
-        if not filename.endswith('.xlsx'):
+    for filename in os.listdir("data_orig"):
+        if not filename.endswith(".xlsx"):
             logging.info(f"Ignoring {filename}; Not an Excel file.")
             continue
         if filename.startswith("~$"):
             logging.info(f"Ignoring {filename}; Temporary file.")
             continue
         logging.info(f"Processing {filename}...")
-        excel_file_path = os.path.join(credentials.data_orig_path, filename)
+        excel_file_path = os.path.join("data_orig", filename)
 
         wb = load_workbook(excel_file_path, data_only=False)
         ws = wb.active  # or wb[sheetname] if you have a specific sheet
 
-        df = pd.read_excel(excel_file_path, usecols='A:J', engine='openpyxl')
-        df = df.rename(columns=lambda x: 'Ranking' if x.startswith('Ranking') else x)
-        df = df.rename(columns=lambda x: 'Frage' if x.startswith('Frage') else x)
-        df = df.rename(columns=lambda x: 'Antwort' if x.startswith('Antwort') else x)
-        df = df.rename(columns=lambda x: 'Sprache' if x.startswith('Sprache') else x)
-        df = df.rename(columns=lambda x: 'Verantwortung' if x.startswith('Verantwortung') else x)
-        df = df.rename(columns=lambda x: 'Kontakt' if x.startswith('Kontakt') else x)
-        df = df.rename(columns=lambda x: 'Link Anzeigetext' if x.startswith('Link') else x)
-        df = df.rename(columns=lambda x: 'Zuletzt aktualisiert' if x.startswith('Zuletzt aktualisiert') else x)
-        df = df.rename(columns=lambda x: 'Thema' if x.startswith('Thema') else x)
-        df = df.rename(columns=lambda x: 'Keywords' if x.startswith('Keywords') else x)
+        df = pd.read_excel(excel_file_path, usecols="A:J", engine="openpyxl")
+        df = df.rename(columns=lambda x: "Ranking" if x.startswith("Ranking") else x)
+        df = df.rename(columns=lambda x: "Frage" if x.startswith("Frage") else x)
+        df = df.rename(columns=lambda x: "Antwort" if x.startswith("Antwort") else x)
+        df = df.rename(columns=lambda x: "Sprache" if x.startswith("Sprache") else x)
+        df = df.rename(
+            columns=lambda x: "Verantwortung" if x.startswith("Verantwortung") else x
+        )
+        df = df.rename(columns=lambda x: "Kontakt" if x.startswith("Kontakt") else x)
+        df = df.rename(
+            columns=lambda x: "Link Anzeigetext" if x.startswith("Link") else x
+        )
+        df = df.rename(
+            columns=lambda x: "Zuletzt aktualisiert"
+            if x.startswith("Zuletzt aktualisiert")
+            else x
+        )
+        df = df.rename(columns=lambda x: "Thema" if x.startswith("Thema") else x)
+        df = df.rename(columns=lambda x: "Keywords" if x.startswith("Keywords") else x)
 
         link_list = []
         link_text_list = []
 
-        for row_idx, row in enumerate(ws.iter_rows(
-                min_row=2,
-                max_row=1 + df.shape[0],
-                min_col=1,
-                max_col=10
-        ), start=2):
+        for row_idx, row in enumerate(
+            ws.iter_rows(min_row=2, max_row=1 + df.shape[0], min_col=1, max_col=10),
+            start=2,
+        ):
             cell_link = row[6]
             link_val, text_val = extract_link_and_text(cell_link)
             link_list.append(link_val)
@@ -107,10 +109,14 @@ def main():
         df["Link"] = link_list
         df["Link Anzeigetext"] = link_text_list
 
-        logging.info(f"Processing {filename} with {df.shape[0]} rows. Turning markdown into HTML...")
+        logging.info(
+            f"Processing {filename} with {df.shape[0]} rows. Turning markdown into HTML..."
+        )
 
-        df['Antwort HTML'] = df['Antwort'].apply(
-            lambda x: markdown.markdown(x, extensions=['nl2br', NewTabExtension()]) if pd.notna(x) else x
+        df["Antwort HTML"] = df["Antwort"].apply(
+            lambda x: markdown.markdown(x, extensions=["nl2br", NewTabExtension()])
+            if pd.notna(x)
+            else x
         )
 
         df_all = pd.concat([df_all, df], ignore_index=True)
@@ -119,15 +125,17 @@ def main():
         logging.error("No data found. Exiting...")
         return
 
-    path_export = os.path.join(credentials.data_path, '100417_esc_faq.csv')
+    path_export = os.path.join("data", "100417_esc_faq.csv")
     df_all.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export=path_export,
-                               folder_name="aussenbez-marketing/esc_faq",
-                               dataset_id="100417")
+    common.update_ftp_and_odsp(
+        path_export=path_export,
+        folder_name="aussenbez-marketing/esc_faq",
+        dataset_id="100417",
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info(f'Job completed successfully!')
+    logging.info("Job completed successfully!")
