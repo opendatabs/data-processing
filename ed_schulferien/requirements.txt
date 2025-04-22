@@ -1,6 +1,0 @@
-pandas==2.2.0
-requests==2.32.3
-filehash==0.2.dev1
-more-itertools==10.2.0
-beautifulsoup4==4.12.3
-vobject==0.9.7

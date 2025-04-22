@@ -1,5 +1,10 @@
-FROM python:3.12.3
-WORKDIR /code/data-processing
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
+
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
 
 # Set environment variables for timezone and locale
 ENV DEBIAN_FRONTEND=noninteractive
@@ -24,21 +29,8 @@ RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
 RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata
 
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.32.3
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir beautifulsoup4==4.12.3
-RUN python3 -m pip install --user --no-cache-dir vobject==0.9.7
+CMD ["uv", "run", "-m", "etl"]
 
-CMD ["python3", "-m", "ed_schulferien.etl"]
-
-# Docker commands to create image and run container:
-# cd ed_schulferien
-# docker build -t ed_schulferien .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ed_schulferien ed_schulferien
-# On Mac, run:
-# docker run -it --rm -v ~/PycharmProjects/data-processing:/code/data-processing --name ed_schulferien ed_schulferien
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/ed_schulferien:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/ed_schulferien/data:/code/data -v /data/dev/workspace/data-processing/ed_schulferien/data_orig:/code/data_orig -v /data/dev/workspace/data-processing/ed_schulferien/change_tracking:/code/change_tracking --name ed_schulferien ghcr.io/opendatabs/data-processing/ed_schulferien:latest
