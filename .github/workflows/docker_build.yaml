@@ -62,6 +62,9 @@ jobs:
             ed_schulferien:
               - 'Dockerfile'
               - 'ed_schulferien/**'
+            ed_swisslos_sportfonds:
+              - 'Dockerfile'
+              - 'ed_swisslos_sportfonds/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
