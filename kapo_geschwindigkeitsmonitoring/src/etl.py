@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 PG_CONNECTION = os.getenv('PG_CONNECTION')
-DETAIL_DATA_Q_DRIVE = os.getenv('DETAIL_DATA_Q_DRIVE')
 DETAIL_DATA_Q_BASE_PATH = os.getenv('DETAIL_DATA_Q_BASE_PATH')
 
 
@@ -186,7 +185,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     for index, row in df_meta_raw.iterrows():
         logging.info(f'Processing row {index + 1} of {len(df_meta_raw)}...')
         measure_id = row['ID']
-        metadata_file_path = DETAIL_DATA_Q_DRIVE + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(DETAIL_DATA_Q_BASE_PATH, '')
+        metadata_file_path = 'data_orig' + os.sep + row.Verzeichnis.replace('\\', os.sep).replace(DETAIL_DATA_Q_BASE_PATH, '')
         data_search_string = os.path.join(metadata_file_path, "**/*.txt")
         raw_files = glob.glob(data_search_string, recursive=True)
 
