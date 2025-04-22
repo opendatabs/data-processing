@@ -105,7 +105,7 @@ def process(file, x_coords_1416):
         )
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(
-            "../data",
+            "data",
             "values",
             f"SensorNr_{sensornr_filter}",
             os.path.basename(file).replace(".csv", f"_{sensornr_filter}.csv"),
