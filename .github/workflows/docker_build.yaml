@@ -44,6 +44,9 @@ jobs:
             aue_schall:
               - 'Dockerfile'
               - 'aue_schall/**'
+            aue_umweltlabor:
+              - 'Dockerfile'
+              - 'aue_umweltlabor/**'
             dataspot:
               - 'dataspot/**'
             jfs_gartenbaeder:
