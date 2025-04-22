@@ -1,71 +1,108 @@
-import os
 import logging
+import os
+
+import common
 import pandas as pd
 import requests
-import common
-import common.change_tracking as ct
-import ods_publish.etl_id as odsp
-
+from dotenv import load_dotenv
 from requests_ntlm import HttpNtlmAuth
-from itbs_klv import credentials
+
+load_dotenv()
+
+URL_LEISTUNGEN = os.getenv("URL_LEISTUNGEN")
+URL_GEBUEHREN = os.getenv("URL_GEBUEHREN")
+HOST_KLV = os.getenv("HOST_KLV")
+API_USER_KLV = os.getenv("API_USER_KLV")
+API_PASS_KLV = os.getenv("API_PASS_KLV")
 
 
 def main():
     df_leist = get_leistungen()
-    path_leist = os.path.join(credentials.data_path, 'export', 'leistungen.csv')
+    path_leist = os.path.join("data", "export", "leistungen.csv")
     df_leist.to_csv(path_leist, index=False)
 
     df_geb = get_gebuehren()
-    path_geb = os.path.join(credentials.data_path, 'export', 'gebuehren.csv')
+    path_geb = os.path.join("data", "export", "gebuehren.csv")
     df_geb.to_csv(path_geb, index=False)
 
-    if ct.has_changed(path_leist):
-        common.upload_ftp(path_leist, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'klv')
-        odsp.publish_ods_dataset_by_id('100324')
-        ct.update_hash_file(path_leist)
-
-    if ct.has_changed(path_geb):
-        common.upload_ftp(path_geb, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass, 'klv')
-        odsp.publish_ods_dataset_by_id('100325')
-        ct.update_hash_file(path_geb)
+    common.update_ftp_and_odsp(path_leist, "klv", "100324")
+    common.update_ftp_and_odsp(path_geb, "klv", "100325")
 
 
 def get_leistungen():
-    req = requests.get(credentials.url_leistungen, auth=HttpNtlmAuth(credentials.api_user, credentials.api_pass),
-                       headers={"host": credentials.host}, verify=False)
-    all_leistungen_path = os.path.join(credentials.data_orig_path, 'alle_Leistungen.xlsx')
-    open(all_leistungen_path, 'wb').write(req.content)
+    req = requests.get(
+        URL_LEISTUNGEN,
+        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
+        headers={"host": HOST_KLV}
+    )
+    all_leistungen_path = os.path.join("data_orig", "alle_Leistungen.xlsx")
+    open(all_leistungen_path, "wb").write(req.content)
 
-    df_leist = pd.read_excel(all_leistungen_path, engine='openpyxl')
-    df_leist = df_leist[df_leist['Aktiv'] == 'Aktiv']
+    df_leist = pd.read_excel(all_leistungen_path, engine="openpyxl")
+    df_leist = df_leist[df_leist["Aktiv"] == "Aktiv"]
     # TODO: keine == Keine == NaN alles zu Keine machen
-    columns_of_interest = ['LeistungId', 'Aktiv', 'Departement', 'Diensstelle',
-                           'Weitere Gliederung OE', 'Identifikationsnummer', 'Name',
-                           'Ergebnis', 'Beschreibung', 'Strasse', 'Hausnummer', 'Postleitzahl', 'Ort',
-                           'Empfänger der Leistung', 'Aktivität Leistungserbringer',
-                           'Aktivität Leistungsempfänger', 'Vorbedingungen',
-                           'Rechtliche Grundlage', 'Digitalisierungsgrad', 'Kurzbeschrieb Ablauf',
-                           'Kontaktaufnahme via', 'Frist', 'Dauer',
-                           'Erforderliche Dokumente', 'Formulare', 'elektr. Bezahlmöglichkeit',
-                           'Weitere beteiligte Stellen', 'Gebühren', 'DepartementId',
-                           'DienststelleId', 'Web Adresse', 'Schlagworte']
+    columns_of_interest = [
+        "LeistungId",
+        "Aktiv",
+        "Departement",
+        "Diensstelle",
+        "Weitere Gliederung OE",
+        "Identifikationsnummer",
+        "Name",
+        "Ergebnis",
+        "Beschreibung",
+        "Strasse",
+        "Hausnummer",
+        "Postleitzahl",
+        "Ort",
+        "Empfänger der Leistung",
+        "Aktivität Leistungserbringer",
+        "Aktivität Leistungsempfänger",
+        "Vorbedingungen",
+        "Rechtliche Grundlage",
+        "Digitalisierungsgrad",
+        "Kurzbeschrieb Ablauf",
+        "Kontaktaufnahme via",
+        "Frist",
+        "Dauer",
+        "Erforderliche Dokumente",
+        "Formulare",
+        "elektr. Bezahlmöglichkeit",
+        "Weitere beteiligte Stellen",
+        "Gebühren",
+        "DepartementId",
+        "DienststelleId",
+        "Web Adresse",
+        "Schlagworte",
+    ]
     return df_leist[columns_of_interest]
 
 
 def get_gebuehren():
-    req = requests.get(credentials.url_gebuehren, auth=HttpNtlmAuth(credentials.api_user, credentials.api_pass),
-                       headers={"host": credentials.host}, verify=False)
-    all_gebuehren_path = os.path.join(credentials.data_orig_path, 'alle_aktiven_Gebuehren.xlsx')
-    open(all_gebuehren_path, 'wb').write(req.content)
+    req = requests.get(
+        URL_GEBUEHREN,
+        auth=HttpNtlmAuth(API_USER_KLV, API_PASS_KLV),
+        headers={"host": HOST_KLV}
+    )
+    all_gebuehren_path = os.path.join("data_orig", "alle_aktiven_Gebuehren.xlsx")
+    open(all_gebuehren_path, "wb").write(req.content)
 
-    df_geb = pd.read_excel(all_gebuehren_path, engine='openpyxl')
-    columns_of_interest = ['Diensstelle', 'Gegenstand der Gebühr', 'Rechtliche Grundlage', 
-                           'Höhe der Gebühr(en) CHF', 'Benchmark', 'Leistung', 'Departement', 'WeitereGliederungOE']
+    df_geb = pd.read_excel(all_gebuehren_path, engine="openpyxl")
+    columns_of_interest = [
+        "Diensstelle",
+        "Gegenstand der Gebühr",
+        "Rechtliche Grundlage",
+        "Höhe der Gebühr(en) CHF",
+        "Benchmark",
+        "Leistung",
+        "Departement",
+        "WeitereGliederungOE",
+    ]
     return df_geb[columns_of_interest]
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info(f'Job completed successfully!')
+    logging.info("Job completed successfully!")
