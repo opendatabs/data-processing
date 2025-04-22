@@ -1,28 +1,14 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir python-dotenv==1.1.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir openpyxl==3.2.0b1
-RUN python3 -m pip install --user --no-cache-dir xlrd==2.0.1
-CMD ["python3", "-m", "euroairport.etl"]
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-# docker build -t euroairport .
-# docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name euroairport euroairport
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
 
 
-# Docker commands to create image and run container:
-# cd euroairport
-# docker build -t euroairport .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing -v /mnt/OGD-DataExch/EuroAirport:/code/data-processing/euroairport/data  --name euroairport euroairport
-
-# For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd euroairport
-# docker build -t euroairport --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
-# cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name euroairport euroairport
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/euroairport:latest
+# docker run -it --rm -v /mnt/OGD-DataExch/EuroAirport:/code/data_orig -v /data/dev/workspace/data-processing/euroairport/data:/code/data -v /data/dev/workspace/data-processing/euroairport/change_tracking:/code/change_tracking --name euroairport ghcr.io/opendatabs/data-processing/euroairport:latest

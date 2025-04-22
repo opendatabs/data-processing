@@ -1,5 +1,0 @@
-**/*.xlsx
-**/*.csv
-credentials.py
-credentials.json
-token.pickle
