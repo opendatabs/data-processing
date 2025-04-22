@@ -68,6 +68,9 @@ jobs:
             esc_faq:
               - 'Dockerfile'
               - 'esc_faq/**'
+            euroairport:
+              - 'Dockerfile'
+              - 'euroairport/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
