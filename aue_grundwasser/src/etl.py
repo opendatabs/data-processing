@@ -174,7 +174,7 @@ def process(file, x_coords_1416):
                 .dt.tz_convert("UTC")
             )
             stat_filename = os.path.join(
-                "../data",
+                "data",
                 "stat",
                 f"SensorNr_{sensornr_filter}",
                 os.path.basename(file).replace(".csv", f"_{sensornr_filter}.csv"),
