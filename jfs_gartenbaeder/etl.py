@@ -1,15 +1,10 @@
-from bs4 import BeautifulSoup
-import pandas as pd
-import common
 import logging
 import os
 from datetime import datetime
 
-from dotenv import load_dotenv
-load_dotenv()
-
-DATA_PATH = os.getenv("DATA_PATH")
-EXPORT_PATH = os.getenv("EXPORT_PATH")
+import common
+import pandas as pd
+from bs4 import BeautifulSoup
 
 
 def main():
@@ -18,12 +13,12 @@ def main():
 
     # Access website
     response = common.requests_get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soup = BeautifulSoup(response.text, "html.parser")
 
     # Extract data
     data = []
-    for row in soup.find_all('tr'):
-        cols = row.find_all('td')
+    for row in soup.find_all("tr"):
+        cols = row.find_all("td")
         if len(cols) == 3:
             # Extract name of the bath, temperature and time
             name = cols[0].text.strip()
@@ -34,7 +29,7 @@ def main():
             data.append([name, temp, time])
 
     # Create data Frame
-    df_aktuell = pd.DataFrame(data, columns=['Name', 'Temperatur', 'Zeitpunkt'])
+    df_aktuell = pd.DataFrame(data, columns=["Name", "Temperatur", "Zeitpunkt"])
 
     # List of desired swimming pools
     desired_pools = [
@@ -44,16 +39,16 @@ def main():
         "Eglisee Familienbad",
         "Eglisee Frauenbad",
         "St. Jakob Sportbad",
-        "St. Jakob Familienbad"
+        "St. Jakob Familienbad",
     ]
     coordinates = {
-        "Bachgraben Sportbad": '47.561690, 7.556763',
-        "Bachgraben Familienbad": '47.562072, 7.557569',
-        "Hallenbad Eglisee": '47.570491, 7.614780',
-        "Eglisee Familienbad": '47.570688, 7.613675',
-        "Eglisee Frauenbad": '47.570848, 7.615430',
-        "St. Jakob Sportbad": '47.539657, 7.620622',
-        "St. Jakob Familienbad": '47.538282, 7.620919'
+        "Bachgraben Sportbad": "47.561690, 7.556763",
+        "Bachgraben Familienbad": "47.562072, 7.557569",
+        "Hallenbad Eglisee": "47.570491, 7.614780",
+        "Eglisee Familienbad": "47.570688, 7.613675",
+        "Eglisee Frauenbad": "47.570848, 7.615430",
+        "St. Jakob Sportbad": "47.539657, 7.620622",
+        "St. Jakob Familienbad": "47.538282, 7.620919",
     }
     links_to_sportanlagen = {
         "Bachgraben Sportbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:295",
@@ -62,41 +57,57 @@ def main():
         "Eglisee Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:38",
         "Eglisee Frauenbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:38",
         "St. Jakob Sportbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:157",
-        "St. Jakob Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:157"
+        "St. Jakob Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:157",
     }
     # Filtering the data frame rows
-    df_aktuell = df_aktuell[df_aktuell['Name'].apply(lambda x: any(pool in x for pool in desired_pools))]
+    df_aktuell = df_aktuell[
+        df_aktuell["Name"].apply(lambda x: any(pool in x for pool in desired_pools))
+    ]
     # Map coordinates to names
-    df_aktuell['Koordinaten'] = df_aktuell['Name'].map(coordinates)
-    df_aktuell['URL_Sportanlage'] = df_aktuell['Name'].map(links_to_sportanlagen)
+    df_aktuell["Koordinaten"] = df_aktuell["Name"].map(coordinates)
+    df_aktuell["URL_Sportanlage"] = df_aktuell["Name"].map(links_to_sportanlagen)
     # Extract only the numbers from the 'Temperatur' column
-    df_aktuell['Temperatur'] = df_aktuell['Temperatur'].str.extract(r'(\d+)').astype(float)
-    st_jakob_zeitpunkt = df_aktuell.loc[df_aktuell['Name'] == "St. Jakob Familienbad", 'Zeitpunkt'].values[0]
-    df_aktuell.loc[df_aktuell['Name'] == "St. Jakob Sportbad", 'Zeitpunkt'] = st_jakob_zeitpunkt
+    df_aktuell["Temperatur"] = (
+        df_aktuell["Temperatur"].str.extract(r"(\d+)").astype(float)
+    )
+    st_jakob_zeitpunkt = df_aktuell.loc[
+        df_aktuell["Name"] == "St. Jakob Familienbad", "Zeitpunkt"
+    ].values[0]
+    df_aktuell.loc[df_aktuell["Name"] == "St. Jakob Sportbad", "Zeitpunkt"] = (
+        st_jakob_zeitpunkt
+    )
     # Apply the function to the 'Zeitpunkt' column
-    df_aktuell['Zeitpunkt'] = pd.to_datetime(df_aktuell['Zeitpunkt'].apply(convert_datetime)).dt.tz_localize(
-        'Europe/Zurich', ambiguous=True)
+    df_aktuell["Zeitpunkt"] = pd.to_datetime(
+        df_aktuell["Zeitpunkt"].apply(convert_datetime)
+    ).dt.tz_localize("Europe/Zurich", ambiguous=True)
     df_aktuell = df_aktuell.dropna()
-    df_aktuell['Zeitpunkt_Job'] = pd.to_datetime(datetime.now()).tz_localize('Europe/Zurich')
-    path_export = os.path.join(EXPORT_PATH, '100388_gartenbaeder_temp_live.csv')
+    df_aktuell["Zeitpunkt_Job"] = pd.to_datetime(datetime.now()).tz_localize(
+        "Europe/Zurich"
+    )
+    path_export = os.path.join("data/export", "100388_gartenbaeder_temp_live.csv")
     df_aktuell.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100388')
-    df_aktuell = df_aktuell.drop(columns=['URL_Sportanlage'])
-
+    common.update_ftp_and_odsp(path_export, "/jfs/gartenbaeder", "100388")
+    df_aktuell = df_aktuell.drop(columns=["URL_Sportanlage"])
     # Download the whole time series from the FTP server and merge it with the current data
-    common.download_ftp(['100384_gartenbaeder_temp_alle.csv'], common.credentials.ftp_server,
-                        common.credentials.ftp_user, common.credentials.ftp_pass,
-                        '/jfs/gartenbaeder', EXPORT_PATH, '')
-    df = pd.read_csv(os.path.join(EXPORT_PATH, '100384_gartenbaeder_temp_alle.csv'))
-    df['Koordinaten'] = df['Name'].map(coordinates)
+    common.download_ftp(
+        ["100384_gartenbaeder_temp_alle.csv"],
+        common.FTP_SERVER,
+        common.FTP_USER,
+        common.FTP_PASS,
+        "/jfs/gartenbaeder",
+        "data/export",
+        "",
+    )
+    df = pd.read_csv(os.path.join("data/export", "100384_gartenbaeder_temp_alle.csv"))
+    df["Koordinaten"] = df["Name"].map(coordinates)
     df = pd.concat([df, df_aktuell])
     df = df.drop_duplicates()
-    path_export = os.path.join(EXPORT_PATH, '100384_gartenbaeder_temp_alle.csv')
-    path_backup = os.path.join(DATA_PATH, 'backup_100384_gartenbaeder_temp_alle.csv')
+    path_export = os.path.join("data/export", "100384_gartenbaeder_temp_alle.csv")
+    path_backup = os.path.join("data", "backup_100384_gartenbaeder_temp_alle.csv")
     df.to_csv(path_export, index=False)
     # In case the FTP writes an empty file, backup
     df.to_csv(path_backup, index=False)
-    common.update_ftp_and_odsp(path_export, '/jfs/gartenbaeder', '100384')
+    common.update_ftp_and_odsp(path_export, "/jfs/gartenbaeder", "100384")
 
 
 def convert_datetime(datum_str):
@@ -110,6 +121,6 @@ def convert_datetime(datum_str):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info('Job successful!')
+    logging.info("Job successful!")
