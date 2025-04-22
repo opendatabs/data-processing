@@ -74,6 +74,9 @@ jobs:
             fgi_geodatenshop:
               - 'Dockerfile'
               - 'fgi_geodatenshop/**'
+            gd_abwassermonitoring:
+              - 'Dockerfile'
+              - 'gd_abwassermonitoring/**'
             jfs_gartenbaeder:
               - 'jfs_gartenbaeder/**'
             kapo_geschwindigkeitsmonitoring:
