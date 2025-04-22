@@ -1,0 +1,23 @@
+[project]
+name = "fgi-geodatenshop"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "geopandas>=1.0.1",
+    "openpyxl>=3.1.5",
+    "owslib>=0.33.0",
+    "pandas>=2.2.3",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.3",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "v0.1.0" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.5",
+]
