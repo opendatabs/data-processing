@@ -114,6 +114,7 @@ jobs:
               - 'Dockerfile'
               - 'kapo_smileys/**'
             meteoblue_rosental:
+              - 'Dockerfile'
               - 'meteoblue_rosental/**'
             mobilitaet_dtv:
               - 'mobilitaet_dtv/**'
