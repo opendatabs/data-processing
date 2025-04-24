@@ -123,6 +123,7 @@ jobs:
               - 'Dockerfile'
               - 'mkb_sammlung_europa/**'
             mobilitaet_dtv:
+              - 'Dockerfile'
               - 'mobilitaet_dtv/**'
             mobilitaet_mikromobilitaet:
               - 'mobilitaet_mikromobilitaet/**'
