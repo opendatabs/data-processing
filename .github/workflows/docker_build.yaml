@@ -116,6 +116,9 @@ jobs:
             meteoblue_rosental:
               - 'Dockerfile'
               - 'meteoblue_rosental/**'
+            meteoblue_wolf:
+              - 'Dockerfile'
+              - 'meteoblue_wolf/**'
             mobilitaet_dtv:
               - 'mobilitaet_dtv/**'
             mobilitaet_mikromobilitaet:
