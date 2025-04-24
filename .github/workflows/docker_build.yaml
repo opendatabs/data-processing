@@ -126,8 +126,10 @@ jobs:
               - 'Dockerfile'
               - 'mobilitaet_dtv/**'
             mobilitaet_mikromobilitaet:
+              - 'Dockerfile'
               - 'mobilitaet_mikromobilitaet/**'
             mobilitaet_mikromobilitaet_stats:
+              - 'Dockerfile'
               - 'mobilitaet_mikromobilitaet_stats/**'
             mobilitaet_verkehrszaehldaten:
               - 'mobilitaet_verkehrszaehldaten/**'
