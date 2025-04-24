@@ -10,7 +10,7 @@ RAW_METADATA_FILENAME = os.path.join(
     "data_orig", "geschwindigkeitsmonitoring_raw_metadata.pkl"
 )
 RICHTUNG_METADATA_FILENAME = os.path.join(
-    "data_orig", "geschwindigkeitsmonitoring_raw_richtung.pkl"
+    "data_orig", "geschwindigkeitsmonitoring_richtung.pkl"
 )
 DATA_FILENAME = os.path.join("data_orig", "geschwindigkeitsmonitoring_data.pkl")
 
