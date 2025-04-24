@@ -131,6 +131,9 @@ jobs:
             mobilitaet_mikromobilitaet_stats:
               - 'Dockerfile'
               - 'mobilitaet_mikromobilitaet_stats/**'
+            mobilitaet_parkflaechen:
+              - 'Dockerfile'
+              - 'mobilitaet_parkflaechen/**'
             mobilitaet_verkehrszaehldaten:
               - 'mobilitaet_verkehrszaehldaten/**'
             staka_regierungsratsbeschluesse:
