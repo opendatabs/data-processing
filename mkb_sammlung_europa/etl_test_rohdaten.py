@@ -1,13 +1,12 @@
 import logging
+import os
 
 import common
 import pandas as pd
-from mkb_sammlung_europa import credentials
 
 
 def main():
-    path = credentials.path_data_roh
-    # path = credentials.path_data_roh_local
+    path = os.path.join("data", "MKB_Sammlung_Europa_roh.csv")
     columns = [
         "Inventarnummer",
         "Kurzbezeichnung und Titel",
@@ -54,9 +53,6 @@ def main():
         for i in range(len(df_MKB))
     ]
 
-    # REMOVE THIS?
-    # "Aus rechtlichen Gründen nicht angezeigt" should appear in both columns
-    # df_MKB['Einlauf-Info'].fillna('Aus rechtlichen Gründen nicht angezeigt', inplace=True)
     # remove Einlaufnummern VI_0000.1, VI_0000.2
     df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
@@ -75,16 +71,8 @@ def main():
     ]
     # join duplicates
     df_MKB = join_duplicates(df_MKB)
-    # df_MKB.to_csv("MKB_Sammlung_Europa_new.csv", index=False)
     # export new file
     df_MKB.to_csv("Sammlung_Europa_test.csv", index=False)
-    # df_MKB.to_csv(credentials.path_export_file, index=False)
-    # if ct.has_changed(credentials.path_export_file):
-    #     common.upload_ftp(credentials.path_export_file, credentials.ftp_server, credentials.ftp_user,
-    #                       credentials.ftp_pass, 'mkb/sammlung_europa')
-    #     odsp.publish_ods_dataset_by_id('100148')
-    #     ct.update_hash_file(credentials.path_export_file)
-    # logging.info('Job successful!')
 
 
 def remove_commas_at_end(df):
@@ -110,8 +98,7 @@ def remove_einlaufnummern(df):
 
 # extract irrelevant text in Datierung using Hackathon file
 def remove_irrelevant(df_MKB):
-    path = credentials.path_hackathon
-    # path = credentials.path_hackathon_local
+    path = os.path.join("data", "MKB_Sammlung_Europa_GLAMhack2021_Data_FINAL_ab_1990_(IV_6526)_einlieferer_zensiert.csv")
     df_new = common.pandas_read_csv(path)
     text_to_remove = list(df_new["Datierung_Info"].unique())
 
@@ -174,19 +161,10 @@ def remove_irrelevant(df_MKB):
 
 
 def join_duplicates(df_MKB):
-    # make Herkunft string
-    # df_MKB['Herkunft'] = df_MKB['Herkunft'].to_string()
     # first make sure dataset is sorted by Inventarnummer
     df_MKB = df_MKB.sort_values(by=["Inventarnummer"])
     duplicates = df_MKB.duplicated(subset=["Inventarnummer"], keep=False)
     index_duplicates = df_MKB[duplicates].index
-
-    # note: 96 rows with double Inventarnummer, for all checked this is caused by different entries for "Herkunft"
-    # check if it is always caused by different entry for "Herkunft" (it is):
-    # columns = list(df_MKB.columns)
-    # columns.remove('Herkunft')
-    # duplicates_without_herkunft = df_MKB.duplicated(subset=columns, keep=False)
-    # print(df_MKB[duplicates_without_herkunft])
 
     # first remove all duplicates
     df_MKB_without_duplicates = df_MKB.drop(index_duplicates)

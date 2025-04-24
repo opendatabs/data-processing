@@ -135,19 +135,10 @@ def remove_irrelevant(df_MKB):
 
 
 def join_duplicates(df_MKB):
-    # make Herkunft string
-    # df_MKB['Herkunft'] = df_MKB['Herkunft'].to_string()
     # first make sure dataset is sorted by Inventarnummer
     df_MKB = df_MKB.sort_values(by=["Inventarnummer"])
     duplicates = df_MKB.duplicated(subset=["Inventarnummer"], keep=False)
     index_duplicates = df_MKB[duplicates].index
-
-    # note: 96 rows with double Inventarnummer, for all checked this is caused by different entries for "Herkunft"
-    # check if it is always caused by different entry for "Herkunft" (it is):
-    # columns = list(df_MKB.columns)
-    # columns.remove('Herkunft')
-    # duplicates_without_herkunft = df_MKB.duplicated(subset=columns, keep=False)
-    # print(df_MKB[duplicates_without_herkunft])
 
     # first remove all duplicates
     df_MKB_without_duplicates = df_MKB.drop(index_duplicates)
