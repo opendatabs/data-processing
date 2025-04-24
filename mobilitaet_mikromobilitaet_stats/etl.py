@@ -7,6 +7,7 @@ from datetime import datetime
 import common
 import geopandas as gpd
 import pandas as pd
+from common import FTP_SERVER, FTP_USER, FTP_PASS
 from dateutil.relativedelta import relativedelta
 
 CONFIGS = {
@@ -376,17 +377,14 @@ def save_stats(df_stats, prefix, date_str, columns_of_interest, timerange_label=
 
     remote_path = f"mobilitaet/mikromobilitaet/stats/{prefix}/{date_str[:4]}"
     common.ensure_ftp_dir(
-        common.credentials.ftp_server,
-        common.credentials.ftp_user,
-        common.credentials.ftp_pass,
+        FTP_SERVER,
+        FTP_USER,
+        FTP_PASS,
         remote_path,
     )
     common.upload_ftp(
         output_file,
-        common.credentials.ftp_server,
-        common.credentials.ftp_user,
-        common.credentials.ftp_pass,
-        remote_path,
+        remote_path=remote_path,
     )
 
 
