@@ -6,7 +6,7 @@ RUN uv sync --frozen
 
 COPY . /code/
 
-CMD ["uv", "run", "-m", "src.etl_https"]
+CMD ["uv", "run", "-m", "etl_https"]
 
 
 # Commands to run the container with the published image locally:
