@@ -1,29 +1,14 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir python-dotenv==1.1.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir python-dateutil==2.8.2
-RUN python3 -m pip install --user --no-cache-dir pycryptodome==3.20.0
-RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
-CMD ["python3", "-m", "meteoblue_wolf.etl"]
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-# docker build -t meteoblue .
-# docker run -it --rm --mount type=bind,source=$(pwd)/data,target=/data --name meteoblue meteoblue
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
 
 
-# Docker commands to create image and run container:
-# cd meteoblue_wolf
-# docker build -t meteoblue_wolf .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name meteoblue_wolf meteoblue_wolf
-
-# For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd meteoblue_wolf
-# docker build -t meteoblue_wolf --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
-# cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name meteoblue_wolf meteoblue_wolf
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/meteoblue_wolf:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/meteoblue_wolf/data:/code/data --name meteoblue_wolf ghcr.io/opendatabs/data-processing/meteoblue_wolf:latest
