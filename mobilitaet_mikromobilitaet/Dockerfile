@@ -1,40 +1,14 @@
-FROM python:3.12-slim
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.6.8 /uv /uvx /bin/
-WORKDIR /code/data-processing/mobilitaet_mikromobilitaet
-# Copy uv files and install dependencies
-COPY pyproject.toml .
-COPY uv.lock .
-RUN uv sync --frozen --no-cache
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-# PYTHONPATH needs to be the parent directory because of the common local module imports
-ENV PYTHONPATH="/code/data-processing"
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
 
-# Set environment variables for timezone and locale
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Europe/Zurich
-ENV LANG=de_CH.UTF-8
-ENV LANGUAGE=de_CH:de
-ENV LC_ALL=de_CH.UTF-8
+COPY . /code/
 
-# Install required system packages 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales=2.36-9+deb12u10 \
-    tzdata=2025a-0+deb12u1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Configure the system locale
-RUN echo "de_CH.UTF-8 UTF-8" >> /etc/locale.gen && \
-    locale-gen de_CH.UTF-8 && \
-    dpkg-reconfigure --frontend=noninteractive locales && \
-    update-locale LANG=de_CH.UTF-8
-
-# Set the timezone
-RUN ln -fs /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
-    dpkg-reconfigure -f noninteractive tzdata
-
-CMD ["uv", "run", "-m", "src.etl"]
+CMD ["uv", "run", "-m", "etl"]
 
 
-# Run the container with the published image:
-# docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data-processing/mobilitaet_mikromobilitaet/data -v /data/dev/workspace/data-processing:/code/data-processing --name mobilitaet_mikromobilitaet ghcr.io/opendatabs/data-processing/mobilitaet_mikromobilitaet:latest
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/mobilitaet_mikromobilitaet:latest
+# docker run -it --rm -v /mnt/OGD-DataExch/StatA/BVD-MOB/Mikromobilitaet:/code/data -v /data/dev/workspace/data-processing/mobilitaet_mikromobilitaet/change_tracking:/code/change_tracking --name mobilitaet_mikromobilitaet ghcr.io/opendatabs/data-processing/mobilitaet_mikromobilitaet:latest
