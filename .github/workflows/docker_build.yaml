@@ -135,6 +135,7 @@ jobs:
               - 'Dockerfile'
               - 'mobilitaet_parkflaechen/**'
             mobilitaet_verkehrszaehldaten:
+              - 'Dockerfile'
               - 'mobilitaet_verkehrszaehldaten/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
