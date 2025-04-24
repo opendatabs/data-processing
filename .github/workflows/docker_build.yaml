@@ -119,6 +119,9 @@ jobs:
             meteoblue_wolf:
               - 'Dockerfile'
               - 'meteoblue_wolf/**'
+            mkb_sammlung_europa:
+              - 'Dockerfile'
+              - 'mkb_sammlung_europa/**'
             mobilitaet_dtv:
               - 'mobilitaet_dtv/**'
             mobilitaet_mikromobilitaet:
