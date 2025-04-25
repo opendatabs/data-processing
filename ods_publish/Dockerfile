@@ -1,26 +1,18 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir python-dotenv==1.1.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-CMD ["python3", "-m", "ods_publish.etl"]
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
+
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
 
 
-# Docker commands to create image and run container:
-# cd ods_publish
-# docker build -t ods_publish .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ods_publish ods_publish python3 -m ods_publish.etl_id 100087
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name ods_publish ods_publish python3 -m ods_publish.etl da_20e9bc,da_uxt6fk,da_q78iuw,da_reclv8
-
-# For Docker on windows running with Linux containers: Run in (git) bash, use env var HTTPS_PROXY of bash as build-arg (see https://vsupalov.com/docker-build-pass-environment-variables):
-# cd ods_publish
-# docker build -t ods_publish --build-arg HTTPS_PROXY=${HTTPS_PROXY} .
-# cd ..
-# winpty docker run -it --rm --env HTTPS_PROXY=${HTTPS_PROXY} -v "C:\dev\workspace\data-processing":/code/data-processing --name ods_publish ods_publish python3 -m ods_publish.etl da_20e9bc,da_uxt6fk,da_q78iuw,da_reclv8
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/ods_publish:latest
+# docker run -it --rm --name ods_publish ghcr.io/opendatabs/data-processing/ods_publish:latest uv run -m etl_id 100087
+# OR
+# docker run -it --rm --name ods_publish ghcr.io/opendatabs/data-processing/ods_publish:latest uv run -m etl da_20e9bc,da_uxt6fk,da_q78iuw,da_reclv8
 
 

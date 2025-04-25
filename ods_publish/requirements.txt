@@ -1,3 +1,0 @@
-requests==2.32.2
-tenacity==6.3.1
-pandas==1.2.2
