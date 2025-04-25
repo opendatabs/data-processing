@@ -152,6 +152,9 @@ jobs:
             parkhaeuser:
               - 'Dockerfile'
               - 'parkhaeuser/**'
+            parlamentsdienst_gr_abstimmungen:
+              - 'Dockerfile'
+              - 'parlamentsdienst_gr_abstimmungen/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
