@@ -149,9 +149,9 @@ jobs:
             parkendd:
               - 'Dockerfile'
               - 'parkendd/**'
-            parkhaueser:
+            parkhaeuser:
               - 'Dockerfile'
-              - 'parkhaueser/**'
+              - 'parkhaeuser/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
