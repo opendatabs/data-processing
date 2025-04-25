@@ -146,6 +146,9 @@ jobs:
             ods_publish:
               - 'Dockerfile'
               - 'ods_publish/**'
+            parkendd:
+              - 'Dockerfile'
+              - 'parkendd/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
