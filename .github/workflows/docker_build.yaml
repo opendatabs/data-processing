@@ -137,6 +137,9 @@ jobs:
             mobilitaet_verkehrszaehldaten:
               - 'Dockerfile'
               - 'mobilitaet_verkehrszaehldaten/**'
+            ods_catalog:
+              - 'Dockerfile'
+              - 'ods_catalog/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
