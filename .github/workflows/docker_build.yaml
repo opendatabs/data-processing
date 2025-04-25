@@ -143,6 +143,9 @@ jobs:
             ods_harvest:
               - 'Dockerfile'
               - 'ods_harvest/**'
+            ods_publish:
+              - 'Dockerfile'
+              - 'ods_publish/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
