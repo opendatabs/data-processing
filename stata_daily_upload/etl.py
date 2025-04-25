@@ -4,7 +4,6 @@ import os
 import json
 from stata_daily_upload import credentials
 import common.change_tracking as ct
-import ods_publish.etl_id as odsp
 import datetime
 
 
@@ -22,9 +21,9 @@ def process_upload(upload):
         ods_id_property = upload['ods_id']
         if isinstance(ods_id_property, list):
             for single_ods_id in ods_id_property:
-                odsp.publish_ods_dataset_by_id(single_ods_id)
+                common.publish_ods_dataset_by_id(single_ods_id)
         else:
-            odsp.publish_ods_dataset_by_id(ods_id_property)
+            common.publish_ods_dataset_by_id(ods_id_property)
 
 
 def process_single_file(upload, file, changed):
@@ -46,9 +45,9 @@ def process_single_file(upload, file, changed):
         ods_id_property = upload['ods_id']
         if isinstance(ods_id_property, list):
             for single_ods_id in ods_id_property:
-                odsp.ods_set_general_access_policy(single_ods_id, False, True)
+                common.ods_set_general_access_policy(single_ods_id, False, True)
         else:
-            odsp.ods_set_general_access_policy(ods_id_property, False, True)
+            common.ods_set_general_access_policy(ods_id_property, False, True)
 
     return changed
 
