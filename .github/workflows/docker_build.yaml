@@ -155,6 +155,9 @@ jobs:
             parlamentsdienst_gr_abstimmungen:
               - 'Dockerfile'
               - 'parlamentsdienst_gr_abstimmungen/**'
+            parlamentsdienst_grosserrat:
+              - 'Dockerfile'
+              - 'parlamentsdienst_grosserat/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
