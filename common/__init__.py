@@ -262,10 +262,10 @@ def ods_set_general_access_policy(dataset_id: str, access_should_be_restricted: 
     return do_change_policy, r
 
 
-def get_dataset_status(dataset_uid, creds):
+def get_dataset_status(dataset_uid):
     logging.info("Getting status of dataset " + dataset_uid + '...')
     response = requests_get(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/status',
-                            headers={'Authorization': f'apikey {creds.api_key}'})
+                            headers={'Authorization': f'apikey {ODS_API_KEY}'})
     if not response.ok:
         raise_response_error(response)
     return response.json()['is_published'], response.json()['status'], response.json()['since']
@@ -282,11 +282,11 @@ def raise_response_error(response):
     response.raise_for_status()
 
 
-def get_ods_uid_by_id(ods_id, creds):
+def get_ods_uid_by_id(ods_id):
     logging.info(f'Retrieving ods uid for ods id {ods_id}...')
     params = {'dataset_id': ods_id}
     response = requests_get(url=f'https://data.bs.ch/api/automation/v1.0/datasets/', params=params,
-                            headers={'Authorization': f'apikey {creds.api_key}'})
+                            headers={'Authorization': f'apikey {ODS_API_KEY}'})
     return response.json()['results'][0]['uid']
 
 
