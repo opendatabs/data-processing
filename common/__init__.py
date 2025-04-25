@@ -505,7 +505,7 @@ def update_ftp_and_odsp(path_export: str, folder_name: str, dataset_id: str, ftp
     """
     if change_tracking.has_changed(path_export):
         upload_ftp(path_export, ftp_server, ftp_user, ftp_pass, folder_name)
-        odsp.publish_ods_dataset_by_id(dataset_id)
+        publish_ods_dataset_by_id(dataset_id)
         change_tracking.update_hash_file(path_export)
 
 
