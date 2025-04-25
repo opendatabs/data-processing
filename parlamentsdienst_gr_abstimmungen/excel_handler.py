@@ -1,6 +1,7 @@
 # see https://stackoverflow.com/a/33504236
 from xml.sax.handler import ContentHandler
 
+
 class ExcelHandler(ContentHandler):
     def __init__(self):
         super().__init__()
@@ -22,7 +23,7 @@ class ExcelHandler(ContentHandler):
 
     def endElement(self, name):
         if name == "Cell":
-            self.cells.append(''.join(self.chars))
+            self.cells.append("".join(self.chars))
         elif name == "Row":
             self.rows.append(self.cells)
         elif name == "Table":

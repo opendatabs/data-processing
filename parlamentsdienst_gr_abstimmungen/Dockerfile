@@ -1,21 +1,14 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir python-dotenv==1.1.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir charset-normalizer==3.3.2
-RUN python3 -m pip install --user --no-cache-dir icalendar==5.0.11
-RUN python3 -m pip install --user --no-cache-dir rapidfuzz==3.6.1
-CMD ["python3", "-m", "parlamentsdienst_gr_abstimmungen.etl"]
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-# Docker commands to create image and run container:
-# cd parlamentsdienst_gr_abstimmungen
-# docker build -t parlamentsdienst_gr_abstimmungen .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name parlamentsdienst_gr_abstimmungen parlamentsdienst_gr_abstimmungen
-# On Mac, run:
-# docker run -it --rm -v ~/PycharmProjects/data-processing:/code/data-processing --name parlamentsdienst_gr_abstimmungen parlamentsdienst_gr_abstimmungen
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
+
+
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/parkendd:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/parkendd/data:/code/data -v /data/dev/workspace/data-processing/parkendd/change_tracking:/code/change_tracking --name parkendd ghcr.io/opendatabs/data-processing/parkendd:latest
