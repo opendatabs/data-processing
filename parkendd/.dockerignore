@@ -1,4 +1,0 @@
-**/*.json
-**/*.csv
-credentials.py
-!/data/csv/lots/parkhaeuser_manually_curated.csv
