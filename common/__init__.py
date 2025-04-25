@@ -27,6 +27,11 @@ try:
 except ImportError:
     from backports import zoneinfo
 
+from dotenv import load_dotenv
+load_dotenv()
+# Load environment variables from .env file
+ODS_API_KEY = os.getenv("ODS_API_KEY")
+
 
 weekdays_german = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 http_errors_to_handle = ConnectionResetError, urllib3.exceptions.MaxRetryError, requests.exceptions.ProxyError, requests.exceptions.HTTPError, ssl.SSLCertVerificationError
@@ -178,16 +183,16 @@ def ensure_ftp_dir(server, user, password, folder):
 
 # Retry with some delay in between if any explicitly defined error is raised
 @retry(http_errors_to_handle, tries=6, delay=60, backoff=1)
-def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
+def publish_ods_dataset(dataset_uid, unpublish_first=False):
     logging.info("Telling OpenDataSoft to reload dataset " + dataset_uid + '...')
     if unpublish_first:
         logging.info('Unpublishing dataset first...')
-        unpublish_ods_dataset(dataset_uid, creds)
-        while not is_unpublished(dataset_uid, creds):
+        unpublish_ods_dataset(dataset_uid)
+        while not is_unpublished(dataset_uid):
             logging.info('Waiting 10 seconds before checking if dataset is unpublished...')
             time.sleep(10)
     response = requests_post(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/publish',
-                             headers={'Authorization': f'apikey {creds.api_key}'})
+                             headers={'Authorization': f'apikey {ODS_API_KEY}'})
 
     if not response.ok:
         raise_response_error(response)
@@ -205,18 +210,56 @@ def publish_ods_dataset(dataset_uid, creds, unpublish_first=False):
         # }
 
 
-def unpublish_ods_dataset(dataset_uid, creds):
+def unpublish_ods_dataset(dataset_uid):
     logging.info("Telling OpenDataSoft to unpublish dataset " + dataset_uid + '...')
     response = requests_post(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/unpublish',
-                             headers={'Authorization': f'apikey {creds.api_key}'})
+                             headers={'Authorization': f'apikey {ODS_API_KEY}'})
     if not response.ok:
         raise_response_error(response)
 
 
-def is_unpublished(dataset_uid, creds):
+def is_unpublished(dataset_uid):
     logging.info("Checking if dataset " + dataset_uid + ' is unpublished...')
-    published, status, _ = get_dataset_status(dataset_uid, creds)
+    published, status, _ = get_dataset_status(dataset_uid)
     return not published and status == 'idle'
+
+
+def get_dataset_status(dataset_uid):
+    logging.info("Getting status of dataset " + dataset_uid + '...')
+    response = requests_get(f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/status',
+                            headers={'Authorization': f'apikey {ODS_API_KEY}'})
+    if not response.ok:
+        raise_response_error(response)
+    return response.json()['is_published'], response.json()['status'], response.json()['since']
+
+
+def publish_ods_dataset_by_id(dataset_id: str, unpublish_first=False):
+    dataset_uid = get_ods_uid_by_id(dataset_id)
+    publish_ods_dataset(dataset_uid, unpublish_first=unpublish_first)
+
+
+def unpublish_ods_dataset_by_id(dataset_id: str):
+    dataset_uid = get_ods_uid_by_id(dataset_id)
+    unpublish_ods_dataset(dataset_uid)
+
+
+def ods_set_general_access_policy(dataset_id: str, access_should_be_restricted: bool, do_publish=True):
+    dataset_uid = get_ods_uid_by_id(dataset_id)
+    logging.info(f'Getting General Access Policy before setting it...')
+    url = f'https://data.bs.ch/api/automation/v1.0/datasets/{dataset_uid}/'
+    r = requests_get(url=url, headers={'Authorization': f'apikey {ODS_API_KEY}'})
+    r.raise_for_status()
+    is_currently_restricted = r.json()['is_restricted']
+    do_change_policy = is_currently_restricted != access_should_be_restricted
+    logging.info(f'Current access policy: {is_currently_restricted}. Do we have to change that? {do_change_policy}.')
+    if do_change_policy:
+        logging.info(f'Setting General Access Policy to is_restricted={access_should_be_restricted}...')
+        r = requests_put(url=url, data={'is_restricted': access_should_be_restricted}, headers={'Authorization': f'apikey {ODS_API_KEY}'})
+        r.raise_for_status()
+        if do_publish:
+            logging.info(f'Publishing dataset...')
+            publish_ods_dataset(dataset_uid)
+    return do_change_policy, r
 
 
 def get_dataset_status(dataset_uid, creds):
