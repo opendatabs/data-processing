@@ -158,6 +158,9 @@ jobs:
             parlamentsdienst_grosserrat:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserat/**'
+            smarte_strasse_ladestationen:
+              - 'Dockerfile'
+              - 'smarte_strasse_ladestationen/**'
             staka_regierungsratsbeschluesse:
               - 'staka_regierungsratsbeschluesse/**'
             stata_harvester:
