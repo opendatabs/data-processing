@@ -95,7 +95,7 @@ def publish_zip_from_folder(dir_to_zip, ftp_folder):
     zip_name = f"{dir_to_zip}.zip"
     shutil.make_archive(dir_to_zip, "zip", dir_to_zip)
     if ct.has_changed(zip_name):
-        common.upload_ftp(zip_name, remote_path="befragungen/{ftp_folder}")
+        common.upload_ftp(zip_name, remote_path=f"befragungen/{ftp_folder}")
         ct.update_hash_file(zip_name)
 
 
