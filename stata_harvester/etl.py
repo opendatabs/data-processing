@@ -2,16 +2,17 @@ import logging
 import os
 import sys
 
+from dotenv import load_dotenv
+from airflow.exceptions import AirflowSkipException
+
 import common
 import common.change_tracking as ct
-from dotenv import load_dotenv
 
 load_dotenv()
 
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_01")
 FTP_PASS = os.getenv("FTP_PASS_01")
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -33,7 +34,6 @@ if __name__ == "__main__":
             ct.update_hash_file(file_path)
 
     if files_changed:
-        # Run ods_harvest/etl.py
         sys.exit(0)
     else:
-        sys.exit(99)
+        raise AirflowSkipException("No files have changed. Skipping downstream tasks.")
