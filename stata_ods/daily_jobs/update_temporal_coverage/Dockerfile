@@ -1,19 +1,14 @@
-FROM python:3.12.3
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-COPY requirements.txt requirements.txt
-COPY .ods_utils_py.env /.ods_utils_py.env
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
 
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-RUN python3 -m pip install --user --no-cache-dir -r requirements.txt
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
 
-CMD ["python3", "-m", "stata_ods.daily_jobs.update_temporal_coverage.etl"]
+COPY . /code/
 
-# Docker commands to create image and run container:
-# cd stata_ods/daily_jobs/update_temporal_coverage
-# docker build -t update_temporal_coverage .
-# cd ../../..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name update_temporal_coverage update_temporal_coverage
-# On Mac, run:
-# docker run -it --rm -v ~/PycharmProjects/data-processing:/code/data-processing --name update_temporal_coverage update_temporal_coverage
+CMD ["uv", "run", "-m", "etl"]
+
+
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/update_temporal_coverage:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/stata_ods/daily_jobs/update_temporal_coverage:/code --name ods_catalog ghcr.io/opendatabs/data-processing/ods_catalog:latest

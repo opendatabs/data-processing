@@ -11,18 +11,16 @@ available. Specifically:
 If none of these granularities are present, the process skips the dataset and moves to the next.
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any
-
-import requests.exceptions
-from dateutil.relativedelta import relativedelta
-import pandas as pd
+import os
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 import ods_utils_py as ods_utils
+import pandas as pd
+import requests.exceptions
+from dateutil.relativedelta import relativedelta
 from ods_utils_py import _requests_utils
-
-from datetime import datetime
 
 
 def _parse_date(date: str, is_min_date: bool) -> Optional[datetime]:
@@ -40,21 +38,21 @@ def _parse_date(date: str, is_min_date: bool) -> Optional[datetime]:
     Returns: A datetime object
     """
 
-    date_no_time = date.split('T')[0]
+    date_no_time = date.split("T")[0]
 
-    match len(date.split('-')):
+    match len(date.split("-")):
         case 3:  # Day precision
-            dt = datetime.strptime(date_no_time, '%Y-%m-%d')
+            dt = datetime.strptime(date_no_time, "%Y-%m-%d")
             return dt
 
         case 2:  # Month precision
-            dt = datetime.strptime(date_no_time, '%Y-%m')
+            dt = datetime.strptime(date_no_time, "%Y-%m")
             if not is_min_date:
                 dt = dt + relativedelta(months=1) - relativedelta(days=1)
             return dt
 
         case 1:  # Year precision
-            dt = datetime.strptime(date_no_time, '%Y')
+            dt = datetime.strptime(date_no_time, "%Y")
             if not is_min_date:
                 dt = dt + relativedelta(years=1) - relativedelta(days=1)
             return dt
@@ -88,7 +86,7 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
         "date_fields_found": [],
         "date_fields_considered": [],
         "granularity_used": "",
-        "status": "No suitable fields found"
+        "status": "No suitable fields found",
     }
 
     r = _requests_utils.requests_get(url=f"{base_url}/catalog/datasets/{dataset_id}")
@@ -99,24 +97,38 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
         logging.error(f"No 'fields' found in dataset {dataset_id} response.")
         return None, None, additional_information
 
-    datetime_columns = [col for col in data_fields if col.get('type') == 'datetime']
-    date_columns = [col for col in data_fields if col.get('type') == 'date']
+    datetime_columns = [col for col in data_fields if col.get("type") == "datetime"]
+    date_columns = [col for col in data_fields if col.get("type") == "date"]
 
-    additional_information["date_fields_found"] = [col['name'] for col in datetime_columns + date_columns]
+    additional_information["date_fields_found"] = [
+        col["name"] for col in datetime_columns + date_columns
+    ]
 
     if datetime_columns:
-        relevant_column_names = [col['name'] for col in datetime_columns]
+        relevant_column_names = [col["name"] for col in datetime_columns]
         additional_information["granularity_used"] = "datetime"
     elif date_columns:
-        relevant_column_names = [col['name'] for col in date_columns if col.get('annotations', {}).get('timeserie_precision', '') == 'day']
+        relevant_column_names = [
+            col["name"]
+            for col in date_columns
+            if col.get("annotations", {}).get("timeserie_precision", "") == "day"
+        ]
         additional_information["granularity_used"] = "day"
 
         if not relevant_column_names:
-            relevant_column_names = [col['name'] for col in date_columns if col.get('annotations', {}).get('timeserie_precision', '') == 'month']
+            relevant_column_names = [
+                col["name"]
+                for col in date_columns
+                if col.get("annotations", {}).get("timeserie_precision", "") == "month"
+            ]
             additional_information["granularity_used"] = "month"
 
         if not relevant_column_names:
-            relevant_column_names = [col['name'] for col in date_columns if col.get('annotations', {}).get('timeserie_precision', '') == 'year']
+            relevant_column_names = [
+                col["name"]
+                for col in date_columns
+                if col.get("annotations", {}).get("timeserie_precision", "") == "year"
+            ]
             additional_information["granularity_used"] = "year"
 
         if not relevant_column_names:
@@ -140,10 +152,12 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
         r_max.raise_for_status()
 
         try:
-            min_date = r_min.json().get('results', {})[0][column_name]
-            max_date = r_max.json().get('results', {})[0][column_name]
+            min_date = r_min.json().get("results", {})[0][column_name]
+            max_date = r_max.json().get("results", {})[0][column_name]
         except IndexError:
-            logging.error(f"Insufficient results returned for column {column_name} in dataset {dataset_id}.")
+            logging.error(
+                f"Insufficient results returned for column {column_name} in dataset {dataset_id}."
+            )
             continue
 
         if min_date is None or max_date is None:
@@ -154,7 +168,9 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
             min_date_candidate = _parse_date(min_date, is_min_date=True)
             max_date_candidate = _parse_date(max_date, is_min_date=False)
         except ValueError as e:
-            logging.error(f"Date parsing error for column {column_name} in dataset {dataset_id}: {e}")
+            logging.error(
+                f"Date parsing error for column {column_name} in dataset {dataset_id}: {e}"
+            )
             continue
 
         if min_return_value is None or min_date_candidate < min_return_value:
@@ -168,8 +184,8 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
     min_date_str = None
     max_date_str = None
     if min_return_value and max_return_value:
-        min_date_str = min_return_value.strftime('%Y-%m-%d')
-        max_date_str = max_return_value.strftime('%Y-%m-%d')
+        min_date_str = min_return_value.strftime("%Y-%m-%d")
+        max_date_str = max_return_value.strftime("%Y-%m-%d")
         additional_information["status"] = "Success"
     else:
         additional_information["status"] = "Error: Unable to determine date range"
@@ -179,119 +195,166 @@ def get_dataset_date_range(dataset_id: str) -> (str, str, Dict[str, Any]):
 
 def main():
     # Create an empty DataFrame to store the data for the CSV
-    df = pd.DataFrame(columns=[
-        'dataset_id',
-        'dataset_title',
-        'date_fields_found',
-        'date_fields_considered',
-        'granularity_used',
-        'min_date',
-        'max_date',
-        'status'
-    ])
+    df = pd.DataFrame(
+        columns=[
+            "dataset_id",
+            "dataset_title",
+            "date_fields_found",
+            "date_fields_considered",
+            "granularity_used",
+            "min_date",
+            "max_date",
+            "status",
+        ]
+    )
 
     all_dataset_ids: [str] = ods_utils.get_all_dataset_ids(include_restricted=False)
 
     for counter, dataset_id in enumerate(all_dataset_ids, start=1):
-            
-        logging.info(f"Processing dataset [{counter}/{len(all_dataset_ids)}]: {dataset_id}")
+        logging.info(
+            f"Processing dataset [{counter}/{len(all_dataset_ids)}]: {dataset_id}"
+        )
         dataset_title = ods_utils.get_dataset_title(dataset_id=dataset_id)
 
-        logging.info(f"Trying to retrieve oldest and newest date in the dataset {dataset_id}")
+        logging.info(
+            f"Trying to retrieve oldest and newest date in the dataset {dataset_id}"
+        )
         try:
-            min_date, max_date, additional_info = get_dataset_date_range(dataset_id=dataset_id)
+            min_date, max_date, additional_info = get_dataset_date_range(
+                dataset_id=dataset_id
+            )
         except requests.exceptions.HTTPError as e:
             logging.debug(f"HTTPError occurred: {e}")
             if e.response.status_code == 404:
-                logging.info(f"Dataset {dataset_id} does not seem to exist. Skipping...")
+                logging.info(
+                    f"Dataset {dataset_id} does not seem to exist. Skipping..."
+                )
             continue
 
-        logging.info(f"Found dates in dataset {dataset_id} from {min_date} to {max_date}")
+        logging.info(
+            f"Found dates in dataset {dataset_id} from {min_date} to {max_date}"
+        )
 
-        new_row = pd.DataFrame({
-            'dataset_id': [dataset_id],
-            'dataset_title': [dataset_title],
-            'date_fields_found': [', '.join(additional_info["date_fields_found"])],
-            'date_fields_considered': [', '.join(additional_info["date_fields_considered"])],
-            'granularity_used': [additional_info["granularity_used"]],
-            'min_date': [min_date],
-            'max_date': [max_date],
-            'status': [additional_info["status"]]
-        })
+        new_row = pd.DataFrame(
+            {
+                "dataset_id": [dataset_id],
+                "dataset_title": [dataset_title],
+                "date_fields_found": [", ".join(additional_info["date_fields_found"])],
+                "date_fields_considered": [
+                    ", ".join(additional_info["date_fields_considered"])
+                ],
+                "granularity_used": [additional_info["granularity_used"]],
+                "min_date": [min_date],
+                "max_date": [max_date],
+                "status": [additional_info["status"]],
+            }
+        )
 
         df = pd.concat([df, new_row], ignore_index=True)
 
         # IMPORTANT: For checking whether a date has changed, we use the date that is written into the "temporal period"
         # field. When this field is not available, used, or updated anymore, we have to change how this works!
 
-        currently_set_dates = ods_utils.get_dataset_metadata_temporal_period(dataset_id=dataset_id)
-        if not currently_set_dates or '/' not in currently_set_dates:
+        currently_set_dates = ods_utils.get_dataset_metadata_temporal_period(
+            dataset_id=dataset_id
+        )
+        if not currently_set_dates or "/" not in currently_set_dates:
             min_return_value = None
             max_return_value = None
         else:
-            min_return_value = _parse_date(currently_set_dates.split('/')[0], is_min_date=True)
-            max_return_value = _parse_date(currently_set_dates.split('/')[1], is_min_date=False)
+            min_return_value = _parse_date(
+                currently_set_dates.split("/")[0], is_min_date=True
+            )
+            max_return_value = _parse_date(
+                currently_set_dates.split("/")[1], is_min_date=False
+            )
 
         if min_date and max_date:
-            should_update_min_date = min_return_value != _parse_date(min_date, is_min_date=True)
-            should_update_max_date = max_return_value != _parse_date(max_date, is_min_date=False)
+            should_update_min_date = min_return_value != _parse_date(
+                min_date, is_min_date=True
+            )
+            should_update_max_date = max_return_value != _parse_date(
+                max_date, is_min_date=False
+            )
 
             if should_update_min_date:
                 if min_return_value:
-                    logging.info(f"Temporal coverage start date gets updated from {min_return_value.strftime('%Y-%m-%d')} to {min_date}")
+                    logging.info(
+                        f"Temporal coverage start date gets updated from {min_return_value.strftime('%Y-%m-%d')} to {min_date}"
+                    )
                 else:
-                    logging.info(f"Temporal coverage start date gets updated from None to {min_date}")
+                    logging.info(
+                        f"Temporal coverage start date gets updated from None to {min_date}"
+                    )
             else:
-                logging.info(f"Temporal coverage start date is {min_date} and does NOT need to be updated.")
+                logging.info(
+                    f"Temporal coverage start date is {min_date} and does NOT need to be updated."
+                )
 
             if should_update_max_date:
                 if max_return_value:
-                    logging.info(f"Temporal coverage end date gets updated from {max_return_value.strftime('%Y-%m-%d')} to {max_date}")
+                    logging.info(
+                        f"Temporal coverage end date gets updated from {max_return_value.strftime('%Y-%m-%d')} to {max_date}"
+                    )
                 else:
-                    logging.info(f"Temporal coverage end date gets updated from None to {max_date}")
+                    logging.info(
+                        f"Temporal coverage end date gets updated from None to {max_date}"
+                    )
             else:
-                logging.info(f"Temporal coverage end date is {max_date} and does NOT need to be updated.")
+                logging.info(
+                    f"Temporal coverage end date is {max_date} and does NOT need to be updated."
+                )
 
             # ISO 8601 standard for date ranges is "YYYY-MM-DD/YYYY-MM-DD"; we implement this here
             if should_update_min_date or should_update_max_date:
                 ods_utils.set_dataset_metadata_temporal_period(
                     temporal_period=f"{min_date}/{max_date}",
                     dataset_id=dataset_id,
-                    publish=False
+                    publish=False,
                 )
-                logging.info(f"Update temporal period from {currently_set_dates} to {min_date}/{max_date}")
+                logging.info(
+                    f"Update temporal period from {currently_set_dates} to {min_date}/{max_date}"
+                )
 
             if should_update_min_date:
                 ods_utils.set_dataset_metadata_temporal_coverage_start_date(
                     temporal_coverage_start_date=min_date,
                     dataset_id=dataset_id,
-                    publish=False
+                    publish=False,
                 )
 
             if should_update_max_date:
                 ods_utils.set_dataset_metadata_temporal_coverage_end_date(
                     temporal_coverage_end_date=max_date,
                     dataset_id=dataset_id,
-                    publish=False
+                    publish=False,
                 )
 
             if should_update_min_date or should_update_max_date:
-                ods_utils.set_dataset_public(dataset_id=dataset_id, should_be_public=True)
+                ods_utils.set_dataset_public(
+                    dataset_id=dataset_id, should_be_public=True
+                )
 
         else:
-            logging.warning(f"Skipping metadata update for dataset {dataset_id} due to missing date range.")
+            logging.warning(
+                f"Skipping metadata update for dataset {dataset_id} due to missing date range."
+            )
 
         logging.info(f"Dataset {dataset_id} process finished")
 
     # Save the DataFrame to a CSV file
-    csv_filename = 'update_temporal_coverage_report.csv'
-    csv_path = os.path.join('stata_ods', 'daily_jobs', 'update_temporal_coverage', csv_filename)
-    df.to_csv(csv_path, index=False, sep=';')
-    logging.info(f"CSV file '{csv_filename}' has been created with the dataset information. It has been saved to {csv_path}")
+    csv_filename = "update_temporal_coverage_report.csv"
+    csv_path = os.path.join(
+        "data", csv_filename
+    )
+    df.to_csv(csv_path, index=False, sep=";")
+    logging.info(
+        f"CSV file '{csv_filename}' has been created with the dataset information. It has been saved to {csv_path}"
+    )
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info(f'Job completed successfully!')
+    logging.info("Job completed successfully!")
