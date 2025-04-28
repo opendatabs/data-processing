@@ -7,9 +7,6 @@ from pathlib import Path
 import common
 import pandas as pd
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 BASE_URL = "https://www.bs.ch"
