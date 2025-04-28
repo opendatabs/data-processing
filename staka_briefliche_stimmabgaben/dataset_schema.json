@@ -1,0 +1,12 @@
+{
+  "tag": "Mittwoch",
+  "datum": "2022-05-15",
+  "eingang_pro_tag" : 1,
+  "eingang_kumuliert" : 1,
+  "stimmbeteiligung": 1.0,
+  "datum_urnengang": "2022-05-15",
+  "tage_bis_urnengang": 1,
+  "abstimmungen": "Ja",
+  "wahlen": "Ja",
+  "wahlen_typ": "text"
+}
