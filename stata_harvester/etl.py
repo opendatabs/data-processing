@@ -32,7 +32,7 @@ if __name__ == "__main__":
             )
             ct.update_hash_file(file_path)
 
-    if files_changed:
-        sys.exit(0)
+    if not files_changed:
+        logging.info("NO_FILES_CHANGED")
     else:
-        sys.exit(99)
+        logging.info("FILES_CHANGED")
