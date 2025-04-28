@@ -11,7 +11,7 @@ load_dotenv()
 
 URL = os.getenv("HTTPS_URL_TBA_WIESE")
 USER = os.getenv("HTTPS_USER_TBA_WIESE")
-PASS = os.getenv("HTTPS_PASS_TB_WIESE")
+PASS = os.getenv("HTTPS_PASS_TBA_WIESE")
 ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100269")
 
 
