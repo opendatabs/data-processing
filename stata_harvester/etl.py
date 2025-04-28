@@ -1,31 +1,32 @@
-import os
 import logging
+import os
+import sys
 
 import common
 import common.change_tracking as ct
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DATA_ORIG_PATH = os.getenv("DATA_ORIG_PATH")
+from common import FTP_SERVER, FTP_USER, FTP_PASS
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
-    logging.info(f'Checking if harvester file has changed...')
+    logging.info(f"Executing {__file__}...")
+    logging.info("Checking if harvester file has changed...")
     files_changed = False
-    for file in os.listdir(DATA_ORIG_PATH):
-        file_path = os.path.join(DATA_ORIG_PATH, file)
+    for file in os.listdir("data_orig"):
+        file_path = os.path.join("data_orig", file)
         if ct.has_changed(file_path):
             files_changed = True
-            logging.info(f'File {file} has changed, uploading to FTP...')
-            common.upload_ftp(file_path, os.getenv("FTP_SERVER"), os.getenv("FTP_USER"), os.getenv("FTP_PASS"), 'harvesters/stata/ftp-csv')
+            logging.info(f"File {file} has changed, uploading to FTP...")
+            common.upload_ftp(
+                file_path,
+                FTP_SERVER,
+                FTP_USER,
+                FTP_PASS,
+                "harvesters/stata/ftp-csv",
+            )
             ct.update_hash_file(file_path)
-    
+
     if files_changed:
         # Run ods_harvest/etl.py
-        logging.info('Running ods_harvest/etl.py...')
-        os.system('python3 ../ods_harvest/etl.py stata-ftp-csv')
+        sys.exit(0)
     else:
-        logging.info('No files changed, skipping upload...')
-    logging.info('Job successful!')
+        sys.exit(99)
