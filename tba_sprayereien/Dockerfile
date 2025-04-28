@@ -1,18 +1,14 @@
-FROM python:3.11-bullseye
-WORKDIR /code/data-processing
-#ARG HTTPS_PROXY
-#ENV HTTPS_PROXY=$HTTPS_PROXY
-RUN python3 -m pip install --user --no-cache-dir pandas==2.2.0
-RUN python3 -m pip install --user --no-cache-dir geopandas==1.0.1
-RUN python3 -m pip install --user --no-cache-dir requests==2.31.0
-RUN python3 -m pip install --user --no-cache-dir python-dotenv==1.1.0
-RUN python3 -m pip install --user --no-cache-dir filehash==0.2.dev1
-RUN python3 -m pip install --user --no-cache-dir more-itertools==10.2.0
-CMD ["python3", "-m", "tba_sprayereien.etl"]
+# Base image from the github.com/opendatabs/data-processing repo
+FROM ghcr.io/opendatabs/data-processing/base:latest
+
+COPY uv.lock pyproject.toml /code/
+RUN uv sync --frozen
+
+COPY . /code/
+
+CMD ["uv", "run", "-m", "etl"]
 
 
-# Docker commands to create image and run container:
-# cd tba_sprayereien
-# docker build -t tba_sprayereien .
-# cd ..
-# docker run -it --rm -v /data/dev/workspace/data-processing:/code/data-processing --name tba_sprayereien tba_sprayereien
+# Commands to run the container with the published image locally:
+# docker pull ghcr.io/opendatabs/data-processing/tba_sprayereien:latest
+# docker run -it --rm -v /data/dev/workspace/data-processing/tba_sprayereien/data:/code/data -v /data/dev/workspace/data-processing/tba_sprayereien/change_tracking:/code/change_tracking --name tba_sprayereien ghcr.io/opendatabs/data-processing/tba_sprayereien:latest
