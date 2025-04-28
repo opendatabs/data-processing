@@ -3,7 +3,6 @@ import os
 import sys
 
 from dotenv import load_dotenv
-from airflow.exceptions import AirflowSkipException
 
 import common
 import common.change_tracking as ct
@@ -36,4 +35,4 @@ if __name__ == "__main__":
     if files_changed:
         sys.exit(0)
     else:
-        raise AirflowSkipException("No files have changed. Skipping downstream tasks.")
+        sys.exit(99)
