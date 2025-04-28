@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-HTTPS_ACCESS_KEY = os.getenv("HTTPS_ACCESS_KEY")
+HTTPS_ACCESS_KEY = os.getenv("HTTPS_ACCESS_KEY_STAATSKALENDER")
 
 # References:
 # https://docs.onegovcloud.ch/api/api#agencies-view
