@@ -205,7 +205,7 @@ jobs:
               - 'stata_gwr/**'
             stata_parzellen:
               - 'Dockerfile'
-              - 'stata_parzellen/**''
+              - 'stata_parzellen/**'
             stata_harvester:
               - 'Dockerfile'
               - 'stata_harvester/**'
