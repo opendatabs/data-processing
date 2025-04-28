@@ -161,10 +161,72 @@ jobs:
             smarte_strasse_ladestationen:
               - 'Dockerfile'
               - 'smarte_strasse_ladestationen/**'
+            stadtreinigung_sauberkeitsindex:
+              - 'Dockerfile'
+              - 'stadtreinigung_sauberkeitsindex/**'
+            statreinigung_wildedeponien:
+              - 'Dockerfile'
+              - 'stadtreinigung_wildedeponien/**'
+            staka_abstimmungen:
+              - 'Dockerfile'
+              - 'staka_abstimmungen/**'
+            staka_baupublikationen:
+              - 'Dockerfile'
+              - 'staka_baupublikationen/**'
+            staka_briefliche_stimmabgaben:
+              - 'Dockerfile'
+              - 'staka_briefliche_stimmabgaben/**'
+            staka_kandidaturen:
+              - 'Dockerfile'
+              - 'staka_kandidaturen/**'
+            staka_kantonsblatt:
+              - 'Dockerfile'
+              - 'staka_kantonsblatt/**'
             staka_regierungsratsbeschluesse:
+              - 'Dockerfile'
               - 'staka_regierungsratsbeschluesse/**'
+            staka_staatskalender:
+              - 'Dockerfile'
+              - 'staka_staatskalender/**'
+            stata_befragungen:
+              - 'Dockerfile'
+              - 'stata_befragungen/**'
+            stata_bik:
+              - 'Dockerfile'
+              - 'stata_bik/**'
+            stata_daily_upload:
+              - 'Dockerfile'
+              - 'stata_daily_upload/**'
+            stata_gwr:
+              - 'Dockerfile'
+              - 'stata_gwr/**'
+            stata_parzellen:
+              - 'Dockerfile'
+              - 'stata_parzellen/**''
             stata_harvester:
+              - 'Dockerfile'
               - 'stata_harvester/**'
+            stata_pull_changes:
+              - 'Dockerfile'
+              - 'stata_pull_changes/**'
+            tba_abfuhrtermine:
+              - 'Dockerfile'
+              - 'tba_abfuhrtermine/**'
+            tba_baustellen:
+              - 'Dockerfile'
+              - 'tba_baustellen/**'
+            tba_sprayereien:
+              - 'Dockerfile'
+              - 'tba_sprayereien/**'
+            tba_wiese:
+              - 'Dockerfile'
+              - 'tba_wiese/**'
+            zefix_handelsregister:
+              - 'Dockerfile'
+              - 'zefix_handelsregister/**'
+            zrd_gesetzessammlung:
+              - 'Dockerfile'
+              - 'zrd_gesetzessammlung/**'
 
       - name: Process changes
         id: process
