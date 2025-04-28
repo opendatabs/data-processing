@@ -4,7 +4,14 @@ import sys
 
 import common
 import common.change_tracking as ct
-from common import FTP_SERVER, FTP_USER, FTP_PASS
+from dotenv import load_dotenv
+
+load_dotenv()
+
+FTP_SERVER = os.getenv("FTP_SERVER")
+FTP_USER = os.getenv("FTP_USER_01")
+FTP_PASS = os.getenv("FTP_PASS_01")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
