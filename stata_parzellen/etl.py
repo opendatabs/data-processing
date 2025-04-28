@@ -3,9 +3,7 @@ from io import StringIO
 import pandas as pd
 import logging
 import common.change_tracking as ct
-import ods_publish.etl_id as odsp
 import common
-from stata_parzellen import credentials
 
 
 def main():
@@ -31,9 +29,8 @@ def main():
         logging.info(f'Exporting, uploading and updating data in ODS...')
         export_filename = os.path.join(CURR_DIR, 'data', 'Liegenschaften_Parzellen_Names.csv')
         df_export.to_csv(export_filename, index=False)
-        common.upload_ftp(export_filename, credentials.ftp_server, credentials.ftp_user, credentials.ftp_pass,
-                          'gva/parzellen')
-        odsp.publish_ods_dataset_by_id('100202')
+        common.upload_ftp(export_filename, remote_path='gva/parzellen')
+        common.publish_ods_dataset_by_id('100202')
         ct.update_hash_file(parzellen_data_file)
     pass
 
