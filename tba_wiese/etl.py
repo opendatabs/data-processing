@@ -5,6 +5,9 @@ import pathlib
 import common
 import pandas as pd
 from common import FTP_PASS, FTP_SERVER, FTP_USER
+from dotenv import load_dotenv
+
+load_dotenv()
 
 URL = os.getenv("HTTPS_URL_TBA_WIESE")
 USER = os.getenv("HTTPS_USER_TBA")
