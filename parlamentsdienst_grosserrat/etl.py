@@ -10,27 +10,15 @@ import numpy as np
 import pandas as pd
 
 # All paths
-PATH_GR = "https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable="
-PATH_ADR = StringIO(common.requests_get(f"{PATH_GR}adr").text)
-PATH_MIT = StringIO(common.requests_get(f"{PATH_GR}mit").text)
-PATH_GRE = StringIO(common.requests_get(f"{PATH_GR}gre").text)
-PATH_INTR = StringIO(common.requests_get(f"{PATH_GR}intr").text)
-PATH_GES = StringIO(common.requests_get(f"{PATH_GR}ges").text)
-PATH_KON = StringIO(common.requests_get(f"{PATH_GR}kon").text)
-PATH_ZUW = StringIO(common.requests_get(f"{PATH_GR}zuw").text)
-PATH_DOK = StringIO(common.requests_get(f"{PATH_GR}dok").text)
-PATH_VOR = StringIO(common.requests_get(f"{PATH_GR}vor").text)
-PATH_SIZ = StringIO(common.requests_get(f"{PATH_GR}siz").text)
-PATH_GR_SITZUNG = StringIO(common.requests_get(f"{PATH_GR}gr_sitzung").text)
-PATH_GR_TAGESORDNUNG = StringIO(common.requests_get(f"{PATH_GR}gr_tagesordnung").text)
-PATH_GR_TRAKTANDEN = StringIO(common.requests_get(f"{PATH_GR}gr_tagesordnung_pos").text)
-PATH_PERSONEN = "https://grosserrat.bs.ch/?mnr="
-PATH_GESCHAEFT = "https://grosserrat.bs.ch/?gnr="
-PATH_DOKUMENT = "https://grosserrat.bs.ch/?dnr="
-PATH_MEDIA = "https://grosserrat.bs.ch/media/files"
+BASE_PATH = "https://grosserrat.bs.ch"
+PATH_PERSONEN = f"{BASE_PATH}/?mnr="
+PATH_GESCHAEFT = f"{BASE_PATH}/?gnr="
+PATH_DOKUMENT = f"{BASE_PATH}/?dnr="
+PATH_MEDIA = f"{BASE_PATH}/media/files"
 PATH_MEDIA_TAGESORDNUNG = f"{PATH_MEDIA}/tagesordnungen/"
 PATH_MEDIA_RATSPROTOKOLLE = f"{PATH_MEDIA}/ratsprotokolle/"
 PATH_MEDIA_AUDIO = "http://protokolle.grosserrat-basel.ch//"
+
 PATH_DATASET = "https://data.bs.ch/explore/dataset/"
 
 # Unix timestamps that mark the maximum and minimum possible timestamp
@@ -145,44 +133,44 @@ def main():
     3. Create CSV files for data.bs.ch
     """
     logging.info("Reading Personen.csv...")
-    df_adr = common.pandas_read_csv(PATH_ADR, encoding="utf-8", dtype=str)
+    df_adr = common.pandas_read_csv(get_path_to_file("adr"), encoding="utf-8", dtype=str)
     logging.info("Reading Mitgliedschaften.csv...")
-    df_mit = common.pandas_read_csv(PATH_MIT, encoding="utf-8", dtype=str)
+    df_mit = common.pandas_read_csv(get_path_to_file("mit"), encoding="utf-8", dtype=str)
     logging.info("Reading Gremien.csv...")
-    df_gre = common.pandas_read_csv(PATH_GRE, encoding="utf-8", dtype=str)
+    df_gre = common.pandas_read_csv(get_path_to_file("gre"), encoding="utf-8", dtype=str)
     logging.info("Reading Interessensbindungen.csv...")
-    df_intr = common.pandas_read_csv(PATH_INTR, encoding="utf-8", dtype=str)
+    df_intr = common.pandas_read_csv(get_path_to_file("intr"), encoding="utf-8", dtype=str)
 
     logging.info("Reading Geschäfte.csv...")
-    df_ges = common.pandas_read_csv(PATH_GES, encoding="utf-8", dtype=str)
+    df_ges = common.pandas_read_csv(get_path_to_file("ges"), encoding="utf-8", dtype=str)
     # Replace identifiers to match with values in the committee list (gremium.csv)
     df_ges["gr_urheber"] = df_ges["gr_urheber"].replace(REPLACE_UNI_NR_GRE_DICT)
 
     logging.info("Reading Konsorten.csv...")
-    df_kon = common.pandas_read_csv(PATH_KON, encoding="utf-8", dtype=str)
+    df_kon = common.pandas_read_csv(get_path_to_file("kon"), encoding="utf-8", dtype=str)
     df_kon["uni_nr_adr"] = df_kon["uni_nr_adr"].replace(REPLACE_UNI_NR_GRE_DICT)
 
     logging.info("Reading Zuweisungen.csv...")
-    df_zuw = common.pandas_read_csv(PATH_ZUW, encoding="utf-8", dtype=str)
+    df_zuw = common.pandas_read_csv(get_path_to_file("zuw"), encoding="utf-8", dtype=str)
     # Replace identifiers to match with values in the committee list (gremium.csv)
     df_zuw["uni_nr_an"] = df_zuw["uni_nr_an"].replace(REPLACE_UNI_NR_GRE_DICT)
     df_zuw["uni_nr_von"] = df_zuw["uni_nr_von"].replace(REPLACE_UNI_NR_GRE_DICT)
 
     logging.info("Reading Dokumente.csv...")
-    df_dok = common.pandas_read_csv(PATH_DOK, encoding="utf-8", dtype=str)
+    df_dok = common.pandas_read_csv(get_path_to_file("dok"), encoding="utf-8", dtype=str)
     logging.info("Reading Vorgänge.csv...")
-    df_vor = common.pandas_read_csv(PATH_VOR, encoding="utf-8", dtype=str)
+    df_vor = common.pandas_read_csv(get_path_to_file("vor"), encoding="utf-8", dtype=str)
     logging.info("Reading Sitzungen.csv...")
-    df_siz = common.pandas_read_csv(PATH_SIZ, encoding="utf-8", dtype=str)
+    df_siz = common.pandas_read_csv(get_path_to_file("siz"), encoding="utf-8", dtype=str)
     logging.info("Reading Sitzungsdaten.csv...")
-    df_gr_sitzung = common.pandas_read_csv(PATH_GR_SITZUNG, encoding="utf-8", dtype=str)
+    df_gr_sitzung = common.pandas_read_csv(get_path_to_file("gr_sitzung"), encoding="utf-8", dtype=str)
     logging.info("Reading Tagesordnung.csv...")
     df_gr_tagesordnung = common.pandas_read_csv(
-        PATH_GR_TAGESORDNUNG, encoding="utf-8", dtype=str
+        get_path_to_file("gr_tagesordnung"), encoding="utf-8", dtype=str
     )
     logging.info("Reading Traktanden.csv...")
     df_gr_traktanden = common.pandas_read_csv(
-        PATH_GR_TRAKTANDEN, encoding="utf-8", dtype=str
+        get_path_to_file("gr_tagesordnung_pos"), encoding="utf-8", dtype=str
     )
 
     # Perform data processing and CSV file creation functions
@@ -201,6 +189,11 @@ def main():
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
         common.update_ftp_and_odsp(*args_for_upload)
+
+
+def get_path_to_file(chosentable: str) -> str:
+    path_gr = f"{BASE_PATH}/index.php?option=com_gribs&view=exporter&format=csv&chosentable="
+    return f"{path_gr}{chosentable}"
 
 
 def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
