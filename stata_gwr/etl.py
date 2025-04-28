@@ -87,7 +87,7 @@ def main():
                 and ".csv" in file_path
                 and ct.has_changed(file_path)
             ):
-                common.upload_ftp(file_path, remove_path="gwr/opendata_export")
+                common.upload_ftp(file_path, remote_path="gwr/opendata_export")
         ods_ids = ["100230", "100231", "100232"]
         for ods_id in ods_ids:
             common.publish_ods_dataset_by_id(ods_id)
