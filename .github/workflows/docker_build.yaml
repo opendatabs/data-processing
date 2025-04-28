@@ -146,6 +146,9 @@ jobs:
             ods_publish:
               - 'Dockerfile'
               - 'ods_publish/**'
+            ods_update_temporal_coverage:
+              - 'Dockerfile'
+              - 'stata_ods/daily_jobs/update_temporal_coverage/**' 
             parkendd:
               - 'Dockerfile'
               - 'parkendd/**'
