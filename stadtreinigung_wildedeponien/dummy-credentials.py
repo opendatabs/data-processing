@@ -1,12 +1,11 @@
-ftp_server = 'FTP-GATEWAY'
-ftp_user = 'USERNAME@data-bs.ch@data-bs.ch'
-ftp_pass = 'DUMMYPASSWORD'
+ftp_server = "FTP-GATEWAY"
+ftp_user = "USERNAME@data-bs.ch@data-bs.ch"
+ftp_pass = "DUMMYPASSWORD"
 
-api_user = 'TESTUSER'
-api_password = 'SUPERSECRET'
+api_user = "TESTUSER"
+api_password = "SUPERSECRET"
 
-path = '/code/data-processing/stadtreinigung_wildedeponien/data/'
-filename = 'FILENAME.CSV'
+path = "/code/data-processing/stadtreinigung_wildedeponien/data/"
+filename = "FILENAME.CSV"
 
-proxy = 'https://USER:PASSWORD@PROXYSERVER:PORT/'
-
+proxy = "https://USER:PASSWORD@PROXYSERVER:PORT/"
