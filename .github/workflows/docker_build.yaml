@@ -161,13 +161,13 @@ jobs:
             parlamentsdienst_grosserrat:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserat/**'
-            smarte_strasse_ladestationen:
+            smarte_strasse_ladestation:
               - 'Dockerfile'
-              - 'smarte_strasse_ladestationen/**'
+              - 'smarte_strasse_ladestation/**'
             stadtreinigung_sauberkeitsindex:
               - 'Dockerfile'
               - 'stadtreinigung_sauberkeitsindex/**'
-            statreinigung_wildedeponien:
+            stadtreinigung_wildedeponien:
               - 'Dockerfile'
               - 'stadtreinigung_wildedeponien/**'
             staka_abstimmungen:
