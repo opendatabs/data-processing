@@ -6,12 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.13.3",
+    "common",
     "docling>=2.28.2",
-    "filehash>=0.2.dev1",
     "markdown>=3.7",
-    "mistralai>=1.6.0",
-    "more-itertools>=10.6.0",
-    "openai>=1.68.2",
     "pandas>=2.2.3",
     "pdf2image>=1.17.0",
     "pdfkit>=1.0.0",
@@ -22,4 +19,12 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "requests>=2.32.3",
     "weasyprint>=65.0",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "v0.1.0" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.7",
 ]

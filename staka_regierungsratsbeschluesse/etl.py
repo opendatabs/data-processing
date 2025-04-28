@@ -1,13 +1,12 @@
+import datetime
+import logging
 import os
 import re
-import logging
-import pandas as pd
-import datetime
-from bs4 import BeautifulSoup
-from staka_regierungsratsbeschluesse.src.pdf2md import Converter
 from pathlib import Path
 
 import common
+import pandas as pd
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,7 +16,6 @@ BASE_URL = "https://www.bs.ch"
 LISTING_URL = "https://www.bs.ch/apps/regierungsratsbeschluesse"
 DETAIL_PREFIX = "https://www.bs.ch/regierungsratsbeschluesse"
 
-DATA_PATH = os.getenv("DATA_PATH")
 
 def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
     """
@@ -32,28 +30,28 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
     # Construct the paginated URL
     url = f"{LISTING_URL}?page={page_number}"
     logging.info(f"Scraping listing page: {url}")
-    
+
     r = common.requests_get(url)
     r.raise_for_status()
-    
+
     soup = BeautifulSoup(r.text, "html.parser")
-    
+
     # Each “Sitzung” block could be found by a specific container.
     # From the sample HTML, each Sitzung seems to be in:
     # <div class="mb-25"> ... <button>DATE</button> ...
     # Then links <a href="/regierungsratsbeschluesse/..."></a> are inside <li class="text-base">.
-    
+
     sitzung_blocks = soup.find_all("div", class_="mb-25")
     detail_urls = []
-    
+
     for block in sitzung_blocks:
         button = block.find("button")
         if not button:
             continue
-        
+
         date_text = button.get_text(strip=True)
         logging.info(f"   Found Sitzung: {date_text}")
-        
+
         # Each anchor inside this block corresponds to a single “Geschäft”.
         links = block.find_all("a", href=re.compile(r"^/regierungsratsbeschluesse/"))
         for link in links:
@@ -61,11 +59,11 @@ def scrape_sitzung_overview(page_number, just_process_last_sitzung=False):
             # Typically looks like /regierungsratsbeschluesse/P245510?backUrl=/apps/...
             href_clean = href.split("?")[0]
             detail_url = BASE_URL + href_clean
-            
+
             detail_urls.append(detail_url)
         if just_process_last_sitzung:
             break
-    
+
     return detail_urls
 
 
@@ -82,9 +80,20 @@ def scrape_detail_page(url):
 
     data = []
     # Initialize all fields to None
-    praesidial_nr, titel, federfuehrung, parlamentarisch_text, parlamentarisch_url = None, None, None, None, None
+    praesidial_nr, titel, federfuehrung, parlamentarisch_text, parlamentarisch_url = (
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
     # Initialize all fields to None
-    sitzung_datum, traktanden, regierungsratsbeschluss_url, weitere_dokumente = None, None, None, None
+    sitzung_datum, traktanden, regierungsratsbeschluss_url, weitere_dokumente = (
+        None,
+        None,
+        None,
+        None,
+    )
 
     tables = soup.find_all("table", class_="government-resolutions-data-table")
     # --- Geschäft: Präsidial-Nr., Titel, Federführung, Parlamentarisch ---
@@ -97,7 +106,7 @@ def scrape_detail_page(url):
             if not th or not td:
                 logging.warning(f"   No th or td found for url {url} and tr {row}")
                 continue
-            
+
             label = th.get_text(strip=True)
             value = td.get_text(strip=True)
 
@@ -134,7 +143,9 @@ def scrape_detail_page(url):
                 value = td.get_text(strip=True)
 
                 if label == "Sitzung vom":
-                    sitzung_datum = datetime.datetime.strptime(value, "%d.%m.%Y").strftime("%Y-%m-%d")
+                    sitzung_datum = datetime.datetime.strptime(
+                        value, "%d.%m.%Y"
+                    ).strftime("%Y-%m-%d")
                 # Traktanden
                 elif label == "Traktanden":
                     traktanden = value
@@ -156,7 +167,16 @@ def scrape_detail_page(url):
                         # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
                         if "Regierungsratsbeschluss" in link_text:
                             regierungsratsbeschluss_url = link_href
-                            rb_markdowns = convert_pdf_to_md(regierungsratsbeschluss_url, 'regierungsratsbeschluss')
+                            pdf_temp_path = (
+                                Path("data")
+                                / "pdf"
+                                / "temp_regierungsratsbeschluss.pdf"
+                            )
+                            rb_markdowns = common.convert_pdf_to_md(
+                                regierungsratsbeschluss_url,
+                                pdf_temp_path,
+                                "regierungsratsbeschluss",
+                            )
 
                         else:
                             weitere.append(link_href)
@@ -164,65 +184,39 @@ def scrape_detail_page(url):
                 else:
                     logging.warning(f"   Unknown label: {label}")
 
-            data.append({
-                'praesidial_nr': praesidial_nr,
-                'titel': titel,
-                'federfuehrung': federfuehrung,
-                'parlamentarisch_text': parlamentarisch_text,
-                'parlamentarisch_url': parlamentarisch_url,
-                'sitzung_datum': sitzung_datum,
-                'traktanden': traktanden,
-                'regierungsratsbeschluss': regierungsratsbeschluss_url,
-                'weitere_dokumente': weitere_dokumente,
-                'url': url
-            } | rb_markdowns)
+            data.append(
+                {
+                    "praesidial_nr": praesidial_nr,
+                    "titel": titel,
+                    "federfuehrung": federfuehrung,
+                    "parlamentarisch_text": parlamentarisch_text,
+                    "parlamentarisch_url": parlamentarisch_url,
+                    "sitzung_datum": sitzung_datum,
+                    "traktanden": traktanden,
+                    "regierungsratsbeschluss": regierungsratsbeschluss_url,
+                    "weitere_dokumente": weitere_dokumente,
+                    "url": url,
+                }
+                | rb_markdowns
+            )
     else:
-        data.append({
-            'praesidial_nr': praesidial_nr,
-            'titel': titel,
-            'federfuehrung': federfuehrung,
-            'parlamentarisch_text': parlamentarisch_text,
-            'parlamentarisch_url': parlamentarisch_url,
-            'sitzung_datum': sitzung_datum,
-            'traktanden': traktanden,
-            'regierungsratsbeschluss': regierungsratsbeschluss_url,
-            'weitere_dokumente': weitere_dokumente,
-            'url': url
-        })
+        data.append(
+            {
+                "praesidial_nr": praesidial_nr,
+                "titel": titel,
+                "federfuehrung": federfuehrung,
+                "parlamentarisch_text": parlamentarisch_text,
+                "parlamentarisch_url": parlamentarisch_url,
+                "sitzung_datum": sitzung_datum,
+                "traktanden": traktanden,
+                "regierungsratsbeschluss": regierungsratsbeschluss_url,
+                "weitere_dokumente": weitere_dokumente,
+                "url": url,
+            }
+        )
         logging.warning(f"   Less than 2 tables found for url {url}")
 
     return data
-
-
-def convert_pdf_to_md(pdf_url, prefix):
-    # Download the PDF
-    logging.info(f"   Downloading PDF: {pdf_url}")
-    pdf_path = Path(DATA_PATH) / 'pdf' / 'temp_regierungsratsbeschluss.pdf'
-    try:
-        r_pdf = common.requests_get(pdf_url)
-        with open(pdf_path, "wb") as file:
-            for chunk in r_pdf.iter_content(chunk_size=1024):
-                file.write(chunk)
-        print(f"PDF downloaded successfully as {pdf_path}")
-    except:
-        print("Failed to download PDF.")
-        return dict()
-    
-    # Convert the PDF to Markdown
-    methods = ["docling", "pymupdf4llm", "pymupdf"]
-    markdowns = {}
-    for m in methods:
-        converter = Converter(lib=m, input_file=pdf_path)
-        try:
-            converter.convert()
-            markdown_path = converter.output_file
-            with open(markdown_path, "r", encoding="utf-8") as f:
-                markdowns[f'{prefix}_{m}'] = f.read()
-        except:
-            logging.error(f"Failed to convert PDF using method: {m}")
-            continue
-    
-    return markdowns
 
 
 def main():
@@ -230,42 +224,42 @@ def main():
 
     all_data = []
     page_number = 1
-    path_export = os.path.join(DATA_PATH, 'export', 'regierungsratsbeschluesse.csv')
+    path_export = os.path.join("data", "export", "regierungsratsbeschluesse.csv")
 
     if just_process_last_sitzung:
-        logging.info('Processing only the last sitzung...')
+        logging.info("Processing only the last sitzung...")
         sitzungen = scrape_sitzung_overview(1, just_process_last_sitzung)
 
         for sitzung in sitzungen:
             detail_data = scrape_detail_page(sitzung)
             all_data += detail_data
-        
+
         df = pd.read_csv(path_export)
         df_new_sitzung = pd.DataFrame(all_data)
         df = pd.concat([df, df_new_sitzung], ignore_index=True)
     else:
-        logging.info('Processing all sitzungen...')
+        logging.info("Processing all sitzungen...")
         while True:
             sitzungen = scrape_sitzung_overview(page_number)
             if not sitzungen:
                 # No more sitzungen found on this page, so we stop.
                 break
-            
+
             for sitzung in sitzungen:
                 detail_data = scrape_detail_page(sitzung)
                 all_data += detail_data
-            
+
             page_number += 1
 
         df = pd.DataFrame(all_data)
     # Drop duplicates since we are scraping multiple tables for each sitzung
     df = df.drop_duplicates()
     df.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, 'staka/regierungsratsbeschluesse', '100427')
+    common.update_ftp_and_odsp(path_export, "staka/regierungsratsbeschluesse", "100427")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info('Job successful!')
+    logging.info("Job successful!")
