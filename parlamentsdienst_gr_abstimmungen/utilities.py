@@ -37,24 +37,34 @@ def find_in_sheet(sheet, text_to_find):
 
 
 def is_session_now(ical_file_path, hours_before_start, hours_after_end):
-    # see https://stackoverflow.com/a/26329138
-    now_in_switzerland = datetime.now()
-    # now_in_switzerland = datetime(2022, 3, 23, 10, 15, 12, 11).astimezone(ZoneInfo('Europe/Zurich'))
+    now_in_switzerland = datetime.now(ZoneInfo("Europe/Zurich"))
     with open(ical_file_path, "rb") as f:
         calendar = icalendar.Calendar.from_ical(f.read())
     # handle case where session takes longer than defined in calendar event
-    current_entries = [
-        dict(
-            summary=event["SUMMARY"],
-            dtstart=event["DTSTART"].dt,
-            dtend=event["DTEND"].dt,
-        )
-        for event in calendar.walk("VEVENT")
-        if event["DTSTART"].dt - pd.Timedelta(hours=hours_before_start)
-        <= now_in_switzerland
-        <= event["DTEND"].dt + pd.Timedelta(hours=hours_after_end)
-    ]
-    session_active = True if len(current_entries) > 0 else False
+    current_entries = []
+    for event in calendar.walk("VEVENT"):
+        start = event["DTSTART"].dt
+        end = event["DTEND"].dt
+
+        # ensure start and end are timezone-aware in Europe/Zurich
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=ZoneInfo("Europe/Zurich"))
+        else:
+            start = start.astimezone(ZoneInfo("Europe/Zurich"))
+
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=ZoneInfo("Europe/Zurich"))
+        else:
+            end = end.astimezone(ZoneInfo("Europe/Zurich"))
+
+        if (start - pd.Timedelta(hours=hours_before_start)) <= now_in_switzerland <= (end + pd.Timedelta(hours=hours_after_end)):
+            current_entries.append({
+                "summary": event["SUMMARY"],
+                "dtstart": start,
+                "dtend": end,
+            })
+
+    session_active = len(current_entries) > 0
     logging.info(f"Session active now? {session_active}")
     return session_active
 
