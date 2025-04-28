@@ -82,11 +82,7 @@ def main():
             exported_files.append(export_file_path)
         for filename in os.listdir(data_path):
             file_path = os.path.join(data_path, filename)
-            if (
-                os.path.isfile(file_path)
-                and ".csv" in file_path
-                and ct.has_changed(file_path)
-            ):
+            if (os.path.isfile(file_path) and ".csv" in file_path and ct.has_changed(file_path)):
                 common.upload_ftp(file_path, remote_path="gwr/opendata_export")
         ods_ids = ["100230", "100231", "100232"]
         for ods_id in ods_ids:
