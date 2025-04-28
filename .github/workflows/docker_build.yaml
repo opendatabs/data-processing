@@ -230,7 +230,6 @@ jobs:
             zrd_gesetzessammlung:
               - 'Dockerfile'
               - 'zrd_gesetzessammlung/**'
-
       - name: Process changes
         id: process
         run: |
