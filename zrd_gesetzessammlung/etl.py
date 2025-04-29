@@ -27,7 +27,7 @@ def get_texts_of_law():
     )
     r.raise_for_status()
     tols = r.json()
-    with open(os.path.join("datasystematics_with_tols.json"), "w") as f:
+    with open(os.path.join("data", "systematics_with_tols.json"), "w") as f:
         json.dump(tols, f, indent=2)
 
     df = pd.DataFrame(tols).T.reset_index().set_index("index")
@@ -303,7 +303,7 @@ def get_old_changes():
         FTP_USER,
         FTP_PASS,
         "zrd_gesetzessammlung/changes_per_month",
-        os.path.join("datachanges_per_month"),
+        os.path.join("data", "changes_per_month"),
         pattern="*.csv",
     )
     df_old_changes = pd.concat([pd.read_csv(file["local_file"]) for file in listing])
@@ -394,7 +394,7 @@ def upload_to_ftp_per_month(df):
 
         # Save to CSV
         output_path = os.path.join(
-            os.path.join("datachanges_per_month"), f"{year_month}.csv"
+            os.path.join("data", "changes_per_month"), f"{year_month}.csv"
         )
         period_df.to_csv(output_path, index=False)
         common.upload_ftp(
