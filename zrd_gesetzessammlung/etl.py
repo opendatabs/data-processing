@@ -11,12 +11,12 @@ from common import FTP_SERVER, FTP_USER, FTP_PASS
 
 def main():
     df_tols = get_texts_of_law()
-    path_export = os.path.join("dataexport", "100354_systematics_with_tols.csv")
+    path_export = os.path.join("data", "export", "100354_systematics_with_tols.csv")
     df_tols.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "zrd_gesetzessammlung", "100354")
 
     df_changes = get_changes(process_all=True)
-    path_export = os.path.join("dataexport", "100355_changes.csv")
+    path_export = os.path.join("data", "export", "100355_changes.csv")
     df_changes.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "zrd_gesetzessammlung", "100355")
 
