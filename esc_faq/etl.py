@@ -124,11 +124,11 @@ def main():
         thema_str = df['Thema'].astype(str)
 
         conditions = [
-            thema_str.str.contains('Arena Plus', na=False),
+            thema_str.str.contains('Arena plus', na=False),
             thema_str.str.contains('Eurovision Village', na=False)
         ]
 
-        choices = ['Arena Plus', 'Eurovision Village']
+        choices = ['Arena plus', 'Eurovision Village']
 
         df['Veranstaltungsort'] = np.select(conditions, choices, default='')
 
