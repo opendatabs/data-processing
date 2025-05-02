@@ -120,9 +120,12 @@ def main():
             else x
         )
 
+        
+        thema_str = df['Thema'].astype(str)
+
         conditions = [
-            df['Thema'].str.contains('Arena Plus', na=False),
-            df['Thema'].str.contains('Eurovision Village', na=False)
+            thema_str.str.contains('Arena Plus', na=False),
+            thema_str.str.contains('Eurovision Village', na=False)
         ]
 
         choices = ['Arena Plus', 'Eurovision Village']
