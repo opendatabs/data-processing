@@ -152,7 +152,6 @@ def main():
 
     path_export = os.path.join("data", "100417_esc_faq.csv")
     df_all.to_csv(path_export, index=False)
-    quit()
     common.update_ftp_and_odsp(
         path_export=path_export,
         folder_name="aussenbez-marketing/esc_faq",
