@@ -36,13 +36,23 @@ def extract_link_and_text(cell):
         return "", ""
 
     if cell.hyperlink is not None:
-        # Cell has an actual hyperlink object
-        real_url = cell.hyperlink.target  # The actual URL
-        real_url = real_url.replace("http://", "https://")  # Ensure https
-        displayed_text = cell.value  # The text visible in Excel
-        # Clean up displayed text by removing http://, https://, www.
-        displayed_text = cleanup_text_for_display(displayed_text)
+        base_url = cell.hyperlink.target or ""
+        fragment = cell.hyperlink.location or ""
+
+        # Ensure https
+        base_url = base_url.replace("http://", "https://")
+
+        # Append location if present
+        if fragment:
+            if not fragment.startswith("#"):
+                fragment = f"#{fragment}"
+            real_url = f"{base_url}{fragment}"
+        else:
+            real_url = base_url
+
+        displayed_text = cleanup_text_for_display(cell.value)
         return real_url, displayed_text
+
     else:
         # Cell has no hyperlink object, treat the value as plain text
         text = str(cell.value).strip()
@@ -96,12 +106,14 @@ def main():
 
         link_list = []
         link_text_list = []
+        number_link_column = df.columns.get_loc("Link Anzeigetext")
+
 
         for row_idx, row in enumerate(
             ws.iter_rows(min_row=2, max_row=1 + df.shape[0], min_col=1, max_col=10),
             start=2,
         ):
-            cell_link = row[6]
+            cell_link = row[number_link_column]
             link_val, text_val = extract_link_and_text(cell_link)
             link_list.append(link_val)
             link_text_list.append(text_val)
@@ -127,6 +139,7 @@ def main():
 
     path_export = os.path.join("data", "100417_esc_faq.csv")
     df_all.to_csv(path_export, index=False)
+    quit()
     common.update_ftp_and_odsp(
         path_export=path_export,
         folder_name="aussenbez-marketing/esc_faq",
