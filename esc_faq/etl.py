@@ -4,6 +4,7 @@ import os
 import common
 import markdown
 import pandas as pd
+import numpy as np
 from markdown_newtab import NewTabExtension
 from openpyxl import load_workbook
 
@@ -118,6 +119,15 @@ def main():
             if pd.notna(x)
             else x
         )
+
+        conditions = [
+            df['Thema'].str.contains('Arena Plus', na=False),
+            df['Thema'].str.contains('Eurovision Village', na=False)
+        ]
+
+        choices = ['Arena Plus', 'Eurovision Village']
+
+        df['Veranstaltungsort'] = np.select(conditions, choices, default='')
 
         df_all = pd.concat([df_all, df], ignore_index=True)
 
