@@ -225,9 +225,7 @@ def calculate_details(data_file_names):
         concatenated_df["Abst_ID"].astype(str) + ": " + concatenated_df["Abst_Titel"]
     )
     # add Wahllokal_ID
-    path_wahllokale = os.path.join(
-        pathlib.Path(__file__).parents[1], "data/Wahllokale.csv"
-    )
+    path_wahllokale = "data/Wahllokale.csv"
     df_wahllokale = pd.read_csv(path_wahllokale, encoding="unicode_escape")
     df_wahllokale.rename(columns={"Wahllok_Name": "Wahllok_name"}, inplace=True)
     concatenated_df = pd.merge(
