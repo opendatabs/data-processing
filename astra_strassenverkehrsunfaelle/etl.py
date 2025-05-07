@@ -1,44 +1,33 @@
 import logging
 import pandas as pd
 import requests
-import json
 
 def main():
-    df = get_all_accidents_by_canton("BS")
+    basel_grid = pd.read_csv("data_orig/basel_grid.csv")
+    df = pd.concat([get_bs_accidents_by_grid(row) for row in basel_grid.iterrows()])
     df.to_excel("data/Unfaelle.xlsx", sheet_name="Unfaelle", index=False)
+    # See how many unique feauterIds are in the data
+    unique_feature_ids = df["featureId"].nunique()
+    print(unique_feature_ids)
 
-def get_all_accidents_by_canton(canton_code):
+def get_bs_accidents_by_grid(row):
+    geodata = f"{row[1].left},{row[1].bottom},{row[1].right},{row[1].top}"
     url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify"
-    layer_name = "ch.astra.unfaelle-personenschaeden_alle"
-    filter_expr = f"canton = '{canton_code}'"
-    layer_defs = json.dumps({layer_name: filter_expr})
 
     params = {
         "geometryType": "esriGeometryEnvelope",
-        "geometry": "0,0,3000000,3000000",  # entire Swiss extent
+        "geometry": geodata,
         "imageDisplay": "500,600,96",
-        "mapExtent": "0,0,3000000,3000000",
-        "tolerance": 0,
-        "layers": f"all:{layer_name}",
-        "layerDefs": layer_defs,
+        "mapExtent": "548945.5,147956,549402,148103.5",
+        "tolerance": 1,
+        "layers": "all:ch.astra.unfaelle-personenschaeden_alle",
     }
 
-    all_results = []
-    offset = 0
-    batch_size = 50  # API returns a maximum of 50 features per request
+    response = requests.get(url, params=params)
+    response.raise_for_status()  # Raises HTTPError for bad responses
 
-    while True:
-        params["offset"] = offset
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        results = data.get("results", [])
-        if not results:
-            break
-        all_results.extend(results)
-        offset += batch_size
-
-    return pd.json_normalize(all_results)
+    data = response.json()
+    return pd.json_normalize(data.get("results", []))  # Use 'results' field if present
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
