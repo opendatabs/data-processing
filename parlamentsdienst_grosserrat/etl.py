@@ -3,7 +3,6 @@ import logging
 import os
 import time
 from datetime import datetime
-from io import StringIO
 
 import common
 import numpy as np
@@ -181,7 +180,7 @@ def main():
         create_gremien_csv(df_gre, df_mit),
         create_geschaefte_csv(df_adr, df_ges, df_kon, df_gre),
         create_zuweisungen_csv(df_gre, df_ges, df_zuw),
-        create_dokumente_csv(df_adr, df_ges, df_dok),
+        create_dokumente_csv(df_ges, df_dok),
         create_vorgaenge_csv(df_ges, df_vor, df_siz),
         create_traktanden_csv(df_gr_tagesordnung, df_gr_traktanden, df_gr_sitzung),
     ]
@@ -714,9 +713,7 @@ def create_zuweisungen_csv(
     return path_export, "parlamentsdienst/grosser_rat", "100312"
 
 
-def create_dokumente_csv(
-    df_adr: pd.DataFrame, df_ges: pd.DataFrame, df_dok: pd.DataFrame
-) -> tuple:
+def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
     df = pd.merge(
         df_dok,
         df_ges,

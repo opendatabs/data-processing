@@ -1,0 +1,20 @@
+[project]
+name = "parlamentsdienst-grosserrat-datasette"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "pandas>=2.2.3",
+    "pdf-converter",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "v0.1.0" }
+pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "268635d42ac5780a4f3c84d51f1bbe095f2e4f2a" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.8",
+]
