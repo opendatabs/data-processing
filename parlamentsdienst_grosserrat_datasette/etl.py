@@ -14,7 +14,6 @@ def main():
     # 100307
     csv_mitglieder = os.path.join("data_orig", "100307_gr_mitglieder.csv")
     df_adr = pd.read_csv(csv_mitglieder)
-    # Create SQLite dataset
     columns_to_index = [
         "ist_aktuell_grossrat",
         "anrede",
@@ -31,7 +30,6 @@ def main():
     # 100308
     csv_mitgliedschaften = os.path.join("data_orig", "100308_gr_mitgliedschaften.csv")
     df_mit = pd.read_csv(csv_mitgliedschaften)
-    # Create SQLite dataset
     columns_to_index = [
         "kurzname_gre",
         "name_gre",
@@ -50,7 +48,6 @@ def main():
         "data_orig", "100309_gr_interessensbindungen.csv"
     )
     df_int = pd.read_csv(csv_interessensbindungen)
-    # Create SQLite dataset
     columns_to_index = ["rubrik", "funktion", "anrede", "name_vorname", "partei_kname"]
     create_sqlite_table(
         db_path, df_int, "Interessensbindungen", columns_to_index=columns_to_index
@@ -59,7 +56,6 @@ def main():
     # 100310
     csv_gremien = os.path.join("data_orig", "100310_gr_gremien.csv")
     df_gre = pd.read_csv(csv_gremien)
-    # Create SQLite dataset
     columns_to_index = ["ist_aktuelles_gremium", "kurzname", "name", "gremientyp"]
     create_sqlite_table(db_path, df_gre, "Gremien", columns_to_index=columns_to_index)
 
@@ -84,7 +80,6 @@ def main():
     # 100312
     csv_zuweisungen = os.path.join("data_orig", "100312_gr_zuweisungen.csv")
     df_zuw = pd.read_csv(csv_zuweisungen)
-    # Create SQLite dataset
     columns_to_index = [
         "kurzname_an",
         "name_an",
@@ -99,21 +94,19 @@ def main():
         db_path, df_zuw, "Zuweisungen", columns_to_index=columns_to_index
     )
 
+    # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
     df_dok = pd.read_csv(csv_dokumente)
     # Just take the first 5 rows for testing
     df_dok = df_dok.head(5)
-    # Compute md and text-files from pdf
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
         df_dok = pdf_converter.add_markdown_column(df_dok, "url_dok", method)
-    # Create SQLite dataset
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
     create_sqlite_table(db_path, df_dok, "Dokumente", columns_to_index=columns_to_index)
 
     # 100314
     csv_vorgaenge = os.path.join("data_orig", "100314_gr_vorgaenge.csv")
     df_vor = pd.read_csv(csv_vorgaenge)
-    # Create SQLite dataset
     columns_to_index = ["Vermerk", "status_ges", "ga_rr_gr", "departement_ges"]
     create_sqlite_table(db_path, df_vor, "Vorgaenge", columns_to_index=columns_to_index)
 
@@ -122,11 +115,9 @@ def main():
     df_trakt = pd.read_csv(csv_traktanden)
     # Just take the first 5 rows for testing
     df_trakt = df_trakt.head(5)
-    # Compute md and text-files from pdf
     for pdf_column in ["url_tagesordnung_dok", "url_vollprotokoll"]:
         for method in ["docling", "pymupdf", "pymupdf4llm"]:
             df_trakt = pdf_converter.add_markdown_column(df_trakt, pdf_column, method)
-    # Create SQLite dataset
     columns_to_index = [
         "tag1",
         "text1",
