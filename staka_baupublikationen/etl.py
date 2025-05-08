@@ -162,7 +162,7 @@ def get_columns_of_interest(df):
 
 
 def legal_form_code_to_name(df):
-    url_i14y = "https://input.i14y.admin.ch/api/ConceptInput/08dad8ff-f18a-560b-bfa6-20767f2afb17/codelistEntries?page=1&pageSize=10000"
+    url_i14y = "https://api.i14y.admin.ch/api/public/v1/concepts/08dad8ff-f18a-560b-bfa6-20767f2afb17/codelist-entries/exports/json"
     response = requests.get(url_i14y)
     response.raise_for_status()
     legal_forms = response.json()
