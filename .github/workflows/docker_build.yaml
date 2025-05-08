@@ -160,10 +160,10 @@ jobs:
               - 'parlamentsdienst_gr_abstimmungen/**'
             parlamentsdienst_grosserrat:
               - 'Dockerfile'
-              - 'parlamentsdienst_grosserat/**'
-            parlamentsdienst_grosserat_datasette:
+              - 'parlamentsdienst_grosserrat/**'
+            parlamentsdienst_grosserrat_datasette:
               - 'Dockerfile'
-              - 'parlamentsdienst_grosserat_datasette/**'
+              - 'parlamentsdienst_grosserrat_datasette/**'
             smarte_strasse_ladestation:
               - 'Dockerfile'
               - 'smarte_strasse_ladestation/**'
