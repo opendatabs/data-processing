@@ -97,8 +97,6 @@ def main():
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
     df_dok = pd.read_csv(csv_dokumente)
-    # Just take the first 5 rows for testing
-    df_dok = df_dok.head(5)
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
         df_dok = pdf_converter.add_markdown_column(df_dok, "url_dok", method)
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
@@ -113,8 +111,6 @@ def main():
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
     df_trakt = pd.read_csv(csv_traktanden)
-    # Just take the first 5 rows for testing
-    df_trakt = df_trakt.head(5)
     for pdf_column in ["url_tagesordnung_dok", "url_vollprotokoll"]:
         for method in ["docling", "pymupdf", "pymupdf4llm"]:
             df_trakt = pdf_converter.add_markdown_column(df_trakt, pdf_column, method)
