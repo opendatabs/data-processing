@@ -165,8 +165,8 @@ def legal_form_code_to_name(df):
     url_i14y = "https://api.i14y.admin.ch/api/public/v1/concepts/08dad8ff-f18a-560b-bfa6-20767f2afb17/codelist-entries/exports/json"
     response = requests.get(url_i14y)
     response.raise_for_status()
-    legal_forms = response.json()
-    code_to_german_name = {entry["value"]: entry["name"]["de"] for entry in legal_forms}
+    legal_forms = response.json()["data"]
+    code_to_german_name = {entry["code"]: entry["name"]["de"] for entry in legal_forms}
     df["projectFramer_company_legalForm"] = df["projectFramer_company_legalForm"].map(
         code_to_german_name
     )
