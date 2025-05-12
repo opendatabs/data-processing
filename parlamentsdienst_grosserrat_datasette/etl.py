@@ -96,9 +96,27 @@ def main():
 
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
-    df_dok = pd.read_csv(csv_dokumente)
+    csv_dokumente_md = os.path.join("data_orig", "100313_gr_dokumente_with_markdown.csv")
+
+    # Load with markdown if exists, fallback to base CSV
+    if os.path.exists(csv_dokumente_md):
+        df_dok = pd.read_csv(csv_dokumente_md)
+    else:
+        df_dok = pd.read_csv(csv_dokumente)
+
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        df_dok = pdf_converter.add_markdown_column(df_dok, "url_dok", method)
+        colname = f"url_dok_md_{method}"
+        if colname not in df_dok.columns:
+            df_dok[colname] = None
+        mask = df_dok[colname].isna() | (df_dok[colname] == "")
+        if mask.any():
+            df_dok.loc[mask, :] = pdf_converter.add_markdown_column(
+                df_dok.loc[mask, :], "url_dok", method
+            )
+
+    # Save updated DataFrame with markdown
+    df_dok.to_csv(csv_dokumente_md, index=False)
+
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
     create_sqlite_table(db_path, df_dok, "Dokumente", columns_to_index=columns_to_index)
 
@@ -110,10 +128,28 @@ def main():
 
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
-    df_trakt = pd.read_csv(csv_traktanden)
+    csv_traktanden_md = os.path.join("data_orig", "100348_gr_traktanden_with_markdown.csv")
+
+    # Load with markdown if exists, fallback to base CSV
+    if os.path.exists(csv_traktanden_md):
+        df_trakt = pd.read_csv(csv_traktanden_md)
+    else:
+        df_trakt = pd.read_csv(csv_traktanden)
+
     for pdf_column in ["url_tagesordnung_dok", "url_vollprotokoll"]:
         for method in ["docling", "pymupdf", "pymupdf4llm"]:
-            df_trakt = pdf_converter.add_markdown_column(df_trakt, pdf_column, method)
+            colname = f"{pdf_column}_md_{method}"
+            if colname not in df_trakt.columns:
+                df_trakt[colname] = None
+            mask = df_trakt[colname].isna() | (df_trakt[colname] == "")
+            if mask.any():
+                df_trakt.loc[mask, :] = pdf_converter.add_markdown_column(
+                    df_trakt.loc[mask, :], pdf_column, method
+                )
+
+    # Save updated DataFrame with markdown
+    df_trakt.to_csv(csv_traktanden_md, index=False)
+
     columns_to_index = [
         "tag1",
         "text1",
