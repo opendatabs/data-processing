@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-common = { git = "https://github.com/opendatabs/common", rev = "v0.1.0" }
+common = { git = "https://github.com/opendatabs/common", rev = "717a526a1bbf295302d6a1749ce2a876f4eabfcb" }
 
 [dependency-groups]
 dev = [
