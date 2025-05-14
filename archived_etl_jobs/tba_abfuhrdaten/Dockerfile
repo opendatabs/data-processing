@@ -1,4 +1,4 @@
-FROM python:3.10.2-bullseye
+FROM python:3.13.3-bullseye
 WORKDIR /code/data-processing
 # ARG HTTPS_PROXY
 # ENV HTTPS_PROXY=$HTTPS_PROXY

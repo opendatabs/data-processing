@@ -1,4 +1,4 @@
-FROM python:3.7.6
+FROM python:3.13.3
 WORKDIR /code 
 RUN apt-get update
 RUN apt-get install dialog apt-utils --yes
