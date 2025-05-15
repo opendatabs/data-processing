@@ -49,7 +49,7 @@ wheels = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = { git = "https://github.com/opendatabs/common?rev=717a526a1bbf295302d6a1749ce2a876f4eabfcb#717a526a1bbf295302d6a1749ce2a876f4eabfcb" }
+source = { git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7#1a7ec054c92e694f5727ea94f90e6c8f2472aea7" }
 dependencies = [
     { name = "filehash" },
     { name = "more-itertools" },
@@ -86,7 +86,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "common", git = "https://github.com/opendatabs/common?rev=717a526a1bbf295302d6a1749ce2a876f4eabfcb" },
+    { name = "common", git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
