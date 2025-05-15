@@ -1008,7 +1008,7 @@ dev = [
 requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=994aa4188645f83f636acd606c6192b713d178cb" },
+    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=7b8e4aad53ca11f87aee5977ae4730985420a1f5" },
 ]
 
 [package.metadata.requires-dev]
@@ -1017,7 +1017,7 @@ dev = [{ name = "ruff", specifier = ">=0.11.8" }]
 [[package]]
 name = "pdf-converter"
 version = "0.1.0"
-source = { git = "https://github.com/opendatabs/pdf_converter?rev=994aa4188645f83f636acd606c6192b713d178cb#994aa4188645f83f636acd606c6192b713d178cb" }
+source = { git = "https://github.com/opendatabs/pdf_converter?rev=7b8e4aad53ca11f87aee5977ae4730985420a1f5#7b8e4aad53ca11f87aee5977ae4730985420a1f5" }
 dependencies = [
     { name = "docling" },
     { name = "markdown" },
