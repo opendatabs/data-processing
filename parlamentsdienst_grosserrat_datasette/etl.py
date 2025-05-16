@@ -96,7 +96,9 @@ def main():
 
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
-    csv_dokumente_md = os.path.join("data_orig", "100313_gr_dokumente_with_markdown.csv")
+    csv_dokumente_md = os.path.join(
+        "data_orig", "100313_gr_dokumente_with_markdown.csv"
+    )
 
     # Load with markdown if exists, fallback to base CSV
     if os.path.exists(csv_dokumente_md):
@@ -111,7 +113,7 @@ def main():
         mask = df_dok[colname].isna() | (df_dok[colname] == "")
         if mask.any():
             df_dok.loc[mask, :] = pdf_converter.add_markdown_column(
-                df_dok.loc[mask, :], "url_dok", method
+                df_dok.loc[mask, :], "url_dok", method, csv_output_path=csv_dokumente_md
             )
 
     # Save updated DataFrame with markdown
@@ -128,7 +130,9 @@ def main():
 
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
-    csv_traktanden_md = os.path.join("data_orig", "100348_gr_traktanden_with_markdown.csv")
+    csv_traktanden_md = os.path.join(
+        "data_orig", "100348_gr_traktanden_with_markdown.csv"
+    )
 
     # Load with markdown if exists, fallback to base CSV
     if os.path.exists(csv_traktanden_md):
@@ -144,7 +148,10 @@ def main():
             mask = df_trakt[colname].isna() | (df_trakt[colname] == "")
             if mask.any():
                 df_trakt.loc[mask, :] = pdf_converter.add_markdown_column(
-                    df_trakt.loc[mask, :], pdf_column, method
+                    df_trakt.loc[mask, :],
+                    pdf_column,
+                    method,
+                    csv_output_path=csv_traktanden_md,
                 )
 
     # Save updated DataFrame with markdown
@@ -201,3 +208,4 @@ if __name__ == "__main__":
     logging.info(f"Executing {__file__}...")
     main()
     logging.info("Job successful")
+s
