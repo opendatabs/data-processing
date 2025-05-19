@@ -59,6 +59,9 @@ jobs:
             dataspot:
               - 'Dockerfile'
               - 'dataspot/**'
+            dcc_ki_faq:
+              - 'Dockerfile'
+              - 'dcc_ki_faq/**'
             ed_schulferien:
               - 'Dockerfile'
               - 'ed_schulferien/**'
