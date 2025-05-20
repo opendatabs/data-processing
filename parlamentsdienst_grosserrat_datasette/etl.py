@@ -96,9 +96,7 @@ def main():
 
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
-    csv_dokumente_md = os.path.join(
-        "data_orig", "100313_gr_dokumente_with_markdown.csv"
-    )
+    csv_dokumente_md = os.path.join("data", "gr_dokumente_with_markdown.csv")
 
     # Load with markdown if exists, fallback to base CSV
     if os.path.exists(csv_dokumente_md):
@@ -107,14 +105,14 @@ def main():
         df_dok = pd.read_csv(csv_dokumente)
 
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        colname = f"url_dok_md_{method}"
-        if colname not in df_dok.columns:
-            df_dok[colname] = None
-        mask = df_dok[colname].isna() | (df_dok[colname] == "")
-        if mask.any():
-            df_dok.loc[mask, :] = pdf_converter.add_markdown_column(
-                df_dok.loc[mask, :], "url_dok", method, csv_output_path=csv_dokumente_md
-            )
+        colname = f"dok_md_{method}"
+        df_dok = pdf_converter.add_markdown_column(
+            df_dok,
+            "url_dok",
+            method,
+            md_column=colname,
+            csv_output_path=csv_dokumente_md,
+        )
 
     # Save updated DataFrame with markdown
     df_dok.to_csv(csv_dokumente_md, index=False)
