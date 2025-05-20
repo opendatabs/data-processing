@@ -10,7 +10,7 @@ import pdf_converter
 
 def main():
     # Set path for SQLite database
-    db_path = os.path.join("data", "GrosserRat.db")
+    db_path = os.path.join("data", "datasette", "GrosserRat.db")
 
     # 100307
     csv_mitglieder = os.path.join("data_orig", "100307_gr_mitglieder.csv")
