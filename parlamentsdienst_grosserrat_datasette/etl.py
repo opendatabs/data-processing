@@ -97,12 +97,12 @@ def main():
 
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
-    csv_dokumente_md = os.path.join("data", "gr_dokumente_with_markdown.csv")
+    csv_dokumente_md = os.path.join("data", "markdown", "gr_dokumente_with_markdown.csv")
 
     df_dok = pd.read_csv(csv_dokumente)
 
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = Path("data") / f"gr_dokumente_md_{method}.zip"
+        zip_path = Path("data") / "markdown" / f"gr_dokumente_md_{method}.zip"
         colname = f"dok_md_{method}"
         df_dok = pdf_converter.add_markdown_column(
             df_dok,
@@ -126,7 +126,7 @@ def main():
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
     csv_tagesordnung_md = os.path.join(
-        "data", "gr_traktanden_with_markdown.csv"
+        "data", "markdown", "gr_traktanden_with_markdown.csv"
     )
 
     df_tag_trakt = pd.read_csv(csv_traktanden)
@@ -165,7 +165,7 @@ def main():
     df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
 
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = Path("data") / f"gr_tagesordnung_md_{method}.zip"
+        zip_path = Path("data") / "markdown" / f"gr_tagesordnung_md_{method}.zip"
         colname = f"vollprotokoll_md_{method}"
         df_tagesordnung = pdf_converter.add_markdown_column(
             df_tagesordnung,
