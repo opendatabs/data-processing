@@ -98,13 +98,10 @@ def main():
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
     csv_dokumente_md = os.path.join("data", "gr_dokumente_with_markdown.csv")
 
-    # Load with markdown if exists, fallback to base CSV
-    if os.path.exists(csv_dokumente_md):
-        df_dok = pd.read_csv(csv_dokumente_md)
-    else:
-        df_dok = pd.read_csv(csv_dokumente)
+    df_dok = pd.read_csv(csv_dokumente)
 
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
+        zip_path = os.path.join("data", f"gr_dokumente_md_{method}.zip")
         colname = f"dok_md_{method}"
         df_dok = pdf_converter.add_markdown_column(
             df_dok,
@@ -112,10 +109,9 @@ def main():
             method,
             md_column=colname,
             csv_output_path=csv_dokumente_md,
+            zip_path=zip_path,
+            md_name_column="signatur_dok",
         )
-
-    # Save updated DataFrame with markdown
-    df_dok.to_csv(csv_dokumente_md, index=False)
 
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
     create_sqlite_table(db_path, df_dok, "Dokumente", columns_to_index=columns_to_index)
@@ -128,40 +124,22 @@ def main():
 
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
-    csv_traktanden_md = os.path.join(
-        "data_orig", "100348_gr_traktanden_with_markdown.csv"
+    csv_tagesordnung_md = os.path.join(
+        "data", "gr_traktanden_with_markdown.csv"
     )
 
-    # Load with markdown if exists, fallback to base CSV
-    if os.path.exists(csv_traktanden_md):
-        df_trakt = pd.read_csv(csv_traktanden_md)
-    else:
-        df_trakt = pd.read_csv(csv_traktanden)
+    df_tag_trakt = pd.read_csv(csv_traktanden)
 
-    for pdf_column in ["url_tagesordnung_dok", "url_vollprotokoll"]:
-        for method in ["docling", "pymupdf", "pymupdf4llm"]:
-            colname = f"{pdf_column}_md_{method}"
-            if colname not in df_trakt.columns:
-                df_trakt[colname] = None
-            mask = df_trakt[colname].isna() | (df_trakt[colname] == "")
-            if mask.any():
-                df_trakt.loc[mask, :] = pdf_converter.add_markdown_column(
-                    df_trakt.loc[mask, :],
-                    pdf_column,
-                    method,
-                    csv_output_path=csv_traktanden_md,
-                )
+    columns_trakt = [
+        "tagesordnung_idnr","gruppennummer","gruppentitel","gruppentitel_pos", 
+        "traktanden_idnr", "laufnr", "laufnr_2", "status", "titel",
+        "kommission", "url_kommission", "departement", "signatur", "url_ges",
+        "url_geschaeft_ods", "url_dok", "url_dokument_ods", "Abstimmung", "anr", "url_abstimmungen"
+    ]
 
-    # Save updated DataFrame with markdown
-    df_trakt.to_csv(csv_traktanden_md, index=False)
+    df_trakt = df_tag_trakt[columns_trakt].copy()
 
     columns_to_index = [
-        "tag1",
-        "text1",
-        "tag2",
-        "text2",
-        "tag3",
-        "text3",
         "gruppennummer",
         "gruppentitel",
         "status",
@@ -171,7 +149,38 @@ def main():
     create_sqlite_table(
         db_path,
         df_trakt,
-        "Tagesordnungen und Traktandenlisten",
+        "Traktanden",
+        columns_to_index=columns_to_index,
+    )
+
+    # Split the data into two DataFrames: df_tagesordnung and df_trakt
+    columns_tagesordnung = [
+        "tagesordnung_idnr", "versand", "tag1", "text1", "tag2", "text2", "tag3", "text3",
+        "bemerkung", "url_tagesordnung_dok", "url_geschaeftsverzeichnis", "url_sammelmappe",
+        "url_alle_dokumente", "url_vollprotokoll", "url_audioprotokoll_tag1",
+        "url_audioprotokoll_tag2", "url_audioprotokoll_tag3", "einleitungstext", "zwischentext"
+    ]
+
+    df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
+
+    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+        zip_path = os.path.join("data", f"gr_tagesordnung_md_{method}.zip")
+        colname = f"vollprotokoll_md_{method}"
+        df_tagesordnung = pdf_converter.add_markdown_column(
+            df_tagesordnung,
+            "url_vollprotokoll",
+            method,
+            md_column=colname,
+            csv_output_path=csv_tagesordnung_md,
+            zip_path=zip_path,
+            md_name_column="tag1"
+        )
+
+    columns_to_index = []
+    create_sqlite_table(
+        db_path,
+        df_tagesordnung,
+        "Tagesordnungen",
         columns_to_index=columns_to_index,
     )
 
