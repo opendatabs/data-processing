@@ -111,7 +111,7 @@ def main():
             md_column=colname,
             csv_output_path=csv_dokumente_md,
             zip_path=zip_path,
-            md_name_column="signatur_dok",
+            md_name_column="dok_laufnr",
         )
 
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
