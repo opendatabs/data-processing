@@ -1,6 +1,7 @@
 import logging
 import os
 import sqlite3
+from pathlib import Path
 
 import common
 import pandas as pd
@@ -101,7 +102,7 @@ def main():
     df_dok = pd.read_csv(csv_dokumente)
 
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = os.path.join("data", f"gr_dokumente_md_{method}.zip")
+        zip_path = Path("data") / f"gr_dokumente_md_{method}.zip"
         colname = f"dok_md_{method}"
         df_dok = pdf_converter.add_markdown_column(
             df_dok,
@@ -164,7 +165,7 @@ def main():
     df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
 
     for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = os.path.join("data", f"gr_tagesordnung_md_{method}.zip")
+        zip_path = Path("data") / f"gr_tagesordnung_md_{method}.zip"
         colname = f"vollprotokoll_md_{method}"
         df_tagesordnung = pdf_converter.add_markdown_column(
             df_tagesordnung,
@@ -215,4 +216,3 @@ if __name__ == "__main__":
     logging.info(f"Executing {__file__}...")
     main()
     logging.info("Job successful")
-s
