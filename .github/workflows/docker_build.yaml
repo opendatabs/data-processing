@@ -209,6 +209,9 @@ jobs:
             stata_gwr:
               - 'Dockerfile'
               - 'stata_gwr/**'
+            stata_hunde:
+              - 'Dockerfile'
+              - 'stata_hunde/**'
             stata_parzellen:
               - 'Dockerfile'
               - 'stata_parzellen/**'

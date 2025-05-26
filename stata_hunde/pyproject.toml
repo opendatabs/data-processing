@@ -1,0 +1,15 @@
+[project]
+name = "stata-hunde"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "openpyxl>=3.1.5",
+    "pandas>=2.2.3",
+    "xlrd>=2.0.1",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common" }
