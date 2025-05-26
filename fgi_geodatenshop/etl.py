@@ -499,9 +499,9 @@ def main():
     df_wms_not_in_wfs.to_csv(
         os.path.join("data", "wms_not_in_wfs.csv"), sep=";", index=False
     )
-    path_export = os.path.join("data", "OGD_datensätze.csv")
+    path_export = os.path.join("data", "100406_OGD_datensaetze.csv")
     df_wfs.to_csv(path_export, sep=";", index=False)
-    common.update_ftp_and_odsp(path_export, "FST-OGD", "100395")
+    common.update_ftp_and_odsp(path_export, "opendatabs", "100395")
 
     get_name_col(wfs, df_wfs)
     get_num_col(wfs, df_fgi)

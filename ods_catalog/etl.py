@@ -25,7 +25,7 @@ def main():
     path_export = os.path.join("data", "100057_ods_catalog_published.csv")
 
     df.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, "FST-OGD", "100057")
+    common.update_ftp_and_odsp(path_export, "opendatabs", "100057")
 
     new_col = ["Title", "Issued", "url_dataset"]
     df_list = df[new_col]
