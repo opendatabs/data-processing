@@ -16,6 +16,7 @@ def main():
     df_hunde = df[
         [
             "jahr",
+            "postleitzahl",
             "gemeinde_name",
             "hund_geschlecht",
             "hund_geburtsjahr",
