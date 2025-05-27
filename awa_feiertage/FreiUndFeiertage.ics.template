@@ -1,0 +1,16 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Open Data Basel-Stadt//Frei- und Feiertage Basel-Stadt//DE
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Frei- und Feiertage Kanton Basel-Stadt
+X-WR-TIMEZONE:Europe/Zurich
+X-WR-CALDESC:Dieser Kalender enthält die Frei- und Feiertage des Kantons Basel-Stadt. 
+BEGIN:VEVENT
+DTSTAMP:20250320T094500Z
+DTSTART:20250320
+DTEND:20250326
+SUMMARY:Test-Termin
+UID:<UID>
+LOCATION:Basel-Stadt, Schweiz
+END:VEVENT
+END:VCALENDAR

@@ -47,6 +47,9 @@ jobs:
             aue_umweltlabor:
               - 'Dockerfile'
               - 'aue_umweltlabor/**'
+            awa_feiertage:
+              - 'Dockerfile'
+              - 'awa_feiertage/**'
             bafu_hydrodaten:
               - 'Dockerfile'
               - 'bafu_hydrodaten/**'
