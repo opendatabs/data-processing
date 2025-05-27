@@ -25,14 +25,19 @@ now_zurich = zurich_tz.localize(datetime.datetime.now())
 now_utc = now_zurich.astimezone(pytz.UTC)
 dtstamp = now_utc.strftime("%Y%m%dT%H%M%SZ")
 
+
 def extract_year_from_filename(filename):
-    match = re.search(r"frei-und-feiertage(?:_(\d{4}))?\.csv", os.path.basename(filename))
+    match = re.search(
+        r"frei-und-feiertage(?:_(\d{4}))?\.csv", os.path.basename(filename)
+    )
     return int(match.group(1)) if match and match.group(1) else 0
+
 
 def generate_event_uid(year, name, date):
     event_str = f"{year}_{name}_{date}"
     hash_obj = hashlib.md5(event_str.encode())
     return str(uuid.UUID(hex=hash_obj.hexdigest()))
+
 
 def parse_existing_ics(file_path):
     if not os.path.exists(file_path):
@@ -61,6 +66,7 @@ def parse_existing_ics(file_path):
     except Exception as e:
         logging.error(f"Failed to parse existing ICS: {e}")
     return existing_events
+
 
 def main():
     # Load template header
@@ -116,16 +122,18 @@ def main():
                     else:
                         logging.info(f"Updating event: {name}")
 
-                ics_content.extend([
-                    "BEGIN:VEVENT",
-                    f"DTSTAMP:{event_dtstamp}",
-                    f"DTSTART;VALUE=DATE:{date_str}",
-                    f"DTEND;VALUE=DATE:{end_date_str}",
-                    f"SUMMARY:{name}",
-                    f"UID:{uid}",
-                    "LOCATION:Basel-Stadt, Schweiz",
-                    "END:VEVENT",
-                ])
+                ics_content.extend(
+                    [
+                        "BEGIN:VEVENT",
+                        f"DTSTAMP:{event_dtstamp}",
+                        f"DTSTART;VALUE=DATE:{date_str}",
+                        f"DTEND;VALUE=DATE:{end_date_str}",
+                        f"SUMMARY:{name}",
+                        f"UID:{uid}",
+                        "LOCATION:Basel-Stadt, Schweiz",
+                        "END:VEVENT",
+                    ]
+                )
 
     ics_content.append("END:VCALENDAR")
 
@@ -136,6 +144,7 @@ def main():
 
     logging.info(f"ICS file written to: {output_ics_file}")
     return output_ics_file
+
 
 if __name__ == "__main__":
     main()

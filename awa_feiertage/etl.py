@@ -6,35 +6,48 @@ import pandas as pd
 
 import create_ics
 
+
 def main():
-    excel_path = os.path.join('data_orig', 'Frei- und Feiertage.xlsx')
+    excel_path = os.path.join("data_orig", "Frei- und Feiertage.xlsx")
     xlsx = pd.ExcelFile(excel_path)
     sheet_names = xlsx.sheet_names
-    df = pd.concat([extract_relevant_rows(sheet, excel_path) for sheet in sheet_names if sheet != "Vorlage"], ignore_index=True)
-    df.columns = ['Wochentag', 'Datum', 'Bezeichnung', 'Anzahl_Tage']
+    df = pd.concat(
+        [
+            extract_relevant_rows(sheet, excel_path)
+            for sheet in sheet_names
+            if sheet != "Vorlage"
+        ],
+        ignore_index=True,
+    )
+    df.columns = ["Wochentag", "Datum", "Bezeichnung", "Anzahl_Tage"]
     # Give Wochentag german names Montag etc
-    df['Wochentag'] = df['Datum'].apply(lambda x: x.strftime('%A') if pd.notna(x) else None)
-    df['Wochentag'] = df['Wochentag'].replace({
-        'Monday': 'Montag',
-        'Tuesday': 'Dienstag',
-        'Wednesday': 'Mittwoch',
-        'Thursday': 'Donnerstag',
-        'Friday': 'Freitag',
-        'Saturday': 'Samstag',
-        'Sunday': 'Sonntag'
-    })
-    path_export = os.path.join('data', '100448_frei-und-feiertage.csv')
+    df["Wochentag"] = df["Datum"].apply(
+        lambda x: x.strftime("%A") if pd.notna(x) else None
+    )
+    df["Wochentag"] = df["Wochentag"].replace(
+        {
+            "Monday": "Montag",
+            "Tuesday": "Dienstag",
+            "Wednesday": "Mittwoch",
+            "Thursday": "Donnerstag",
+            "Friday": "Freitag",
+            "Saturday": "Samstag",
+            "Sunday": "Sonntag",
+        }
+    )
+    path_export = os.path.join("data", "100448_frei-und-feiertage.csv")
     df.to_csv(path_export, index=False)
-    common.update_ftp_and_odsp(path_export, 'frei-und-feiertage', '100448')
+    common.update_ftp_and_odsp(path_export, "frei-und-feiertage", "100448")
     update_ics_file_on_ftp_server()
+
 
 def extract_relevant_rows(sheet_name, excel_path):
     df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
     start_row = 6
-    
+
     def is_row_empty(row):
-        return all((pd.isna(x) or str(x).strip() == '') for x in row)
-    
+        return all((pd.isna(x) or str(x).strip() == "") for x in row)
+
     for i in range(start_row, len(df)):
         if is_row_empty(df.iloc[i]):
             return df.iloc[start_row:i]
