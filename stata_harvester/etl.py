@@ -20,6 +20,14 @@ if __name__ == "__main__":
     files_changed = False
     for file in os.listdir("data_orig"):
         file_path = os.path.join("data_orig", file)
+        if file == "OpendataSoft_Export_Stata.csv":
+            with open(file_path, "r") as f:
+                content = f.read()
+            content = content.replace(
+                "Fachstelle für OGD Basel-Stadt", "Open Data Basel-Stadt"
+            )
+            with open(file_path, "w") as f:
+                f.write(content)
         if ct.has_changed(file_path):
             files_changed = True
             logging.info(f"File {file} has changed, uploading to FTP...")
