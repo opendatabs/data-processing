@@ -204,7 +204,7 @@ def scrape_detail_page(url):
 
 
 def main():
-    just_process_last_sitzung = True
+    just_process_last_sitzung = False
 
     all_data = []
     page_number = 1
