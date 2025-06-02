@@ -127,7 +127,6 @@ def scrape_detail_page(url):
     if len(tables) > 1:
         for i in range(1, len(tables)):
             sitzung_table = tables[i]
-            rb_markdowns = dict()
             rows = sitzung_table.find_all("tr")
             for row in rows:
                 th = row.find("th")
@@ -164,17 +163,6 @@ def scrape_detail_page(url):
                         # Check if the link text (or partial text) indicates “Regierungsratsbeschluss”
                         if "Regierungsratsbeschluss" in link_text:
                             regierungsratsbeschluss_url = link_href
-                            pdf_temp_path = (
-                                Path("data")
-                                / "pdf"
-                                / "temp_regierungsratsbeschluss.pdf"
-                            )
-                            rb_markdowns = common.convert_pdf_to_md(
-                                regierungsratsbeschluss_url,
-                                pdf_temp_path,
-                                "regierungsratsbeschluss",
-                            )
-
                         else:
                             weitere.append(link_href)
                         weitere_dokumente = ",".join(weitere)
@@ -194,7 +182,6 @@ def scrape_detail_page(url):
                     "weitere_dokumente": weitere_dokumente,
                     "url": url,
                 }
-                | rb_markdowns
             )
     else:
         data.append(
