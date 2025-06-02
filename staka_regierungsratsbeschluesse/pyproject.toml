@@ -7,7 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.13.3",
     "common",
-    "docling>=2.28.2",
     "pandas>=2.2.3",
     "requests>=2.32.3",
 ]
