@@ -42,7 +42,7 @@ def main():
 
 
 def extract_relevant_rows(sheet_name, excel_path):
-    df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
+    df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None, usecols="B:E")
     start_row = 6
 
     def is_row_empty(row):
