@@ -10,7 +10,7 @@ class DataspotAuth:
     """Handles authentication for Dataspot API using Azure AD."""
 
     def __init__(self):
-        load_dotenv(".dataspot.env")
+        load_dotenv()
         self.token_url = os.getenv("DATASPOT_AUTHENTICATION_TOKEN_URL")
         self.client_id = os.getenv("DATASPOT_CLIENT_ID")
         self.username = os.getenv("DATASPOT_EDITOR_USERNAME")
