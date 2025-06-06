@@ -46,6 +46,7 @@ __pycache__/
 # Documents and other outputs
 **/*.pdf
 **/*.html
+**/*.png
 
 # MacOS system files
 **/.DS_Store
