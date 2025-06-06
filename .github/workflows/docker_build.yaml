@@ -59,9 +59,9 @@ jobs:
             bvb_fahrgastzahlen:
               - 'Dockerfile'
               - 'bvb_fahrgastzahlen/**'
-            dcc_dataspot:
+            dcc_dataspot_schemes:
               - 'Dockerfile'
-              - 'dcc_dataspot/**'
+              - 'dcc_dataspot_schemes/**'
             dcc_ki_faq:
               - 'Dockerfile'
               - 'dcc_ki_faq/**'
