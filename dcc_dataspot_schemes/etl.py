@@ -25,7 +25,7 @@ def download_datennutzungskatalog_excel():
     auth = DataspotAuth()
     url = (
         auth.get_base_url()
-        + "/api/metadatenmanagement/schemes/Datennutzungskatalog/download?format=xlsx&language=de"
+        + "/api/prod/schemes/Datennutzungskatalog/download?format=xlsx&language=de"
     )
     headers = auth.get_headers()
     response = common.requests_get(url=url, headers=headers)
