@@ -7,7 +7,7 @@ import pandas as pd
 def main():
     logging.info("Reading data from source...")
     df = pd.read_csv(
-        os.path.join("data", "Hunde für OGD.csv"), encoding="windows-1252", sep=";"
+        os.path.join("data", "Hunde für OGD.csv"), sep=";"
     )
 
     logging.info(
