@@ -1,4 +1,4 @@
-FROM rocker/rstudio:4.5.0
+FROM rocker/rstudio:4.5.1
 # Base image with R 4.2.1 and RStudio
 
 WORKDIR /code/data-processing/stata_konoer
