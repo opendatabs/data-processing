@@ -10,49 +10,29 @@ import pandas as pd
 def main():
     datasets = [
         {
-            "data_file": os.path.join(
-                'data', "55plus/2023/Daten_Befragung_55_plus_2023.csv"
-            ),
-            "var_file": os.path.join(
-                'data',
-                "55plus/2023/Variablen_Befragung_55_plus_2023.csv",
-            ),
+            "data_file": "data/55plus/2023/Daten_Befragung_55_plus_2023.csv",
+            "var_file": "data/55plus/2023/Variablen_Befragung_55_plus_2023.csv",
             "export_folder": "55plus/datasette",
             "export_file": "Befragung_55plus_2023.db",
             "ftp_folder": "55plus",
         },
         {
-            "data_file": os.path.join(
-                'data', "55plus/2019/Daten_Befragung_55_plus_2019.csv"
-            ),
-            "var_file": os.path.join(
-                'data',
-                "55plus/2019/Variablen_Befragung_55_plus_2019.csv",
-            ),
+            "data_file": "data/55plus/2019/Daten_Befragung_55_plus_2019.csv",
+            "var_file": "data/55plus/2019/Variablen_Befragung_55_plus_2019.csv",
             "export_folder": "55plus/datasette",
             "export_file": "Befragung_55plus_2019.db",
             "ftp_folder": "55plus",
         },
         {
-            "data_file": os.path.join(
-                'data', "55plus/2015/Daten_Befragung_55_plus_2015.csv"
-            ),
-            "var_file": os.path.join(
-                'data',
-                "55plus/2015/Variablen_Befragung_55_plus_2015.csv",
-            ),
+            "data_file": "data/55plus/2015/Daten_Befragung_55_plus_2015.csv",
+            "var_file": "data/55plus/2015/Variablen_Befragung_55_plus_2015.csv",
             "export_folder": "55plus/datasette",
             "export_file": "Befragung_55plus_2015.db",
             "ftp_folder": "55plus",
         },
         {
-            "data_file": os.path.join(
-                'data', "55plus/2011/Daten_Befragung_55_plus_2011.csv"
-            ),
-            "var_file": os.path.join(
-                'data',
-                "55plus/2011/Variablen_Befragung_55_plus_2011.csv",
-            ),
+            "data_file": "data/55plus/2011/Daten_Befragung_55_plus_2011.csv",
+            "var_file": "data/55plus/2011/Variablen_Befragung_55_plus_2011.csv",
             "export_folder": "55plus/datasette",
             "export_file": "Befragung_55plus_2011.db",
             "ftp_folder": "55plus",
