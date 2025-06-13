@@ -56,7 +56,6 @@ def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folde
 
         # Create a connection
         export_path = os.path.join('data', export_folder, export_file)
-        conn = sqlite3.connect(export_path)
 
         # Write the data to the database
         data.to_sql("Antworten", conn, if_exists="replace")
@@ -64,6 +63,7 @@ def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folde
         # TODO: Use var_file to create descriptions of columns
 
         # Create indices for every column except weight and year
+        conn = sqlite3.connect(export_path)
         columns_to_index = [
             col for col in data.columns if col not in ["weight", "Jahr", "ID"]
         ]
