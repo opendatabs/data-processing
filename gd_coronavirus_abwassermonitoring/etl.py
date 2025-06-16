@@ -36,7 +36,7 @@ def main():
 
     # make public dataset, remove empty rows
     df_public = df_all[
-        ["Saison", "7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
+        ["Saison", "Tag der Saison", "7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
     ].dropna(how="all")
     df_datum = df_all[["Datum"]]
     df_public = df_datum.join(df_public, how="right")
@@ -191,6 +191,16 @@ def make_dataframe_bs_2021_to_2023():
     return df_bs
 
 
+
+def calculate_saison_tag(datum):
+    # Determine season start (always July 1st)
+    saison_start = pd.Timestamp(year=datum.year if datum.month >= 7 else datum.year - 1, month=7, day=1)
+    tag_nr = (datum - saison_start).days + 1
+    if not datum.is_leap_year and datum.month in [3, 4, 5, 6]:
+        tag_nr += 1
+    return f"Tag {tag_nr:03d} - {datum.strftime('%d. %B')}"
+
+
 def calculate_columns(df):
     logging.info("calculate and add columns")
     df = df.loc[df["Datum"].notnull()]
@@ -201,6 +211,7 @@ def calculate_columns(df):
     df["Saison"] = df["Datum"].apply(
         lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}"
     )
+    df["Tag der Saison"] = df["Datum"].apply(calculate_saison_tag)
     df["pos_rate_BL"] = df["Anz_pos_BL"] / (df["Anz_pos_BL"] + df["Anz_neg_BL"]) * 100
     df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"] / pop_BL * 100000
