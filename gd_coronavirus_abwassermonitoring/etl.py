@@ -48,7 +48,6 @@ def main():
     df_public = df_datum.join(df_public, how="right")
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
     df_public.to_csv(path_export_file_public, index=False)
-    quit()
 
     if ct.has_changed(path_export_file):
         common.upload_ftp(
