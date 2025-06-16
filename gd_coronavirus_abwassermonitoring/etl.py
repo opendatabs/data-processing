@@ -191,7 +191,6 @@ def make_dataframe_bs_2021_to_2023():
     return df_bs
 
 
-
 def calculate_saison_tag(datum):
     # Determine season start (always July 1st)
     saison_start = pd.Timestamp(year=datum.year if datum.month >= 7 else datum.year - 1, month=7, day=1)
