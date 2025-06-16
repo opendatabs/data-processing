@@ -14,6 +14,9 @@ ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100302")
 
 def main():
     df_all = merge_dataframes()
+    df_all["Saison"] = df_all["Saison"] = df_all["Datum"].apply(
+        lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}"
+    )
     df_all["Datum"] = df_all["Datum"].dt.strftime("%Y-%m-%d")
     path_export_file = os.path.join("data", "export", "100302.csv")
     df_all.to_csv(path_export_file, index=False)
