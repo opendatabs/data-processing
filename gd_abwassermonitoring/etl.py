@@ -6,9 +6,12 @@ import common
 import pandas as pd
 from common import change_tracking as ct
 
+import locale
+locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
 
 def main():
     df_all = merge_dataframes()
+    df_all = df_all.dropna(subset=["Datum"])
     df_all["Saison"] = df_all["Saison"] = df_all["Datum"].apply(
         lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}"
     )
