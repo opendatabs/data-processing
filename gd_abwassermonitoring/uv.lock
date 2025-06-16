@@ -84,7 +84,6 @@ dependencies = [
     { name = "common" },
     { name = "openpyxl" },
     { name = "pandas" },
-    { name = "python-dotenv" },
 ]
 
 [package.dev-dependencies]
@@ -97,7 +96,6 @@ requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
 [package.metadata.requires-dev]

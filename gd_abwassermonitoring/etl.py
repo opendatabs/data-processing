@@ -5,11 +5,6 @@ from datetime import datetime
 import common
 import pandas as pd
 from common import change_tracking as ct
-from dotenv import load_dotenv
-
-load_dotenv()
-
-ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100302")
 
 
 def main():
@@ -24,9 +19,6 @@ def main():
         common.upload_ftp(
             path_export_file, remote_path="gd_kantonslabor/abwassermonitoring"
         )
-        logging.info("push data to ODS realtime API")
-        logging.info("push for dataset 100302")
-        common.ods_realtime_push_df(df_all, ODS_PUSH_URL)
         ct.update_hash_file(path_export_file)
 
 
