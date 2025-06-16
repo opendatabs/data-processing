@@ -7,7 +7,8 @@ import pandas as pd
 from common import change_tracking as ct
 
 import locale
-locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
+locale.setlocale(locale.LC_TIME, "de_CH.UTF-8")
+
 
 def main():
     df_all = merge_dataframes()
