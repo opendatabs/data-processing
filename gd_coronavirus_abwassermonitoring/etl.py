@@ -15,12 +15,6 @@ from functools import reduce
 import common
 import pandas as pd
 from common import change_tracking as ct
-from dotenv import load_dotenv
-
-load_dotenv()
-
-ODS_PUSH_URL_100167 = os.getenv("ODS_PUSH_URL_100167")
-ODS_PUSH_URL_100187 = os.getenv("ODS_PUSH_URL_100187")
 
 pop_BL = 66953
 pop_BS = 196735
@@ -54,9 +48,6 @@ def main():
             path_export_file, remote_path="gd_kantonslabor/covid19_abwassermonitoring"
         )
         ct.update_hash_file(path_export_file)
-        logging.info("push data to ODS realtime API")
-        logging.info("push for dataset 100167")
-        common.ods_realtime_push_df(df_all, ODS_PUSH_URL_100167)
 
     if ct.has_changed(path_export_file_public):
         common.upload_ftp(
@@ -64,8 +55,6 @@ def main():
             remote_path="gd_kantonslabor/covid19_abwassermonitoring",
         )
         ct.update_hash_file(path_export_file_public)
-        logging.info("push for dataset 100187")
-        common.ods_realtime_push_df(df_public, ODS_PUSH_URL_100187)
 
 
 def make_column_dt(df, column):
