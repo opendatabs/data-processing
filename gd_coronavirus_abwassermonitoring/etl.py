@@ -42,12 +42,13 @@ def main():
 
     # make public dataset, remove empty rows
     df_public = df_all[
-        ["7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
+        ["Saison", "7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
     ].dropna(how="all")
     df_datum = df_all[["Datum"]]
     df_public = df_datum.join(df_public, how="right")
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
     df_public.to_csv(path_export_file_public, index=False)
+    quit()
 
     if ct.has_changed(path_export_file):
         common.upload_ftp(
@@ -208,6 +209,10 @@ def calculate_columns(df):
     df = df.drop_duplicates(subset=["Datum"], keep="first")
     df = df.set_index("Datum").resample("D").asfreq()
     df = df.reset_index()
+    # Calculate the season based on the date e.g. 2021-07-01 - 2022-06-30 is 2021/2022
+    df["Saison"] = df["Datum"].apply(
+        lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}"
+    )
     df["pos_rate_BL"] = df["Anz_pos_BL"] / (df["Anz_pos_BL"] + df["Anz_neg_BL"]) * 100
     df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"] / pop_BL * 100000
