@@ -19,11 +19,7 @@ def main():
     df_all["Datum"] = df_all["Datum"].dt.strftime("%Y-%m-%d")
     path_export_file = os.path.join("data", "export", "100302.csv")
     df_all.to_csv(path_export_file, index=False)
-    if ct.has_changed(path_export_file):
-        common.upload_ftp(
-            path_export_file, remote_path="gd_kantonslabor/abwassermonitoring"
-        )
-        ct.update_hash_file(path_export_file)
+    common.update_ftp_and_odsp(path_export_file, "gd_kantonslabor/abwassermonitoring", "100302")
 
 
 def calculate_saison_tag(datum):

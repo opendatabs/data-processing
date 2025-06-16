@@ -46,18 +46,9 @@ def main():
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
     df_public.to_csv(path_export_file_public, index=False)
 
-    if ct.has_changed(path_export_file):
-        common.upload_ftp(
-            path_export_file, remote_path="gd_kantonslabor/covid19_abwassermonitoring"
-        )
-        ct.update_hash_file(path_export_file)
-
-    if ct.has_changed(path_export_file_public):
-        common.upload_ftp(
-            path_export_file_public,
-            remote_path="gd_kantonslabor/covid19_abwassermonitoring",
-        )
-        ct.update_hash_file(path_export_file_public)
+    remote_path = "gd_kantonslabor/covid19_abwassermonitoring"
+    common.update_ftp_and_odsp(path_export_file, remote_path, "100167")
+    common.update_ftp_and_odsp(path_export_file_public, remote_path, "100187")
 
 
 def make_column_dt(df, column):
