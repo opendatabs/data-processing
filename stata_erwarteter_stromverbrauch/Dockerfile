@@ -1,4 +1,4 @@
-FROM rocker/rstudio:4.5.0
+FROM rocker/rstudio:4.5.1
 WORKDIR /code/data-processing/stata_erwarteter_stromverbrauch
 
 RUN apt-get update && apt-get install -y \
