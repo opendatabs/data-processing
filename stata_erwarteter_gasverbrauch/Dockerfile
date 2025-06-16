@@ -1,4 +1,4 @@
-FROM rocker/rstudio:4.5.0
+FROM rocker/rstudio:4.5.1
 #FROM rocker/r-base
 ## Using a base image with R4.2.1 and RSTUDIO_VERSION=2022.07.2+576
 WORKDIR /code/data-processing/stata_erwarteter_gasverbrauch
