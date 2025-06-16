@@ -59,7 +59,7 @@ def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folde
         conn = sqlite3.connect(export_path)
 
         # Write the data to the database
-        data.to_sql("Antworten", con=conn, if_exists="replace")
+        data.to_sql("Antworten", con=conn, if_exists="replace", index=False)
 
         # TODO: Use var_file to create descriptions of columns
 
