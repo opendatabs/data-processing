@@ -12,6 +12,7 @@ def main():
     df_all["Saison"] = df_all["Saison"] = df_all["Datum"].apply(
         lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}"
     )
+    df_all["Tag der Saison"] = df_all["Datum"].apply(calculate_saison_tag)
     df_all["Datum"] = df_all["Datum"].dt.strftime("%Y-%m-%d")
     path_export_file = os.path.join("data", "export", "100302.csv")
     df_all.to_csv(path_export_file, index=False)
@@ -20,6 +21,15 @@ def main():
             path_export_file, remote_path="gd_kantonslabor/abwassermonitoring"
         )
         ct.update_hash_file(path_export_file)
+
+
+def calculate_saison_tag(datum):
+    # Determine season start (always July 1st)
+    saison_start = pd.Timestamp(year=datum.year if datum.month >= 7 else datum.year - 1, month=7, day=1)
+    tag_nr = (datum - saison_start).days + 1
+    if not datum.is_leap_year and datum.month in [3, 4, 5, 6]:
+        tag_nr += 1
+    return f"Tag {tag_nr:03d} - {datum.strftime('%d. %B')}"
 
 
 def make_column_dt(df, column):
