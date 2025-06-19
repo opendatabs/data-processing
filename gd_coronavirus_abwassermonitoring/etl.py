@@ -43,7 +43,6 @@ def main():
     ].dropna(how="all")
     df_datum = df_all[["Datum", "Saison", "Tag der Saison"]]
     df_public = df_datum.join(df_public, how="right")
-    df_public = df_public.fillna(-1000000)  # fill with dummy value for empty rows
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
     df_public.to_csv(path_export_file_public, index=False)
 
