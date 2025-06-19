@@ -39,10 +39,11 @@ def main():
 
     # make public dataset, remove empty rows
     df_public = df_all[
-        ["Saison", "Tag der Saison", "7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
+        ["7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
     ].dropna(how="all")
-    df_datum = df_all[["Datum"]]
+    df_datum = df_all[["Datum", "Saison", "Tag der Saison"]]
     df_public = df_datum.join(df_public, how="right")
+    df_public = df_public.fillna(-1000000)  # fill with dummy value for empty rows
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
     df_public.to_csv(path_export_file_public, index=False)
 
