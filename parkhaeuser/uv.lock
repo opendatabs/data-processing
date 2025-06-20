@@ -62,7 +62,7 @@ wheels = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = { git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7#1a7ec054c92e694f5727ea94f90e6c8f2472aea7" }
+source = { git = "https://github.com/opendatabs/common?rev=b628bce8b2f85cfc593799a8e4b6c2eed24aa064#b628bce8b2f85cfc593799a8e4b6c2eed24aa064" }
 dependencies = [
     { name = "filehash" },
     { name = "more-itertools" },
@@ -190,7 +190,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13.3" },
-    { name = "common", git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7" },
+    { name = "common", git = "https://github.com/opendatabs/common?rev=b628bce8b2f85cfc593799a8e4b6c2eed24aa064" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
