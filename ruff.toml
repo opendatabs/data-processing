@@ -1,3 +1,4 @@
 target-version = "py312"
 line-length = 120
 fix = true
+exclude = ["archived_etl_jobs"]
