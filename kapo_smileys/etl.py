@@ -6,12 +6,11 @@ import sqlite3
 import zipfile
 from datetime import timedelta
 
+import common
 import numpy as np
 import pandas as pd
 import pytz
 import shapefile  # library pyshp
-
-import common
 from common import change_tracking as ct
 
 

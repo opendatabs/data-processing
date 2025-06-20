@@ -3,11 +3,10 @@ import json
 import logging
 import os
 
-import pandas as pd
-from dotenv import load_dotenv
-
 import common
+import pandas as pd
 from common import change_tracking as ct
+from dotenv import load_dotenv
 
 load_dotenv()
 

@@ -2,10 +2,9 @@ import logging
 import os
 from datetime import datetime
 
+import common
 import pandas as pd
 from bs4 import BeautifulSoup
-
-import common
 
 
 def main():

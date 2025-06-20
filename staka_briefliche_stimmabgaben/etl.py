@@ -3,9 +3,8 @@ import logging
 import os
 from datetime import datetime
 
-import pandas as pd
-
 import common
+import pandas as pd
 from common import change_tracking as ct
 from common import email_message
 

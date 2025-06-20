@@ -1,12 +1,11 @@
 import logging
 import os
 
+import common
 import markdown
 import pandas as pd
 from markdown_newtab import NewTabExtension
 from openpyxl import load_workbook
-
-import common
 
 
 def cleanup_text_for_display(text):

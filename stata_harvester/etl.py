@@ -1,10 +1,9 @@
 import logging
 import os
 
-from dotenv import load_dotenv
-
 import common
 import common.change_tracking as ct
+from dotenv import load_dotenv
 
 load_dotenv()
 

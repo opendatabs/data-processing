@@ -5,13 +5,12 @@ import shutil
 import zipfile
 from datetime import datetime
 
+import common
 import geopandas as gpd
 import pandas as pd
 from charset_normalizer import from_path
-from requests.auth import HTTPBasicAuth
-
-import common
 from common import FTP_PASS, FTP_SERVER, FTP_USER
+from requests.auth import HTTPBasicAuth
 
 URL = os.getenv("HTTPS_URL_TBA_SAUBERKEITSINDEX")
 USER = os.getenv("HTTPS_USER_TBA")

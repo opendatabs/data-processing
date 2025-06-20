@@ -3,11 +3,10 @@ import logging
 import os
 import shutil
 
+import common
 import geopandas as gpd
 import pandas as pd
 from owslib.wfs import WebFeatureService
-
-import common
 
 
 def create_map_links(geometry, p1, p2):

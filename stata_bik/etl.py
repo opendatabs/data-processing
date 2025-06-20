@@ -2,10 +2,9 @@ import datetime
 import logging
 import os
 
+import common
 import pandas as pd
 import pytz
-
-import common
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 from common import change_tracking as ct
 

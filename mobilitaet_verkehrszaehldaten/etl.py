@@ -5,12 +5,11 @@ import sqlite3
 import sys
 from shutil import copy2
 
+import common
 import dashboard_calc
 import pandas as pd
-from dotenv import load_dotenv
-
-import common
 from common import change_tracking as ct
+from dotenv import load_dotenv
 
 load_dotenv()
 

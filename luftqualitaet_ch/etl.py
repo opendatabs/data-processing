@@ -4,12 +4,11 @@ import os
 import warnings
 from datetime import datetime
 
+import common
 import pandas as pd
 import urllib3
-from more_itertools import chunked
-
-import common
 from common import change_tracking as ct
+from more_itertools import chunked
 
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_07")

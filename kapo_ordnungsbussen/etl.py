@@ -5,19 +5,18 @@ import os
 import time
 import zipfile
 
+import common
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from common import change_tracking as ct
+from common import email_message
 from geopy.distance import geodesic
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 from rapidfuzz import process
 from shapely.geometry import Point
 from tqdm import tqdm
-
-import common
-from common import change_tracking as ct
-from common import email_message
 
 
 def main():

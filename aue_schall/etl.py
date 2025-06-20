@@ -3,11 +3,10 @@ import logging
 import os
 from datetime import datetime, timedelta
 
+import common
 import pandas as pd
 import urllib3
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")

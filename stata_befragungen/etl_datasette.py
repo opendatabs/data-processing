@@ -2,10 +2,9 @@ import logging
 import os
 import sqlite3
 
-import pandas as pd
-
 import common
 import common.change_tracking as ct
+import pandas as pd
 
 
 def main():

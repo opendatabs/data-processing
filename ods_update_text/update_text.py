@@ -1,8 +1,7 @@
 import logging
 
-import ods_utils_py as ods_utils
-
 import common
+import ods_utils_py as ods_utils
 
 # The skript modifies text in the metadata of public datasets. It requires the parameters 'new_text' and 'old_text'
 

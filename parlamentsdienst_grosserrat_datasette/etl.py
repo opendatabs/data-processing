@@ -3,10 +3,9 @@ import os
 import sqlite3
 from pathlib import Path
 
+import common
 import pandas as pd
 import pdf_converter
-
-import common
 
 
 def main():

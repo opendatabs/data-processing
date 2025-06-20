@@ -1,9 +1,8 @@
 import logging
 import os
 
-import pandas as pd
-
 import common
+import pandas as pd
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100269")

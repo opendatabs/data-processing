@@ -4,11 +4,10 @@ import os
 import shutil
 import unicodedata
 
-import pandas as pd
-from charset_normalizer import from_path
-
 import common
 import common.change_tracking as ct
+import pandas as pd
+from charset_normalizer import from_path
 
 
 def main():

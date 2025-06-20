@@ -3,10 +3,9 @@ import logging
 import os
 from collections import defaultdict
 
+import common
 import pandas as pd
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")

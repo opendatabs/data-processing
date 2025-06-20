@@ -6,14 +6,13 @@ import smtplib
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+import common
+import common.change_tracking as ct
 import pandas as pd
+from common import EMAIL_RECEIVERS, EMAIL_SERVER
 from dotenv import load_dotenv
 from etl_details import calculate_details
 from etl_kennzahlen import calculate_kennzahlen
-
-import common
-import common.change_tracking as ct
-from common import EMAIL_RECEIVERS, EMAIL_SERVER
 
 load_dotenv()
 

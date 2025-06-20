@@ -2,9 +2,9 @@ import logging
 import os
 from io import StringIO
 
+import common
 import pandas as pd
 
-import common
 from wahlen import credentials
 
 

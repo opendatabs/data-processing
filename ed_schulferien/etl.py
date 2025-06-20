@@ -6,13 +6,12 @@ import shutil
 import zipfile
 from datetime import timedelta
 
+import common
 import create_ics
 import pandas as pd
 import vobject
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 

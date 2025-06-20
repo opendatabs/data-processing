@@ -3,10 +3,9 @@ import os
 import pathlib
 from datetime import datetime
 
+import common
 import pandas as pd
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 

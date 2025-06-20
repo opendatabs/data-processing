@@ -2,10 +2,9 @@ import logging
 import os
 from io import StringIO
 
+import common
 import openpyxl
 import pandas as pd
-
-import common
 from common import ODS_API_KEY
 
 

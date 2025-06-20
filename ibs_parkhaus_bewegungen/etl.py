@@ -2,9 +2,8 @@ import logging
 import os
 import pathlib
 
-import pandas as pd
-
 import common
+import pandas as pd
 
 
 def main():

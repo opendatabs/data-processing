@@ -3,11 +3,10 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import common
 import pandas as pd
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 

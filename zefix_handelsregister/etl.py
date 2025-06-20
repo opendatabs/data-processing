@@ -5,6 +5,8 @@ import os
 import pathlib
 import time
 
+import common
+import common.change_tracking as ct
 import geopandas as gpd
 import pandas as pd
 from geopy.extra.rate_limiter import RateLimiter
@@ -12,9 +14,6 @@ from geopy.geocoders import Nominatim
 from rapidfuzz import process
 from shapely.geometry import Point
 from SPARQLWrapper import JSON, SPARQLWrapper
-
-import common
-import common.change_tracking as ct
 
 
 def main():

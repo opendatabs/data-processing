@@ -4,12 +4,11 @@ import os
 import zipfile
 from datetime import datetime
 
+import common
 import geopandas as gpd
 import pandas as pd
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
-
-import common
 
 load_dotenv()
 

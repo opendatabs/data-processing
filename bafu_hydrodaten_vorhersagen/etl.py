@@ -4,13 +4,12 @@ import os
 import re
 from datetime import datetime, timedelta
 
+import common
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
-
-import common
 
 load_dotenv()
 

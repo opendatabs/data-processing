@@ -3,10 +3,9 @@ import logging
 import os
 import re
 
+import common
 import pandas as pd
 from bs4 import BeautifulSoup
-
-import common
 
 BASE_URL = "https://www.bs.ch"
 LISTING_URL = "https://www.bs.ch/apps/regierungsratsbeschluesse"

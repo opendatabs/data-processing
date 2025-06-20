@@ -1,10 +1,9 @@
 import logging
 import os
 
+import common
 import create_ics
 import pandas as pd
-
-import common
 
 
 def main():

@@ -3,10 +3,9 @@ import io
 import logging
 import os
 
+import common
 import pandas as pd
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 

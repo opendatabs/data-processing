@@ -2,10 +2,10 @@ import os
 from datetime import datetime
 from ftplib import FTP
 
+import common
 import numpy as np
 import pandas as pd
 
-import common
 from bafu_hydrodaten import credentials
 
 print("Connecting to FTP Server to read data...")
