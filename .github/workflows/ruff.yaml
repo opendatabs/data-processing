@@ -21,17 +21,23 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Set up Ruff
-        uses: astral-sh/setup-ruff@v1
-
-      - name: Run Ruff format
-        run: ruff format .
+      - name: Run Ruff format check
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: format
+          src: "."
 
       - name: Run Ruff check with fix
-        run: ruff check . --fix
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check --fix
+          src: "."
 
       - name: Run Ruff import sort fix
-        run: ruff check . --select I --fix
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check --select I --fix
+          src: "."
 
       - name: Commit and create pull request
         uses: peter-evans/create-pull-request@v7
