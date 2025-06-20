@@ -2,17 +2,20 @@ import io
 import logging
 import os
 import xml.etree.ElementTree as ET
-import zipfile
 from urllib.parse import urlencode
-
+from shapely.geometry import shape
 import common
 import geopandas as gpd
 import pandas as pd
 import requests
+from dotenv import load_dotenv
+
 
 # References:
 # https://www.amtsblattportal.ch/docs/api/
+load_dotenv()
 
+MapBS_API = os.getenv("API_KEY_MAPBS")
 
 def main():
     df = get_urls()
@@ -26,10 +29,13 @@ def main():
     df = get_columns_of_interest(df)
     df = legal_form_code_to_name(df)
     df = get_parzellen(df)
+    df["geo_shape"] = df["geo_shape"].apply(lambda x: shape(x) if isinstance(x, dict) else None)
+    gdf = gpd.GeoDataFrame(df, geometry="geo_shape", crs="EPSG:2056")  
+    gdf = gdf.to_crs("EPSG:4326")
     path_export = os.path.join(
-        "data", "export", "100366_kantonsblatt_bauplikationen.csv"
+        "data", "export", "100366_kantonsblatt_bauplikationen.geojson"
     )
-    df.to_csv(path_export, index=False)
+    gdf.to_file(path_export, driver="GeoJSON")
     common.update_ftp_and_odsp(path_export, "staka/kantonsblatt", "100366")
 
 
@@ -175,41 +181,65 @@ def correct_parzellennummer(parzellennummer):
     return ",".join(corrected)
 
 
-# Function to get the geometry for each parzellennummer
-def get_geometry(gdf, row):
+def get_geometry(row):
     parzellennummer = row["districtCadastre_relation_plot"]
     section = row["districtCadastre_relation_section"]
-    numbers = parzellennummer.split(",")
-    filtered_gdf = gdf[
-        (gdf["parzellennu"].isin(numbers)) & (gdf["r1_sektion"] == section)
-    ]
-    geometries = filtered_gdf["geometry"]
+
+    if pd.isna(parzellennummer) or pd.isna(section) or not str(parzellennummer).strip():
+        logging.warning("⚠️  Empty parcel or section - skipped.")
+        return None
+    numbers = parzellennummer.split(", ")
+    geometries = []
+
+    for number in numbers:
+        s_par = f"{section}-{number}"
+        logging.info(f"→ Hole Geometrie für: {s_par}") 
+        url = f"https://api.geo.bs.ch/grundstueckinfo/v1/realestatesinformation?ids={s_par}&withgeometry=true&apikey={MapBS_API}"
+        try:
+            response = common.requests_get(url)
+            if response.status_code != 200 or not response.content:
+                logging.warning(f"⏭️  No valid answer for {s_par} - is skipped.")
+                continue
+            data = response.json()
+            realestates = data.get("RealEstates", [])
+            if not realestates:
+                logging.warning(f"⏭️  No entry for {s_par} - is skipped.")
+                continue
+            geom = realestates[0].get("Geometry")
+            if geom:
+                geometries.append(geom)
+        except Exception as e:
+            logging.error(f"❌ Error in {s_par}: {e}")
+            continue
     if len(geometries) == 1:
-        return geometries.iloc[0]
+        return geometries[0]
+    elif len(geometries) > 1:
+        return {
+            "type": "MultiPolygon",
+            "coordinates": [g["coordinates"] for g in geometries]
+        }
     else:
-        return geometries.unary_union
+        return {
+            "type": "GeometryCollection",
+            "geometries": []
+        }
 
 
 def get_parzellen(df):
-    # Download the dataset
-    url_parzellen = "https://data.bs.ch/explore/dataset/100201/download/?format=shp"
-    r = common.requests_get(url_parzellen)
-    # Unpack zip file
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall(os.path.join("data", "100201"))
-    # Read shapefile
-    path_to_shp = os.path.join("data", "100201", "100201.shp")
-    gdf = gpd.read_file(path_to_shp, encoding="utf-8")
+
     df.loc[
         df["districtCadastre_relation_plot"].isna(), "districtCadastre_relation_plot"
     ] = ""
     df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].astype(
         str
     )
+    df["geo_shape"] = df.apply(lambda x: get_geometry(x), axis=1
+    )
+
     df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].apply(
         correct_parzellennummer
     )
-    df["geometry"] = df.apply(lambda x: get_geometry(gdf, x), axis=1)
+   
     df["url_parzellen"] = df.apply(
         lambda row: "https://data.bs.ch/explore/dataset/100201/table/?"
         + urlencode(
