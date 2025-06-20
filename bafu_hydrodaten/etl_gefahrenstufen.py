@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pandas as pd
-
 from common import change_tracking as ct
 
 filename = os.path.join(os.path.dirname(__file__), "data/gefahrenstufen", "warn_levels.xml")

@@ -4,10 +4,9 @@ import os
 import time
 from datetime import datetime
 
+import common
 import numpy as np
 import pandas as pd
-
-import common
 
 # All paths
 BASE_PATH = "https://grosserrat.bs.ch"

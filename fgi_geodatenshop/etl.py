@@ -6,14 +6,13 @@ import sys
 import urllib.parse
 import xml.etree.ElementTree as ET
 
+import common
 import geopandas as gpd
 import pandas as pd
 import requests
+from common import change_tracking as ct
 from dotenv import load_dotenv
 from owslib.wfs import WebFeatureService
-
-import common
-from common import change_tracking as ct
 
 load_dotenv()
 

@@ -2,11 +2,10 @@ import logging
 import os
 import re
 
+import common
 import pandas as pd
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
-
-import common
 
 load_dotenv()
 

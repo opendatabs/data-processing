@@ -2,12 +2,11 @@ import logging
 import os
 from io import StringIO
 
+import common
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-
-import common
 
 load_dotenv()
 

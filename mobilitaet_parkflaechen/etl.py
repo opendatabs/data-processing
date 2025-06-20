@@ -5,13 +5,12 @@ import os
 import zipfile
 from io import StringIO
 
+import common
 import geopandas as gpd
 import pandas as pd
+from common import change_tracking as ct
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
-
-import common
-from common import change_tracking as ct
 
 load_dotenv()
 

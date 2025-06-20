@@ -8,14 +8,13 @@ import urllib.parse
 import zipfile
 from datetime import datetime
 
+import common
 import geopandas as gpd
 import pandas as pd
 import requests
 from charset_normalizer import from_path
-from dotenv import load_dotenv
-
-import common
 from common import change_tracking as ct
+from dotenv import load_dotenv
 
 load_dotenv()
 

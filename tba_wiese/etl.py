@@ -2,11 +2,10 @@ import logging
 import os
 import pathlib
 
-import pandas as pd
-from dotenv import load_dotenv
-
 import common
+import pandas as pd
 from common import FTP_PASS, FTP_SERVER, FTP_USER
+from dotenv import load_dotenv
 
 load_dotenv()
 

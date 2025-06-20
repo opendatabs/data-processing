@@ -6,15 +6,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import common
+import common.change_tracking as ct
 import icalendar
 import numpy as np
 import pandas as pd
 import utilities
 from dotenv import load_dotenv
 from excel_handler import ExcelHandler
-
-import common
-import common.change_tracking as ct
 
 load_dotenv()
 

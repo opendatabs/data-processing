@@ -1,7 +1,7 @@
+import common
 import pandas as pd
 import urllib3
 
-import common
 from bafu_hydrodaten import credentials
 
 # Push correct data received from BAFU to ODS via realtime API

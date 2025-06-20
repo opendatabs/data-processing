@@ -1,11 +1,10 @@
 import os
 from functools import reduce
 
+import common
 import dateparser
 import numpy as np
 import pandas as pd
-
-import common
 
 
 def main():

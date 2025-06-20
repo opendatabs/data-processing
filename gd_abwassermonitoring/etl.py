@@ -3,9 +3,8 @@ import logging
 import os
 from datetime import datetime
 
-import pandas as pd
-
 import common
+import pandas as pd
 
 locale.setlocale(locale.LC_TIME, "de_CH.UTF-8")
 

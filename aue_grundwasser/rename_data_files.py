@@ -1,9 +1,8 @@
 import logging
 import os
 
-from dotenv import load_dotenv
-
 import common
+from dotenv import load_dotenv
 
 load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")

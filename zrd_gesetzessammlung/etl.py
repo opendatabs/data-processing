@@ -3,10 +3,9 @@ import logging
 import os
 import re
 
+import common
 import pandas as pd
 import requests
-
-import common
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 

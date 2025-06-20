@@ -4,10 +4,9 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import common
 import pandas as pd
 from bs4 import BeautifulSoup
-
-import common
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 

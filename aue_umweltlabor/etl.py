@@ -4,11 +4,10 @@ import os
 import re
 import shutil
 
-import pandas as pd
-from dotenv import load_dotenv
-
 import common
 import common.change_tracking as ct
+import pandas as pd
+from dotenv import load_dotenv
 
 load_dotenv()
 

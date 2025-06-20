@@ -8,12 +8,11 @@ from itertools import combinations
 from zoneinfo import ZoneInfo
 
 import charset_normalizer
+import common
 import icalendar
 import pandas as pd
 from dotenv import load_dotenv
 from rapidfuzz import fuzz, process
-
-import common
 
 load_dotenv()
 

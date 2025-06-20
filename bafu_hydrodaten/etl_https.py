@@ -4,12 +4,11 @@ import os
 from datetime import datetime
 from functools import reduce
 
+import common
 import pandas as pd
 import urllib3
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
-
-import common
 
 load_dotenv()
 

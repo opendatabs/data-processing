@@ -4,12 +4,11 @@ import os
 import zipfile
 from datetime import datetime
 
+import common
 import geopandas as gpd
 import pandas as pd
-from dateutil.relativedelta import relativedelta
-
-import common
 from common import FTP_PASS, FTP_SERVER, FTP_USER
+from dateutil.relativedelta import relativedelta
 
 CONFIGS = {
     "bezirke": {

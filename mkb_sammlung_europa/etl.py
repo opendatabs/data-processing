@@ -1,9 +1,8 @@
 import logging
 import os
 
-import pandas as pd
-
 import common
+import pandas as pd
 
 
 def main():

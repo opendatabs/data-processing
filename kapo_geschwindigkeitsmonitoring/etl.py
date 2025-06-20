@@ -3,15 +3,14 @@ import logging
 import os
 import sqlite3
 
+import common
 import numpy as np
 import pandas as pd
 import pandas.io.sql as psql
 import psycopg2 as pg
 from charset_normalizer import from_path
-from dotenv import load_dotenv
-
-import common
 from common import change_tracking as ct
+from dotenv import load_dotenv
 
 load_dotenv()
 PG_CONNECTION = os.getenv("PG_CONNECTION")
