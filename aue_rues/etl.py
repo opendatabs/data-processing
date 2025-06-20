@@ -3,9 +3,10 @@ import logging
 import os
 from collections import defaultdict
 
-import common
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")
@@ -43,9 +44,7 @@ def download_latest_data(truebung=False):
 def push_data_files_old(csv_files, truebung=False):
     for file in csv_files:
         df = pd.read_csv(file["local_file"], sep=";")
-        common.ods_realtime_push_df(
-            df, url=ODS_PUSH_URL_TRUEBUNG if truebung else ODS_PUSH_URL
-        )
+        common.ods_realtime_push_df(df, url=ODS_PUSH_URL_TRUEBUNG if truebung else ODS_PUSH_URL)
 
 
 def push_data_files(csv_files, truebung=False):
@@ -63,16 +62,14 @@ def push_data_files(csv_files, truebung=False):
         logging.info(f"Processing files for date {date}...")
         df = df.sort_values(by=["Startzeitpunkt"]).reset_index(drop=True)
 
-        df["Startzeitpunkt"] = pd.to_datetime(
-            df["Startzeitpunkt"], format="%d.%m.%Y %H:%M:%S"
-        ).dt.tz_localize("Europe/Zurich", ambiguous="infer")
+        df["Startzeitpunkt"] = pd.to_datetime(df["Startzeitpunkt"], format="%d.%m.%Y %H:%M:%S").dt.tz_localize(
+            "Europe/Zurich", ambiguous="infer"
+        )
         # df['Startzeitpunkt'] plus one hour
         df["Endezeitpunkt"] = df["Startzeitpunkt"] + datetime.timedelta(hours=1)
         df["Startzeitpunkt"] = df["Startzeitpunkt"].dt.strftime("%Y-%m-%d %H:%M:%S%z")
         df["Endezeitpunkt"] = df["Endezeitpunkt"].dt.strftime("%Y-%m-%d %H:%M:%S%z")
-        common.ods_realtime_push_df(
-            df, url=ODS_PUSH_URL_TRUEBUNG if truebung else ODS_PUSH_URL
-        )
+        common.ods_realtime_push_df(df, url=ODS_PUSH_URL_TRUEBUNG if truebung else ODS_PUSH_URL)
 
 
 def archive_data_files(csv_files, truebung=False):
@@ -84,13 +81,9 @@ def archive_data_files(csv_files, truebung=False):
         if date_obj.date() < datetime.date.today():
             from_name = f"{file['remote_path']}/{file['remote_file']}"
             to_name = (
-                f"{archive_folder}/{file['remote_file']}"
-                if truebung
-                else f"roh/{archive_folder}/{file['remote_file']}"
+                f"{archive_folder}/{file['remote_file']}" if truebung else f"roh/{archive_folder}/{file['remote_file']}"
             )
-            logging.info(
-                f"Renaming file on FTP server from {from_name} to {to_name}..."
-            )
+            logging.info(f"Renaming file on FTP server from {from_name} to {to_name}...")
             common.rename_ftp(from_name, to_name, FTP_SERVER, FTP_USER, FTP_PASS)
 
 
@@ -99,12 +92,12 @@ def push_older_data_files():
 
     df1 = pd.read_csv(os.path.join(data_path, "online2002_2023.csv"), sep=",")
     # Transoform Startzeitpunkt and Endezeitpunkt to the format expected by ODS
-    df1["Startzeitpunkt"] = pd.to_datetime(
-        df1["Startzeitpunkt"], format="%Y-%m-%d %H:%M:%S"
-    ).dt.strftime("%d.%m.%Y %H:%M:%S")
-    df1["Endezeitpunkt"] = pd.to_datetime(
-        df1["Endezeitpunkt"], format="%Y-%m-%d %H:%M:%S"
-    ).dt.strftime("%d.%m.%Y %H:%M:%S")
+    df1["Startzeitpunkt"] = pd.to_datetime(df1["Startzeitpunkt"], format="%Y-%m-%d %H:%M:%S").dt.strftime(
+        "%d.%m.%Y %H:%M:%S"
+    )
+    df1["Endezeitpunkt"] = pd.to_datetime(df1["Endezeitpunkt"], format="%Y-%m-%d %H:%M:%S").dt.strftime(
+        "%d.%m.%Y %H:%M:%S"
+    )
     common.batched_ods_realtime_push(df1, url=ODS_PUSH_URL, chunk_size=25000)
 
     df3 = pd.read_csv(
@@ -139,9 +132,7 @@ def push_older_data_files():
 
 
 def push_data_files_corrected():
-    data_path_2024 = os.path.join(
-        os.path.dirname(__file__), "data_orig", "20250203_Export_Bafu_2024.csv"
-    )
+    data_path_2024 = os.path.join(os.path.dirname(__file__), "data_orig", "20250203_Export_Bafu_2024.csv")
 
     df = pd.read_csv(data_path_2024, sep=";", encoding="cp1252")
     df = df.rename(

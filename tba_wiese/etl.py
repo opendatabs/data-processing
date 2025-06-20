@@ -2,10 +2,11 @@ import logging
 import os
 import pathlib
 
-import common
 import pandas as pd
-from common import FTP_PASS, FTP_SERVER, FTP_USER
 from dotenv import load_dotenv
+
+import common
+from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 load_dotenv()
 
@@ -21,21 +22,15 @@ def main():
     r = common.requests_get(url=URL, auth=(USER, PASS))
     data = r.json()
     df = pd.DataFrame.from_dict([data])[["datum", "temperatur"]]
-    df["timestamp"] = pd.to_datetime(
-        df.datum, format="%Y-%m-%d %H:%M:%S"
-    ).dt.tz_localize("Europe/Zurich")
+    df["timestamp"] = pd.to_datetime(df.datum, format="%Y-%m-%d %H:%M:%S").dt.tz_localize("Europe/Zurich")
     df["timestamp_text"] = df.timestamp.dt.strftime("%Y-%m-%dT%H:%M:%S%z")
     df_export = df[["timestamp_text", "temperatur"]]
     common.ods_realtime_push_df(df_export, ODS_PUSH_URL)
-    filename = (
-        f"{df_export.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv"
-    )
+    filename = f"{df_export.loc[0].timestamp_text.replace(':', ' - ').replace(' ', '')}.csv"
     folder = filename[:7]
     filepath = os.path.join(os.path.dirname(__file__), "data", filename)
     df_export.to_csv(filepath, index=False)
-    common.ensure_ftp_dir(
-        FTP_SERVER, FTP_USER, FTP_PASS, f"tba/wiese/temperatur/{folder}"
-    )
+    common.ensure_ftp_dir(FTP_SERVER, FTP_USER, FTP_PASS, f"tba/wiese/temperatur/{folder}")
     common.update_ftp_and_odsp(filepath, f"tba/wiese/temperatur/{folder}", "100269")
     pass
 

@@ -3,16 +3,17 @@ import logging
 import os
 import pathlib
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from itertools import combinations
 from zoneinfo import ZoneInfo
 
 import charset_normalizer
-import common
 import icalendar
 import pandas as pd
 from dotenv import load_dotenv
 from rapidfuzz import fuzz, process
+
+import common
 
 load_dotenv()
 
@@ -29,11 +30,7 @@ def is_file_older_than(file, delta):
 
 
 def find_in_sheet(sheet, text_to_find):
-    return [
-        (i, text.index(text_to_find))
-        for i, text in enumerate(sheet)
-        if text_to_find in text
-    ]
+    return [(i, text.index(text_to_find)) for i, text in enumerate(sheet) if text_to_find in text]
 
 
 def is_session_now(ical_file_path, hours_before_start, hours_after_end):
@@ -57,12 +54,18 @@ def is_session_now(ical_file_path, hours_before_start, hours_after_end):
         else:
             end = end.astimezone(ZoneInfo("Europe/Zurich"))
 
-        if (start - pd.Timedelta(hours=hours_before_start)) <= now_in_switzerland <= (end + pd.Timedelta(hours=hours_after_end)):
-            current_entries.append({
-                "summary": event["SUMMARY"],
-                "dtstart": start,
-                "dtend": end,
-            })
+        if (
+            (start - pd.Timedelta(hours=hours_before_start))
+            <= now_in_switzerland
+            <= (end + pd.Timedelta(hours=hours_after_end))
+        ):
+            current_entries.append(
+                {
+                    "summary": event["SUMMARY"],
+                    "dtstart": start,
+                    "dtend": end,
+                }
+            )
 
     session_active = len(current_entries) > 0
     logging.info(f"Session active now? {session_active}")
@@ -90,25 +93,18 @@ def get_trakt_names(session_day):
         # Check if the folder is empty or missing the required files
         sub_dir_ls_file = "data/ftp_listing_session_data_sub_dir.json"
         # Looking for files called 'BSGR_Agenda.csv' and 'BSGR_MEMBERS.csv'
-        sub_files = get_ftp_ls(
-            remote_path=session_str, pattern="*.csv", file_name=sub_dir_ls_file, ftp=ftp
-        )
+        sub_files = get_ftp_ls(remote_path=session_str, pattern="*.csv", file_name=sub_dir_ls_file, ftp=ftp)
 
         if len(sub_files) == 0:
             continue
 
         diff_sessions = session_day - session_datetime
-        if diff_sessions.days >= 0 and (
-            closest_session_date is None
-            or diff_sessions.days < closest_session_date.days
-        ):
+        if diff_sessions.days >= 0 and (closest_session_date is None or diff_sessions.days < closest_session_date.days):
             closest_session_date = diff_sessions
             closest_session_path = session_str
     if closest_session_path is None:
         raise ValueError(f"No session found for date {session_day}")
-    logging.info(
-        f"Found closest session date {closest_session_path} for date {session_day}"
-    )
+    logging.info(f"Found closest session date {closest_session_path} for date {session_day}")
     # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
     agenda_file = common.download_ftp(
         [],
@@ -131,9 +127,9 @@ def get_trakt_names(session_day):
     # if csv_file is empty, raise error
     if len(agenda_file) == 0:
         raise ValueError(f"No BSGR_Agenda.csv found for date {session_day}")
-    return pd.read_csv(
-        agenda_file[0]["local_file"], delimiter=";", dtype=str
-    ), pd.read_csv(members_file[0]["local_file"], delimiter=";")
+    return pd.read_csv(agenda_file[0]["local_file"], delimiter=";", dtype=str), pd.read_csv(
+        members_file[0]["local_file"], delimiter=";"
+    )
 
 
 def simplify_filename_json(filename, remote_file):
@@ -238,27 +234,17 @@ def create_name_combinations(row, surname_first=False):
     surnames = row["name"].replace("-", " ").split()
     # Create all combinations of names
     first_name_combinations = [
-        " ".join(comb)
-        for r in range(1, len(first_names) + 1)
-        for comb in combinations(first_names, r)
+        " ".join(comb) for r in range(1, len(first_names) + 1) for comb in combinations(first_names, r)
     ]
-    surname_combinations = [
-        " ".join(comb)
-        for r in range(1, len(surnames) + 1)
-        for comb in combinations(surnames, r)
-    ]
+    surname_combinations = [" ".join(comb) for r in range(1, len(surnames) + 1) for comb in combinations(surnames, r)]
     # Create all combinations of first and last names
     if surname_first:
         name_combinations = [
-            f"{surname} {first_name}"
-            for surname in surname_combinations
-            for first_name in first_name_combinations
+            f"{surname} {first_name}" for surname in surname_combinations for first_name in first_name_combinations
         ]
     else:
         name_combinations = [
-            f"{first_name} {surname}"
-            for first_name in first_name_combinations
-            for surname in surname_combinations
+            f"{first_name} {surname}" for first_name in first_name_combinations for surname in surname_combinations
         ]
     return [
         {
@@ -273,9 +259,7 @@ def create_name_combinations(row, surname_first=False):
     ]
 
 
-def fill_values_from_dataframe(
-    df: pd.DataFrame, df_lookup: pd.DataFrame, index, index_lookup
-):
+def fill_values_from_dataframe(df: pd.DataFrame, df_lookup: pd.DataFrame, index, index_lookup):
     df.loc[index, "Mitglied_Nachname"] = df_lookup.loc[index_lookup, "name"]
     df.loc[index, "Mitglied_Vorname"] = df_lookup.loc[index_lookup, "vorname"]
     df.loc[index, "Mitglied_Name"] = df_lookup.loc[index_lookup, "name_vorname"]
@@ -299,26 +283,17 @@ def get_closest_name_from_member_dataset(df: pd.DataFrame, surname_first=False):
     df["GR_url_ods"] = ""
     # Download members of Grosser Rat from ods
     raw_data_file = os.path.join("data", "members_gr.csv")
-    logging.info(
-        f"Downloading Members of Grosser Rat from ods to file {raw_data_file}..."
-    )
-    r = common.requests_get(
-        "https://data.bs.ch/api/records/1.0/download?dataset=100307"
-    )
+    logging.info(f"Downloading Members of Grosser Rat from ods to file {raw_data_file}...")
+    r = common.requests_get("https://data.bs.ch/api/records/1.0/download?dataset=100307")
     with open(raw_data_file, "wb") as f:
         f.write(r.content)
     df_gr_mitglieder = pd.read_csv(raw_data_file, sep=";")
     df_names = df_gr_mitglieder[["name", "vorname", "name_vorname", "url", "uni_nr"]]
     # Create all combinations of names
-    expanded_rows = [
-        create_name_combinations(row, surname_first=surname_first)
-        for index, row in df_names.iterrows()
-    ]
+    expanded_rows = [create_name_combinations(row, surname_first=surname_first) for index, row in df_names.iterrows()]
     expanded_df = pd.DataFrame([item for sublist in expanded_rows for item in sublist])
     name_list = expanded_df["comb_name_vorname"].tolist()
-    path_lookup_table = os.path.join(
-        pathlib.Path(__file__).parents[0], "data", "lookup_grossrat.csv"
-    )
+    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], "data", "lookup_grossrat.csv")
     if os.path.exists(path_lookup_table):
         logging.info(f"Loading lookup table from {path_lookup_table}...")
         lookup_table = pd.read_csv(path_lookup_table)
@@ -338,17 +313,13 @@ def get_closest_name_from_member_dataset(df: pd.DataFrame, surname_first=False):
         )
     for index, row in df.iterrows():
         if row["Mitglied_Name"] in lookup_table["fuzzy_name"].tolist():
-            index_lookup = lookup_table.loc[
-                lookup_table["fuzzy_name"] == row["Mitglied_Name"]
-            ].index[0]
+            index_lookup = lookup_table.loc[lookup_table["fuzzy_name"] == row["Mitglied_Name"]].index[0]
         else:
             logging.info(f"Looking for closest name for {row['Mitglied_Name']}...")
             closest_name, score, index_gr_mitglieder = process.extractOne(
                 row["Mitglied_Name"], name_list, scorer=fuzz.WRatio
             )
-            logging.info(
-                f"Closest name for {row['Mitglied_Name']} is {closest_name} with score {score}..."
-            )
+            logging.info(f"Closest name for {row['Mitglied_Name']} is {closest_name} with score {score}...")
             lookup_table.loc[-1] = [
                 row["Mitglied_Name"],
                 closest_name,

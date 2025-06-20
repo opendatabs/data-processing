@@ -4,9 +4,10 @@ import os
 import time
 from datetime import datetime
 
-import common
 import numpy as np
 import pandas as pd
+
+import common
 
 # All paths
 BASE_PATH = "https://grosserrat.bs.ch"
@@ -164,13 +165,9 @@ def main():
     logging.info("Reading Sitzungsdaten.csv...")
     df_gr_sitzung = common.pandas_read_csv(get_path_to_file("gr_sitzung"), encoding="utf-8", dtype=str)
     logging.info("Reading Tagesordnung.csv...")
-    df_gr_tagesordnung = common.pandas_read_csv(
-        get_path_to_file("gr_tagesordnung"), encoding="utf-8", dtype=str
-    )
+    df_gr_tagesordnung = common.pandas_read_csv(get_path_to_file("gr_tagesordnung"), encoding="utf-8", dtype=str)
     logging.info("Reading Traktanden.csv...")
-    df_gr_traktanden = common.pandas_read_csv(
-        get_path_to_file("gr_tagesordnung_pos"), encoding="utf-8", dtype=str
-    )
+    df_gr_traktanden = common.pandas_read_csv(get_path_to_file("gr_tagesordnung_pos"), encoding="utf-8", dtype=str)
 
     # Perform data processing and CSV file creation functions
     args_for_uploads = [
@@ -208,35 +205,21 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     # Get current date's Unix timestamp
     current_unix_timestamp = int(time.time())
     # Check if the membership is currently active in Grosser Rat
-    df["ist_aktuell_grossrat"] = df["gr_ende"].apply(
-        lambda end: "Ja" if int(end) > current_unix_timestamp else "Nein"
-    )
+    df["ist_aktuell_grossrat"] = df["gr_ende"].apply(lambda end: "Ja" if int(end) > current_unix_timestamp else "Nein")
 
     # Create url's
     df["url"] = PATH_PERSONEN + df["uni_nr"]
-    df["url_gremiumsmitgliedschaften"] = (
-        PATH_DATASET + "100308/?refine.uni_nr_adr=" + df["uni_nr"]
-    )
-    df["url_interessensbindungen"] = (
-        PATH_DATASET + "100309/?refine.uni_nr=" + df["uni_nr"]
-    )
+    df["url_gremiumsmitgliedschaften"] = PATH_DATASET + "100308/?refine.uni_nr_adr=" + df["uni_nr"]
+    df["url_interessensbindungen"] = PATH_DATASET + "100309/?refine.uni_nr=" + df["uni_nr"]
     df["url_urheber"] = PATH_DATASET + "100311/?refine.nr_urheber=" + df["uni_nr"]
 
     # append "name" and "vorname"
     df["name_vorname"] = df["name"] + ", " + df["vorname"]
 
     # Make sure there are no duplicates in the "Titel"
-    df["titel"] = (
-        df["titel"]
-        .str.replace(". ", ".", regex=False)
-        .str.replace(".", ". ", regex=False)
-    )
+    df["titel"] = df["titel"].str.replace(". ", ".", regex=False).str.replace(".", ". ", regex=False)
     df["titel"] = df["titel"].str.replace(" ,", ",", regex=False)
-    df["titel"] = (
-        df["titel"]
-        .str.replace("pol.", "pol", regex=False)
-        .str.replace("pol", "pol.", regex=False)
-    )
+    df["titel"] = df["titel"].str.replace("pol.", "pol", regex=False).str.replace("pol", "pol.", regex=False)
     df["titel"] = df["titel"].str.rstrip()
 
     # Select relevant columns for publication
@@ -280,9 +263,7 @@ def create_mitglieder_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     return path_export, "parlamentsdienst/grosser_rat", "100307"
 
 
-def create_mitgliedschaften_csv(
-    df_adr: pd.DataFrame, df_mit: pd.DataFrame, df_gre: pd.DataFrame
-) -> tuple:
+def create_mitgliedschaften_csv(df_adr: pd.DataFrame, df_mit: pd.DataFrame, df_gre: pd.DataFrame) -> tuple:
     df = pd.merge(df_gre, df_mit, left_on="uni_nr", right_on="uni_nr_gre")
     df = pd.merge(df, df_adr, left_on="uni_nr_adr", right_on="uni_nr")
 
@@ -307,9 +288,7 @@ def create_mitgliedschaften_csv(
     # URL for committee page (currently removed)
     # df['url_gre'] = credentials.path_gremien + df['uni_nr_gre']
     df["url_gremium"] = PATH_DATASET + "100310/?refine.uni_nr=" + df["uni_nr_gre"]
-    df["url_ratsmitgliedschaften"] = (
-        PATH_DATASET + "100307/?refine.uni_nr=" + df["uni_nr_adr"]
-    )
+    df["url_ratsmitgliedschaften"] = PATH_DATASET + "100307/?refine.uni_nr=" + df["uni_nr_adr"]
 
     # append "name" and "vorname"
     df["name_vorname"] = df["name_adr"] + ", " + df["vorname_adr"]
@@ -346,9 +325,7 @@ def create_mitgliedschaften_csv(
     return path_export, "parlamentsdienst/grosser_rat", "100308"
 
 
-def create_interessensbindungen_csv(
-    df_adr: pd.DataFrame, df_intr: pd.DataFrame
-) -> tuple:
+def create_interessensbindungen_csv(df_adr: pd.DataFrame, df_intr: pd.DataFrame) -> tuple:
     df = pd.merge(df_intr, df_adr, left_on="idnr_adr", right_on="idnr")
 
     # Splitting 'text' column to separate 'intr-bind' and 'funktion'
@@ -358,9 +335,7 @@ def create_interessensbindungen_csv(
     df["url_adr"] = PATH_PERSONEN + df["uni_nr"]
 
     # Create url
-    df["url_ratsmitgliedschaften"] = (
-        PATH_DATASET + "100307/?refine.uni_nr=" + df["uni_nr"]
-    )
+    df["url_ratsmitgliedschaften"] = PATH_DATASET + "100307/?refine.uni_nr=" + df["uni_nr"]
 
     # append "name" and "vorname"
     df["name_vorname"] = df["name"] + ", " + df["vorname"]
@@ -397,9 +372,7 @@ def create_gremien_csv(df_gre: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     df_mit["ist_aktuelles_gremium"] = df_mit["ende"].astype(int) > unix_ts
 
     df_mit = df_mit.groupby("uni_nr_gre").any("ist_aktuelles_gremium")
-    df_mit["ist_aktuelles_gremium"] = np.where(
-        df_mit["ist_aktuelles_gremium"], "Ja", "Nein"
-    )
+    df_mit["ist_aktuelles_gremium"] = np.where(df_mit["ist_aktuelles_gremium"], "Ja", "Nein")
 
     df = pd.merge(df_gre, df_mit, left_on="uni_nr", right_on="uni_nr_gre")
 
@@ -407,13 +380,9 @@ def create_gremien_csv(df_gre: pd.DataFrame, df_mit: pd.DataFrame) -> tuple:
     # URL for the committee's page (currently removed)
     # TODO: Add using Sitemap XML for current committees.
     # df['url_gre'] = credentials.path_gremium + df['uni_nr']
-    df["url_mitgliedschaften"] = (
-        PATH_DATASET + "100308/?refine.uni_nr_gre=" + df["uni_nr"]
-    )
+    df["url_mitgliedschaften"] = PATH_DATASET + "100308/?refine.uni_nr_gre=" + df["uni_nr"]
     df["url_urheber"] = PATH_DATASET + "100311/?refine.uni_nr_urheber=" + df["uni_nr"]
-    df["url_zugew_geschaefte"] = (
-        PATH_DATASET + "100312/?refine.uni_nr_an=" + df["uni_nr"]
-    )
+    df["url_zugew_geschaefte"] = PATH_DATASET + "100312/?refine.uni_nr_an=" + df["uni_nr"]
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -477,23 +446,15 @@ def create_geschaefte_csv(
 
     # Create url's
     df["url_ges"] = PATH_GESCHAEFT + df["signatur_ges"]
-    df["url_zuweisungen"] = (
-        PATH_DATASET + "100312/?refine.signatur_ges=" + df["signatur_ges"]
-    )
-    df["url_dokumente"] = (
-        PATH_DATASET + "100313/?refine.signatur_ges=" + df["signatur_ges"]
-    )
-    df["url_vorgaenge"] = (
-        PATH_DATASET + "100314/?refine.signatur_ges=" + df["signatur_ges"]
-    )
+    df["url_zuweisungen"] = PATH_DATASET + "100312/?refine.signatur_ges=" + df["signatur_ges"]
+    df["url_dokumente"] = PATH_DATASET + "100313/?refine.signatur_ges=" + df["signatur_ges"]
+    df["url_vorgaenge"] = PATH_DATASET + "100314/?refine.signatur_ges=" + df["signatur_ges"]
 
     # Replacing status codes with their meanings
     df["status_ges"] = df["status_ges"].replace(REPLACE_STATUS_CODES_GES)
 
     # Create url's for the urheber numbers, which are people (can also be gremium/commitee)
-    df["url_urheber"] = np.where(
-        df["vorname_urheber"].notna(), PATH_PERSONEN + df["nr_urheber"], np.nan
-    )
+    df["url_urheber"] = np.where(df["vorname_urheber"].notna(), PATH_PERSONEN + df["nr_urheber"], np.nan)
     df["url_urheber_ratsmitgl"] = np.where(
         df["vorname_urheber"].notna(),
         PATH_DATASET + "100307/?refine.uni_nr=" + df["nr_urheber"],
@@ -508,9 +469,7 @@ def create_geschaefte_csv(
     df.loc[df["vorname_urheber"].isna(), "gremientyp_urheber"] = df["nr_urheber"].map(
         df_gre.set_index("uni_nr")["gremientyp"]
     )
-    df.loc[df["vorname_urheber"].isna(), "name_urheber"] = df["nr_urheber"].map(
-        df_gre.set_index("uni_nr")["name"]
-    )
+    df.loc[df["vorname_urheber"].isna(), "name_urheber"] = df["nr_urheber"].map(df_gre.set_index("uni_nr")["name"])
     df.loc[df["vorname_urheber"].isna(), "vorname_urheber"] = df["nr_urheber"].map(
         df_gre.set_index("uni_nr")["kurzname"]
     )
@@ -529,9 +488,7 @@ def create_geschaefte_csv(
     )
 
     # Similar approach for Miturheber
-    df["url_miturheber"] = np.where(
-        df["vorname_miturheber"].notna(), PATH_PERSONEN + df["nr_miturheber"], np.nan
-    )
+    df["url_miturheber"] = np.where(df["vorname_miturheber"].notna(), PATH_PERSONEN + df["nr_miturheber"], np.nan)
     df["url_miturheber_ratsmitgl"] = np.where(
         df["vorname_miturheber"].notna(),
         PATH_DATASET + "100307/?refine.uni_nr=" + df["nr_miturheber"],
@@ -542,28 +499,28 @@ def create_geschaefte_csv(
         df["name_miturheber"] + ", " + df["vorname_miturheber"],
         np.nan,
     )
-    df.loc[df["vorname_miturheber"].isna(), "gremientyp_miturheber"] = df[
-        "nr_miturheber"
-    ].map(df_gre.set_index("uni_nr")["gremientyp"])
-    df.loc[df["vorname_miturheber"].isna(), "name_miturheber"] = df[
-        "nr_miturheber"
-    ].map(df_gre.set_index("uni_nr")["name"])
-    df.loc[df["vorname_miturheber"].isna(), "vorname_miturheber"] = df[
-        "nr_miturheber"
-    ].map(df_gre.set_index("uni_nr")["kurzname"])
+    df.loc[df["vorname_miturheber"].isna(), "gremientyp_miturheber"] = df["nr_miturheber"].map(
+        df_gre.set_index("uni_nr")["gremientyp"]
+    )
+    df.loc[df["vorname_miturheber"].isna(), "name_miturheber"] = df["nr_miturheber"].map(
+        df_gre.set_index("uni_nr")["name"]
+    )
+    df.loc[df["vorname_miturheber"].isna(), "vorname_miturheber"] = df["nr_miturheber"].map(
+        df_gre.set_index("uni_nr")["kurzname"]
+    )
     # If name is still empty, add members from the json dict above
-    df.loc[df["vorname_miturheber"].isna(), "anrede_miturheber"] = df[
-        "nr_miturheber"
-    ].map(DF_MEMBERS_MISSING.set_index("uni_nr")["anrede"])
-    df.loc[df["vorname_miturheber"].isna(), "name_miturheber"] = df[
-        "nr_miturheber"
-    ].map(DF_MEMBERS_MISSING.set_index("uni_nr")["name"])
-    df.loc[df["vorname_miturheber"].isna(), "name_vorname_miturheber"] = df[
-        "nr_miturheber"
-    ].map(DF_MEMBERS_MISSING.set_index("uni_nr")["name_vorname"])
-    df.loc[df["vorname_miturheber"].isna(), "vorname_miturheber"] = df[
-        "nr_miturheber"
-    ].map(DF_MEMBERS_MISSING.set_index("uni_nr")["vorname"])
+    df.loc[df["vorname_miturheber"].isna(), "anrede_miturheber"] = df["nr_miturheber"].map(
+        DF_MEMBERS_MISSING.set_index("uni_nr")["anrede"]
+    )
+    df.loc[df["vorname_miturheber"].isna(), "name_miturheber"] = df["nr_miturheber"].map(
+        DF_MEMBERS_MISSING.set_index("uni_nr")["name"]
+    )
+    df.loc[df["vorname_miturheber"].isna(), "name_vorname_miturheber"] = df["nr_miturheber"].map(
+        DF_MEMBERS_MISSING.set_index("uni_nr")["name_vorname"]
+    )
+    df.loc[df["vorname_miturheber"].isna(), "vorname_miturheber"] = df["nr_miturheber"].map(
+        DF_MEMBERS_MISSING.set_index("uni_nr")["vorname"]
+    )
 
     # Select relevant columns for publication
     cols_of_interest = [
@@ -611,16 +568,12 @@ def create_geschaefte_csv(
     return path_export, "parlamentsdienst/grosser_rat", "100311"
 
 
-def create_zuweisungen_csv(
-    df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: pd.DataFrame
-) -> tuple:
+def create_zuweisungen_csv(df_gre: pd.DataFrame, df_ges: pd.DataFrame, df_zuw: pd.DataFrame) -> tuple:
     # All entries not present in gremium.csv are still inserted and treated as "Regierungsrat"
     df = pd.merge(df_gre, df_zuw, how="right", left_on="uni_nr", right_on="uni_nr_an")
     # Removing the column due to the following merging to avoid duplicate columns
     df = df.drop(["uni_nr"], axis=1)
-    df = pd.merge(
-        df, df_ges, left_on="ges_laufnr", right_on="laufnr", suffixes=("_zuw", "_ges")
-    )
+    df = pd.merge(df, df_ges, left_on="ges_laufnr", right_on="laufnr", suffixes=("_zuw", "_ges"))
     df = pd.merge(
         df,
         df_gre,
@@ -648,9 +601,7 @@ def create_zuweisungen_csv(
     df['url_gre_an'] = credentials.path_gremien + df['uni_nr_an']
     df['url_gre_von'] = credentials.path_gremien + df['uni_nr_von']
     """
-    df["url_geschaeft_ods"] = (
-        PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
-    )
+    df["url_geschaeft_ods"] = PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
     df["url_gremium_an"] = np.where(
         df["name_an"].notna(),
         PATH_DATASET + "100310/?refine.uni_nr=" + df["uni_nr_an"],
@@ -742,12 +693,8 @@ def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
 
     # Create url's
     df["url_ges"] = PATH_GESCHAEFT + df["signatur_ges"]
-    df["url_geschaeft_ods"] = (
-        PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
-    )
-    df["url_dok"] = np.where(
-        df["signatur_dok"].notna(), PATH_DOKUMENT + df["signatur_dok"], df["url"]
-    )
+    df["url_geschaeft_ods"] = PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
+    df["url_dok"] = np.where(df["signatur_dok"].notna(), PATH_DOKUMENT + df["signatur_dok"], df["url"])
 
     # Replacing status codes with their meanings
     df["status_ges"] = df["status_ges"].replace(REPLACE_STATUS_CODES_GES)
@@ -773,9 +720,7 @@ def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
     df = df[cols_of_interest]
 
     # Convert Unix Timestamp to Datetime for date columns
-    df["dokudatum"] = pd.to_datetime(
-        df["dokudatum"], format="%d.%m.%Y", errors="coerce"
-    )
+    df["dokudatum"] = pd.to_datetime(df["dokudatum"], format="%d.%m.%Y", errors="coerce")
     df = unix_to_datetime(df, ["beginn_ges", "ende_ges"])
 
     # Temporarily
@@ -789,9 +734,7 @@ def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
     return path_export, "parlamentsdienst/grosser_rat", "100313"
 
 
-def create_vorgaenge_csv(
-    df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.DataFrame
-) -> tuple:
+def create_vorgaenge_csv(df_ges: pd.DataFrame, df_vor: pd.DataFrame, df_siz: pd.DataFrame) -> tuple:
     df = pd.merge(df_vor, df_ges, left_on="ges_laufnr", right_on="laufnr")
     df = pd.merge(df, df_siz, on="siz_nr")
 
@@ -811,9 +754,7 @@ def create_vorgaenge_csv(
 
     # Create url's
     df["url_ges"] = PATH_GESCHAEFT + df["signatur_ges"]
-    df["url_geschaeft_ods"] = (
-        PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
-    )
+    df["url_geschaeft_ods"] = PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
 
     # Replacing status codes with their meanings
     df["status_ges"] = df["status_ges"].replace(REPLACE_STATUS_CODES_GES)
@@ -867,20 +808,14 @@ def create_traktanden_csv(
     transformed_df = pd.DataFrame(columns=transformed_columns)
 
     # Finding out how many gruppentitel there are
-    max_gruppentitel = max(
-        int(col.split("_")[1])
-        for col in df_gr_tagesordnung.columns
-        if "gruppentitel_" in col
-    )
+    max_gruppentitel = max(int(col.split("_")[1]) for col in df_gr_tagesordnung.columns if "gruppentitel_" in col)
 
     # Transforming the dataframe to have one row per gruppentitel
     for index, row in df_gr_tagesordnung.iterrows():
         for i in range(1, max_gruppentitel + 1):
             gruppentitel = row[f"gruppentitel_{i}"]
             gruppentitel_pos = row[f"gruppentitel_{i}_pos"]
-            gruppentitel_next_pos = (
-                row[f"gruppentitel_{i + 1}_pos"] if i < max_gruppentitel else "0"
-            )
+            gruppentitel_next_pos = row[f"gruppentitel_{i + 1}_pos"] if i < max_gruppentitel else "0"
 
             # Skip rows where gruppentitel is empty
             if pd.notna(gruppentitel) and gruppentitel != "":
@@ -894,40 +829,28 @@ def create_traktanden_csv(
                     "gruppentitel_pos": gruppentitel_pos,
                     "gruppentitel_next_pos": gruppentitel_next_pos,
                 }
-                transformed_df = pd.concat(
-                    [transformed_df, pd.DataFrame([new_row])], ignore_index=True
-                )
+                transformed_df = pd.concat([transformed_df, pd.DataFrame([new_row])], ignore_index=True)
     # Replace 0 in gruppentitel_next_pos with a big number
     transformed_df["gruppentitel_next_pos"] = (
         transformed_df["gruppentitel_next_pos"].replace("0", "999999").fillna("999999")
     )
 
-    df = pd.merge(
-        transformed_df, df_gr_sitzung, left_on="gr_sitzung_idnr", right_on="idnr"
-    )
+    df = pd.merge(transformed_df, df_gr_sitzung, left_on="gr_sitzung_idnr", right_on="idnr")
     df = df.drop(columns=["idnr_y"]).rename(columns={"idnr_x": "idnr"})
 
-    df_merge1 = pd.merge(
-        df, df_gr_traktanden, left_on="idnr", right_on="tagesordnung_idnr"
-    )
-    df_merge1 = df_merge1.drop(columns=["idnr_x"]).rename(
-        columns={"idnr_y": "traktanden_idnr"}
-    )
+    df_merge1 = pd.merge(df, df_gr_traktanden, left_on="idnr", right_on="tagesordnung_idnr")
+    df_merge1 = df_merge1.drop(columns=["idnr_x"]).rename(columns={"idnr_y": "traktanden_idnr"})
 
     # laufnr must be greater than or equal to gruppentitel_pos and
     # less than gruppentitel_next_pos,
     # unless gruppentitel_next_pos is 0, in which case only the first condition should apply
-    condition = (
-        df_merge1["laufnr"].astype(int) >= df_merge1["gruppentitel_pos"].astype(int)
-    ) & (
+    condition = (df_merge1["laufnr"].astype(int) >= df_merge1["gruppentitel_pos"].astype(int)) & (
         df_merge1["laufnr"].astype(int) < df_merge1["gruppentitel_next_pos"].astype(int)
     )
     df_merge1 = df_merge1[condition].reset_index(drop=True)
 
     # Some do not belong to a group at all. Add them with the gruppentitel-columns empty
-    df_trakt_missing = df_gr_traktanden[
-        ~df_gr_traktanden["idnr"].isin(df_merge1["traktanden_idnr"])
-    ]
+    df_trakt_missing = df_gr_traktanden[~df_gr_traktanden["idnr"].isin(df_merge1["traktanden_idnr"])]
     df_to_merge = df[
         [
             "idnr",
@@ -951,9 +874,7 @@ def create_traktanden_csv(
         right_on="tagesordnung_idnr",
         how="right",
     )
-    df_merge2 = df_merge2.drop(columns=["idnr_x"]).rename(
-        columns={"idnr_y": "traktanden_idnr"}
-    )
+    df_merge2 = df_merge2.drop(columns=["idnr_x"]).rename(columns={"idnr_y": "traktanden_idnr"})
 
     df = pd.concat([df_merge1, df_merge2], ignore_index=True)
 
@@ -972,27 +893,21 @@ def create_traktanden_csv(
 
     df["anr"] = df["Abstimmung"].str.replace(".pdf", "").apply(safe_literal_eval)
     df["anr"] = (
-        pd.json_normalize(df["anr"])
-        .map(transform_value)
-        .apply(lambda x: ",".join(x.dropna().astype(str)), axis=1)
+        pd.json_normalize(df["anr"]).map(transform_value).apply(lambda x: ",".join(x.dropna().astype(str)), axis=1)
     )
 
     # Create url's
-    df["url_tagesordnung_dok"] = (
-        PATH_MEDIA_TAGESORDNUNG + "tagesordnung_" + df["tag1"] + ".pdf"
+    df["url_tagesordnung_dok"] = PATH_MEDIA_TAGESORDNUNG + "tagesordnung_" + df["tag1"] + ".pdf"
+    df["url_geschaeftsverzeichnis"] = PATH_MEDIA_TAGESORDNUNG + "geschaeftsverzeichnis_" + df["tag1"] + ".pdf"
+    df.loc[pd.to_datetime(df["tag1"]) > pd.to_datetime("2014-06-01"), "url_sammelmappe"] = (
+        PATH_MEDIA_TAGESORDNUNG + "sammelmappe_to_" + df["tag1"] + ".pdf"
     )
-    df["url_geschaeftsverzeichnis"] = (
-        PATH_MEDIA_TAGESORDNUNG + "geschaeftsverzeichnis_" + df["tag1"] + ".pdf"
+    df.loc[pd.to_datetime(df["tag1"]) > pd.to_datetime("2014-06-01"), "url_alle_dokumente"] = (
+        PATH_MEDIA_TAGESORDNUNG + "alle_dokumente_to_" + df["tag1"] + ".zip"
     )
-    df.loc[
-        pd.to_datetime(df["tag1"]) > pd.to_datetime("2014-06-01"), "url_sammelmappe"
-    ] = PATH_MEDIA_TAGESORDNUNG + "sammelmappe_to_" + df["tag1"] + ".pdf"
-    df.loc[
-        pd.to_datetime(df["tag1"]) > pd.to_datetime("2014-06-01"), "url_alle_dokumente"
-    ] = PATH_MEDIA_TAGESORDNUNG + "alle_dokumente_to_" + df["tag1"] + ".zip"
-    df.loc[
-        pd.to_datetime(df["tag1"]) < pd.to_datetime("2024-01-01"), "url_vollprotokoll"
-    ] = PATH_MEDIA_RATSPROTOKOLLE + "vollprotokoll_" + df["tag1"] + ".pdf"
+    df.loc[pd.to_datetime(df["tag1"]) < pd.to_datetime("2024-01-01"), "url_vollprotokoll"] = (
+        PATH_MEDIA_RATSPROTOKOLLE + "vollprotokoll_" + df["tag1"] + ".pdf"
+    )
     # Only the system before 2023-07-01 has this URL for the audio and video protocols
     for tag in ["tag1", "tag2", "tag3"]:
         df.loc[
@@ -1014,12 +929,8 @@ def create_traktanden_csv(
             signaturen = row["signatur"].split(",")
             for signatur in signaturen:
                 signatur_parts = signatur.split(".")
-                df.at[index, "url_ges"] += (
-                    f"{PATH_GESCHAEFT}{'.'.join(signatur_parts[:2])} ,"
-                )
-                df.at[index, "url_geschaeft_ods"] += (
-                    f"refine.signatur_ges={'.'.join(signatur_parts[:2])}&"
-                )
+                df.at[index, "url_ges"] += f"{PATH_GESCHAEFT}{'.'.join(signatur_parts[:2])} ,"
+                df.at[index, "url_geschaeft_ods"] += f"refine.signatur_ges={'.'.join(signatur_parts[:2])}&"
                 df.at[index, "url_dok"] += f"{PATH_DOKUMENT}{signatur} ,"
                 df.at[index, "url_dokument_ods"] += f"refine.signatur_dok={signatur}&"
             # remove last char of every url
@@ -1111,9 +1022,7 @@ def unix_to_datetime(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
 
     # Loop through each specified column and convert Unix timestamps to formatted datetime strings
     for column_name in column_names:
-        df[column_name] = pd.to_datetime(
-            df[column_name].astype(float), unit="s", errors="coerce"
-        )
+        df[column_name] = pd.to_datetime(df[column_name].astype(float), unit="s", errors="coerce")
     return df
 
 

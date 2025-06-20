@@ -2,9 +2,10 @@ import logging
 import os
 from datetime import datetime
 
-import common
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -47,9 +48,7 @@ def get_file(file):
 
 
 def list_files_from_04_2023():
-    data_list = common.download_ftp(
-        [], FTP_SERVER, FTP_USER, FTP_PASS, "", "data", "*backup_eap_data.xlsx", True
-    )
+    data_list = common.download_ftp([], FTP_SERVER, FTP_USER, FTP_PASS, "", "data", "*backup_eap_data.xlsx", True)
     filenames = [data["remote_file"] for data in data_list]
     return filenames
 
@@ -90,9 +89,7 @@ def process_old_data():
 
 def transform_df(df):
     logging.info("Create date column as a first column, then drop d, m, y columns...")
-    df["date"] = pd.to_datetime(
-        df.Annee * 10000 + df.Mois * 100 + df.Jour, format="%Y%m%d"
-    )
+    df["date"] = pd.to_datetime(df.Annee * 10000 + df.Mois * 100 + df.Jour, format="%Y%m%d")
     df.insert(0, "date", df.pop("date"))
     df2 = df.drop(columns=["Annee", "Mois", "Jour"])
 
@@ -140,15 +137,9 @@ def transform_df(df):
     logging.info("Getting Kategorie as first part of string...")
     # df_pax['Kategorien'] = df_pax['variable'].str.split('_', n=1)
     # df_pax['Kategorie'] = df_pax['Kategorien'].apply(lambda x: x[0])
-    df_pax["Kategorie"] = (
-        df_pax["variable_pax"].str.rsplit("_", n=1).apply(lambda x: x[0])
-    )
-    df_fret["Kategorie"] = (
-        df_fret["variable_fret"].str.rsplit("_", n=1).apply(lambda x: x[0])
-    )
-    df_mvt["Kategorie"] = (
-        df_mvt["variable_mvt"].str.rsplit("_", n=1).apply(lambda x: x[0])
-    )
+    df_pax["Kategorie"] = df_pax["variable_pax"].str.rsplit("_", n=1).apply(lambda x: x[0])
+    df_fret["Kategorie"] = df_fret["variable_fret"].str.rsplit("_", n=1).apply(lambda x: x[0])
+    df_mvt["Kategorie"] = df_mvt["variable_mvt"].str.rsplit("_", n=1).apply(lambda x: x[0])
 
     logging.info("Merging data frames into one again...")
     df_merged1 = pd.merge(df_pax, df_fret, on=["date", "Kategorie"], how="outer")

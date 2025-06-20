@@ -4,11 +4,12 @@ import os
 import zipfile
 from datetime import datetime
 
-import common
 import geopandas as gpd
 import pandas as pd
-from common import FTP_SERVER, FTP_USER, FTP_PASS
 from dateutil.relativedelta import relativedelta
+
+import common
+from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 CONFIGS = {
     "bezirke": {
@@ -145,9 +146,7 @@ def combine_files_to_gdf(dates, start_hour=0, end_hour=24):
             end_dt = date_obj.replace(hour=end_hour, minute=0)
 
         # Generate the list of all 10-min timestamps in [start_hour, end_hour).
-        all_timestamps = pd.date_range(
-            start_dt, end_dt, freq="10min", inclusive="left", tz="Europe/Zurich"
-        )
+        all_timestamps = pd.date_range(start_dt, end_dt, freq="10min", inclusive="left", tz="Europe/Zurich")
 
         found_timestamps = []
         gdf_list = []
@@ -156,15 +155,11 @@ def combine_files_to_gdf(dates, start_hour=0, end_hour=24):
             if file.endswith(".gpkg"):
                 # For example: 2025-02-03_09-30_part.gpkg
                 file_base = file.replace(".gpkg", "")
-                file_ts = pd.to_datetime(
-                    file_base, format="%Y-%m-%d_%H-%M%z", errors="coerce"
-                )
+                file_ts = pd.to_datetime(file_base, format="%Y-%m-%d_%H-%M%z", errors="coerce")
 
                 if file_ts is not None:
                     # Check if this file_ts is within our date_str day AND within the hour range.
-                    if file_ts.date() == date_obj.date() and (
-                        start_hour <= file_ts.hour < end_hour
-                    ):
+                    if file_ts.date() == date_obj.date() and (start_hour <= file_ts.hour < end_hour):
                         found_timestamps.append(file_ts)
 
                         path = os.path.join(local_folder, file)
@@ -188,16 +183,12 @@ def combine_files_to_gdf(dates, start_hour=0, end_hour=24):
                 f"{len(combined_for_day)} records for {date_str} (hours {start_hour}-{end_hour})."
             )
         else:
-            logging.info(
-                f"No GPKG files found for {date_str} in hours {start_hour}-{end_hour}."
-            )
+            logging.info(f"No GPKG files found for {date_str} in hours {start_hour}-{end_hour}.")
             continue
 
         # Identify missing timestamps for this specific date
         missing_timestamps = all_timestamps.difference(found_timestamps)
-        missing_timestamps_str = missing_timestamps.strftime(
-            "%Y-%m-%d_%H-%M%z"
-        ).tolist()
+        missing_timestamps_str = missing_timestamps.strftime("%Y-%m-%d_%H-%M%z").tolist()
 
         logging.info(
             f"Found {len(missing_timestamps)} missing timestamps for {date_str} in hour range {start_hour}-{end_hour}."
@@ -235,9 +226,7 @@ def compute_stats(
     Returns a pandas DataFrame with one row per group containing the computed statistics.
     """
     if gdf_points.empty:
-        logging.warning(
-            "No points in the combined GDF; returning empty stats DataFrame."
-        )
+        logging.warning("No points in the combined GDF; returning empty stats DataFrame.")
         return pd.DataFrame()
 
     gdf_joined = gpd.sjoin(gdf_points, gdf_polygons, how="left", predicate="intersects")
@@ -248,9 +237,7 @@ def compute_stats(
 
     period_start = gdf_joined["timestamp"].min().floor("10min")
     period_end = gdf_joined["timestamp"].max().ceil("10min")
-    all_timestamps = pd.date_range(
-        start=period_start, end=period_end, freq="10min", tz="Europe/Zurich"
-    )
+    all_timestamps = pd.date_range(start=period_start, end=period_end, freq="10min", tz="Europe/Zurich")
     if start_hour is not None and end_hour is not None:
         # Build a partial set of timestamps for each day
         all_timestamp_list = []
@@ -273,9 +260,7 @@ def compute_stats(
         all_timestamps = pd.DatetimeIndex(all_timestamp_list)
 
     if missing_timestamps_str:
-        all_timestamps = all_timestamps[
-            ~all_timestamps.strftime("%Y-%m-%d_%H-%M%z").isin(missing_timestamps_str)
-        ]
+        all_timestamps = all_timestamps[~all_timestamps.strftime("%Y-%m-%d_%H-%M%z").isin(missing_timestamps_str)]
 
     # Create combinations of groups and timestamps.
     group_combinations = gdf_joined[group_cols].drop_duplicates()
@@ -339,9 +324,7 @@ def compute_stats(
 
     # Remove rows where polygon_id is NaN if remove_empty_polygon_columns is True
     if fill_empty_polygon_column:
-        grouped_stats[fill_empty_polygon_column] = grouped_stats[
-            fill_empty_polygon_column
-        ].fillna("ausserkantonal")
+        grouped_stats[fill_empty_polygon_column] = grouped_stats[fill_empty_polygon_column].fillna("ausserkantonal")
     else:
         grouped_stats = grouped_stats.dropna(subset=[polygon_id_column])
         logging.info(f"Removed rows with NaN values in {polygon_id_column}")
@@ -365,9 +348,7 @@ def save_stats(df_stats, prefix, date_str, columns_of_interest, timerange_label=
         os.makedirs(output_folder)
 
     if timerange_label:
-        output_file = os.path.join(
-            output_folder, f"{prefix}_stats_{date_str}_{timerange_label}.csv"
-        )
+        output_file = os.path.join(output_folder, f"{prefix}_stats_{date_str}_{timerange_label}.csv")
     else:
         output_file = os.path.join(output_folder, f"{prefix}_stats_{date_str}.csv")
 
@@ -425,9 +406,7 @@ def process_monthly_timerange_stats(year, month):
     gdf_shapes = download_spatial_descriptors(config["ods_id_shapes"])
     # For 'bezirke' we also merge additional attributes.
     gdf_wohnviertel = download_spatial_descriptors("100042")
-    gdf_shapes = gdf_shapes.merge(
-        gdf_wohnviertel[["wov_id", "wov_name", "gemeinde_na"]], on="wov_id", how="left"
-    )
+    gdf_shapes = gdf_shapes.merge(gdf_wohnviertel[["wov_id", "wov_name", "gemeinde_na"]], on="wov_id", how="left")
 
     # Define timeranges (adjust as needed)
     timeranges = [
@@ -446,11 +425,7 @@ def process_monthly_timerange_stats(year, month):
 
     # For each weekday: 0=Monday, …, 6=Sunday.
     for weekday in range(7):
-        days_of_week = [
-            day
-            for day in pd.date_range(start_date, end_date, freq="D")
-            if day.weekday() == weekday
-        ]
+        days_of_week = [day for day in pd.date_range(start_date, end_date, freq="D") if day.weekday() == weekday]
         if not days_of_week:
             continue
 
@@ -475,9 +450,7 @@ def process_monthly_timerange_stats(year, month):
             df_stats["timerange_start"] = start_str
             df_stats["timerange_end"] = end_str
 
-            timerange_label = (
-                f"{start_str.replace(':', '')}_{end_str.replace(':', '')}_wd{weekday}"
-            )
+            timerange_label = f"{start_str.replace(':', '')}_{end_str.replace(':', '')}_wd{weekday}"
             # Using the date_str from the month start as an identifier.
             save_stats(
                 df_stats,
@@ -493,9 +466,7 @@ def main():
     date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
-    for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime(
-        "%Y-%m-%d"
-    ):
+    for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
         logging.info(f"Processing daily stats for {date_str}...")
         process_daily_stats(date_str)
 

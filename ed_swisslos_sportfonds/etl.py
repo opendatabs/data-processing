@@ -1,8 +1,9 @@
 import logging
 import os
 
-import common
 import pandas as pd
+
+import common
 
 
 def main():
@@ -24,11 +25,7 @@ def main():
         df = df[pd.notna(df["unterstuetztes_projekt"])]
 
         # extract string 'Jahr 2021' and then extract the year
-        df["jahr"] = (
-            pd.read_excel(excel_file_path, usecols="D", skiprows=2, header=None)
-            .iloc[0, 0]
-            .split(" ")[1]
-        )
+        df["jahr"] = pd.read_excel(excel_file_path, usecols="D", skiprows=2, header=None).iloc[0, 0].split(" ")[1]
 
         df.reset_index(drop=True, inplace=True)
         df_all = pd.concat([df_all, df])

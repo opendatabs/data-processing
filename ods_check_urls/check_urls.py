@@ -1,30 +1,35 @@
+import logging
+import os
+import re
+from io import StringIO
+
 import ods_utils_py as ods_utils
 import pandas as pd
-from bs4 import BeautifulSoup
-import re
-from ods_check_urls import credentials
-import os
 import requests
-from tqdm import tqdm
+from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
-from io import StringIO
-import logging
+
+from ods_check_urls import credentials
 
 
 # URL extraction functions
 def find_urls_excluding_description(obj):
-        # URL extraction patterns
-    url_pattern = re.compile(r"""(?xi)
+    # URL extraction patterns
+    url_pattern = re.compile(
+        r"""(?xi)
     \b(?:https?|ftp)://[^\s"'<>]+
     |
     www\.[^\s"'<>]+
     |
     (?:[a-z0-9\-]+\.)+[a-z]{2,}(?:/[^\s"'<>]*)?
-    """, re.VERBOSE)
+    """,
+        re.VERBOSE,
+    )
 
     urls = []
     if isinstance(obj, dict):
@@ -46,14 +51,17 @@ def find_urls_excluding_description(obj):
         urls.extend([u.strip().strip(";") for u in found])
     return urls
 
+
 def extract_hrefs_from_html(html_str):
     soup = BeautifulSoup(html_str, "html.parser")
     return [a["href"].strip().strip(";") for a in soup.find_all("a", href=True)]
+
 
 def normalize_url(url):
     if re.match(r"^(https?|ftp)://", url, re.I):
         return url
     return "http://" + url
+
 
 # URL check: GET + Selenium fallback
 def check_url_selenium(url):
@@ -73,15 +81,15 @@ def check_url_selenium(url):
     except Exception as e:
         return str(e)
 
+
 def check_url(url):
-    
     try:
-        #resp = ods_utils.requests_get(url, allow_redirects=True)
+        # resp = ods_utils.requests_get(url, allow_redirects=True)
         resp = requests.get(url=url, allow_redirects=True)
         return resp.status_code
     except Exception:
         return check_url_selenium(url)
-    
+
 
 def main():
     CSV_URL = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100055/exports/csv?delimiter=%3B&list_separator=%2C&quote_all=false&with_bom=true"
@@ -102,15 +110,12 @@ def main():
             data = ods_utils.get_dataset_metadata(dataset_id=dataset_id)
             datasets_checked += 1  # ✅ Count only successful fetches
         except Exception as e:
-            errors_dataset.append({
-            "dataset_id": dataset_id,
-            "error": str(e)
-            })
+            errors_dataset.append({"dataset_id": dataset_id, "error": str(e)})
             continue
 
         # Extract <a href="..."> links from both description and custom_view_html
         desc_html = data.get("default", {}).get("description", {}).get("value", "")
-        #vis_html = data.get("visualization", {}).get("custom_view_html", {}).get("value", "")
+        # vis_html = data.get("visualization", {}).get("custom_view_html", {}).get("value", "")
         html_urls = extract_hrefs_from_html(desc_html)
 
         # Extract everything else via regex
@@ -118,27 +123,20 @@ def main():
 
         all_urls = set(html_urls + other_urls)
 
-        df_temp = pd.DataFrame({
-            "url": list(all_urls),
-            "dataset_id": dataset_id
-        })
+        df_temp = pd.DataFrame({"url": list(all_urls), "dataset_id": dataset_id})
         df_urls = pd.concat([df_urls, df_temp], ignore_index=True)
 
     # Normalize and group URLs
     df_urls["url"] = df_urls["url"].apply(normalize_url)
     df_grouped = df_urls.groupby("url")["dataset_id"].apply(lambda ids: list(sorted(set(ids)))).reset_index()
     # List to store all URLs that failed during the check
-    results = []# Store dataset_id and error message for failed fetch attempts
+    results = []  # Store dataset_id and error message for failed fetch attempts
     for _, row in tqdm(df_grouped.iterrows(), total=len(df_grouped), desc="Checking URLs"):
         url = row["url"]
         status = check_url(url)
 
         if str(status) not in ("200", "OK"):
-            results.append({
-                "url": url,
-                "dataset_ids": ", ".join(map(str, row["dataset_id"])),
-                "status": status
-            })
+            results.append({"url": url, "dataset_ids": ", ".join(map(str, row["dataset_id"])), "status": status})
 
     # Export broken URLs to Excel
 
@@ -151,10 +149,9 @@ def main():
         df_failed.to_excel(dataset_fetch_errors, index=False)
         logging.info(f"{len(errors_dataset)} datasets could not be loaded. See 'dataset_fetch_errors.xlsx'.")
 
-    
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info('Job successful!')
-    
+    logging.info("Job successful!")

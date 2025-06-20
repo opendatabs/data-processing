@@ -4,14 +4,14 @@ import os
 import xml.etree.ElementTree as ET
 from urllib.parse import urlencode
 
-import common
-import geopandas as gpd
 import pandas as pd
 import pyproj
 import requests
 from dotenv import load_dotenv
-from shapely.geometry import MultiPolygon, shape
+from shapely.geometry import shape
 from shapely.ops import transform, unary_union
+
+import common
 
 load_dotenv()
 
@@ -33,9 +33,7 @@ def main():
     df = get_columns_of_interest(df)
     df = legal_form_code_to_name(df)
     df = get_parzellen(df)
-    path_export = os.path.join(
-        "data", "export", "100366_kantonsblatt_bauplikationen.csv"
-    )
+    path_export = os.path.join("data", "export", "100366_kantonsblatt_bauplikationen.csv")
     df.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "staka/kantonsblatt", "100366")
 
@@ -47,26 +45,18 @@ def get_urls():
     r = common.requests_get(url_kantonsblatt_ods, params=params)
     r.raise_for_status()
     # Save into a list
-    return pd.read_csv(io.StringIO(r.content.decode("utf-8")), sep=";")[
-        ["id", "url_xml"]
-    ]
+    return pd.read_csv(io.StringIO(r.content.decode("utf-8")), sep=";")[["id", "url_xml"]]
 
 
 def add_content_to_row(row):
     content, _ = get_content_from_xml(row["url_xml"])
     df_content = xml_to_dataframe(content)
     row["content"] = ET.tostring(content, encoding="utf-8")
-    row["url_kantonsblatt_ods"] = (
-        "https://data.bs.ch/explore/dataset/100352/table/?q=%23exact(id,"
-        + row["id"]
-        + ")&"
-    )
+    row["url_kantonsblatt_ods"] = "https://data.bs.ch/explore/dataset/100352/table/?q=%23exact(id," + row["id"] + ")&"
     for col in row.index:
         if col in df_content.columns:
             # Combine existing DataFrame column with value from row, if it exists
-            df_content[col] = df_content[col].combine_first(
-                pd.Series([row[col]] * len(df_content))
-            )
+            df_content[col] = df_content[col].combine_first(pd.Series([row[col]] * len(df_content)))
         else:
             # Create the column in df_content if it does not exist and fill with the value from the row
             df_content[col] = pd.Series([row[col]] * len(df_content))
@@ -111,10 +101,7 @@ def xml_to_dataframe(root):
     max_len = max(len(v) for v in path_dict.values())  # Find the longest list
 
     # Expand all lists to this maximum length
-    expanded_data = {
-        k: v * max_len if len(v) == 1 else v + [""] * (max_len - len(v))
-        for k, v in path_dict.items()
-    }
+    expanded_data = {k: v * max_len if len(v) == 1 else v + [""] * (max_len - len(v)) for k, v in path_dict.items()}
 
     df = pd.DataFrame(expanded_data)
     return df
@@ -165,12 +152,8 @@ def legal_form_code_to_name(df):
     response.raise_for_status()
     legal_forms = response.json()["data"]
     code_to_german_name = {entry["code"]: entry["name"]["de"] for entry in legal_forms}
-    df["projectFramer_company_legalForm"] = df["projectFramer_company_legalForm"].map(
-        code_to_german_name
-    )
-    df["buildingContractor_company_legalForm"] = df[
-        "buildingContractor_company_legalForm"
-    ].map(code_to_german_name)
+    df["projectFramer_company_legalForm"] = df["projectFramer_company_legalForm"].map(code_to_german_name)
+    df["buildingContractor_company_legalForm"] = df["buildingContractor_company_legalForm"].map(code_to_german_name)
     return df
 
 
@@ -186,7 +169,6 @@ def get_geometry(row):
     # Transformer: CH1903+ (2056) → WGS84 (4326)
     project_to_wgs84 = pyproj.Transformer.from_crs("EPSG:2056", "EPSG:4326", always_xy=True).transform
 
-
     parzellennummer = row["districtCadastre_relation_plot"]
     section = row["districtCadastre_relation_section"]
 
@@ -200,7 +182,7 @@ def get_geometry(row):
     for number in numbers:
         s_par = f"{section}-{number}"
         logging.info(f"→ Get Geometry for: {s_par}")
-        url = f"https://api.geo.bs.ch/grundstueckinfo/v1/realestatesinformation"
+        url = "https://api.geo.bs.ch/grundstueckinfo/v1/realestatesinformation"
         params = {
             "ids": s_par,
             "withgeometry": "true",
@@ -233,25 +215,18 @@ def get_geometry(row):
 
 
 def get_parzellen(df):
-    df.loc[
-        df["districtCadastre_relation_plot"].isna(), "districtCadastre_relation_plot"
-    ] = ""
-    df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].astype(
-        str
-    )
+    df.loc[df["districtCadastre_relation_plot"].isna(), "districtCadastre_relation_plot"] = ""
+    df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].astype(str)
     df["geo_shape"] = df.apply(lambda x: get_geometry(x), axis=1)
 
-    df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].apply(
-        correct_parzellennummer
-    )
+    df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].apply(correct_parzellennummer)
 
     df["url_parzellen"] = df.apply(
         lambda row: "https://data.bs.ch/explore/dataset/100201/table/?"
         + urlencode(
             {
                 "refine.r1_sektion": row["districtCadastre_relation_section"],
-                "q": "parzellennummer: "
-                + " OR ".join(row["districtCadastre_relation_plot"].split(",")),
+                "q": "parzellennummer: " + " OR ".join(row["districtCadastre_relation_plot"].split(",")),
             }
         ),
         axis=1,

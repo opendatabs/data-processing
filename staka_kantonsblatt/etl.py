@@ -3,9 +3,10 @@ import io
 import logging
 import os
 
-import common
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -76,10 +77,7 @@ def iterate_over_years():
     df = pd.DataFrame()
     for year in range(start_year, datetime.datetime.now().year + 1):
         for month in range(1, 13):
-            if (
-                year == datetime.datetime.now().year
-                and month > datetime.datetime.now().month
-            ):
+            if year == datetime.datetime.now().year and month > datetime.datetime.now().month:
                 break
             logging.info(f"Getting data for {year}-{month}...")
             df_month = iterate_over_pages(year, month)
@@ -90,11 +88,7 @@ def iterate_over_years():
 def iterate_over_pages(year, month):
     base_url = "https://kantonsblatt.ch/api/v1/publications/csv?publicationStates=PUBLISHED&cantons=BS"
     start_date = f"&publicationDate.start={year}-{month}-01"
-    end_date = (
-        f"&publicationDate.end={year}-{month + 1}-01"
-        if month < 12
-        else f"&publicationDate.end={year + 1}-01-01"
-    )
+    end_date = f"&publicationDate.end={year}-{month + 1}-01" if month < 12 else f"&publicationDate.end={year + 1}-01-01"
     url = f"{base_url}{start_date}{end_date}"
     page = 0
     next_page = f"{url}&pageRequest.page={page}"
@@ -114,15 +108,9 @@ def iterate_over_pages(year, month):
 
 
 def add_columns(df):
-    df["url_kantonsblatt"] = df["id"].apply(
-        lambda x: f"https://www.kantonsblatt.ch/#!/search/publications/detail/{x}"
-    )
-    df["url_pdf"] = df["id"].apply(
-        lambda x: f"https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf"
-    )
-    df["url_xml"] = df["id"].apply(
-        lambda x: f"https://www.kantonsblatt.ch/api/v1/publications/{x}/xml"
-    )
+    df["url_kantonsblatt"] = df["id"].apply(lambda x: f"https://www.kantonsblatt.ch/#!/search/publications/detail/{x}")
+    df["url_pdf"] = df["id"].apply(lambda x: f"https://www.kantonsblatt.ch/api/v1/publications/{x}/pdf")
+    df["url_xml"] = df["id"].apply(lambda x: f"https://www.kantonsblatt.ch/api/v1/publications/{x}/xml")
     return df
 
 
@@ -132,9 +120,7 @@ def get_rubric_from_api():
     r.raise_for_status()
     df = pd.read_json(io.StringIO(r.content.decode("utf-8")))
     df = df.rename(columns={"code": "rubric"})
-    df = pd.concat(
-        [df[["rubric", "subRubrics"]], pd.json_normalize(df["name"])], axis=1
-    )
+    df = pd.concat([df[["rubric", "subRubrics"]], pd.json_normalize(df["name"])], axis=1)
     df_rubric = df.rename(
         columns={
             "en": "rubric_en",
@@ -144,9 +130,7 @@ def get_rubric_from_api():
         }
     )[["rubric", "rubric_en", "rubric_de", "rubric_fr", "rubric_it"]]
     df = df.explode("subRubrics").reset_index(drop=True)
-    df = pd.json_normalize(df["subRubrics"])[
-        ["code", "name.en", "name.de", "name.fr", "name.it"]
-    ]
+    df = pd.json_normalize(df["subRubrics"])[["code", "name.en", "name.de", "name.fr", "name.it"]]
     df_subRubric = df.rename(
         columns={
             "code": "subRubric",
@@ -169,21 +153,15 @@ def get_tenants_from_api():
 
 def remove_entries(df):
     # Remove the data of the registration offices and the on behalf of that contain names of persons
-    entries_to_remove_file = os.path.join(
-        "data", "kantonsblatt_entries_to_remove_from_OGD.xlsx"
-    )
+    entries_to_remove_file = os.path.join("data", "kantonsblatt_entries_to_remove_from_OGD.xlsx")
     new_values = {}
     df_sheets = {}
     logging.info(f"Reading Excel file {entries_to_remove_file}...")
     for sheet in ["registrationOfficeDisplayName", "onBehalfOf"]:
-        df_lookup = pd.read_excel(
-            entries_to_remove_file, sheet_name=sheet, dtype={"remove": bool, sheet: str}
-        )
+        df_lookup = pd.read_excel(entries_to_remove_file, sheet_name=sheet, dtype={"remove": bool, sheet: str})
         df = df.merge(df_lookup, how="left", on=sheet)
         df.loc[df[sheet].notna() & df["remove"], sheet] = ""
-        new_values[sheet] = df.loc[
-            df[sheet].notna() & df["remove"].isna(), sheet
-        ].unique()
+        new_values[sheet] = df.loc[df[sheet].notna() & df["remove"].isna(), sheet].unique()
         df.loc[df[sheet].notna() & df["remove"].isna(), sheet] = ""
         if sheet == "registrationOfficeDisplayName":
             columns_to_remove = [
@@ -206,10 +184,7 @@ def remove_entries(df):
         df = df.drop(columns="remove")
 
     # Send an e-mail with new values
-    if (
-        len(new_values["registrationOfficeDisplayName"]) + len(new_values["onBehalfOf"])
-        > 0
-    ):
+    if len(new_values["registrationOfficeDisplayName"]) + len(new_values["onBehalfOf"]) > 0:
         logging.info(f"Writing Excel file {entries_to_remove_file}...")
         with pd.ExcelWriter(entries_to_remove_file) as writer:
             for sheet in df_sheets:

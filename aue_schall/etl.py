@@ -3,10 +3,11 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-import common
 import pandas as pd
 import urllib3
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")
@@ -19,12 +20,10 @@ YESTERDAY_STRING = datetime.strftime(datetime.today() - timedelta(1), "%Y%m%d")
 
 
 def main():
-    logging.info(f"Connecting to FTP Server to read data...")
+    logging.info("Connecting to FTP Server to read data...")
     stations, local_files = download_data_files()
     dfs = {}
-    all_data = pd.DataFrame(
-        columns=["LocalDateTime", "Value", "Latitude", "Longitude", "EUI"]
-    )
+    all_data = pd.DataFrame(columns=["LocalDateTime", "Value", "Latitude", "Longitude", "EUI"])
     logging.info("Reading csv files into data frames...")
     urllib3.disable_warnings()
     for station in stations:
@@ -39,10 +38,8 @@ def main():
         for date_string in [YESTERDAY_STRING, TODAY_STRING]:
             try:
                 logging.info(f"Reading {local_files[(station, date_string)]}...")
-                df = pd.read_csv(
-                    local_files[(station, date_string)], sep=";", na_filter=False
-                )
-                logging.info(f"Calculating ISO8601 time string...")
+                df = pd.read_csv(local_files[(station, date_string)], sep=";", na_filter=False)
+                logging.info("Calculating ISO8601 time string...")
                 df["timestamp"] = pd.to_datetime(
                     df.LocalDateTime, format="%d.%m.%Y %H:%M", errors="coerce"
                 ).dt.tz_localize("Europe/Zurich", ambiguous="infer")
@@ -55,14 +52,10 @@ def main():
                 all_data = pd.concat([all_data, df], sort=True)
                 dfs[(station, date_string)] = df
 
-                logging.info(
-                    f"Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API..."
-                )
+                logging.info(f"Filtering data after {latest_ods_timestamp} for submission to ODS via realtime API...")
                 realtime_df = df[df["timestamp"] > latest_ods_timestamp]
 
-                logging.info(
-                    f"Pushing {realtime_df.timestamp.count()} rows to ODS realtime API..."
-                )
+                logging.info(f"Pushing {realtime_df.timestamp.count()} rows to ODS realtime API...")
                 for index, row in realtime_df.iterrows():
                     timestamp_text = row.timestamp.strftime("%Y-%m-%dT%H:%M:%S%z")
                     payload = {
@@ -73,14 +66,10 @@ def main():
                         "latitude": row.Latitude,
                         "station_id": row.station_id,
                     }
-                    logging.info(
-                        f"Pushing row {index} with with the following data to ODS: {payload}"
-                    )
-                    r = common.requests_post(
-                        url=ODS_PUSH_URL, json=payload, verify=False
-                    )
+                    logging.info(f"Pushing row {index} with with the following data to ODS: {payload}")
+                    r = common.requests_post(url=ODS_PUSH_URL, json=payload, verify=False)
                     r.raise_for_status()
-            except KeyError as e:
+            except KeyError:
                 logging.info(f"No file found with keys {(station, date_string)}, ignoring...")
 
     all_data = all_data[
@@ -101,9 +90,7 @@ def main():
     # todo: Simplify code by pushing yesterday's and today's data to ODS in one batch (as in lufthygiene_pm25)
 
     logging.info("Creating stations file from current data file...")
-    df_stations = all_data.drop_duplicates(["EUI"])[
-        ["station_id", "Latitude", "Longitude", "EUI"]
-    ]
+    df_stations = all_data.drop_duplicates(["EUI"])[["station_id", "Latitude", "Longitude", "EUI"]]
     stations_file = os.path.join("data", "stations/stations.csv")
     logging.info(f"Exporting stations file to {stations_file}...")
     df_stations.to_csv(stations_file, index=False)
@@ -116,7 +103,7 @@ def main():
 @common.retry(common.ftp_errors_to_handle, tries=6, delay=10, backoff=1)
 def download_data_files():
     ftp = ftplib.FTP(FTP_SERVER, FTP_USER, FTP_PASS)
-    logging.info(f"Changing to remote dir schall...")
+    logging.info("Changing to remote dir schall...")
     ftp.cwd("schall")
     logging.info("Retrieving list of files...")
     stations = []
@@ -129,11 +116,7 @@ def download_data_files():
                     f"File {file_name} has 'OGD' and '{date_string}' in its filename. "
                     f"Parsing station name from filename..."
                 )
-                station = (
-                    file_name.replace(f"_{date_string}.csv", "")
-                    .replace("airmet_auebs_", "")
-                    .replace("_OGD", "")
-                )
+                station = file_name.replace(f"_{date_string}.csv", "").replace("airmet_auebs_", "").replace("_OGD", "")
                 stations.append(station)
                 logging.info(f"Downloading {file_name} for station {station}...")
                 local_file = os.path.join("data", file_name)

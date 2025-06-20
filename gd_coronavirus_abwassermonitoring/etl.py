@@ -7,16 +7,16 @@ sources:
 - Abwasserdaten: credentials.path_proben
 """
 
+import locale
 import logging
 import os
 from datetime import datetime
 from functools import reduce
 
-import common
 import pandas as pd
-from common import change_tracking as ct
 
-import locale
+import common
+
 locale.setlocale(locale.LC_TIME, "de_CH.UTF-8")
 
 pop_BL = 66953
@@ -38,9 +38,7 @@ def main():
     df_all.to_csv(path_export_file, index=False)
 
     # make public dataset, remove empty rows
-    df_public = df_all[
-        ["7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]
-    ].dropna(how="all")
+    df_public = df_all[["7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]].dropna(how="all")
     df_datum = df_all[["Datum", "Saison", "Tag der Saison"]]
     df_public = df_datum.join(df_public, how="right")
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
@@ -73,9 +71,7 @@ def make_dataframe_bl():
 
 def make_dataframe_abwasserdaten():
     logging.info("import and transform abwasserdaten")
-    path = os.path.join(
-        "data", "Abwasserdaten-BS", "PROBENRASTER CoroWWmonitoring_Labor.xlsx"
-    )
+    path = os.path.join("data", "Abwasserdaten-BS", "PROBENRASTER CoroWWmonitoring_Labor.xlsx")
     df_abwasser = pd.read_excel(
         path,
         sheet_name="Proben",
@@ -106,28 +102,18 @@ def make_dataframe_bs_from_2023():
     }
     df_bs.rename(columns=new_names, inplace=True)
     make_column_dt(df_bs, "Datum")
-    df_bs = (
-        df_bs.sort_values(by="Datum")
-        .drop_duplicates(subset=["ID"], keep="first")
-        .drop(columns=["ID"])
-    )
+    df_bs = df_bs.sort_values(by="Datum").drop_duplicates(subset=["ID"], keep="first").drop(columns=["ID"])
     df_bs = df_bs[df_bs["Datum"] >= datetime(2023, 1, 1)]
     df_bs = (
-        df_bs.pivot_table(
-            index="Datum", columns="Resultat", aggfunc="size", fill_value=0
-        )
+        df_bs.pivot_table(index="Datum", columns="Resultat", aggfunc="size", fill_value=0)
         .resample("D")
         .asfreq()
         .fillna(0)
     )
     df_bs = df_bs.reset_index()
     df_bs.columns.name = None
-    df_bs = df_bs.drop(columns=["nicht bestimmbar"]).rename(
-        columns={"positiv": "faelle_bs"}
-    )
-    df_bs["inzidenz07_bs"] = (
-        df_bs["faelle_bs"].rolling(window=7).sum() / pop_BS * 100000
-    )
+    df_bs = df_bs.drop(columns=["nicht bestimmbar"]).rename(columns={"positiv": "faelle_bs"})
+    df_bs["inzidenz07_bs"] = df_bs["faelle_bs"].rolling(window=7).sum() / pop_BS * 100000
     return df_bs
 
 
@@ -174,14 +160,9 @@ def make_dataframe_bs_2021_to_2023():
     make_column_dt(df_repr, "Datum")
     # join the datasets
     dfs = [df_zahlen_bs, df_hosp, df_pos_rate, df_repr]
-    df_bs = reduce(
-        lambda left, right: pd.merge(left, right, on=["Datum"], how="outer"), dfs
-    )
+    df_bs = reduce(lambda left, right: pd.merge(left, right, on=["Datum"], how="outer"), dfs)
     # take date from 1 July 2021 and before 1 January 2023
-    df_bs = df_bs[
-        (df_bs["Datum"] >= datetime(2021, 7, 1))
-        & (df_bs["Datum"] < datetime(2023, 1, 1))
-    ]
+    df_bs = df_bs[(df_bs["Datum"] >= datetime(2021, 7, 1)) & (df_bs["Datum"] < datetime(2023, 1, 1))]
     return df_bs
 
 
@@ -201,45 +182,32 @@ def calculate_columns(df):
     df = df.set_index("Datum").resample("D").asfreq()
     df = df.reset_index()
     # Calculate the season based on the date e.g. 2021-07-01 - 2022-06-30 is 2021/2022
-    df["Saison"] = df["Datum"].apply(
-        lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}"
-    )
+    df["Saison"] = df["Datum"].apply(lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}")
     df["Tag der Saison"] = df["Datum"].apply(calculate_saison_tag)
     df["pos_rate_BL"] = df["Anz_pos_BL"] / (df["Anz_pos_BL"] + df["Anz_neg_BL"]) * 100
     df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"] / pop_BL * 100000
     df["daily_cases_BS+BL"] = df["Anz_pos_BL"].fillna(0) + df["faelle_bs"].fillna(0)
     df.loc[df["Anz_pos_BL"].isna() & df["faelle_bs"].isna(), "daily_cases_BS+BL"] = None
-    df["hospitalized_BS+BL"] = df["Anz_hosp_BL"].fillna(0) + df["current_hosp"].fillna(
-        0
-    )
-    df.loc[
-        df["Anz_hosp_BL"].isna() & df["current_hosp"].isna(), "hospitalized_BS+BL"
-    ] = None
+    df["hospitalized_BS+BL"] = df["Anz_hosp_BL"].fillna(0) + df["current_hosp"].fillna(0)
+    df.loc[df["Anz_hosp_BL"].isna() & df["current_hosp"].isna(), "hospitalized_BS+BL"] = None
     df["IC_BS+BL"] = df["Anz_icu_BL"].fillna(0) + df["current_icu"].fillna(0)
     df.loc[df["Anz_icu_BL"].isna() & df["current_icu"].isna(), "IC_BS+BL"] = None
     df["death_BS+BL"] = df["Anz_death_BL"].fillna(0) + df["ndiff_deceased"].fillna(0)
-    df.loc[df["Anz_death_BL"].isna() & df["ndiff_deceased"].isna(), "death_BS+BL"] = (
-        None
+    df.loc[df["Anz_death_BL"].isna() & df["ndiff_deceased"].isna(), "death_BS+BL"] = None
+    df["7t_inz_BS+BL"] = (df["7t_inz_BL"].fillna(0) * pop_BL + df["inzidenz07_bs"].fillna(0) * pop_BS) / (
+        pop_BS + pop_BL
     )
-    df["7t_inz_BS+BL"] = (
-        df["7t_inz_BL"].fillna(0) * pop_BL + df["inzidenz07_bs"].fillna(0) * pop_BS
-    ) / (pop_BS + pop_BL)
     df.loc[df["7t_inz_BL"].isna() & df["inzidenz07_bs"].isna(), "7t_inz_BS+BL"] = None
-    df["pos_rate_BS+BL"] = (
-        df["pos_rate_BL"].fillna(0) * pop_BL
-        + df["positivity_rate_percent"].fillna(0) * pop_BS
-    ) / (pop_BS + pop_BL)
+    df["pos_rate_BS+BL"] = (df["pos_rate_BL"].fillna(0) * pop_BL + df["positivity_rate_percent"].fillna(0) * pop_BS) / (
+        pop_BS + pop_BL
+    )
     df.loc[
         df["pos_rate_BL"].isna() & df["positivity_rate_percent"].isna(),
         "pos_rate_BS+BL",
     ] = None
-    df["isolierte_BS+BL"] = df["Anz_Iso_BL"].fillna(0) + df["current_isolated"].fillna(
-        0
-    )
-    df.loc[
-        df["Anz_Iso_BL"].isna() & df["current_isolated"].isna(), "isolierte_BS+BL"
-    ] = None
+    df["isolierte_BS+BL"] = df["Anz_Iso_BL"].fillna(0) + df["current_isolated"].fillna(0)
+    df.loc[df["Anz_Iso_BL"].isna() & df["current_isolated"].isna(), "isolierte_BS+BL"] = None
     df["Ratio_Isolierte/daily_cases"] = df["isolierte_BS+BL"] / df["daily_cases_BS+BL"]
     df["7t_median_BL"] = df["Anz_pos_BL"].rolling(window=7).median()
     df["7t_median_BS"] = df["faelle_bs"].rolling(window=7).median()

@@ -2,12 +2,11 @@ import datetime
 import logging
 import os
 import re
-from pathlib import Path
 
-import common
 import pandas as pd
 from bs4 import BeautifulSoup
 
+import common
 
 BASE_URL = "https://www.bs.ch"
 LISTING_URL = "https://www.bs.ch/apps/regierungsratsbeschluesse"
@@ -139,9 +138,7 @@ def scrape_detail_page(url):
                 value = td.get_text(strip=True)
 
                 if label == "Sitzung vom":
-                    sitzung_datum = datetime.datetime.strptime(
-                        value, "%d.%m.%Y"
-                    ).strftime("%Y-%m-%d")
+                    sitzung_datum = datetime.datetime.strptime(value, "%d.%m.%Y").strftime("%Y-%m-%d")
                 # Traktanden
                 elif label == "Traktanden":
                     traktanden = value

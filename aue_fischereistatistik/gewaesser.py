@@ -1,8 +1,7 @@
-import pandas as pd
 import geopandas as gpd
-from shapely.ops import split, linemerge, nearest_points
-from shapely.geometry import Point, LineString, MultiLineString
-
+import pandas as pd
+from shapely.geometry import LineString, MultiLineString, Point
+from shapely.ops import linemerge, nearest_points, split
 
 # Add df_gewaesser
 df_gewaesser = pd.DataFrame()
@@ -52,9 +51,7 @@ cutpoint = Point(7.62393, 47.57679)
 _, riehenteich_to_Wiese_Basel = split_line_at_point(riehenteich, cutpoint)
 # add all pieces to Wiese_Basel
 Wildschutzkanal = gdf[gdf["gew_name"] == "Wildschutzkanal"]["geometry"].iloc[0]
-multi_line = MultiLineString(
-    [Wiese_Basel, riehenteich_to_Wiese_Basel, part_Wiese_Basel, Wildschutzkanal]
-)
+multi_line = MultiLineString([Wiese_Basel, riehenteich_to_Wiese_Basel, part_Wiese_Basel, Wildschutzkanal])
 Wiese_Basel = linemerge(multi_line)
 
 

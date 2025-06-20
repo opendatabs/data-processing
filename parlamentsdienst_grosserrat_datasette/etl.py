@@ -3,9 +3,10 @@ import os
 import sqlite3
 from pathlib import Path
 
-import common
 import pandas as pd
 import pdf_converter
+
+import common
 
 
 def main():
@@ -24,9 +25,7 @@ def main():
         "partei",
         "partei_kname",
     ]
-    create_sqlite_table(
-        db_path, df_adr, "Mitglieder", columns_to_index=columns_to_index
-    )
+    create_sqlite_table(db_path, df_adr, "Mitglieder", columns_to_index=columns_to_index)
 
     # 100308
     csv_mitgliedschaften = os.path.join("data_orig", "100308_gr_mitgliedschaften.csv")
@@ -40,19 +39,13 @@ def main():
         "name_vorname",
         "partei_kname",
     ]
-    create_sqlite_table(
-        db_path, df_mit, "Mitgliedschaften", columns_to_index=columns_to_index
-    )
+    create_sqlite_table(db_path, df_mit, "Mitgliedschaften", columns_to_index=columns_to_index)
 
     # 100309
-    csv_interessensbindungen = os.path.join(
-        "data_orig", "100309_gr_interessensbindungen.csv"
-    )
+    csv_interessensbindungen = os.path.join("data_orig", "100309_gr_interessensbindungen.csv")
     df_int = pd.read_csv(csv_interessensbindungen)
     columns_to_index = ["rubrik", "funktion", "anrede", "name_vorname", "partei_kname"]
-    create_sqlite_table(
-        db_path, df_int, "Interessensbindungen", columns_to_index=columns_to_index
-    )
+    create_sqlite_table(db_path, df_int, "Interessensbindungen", columns_to_index=columns_to_index)
 
     # 100310
     csv_gremien = os.path.join("data_orig", "100310_gr_gremien.csv")
@@ -74,9 +67,7 @@ def main():
         "name_vorname_miturheber",
         "partei_kname_miturheber",
     ]
-    create_sqlite_table(
-        db_path, df_ges, "Geschaefte", columns_to_index=columns_to_index
-    )
+    create_sqlite_table(db_path, df_ges, "Geschaefte", columns_to_index=columns_to_index)
 
     # 100312
     csv_zuweisungen = os.path.join("data_orig", "100312_gr_zuweisungen.csv")
@@ -91,9 +82,7 @@ def main():
         "kurzname_von",
         "name_von",
     ]
-    create_sqlite_table(
-        db_path, df_zuw, "Zuweisungen", columns_to_index=columns_to_index
-    )
+    create_sqlite_table(db_path, df_zuw, "Zuweisungen", columns_to_index=columns_to_index)
 
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
@@ -125,17 +114,31 @@ def main():
 
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
-    csv_tagesordnung_md = os.path.join(
-        "data", "markdown", "gr_traktanden_with_markdown.csv"
-    )
+    csv_tagesordnung_md = os.path.join("data", "markdown", "gr_traktanden_with_markdown.csv")
 
     df_tag_trakt = pd.read_csv(csv_traktanden)
 
     columns_trakt = [
-        "tagesordnung_idnr","gruppennummer","gruppentitel","gruppentitel_pos", 
-        "traktanden_idnr", "laufnr", "laufnr_2", "status", "titel",
-        "kommission", "url_kommission", "departement", "signatur", "url_ges",
-        "url_geschaeft_ods", "url_dok", "url_dokument_ods", "Abstimmung", "anr", "url_abstimmungen"
+        "tagesordnung_idnr",
+        "gruppennummer",
+        "gruppentitel",
+        "gruppentitel_pos",
+        "traktanden_idnr",
+        "laufnr",
+        "laufnr_2",
+        "status",
+        "titel",
+        "kommission",
+        "url_kommission",
+        "departement",
+        "signatur",
+        "url_ges",
+        "url_geschaeft_ods",
+        "url_dok",
+        "url_dokument_ods",
+        "Abstimmung",
+        "anr",
+        "url_abstimmungen",
     ]
 
     df_trakt = df_tag_trakt[columns_trakt].copy()
@@ -156,10 +159,25 @@ def main():
 
     # Split the data into two DataFrames: df_tagesordnung and df_trakt
     columns_tagesordnung = [
-        "tagesordnung_idnr", "versand", "tag1", "text1", "tag2", "text2", "tag3", "text3",
-        "bemerkung", "url_tagesordnung_dok", "url_geschaeftsverzeichnis", "url_sammelmappe",
-        "url_alle_dokumente", "url_vollprotokoll", "url_audioprotokoll_tag1",
-        "url_audioprotokoll_tag2", "url_audioprotokoll_tag3", "einleitungstext", "zwischentext"
+        "tagesordnung_idnr",
+        "versand",
+        "tag1",
+        "text1",
+        "tag2",
+        "text2",
+        "tag3",
+        "text3",
+        "bemerkung",
+        "url_tagesordnung_dok",
+        "url_geschaeftsverzeichnis",
+        "url_sammelmappe",
+        "url_alle_dokumente",
+        "url_vollprotokoll",
+        "url_audioprotokoll_tag1",
+        "url_audioprotokoll_tag2",
+        "url_audioprotokoll_tag3",
+        "einleitungstext",
+        "zwischentext",
     ]
 
     df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
@@ -174,7 +192,7 @@ def main():
             md_column=colname,
             csv_output_path=csv_tagesordnung_md,
             zip_path=zip_path,
-            md_name_column="tag1"
+            md_name_column="tag1",
         )
 
     columns_to_index = []

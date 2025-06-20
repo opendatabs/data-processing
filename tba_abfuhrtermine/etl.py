@@ -2,8 +2,9 @@ import io
 import logging
 import os
 
-import common
 import pandas as pd
+
+import common
 from common import change_tracking as ct
 from common import email_message
 
@@ -42,14 +43,12 @@ def future_abfuhrtermine():
     df.to_csv(path_export, index=False, sep=";", encoding="utf-8")
     if ct.has_changed(path_export):
         common.update_ftp_and_odsp(path_export, "tba/abfuhrtermine", "100096")
-        text = (
-            f"New Abfuhrtermine (dataset 100096) available for the year {max_year}.\n"
+        text = f"New Abfuhrtermine (dataset 100096) available for the year {max_year}.\n"
+        text += (
+            f"The new data can be found here: https://data-bs.ch/stata/tba/abfuhrtermine/Abfuhrtermine_{max_year}.csv\n"
         )
-        text += f"The new data can be found here: https://data-bs.ch/stata/tba/abfuhrtermine/Abfuhrtermine_{max_year}.csv\n"
         text += "Kind regards, \nYour automated Open Data Basel-Stadt Python Job"
-        msg = email_message(
-            subject=f"Abfuhrtermine {max_year}", text=text, img=None, attachment=None
-        )
+        msg = email_message(subject=f"Abfuhrtermine {max_year}", text=text, img=None, attachment=None)
         common.send_email(msg)
         ct.update_hash_file(path_export)
 
@@ -103,9 +102,7 @@ def append_columns(df):
 def download_abfuhrzonen():
     url_to_shp = "https://data.bs.ch/explore/dataset/100095/download/?format=csv&timezone=Europe/Zurich&lang=de"
     r = common.requests_get(url_to_shp)
-    return pd.read_csv(io.StringIO(r.content.decode("utf-8")), sep=";")[
-        ["zone", "geo_shape", "geo_point_2d"]
-    ]
+    return pd.read_csv(io.StringIO(r.content.decode("utf-8")), sep=";")[["zone", "geo_shape", "geo_point_2d"]]
 
 
 if __name__ == "__main__":

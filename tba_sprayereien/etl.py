@@ -2,10 +2,11 @@ import logging
 import os
 from io import StringIO
 
-import common
 import geopandas as gpd
 import pandas as pd
 from requests.auth import HTTPBasicAuth
+
+import common
 
 URL = os.getenv("HTTPS_URL_TBA_SPRAYEREIEN")
 USER = os.getenv("HTTPS_USER_TBA")
@@ -23,31 +24,19 @@ def main():
         gdf.set_geometry("geometry", inplace=True)
         gdf = gdf.set_crs("EPSG:2056")
         gdf = gdf.to_crs("EPSG:4326")
-        logging.info(
-            "Calculate PLZ, Wohnviertel and Wohnbezirk for each spraying based on centroid..."
-        )
+        logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each spraying based on centroid...")
         gdf_plz = download_spatial_descriptors("100016")
         gdf["plz"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_plz, "plz"))
         gdf_viertel = download_spatial_descriptors("100042")
-        gdf["wov_id"] = gdf["geometry"].apply(
-            lambda x: get_first_value(x, gdf_viertel, "wov_id")
-        )
-        gdf["wov_name"] = gdf["geometry"].apply(
-            lambda x: get_first_value(x, gdf_viertel, "wov_name")
-        )
+        gdf["wov_id"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_viertel, "wov_id"))
+        gdf["wov_name"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_viertel, "wov_name"))
         gdf_bezirke = download_spatial_descriptors("100039")
-        gdf["bez_id"] = gdf["geometry"].apply(
-            lambda x: get_first_value(x, gdf_bezirke, "bez_id")
-        )
-        gdf["bez_name"] = gdf["geometry"].apply(
-            lambda x: get_first_value(x, gdf_bezirke, "bez_name")
-        )
+        gdf["bez_id"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_bezirke, "bez_id"))
+        gdf["bez_name"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_bezirke, "bez_name"))
         # Removing the microseconds
         gdf["erfassungszeit"] = gdf["erfassungszeit"].str.split(".").str[0]
         # Adding the time zone
-        gdf["erfassungszeit"] = pd.to_datetime(gdf["erfassungszeit"]).dt.tz_localize(
-            "Europe/Zurich"
-        )
+        gdf["erfassungszeit"] = pd.to_datetime(gdf["erfassungszeit"]).dt.tz_localize("Europe/Zurich")
         path_all = os.path.join("data", "sprayereien.csv")
         gdf.to_csv(path_all, index=False)
         # Split geometry into lon and lat
@@ -55,18 +44,12 @@ def main():
         gdf["lon"] = gdf["geometry"].x
         gdf["lat"] = gdf["geometry"].y
         # Rasterize coordinates
-        logging.info(
-            "Rasterizing coordinates and getting rid of data we don't want to have published..."
-        )
+        logging.info("Rasterizing coordinates and getting rid of data we don't want to have published...")
         offset_lon = 2608700
         offset_lat = 1263200
         raster_size = 50
-        gdf["raster_lat"] = (
-            (gdf.lat - offset_lat) // raster_size
-        ) * raster_size + offset_lat
-        gdf["raster_lon"] = (
-            (gdf.lon - offset_lon) // raster_size
-        ) * raster_size + offset_lon
+        gdf["raster_lat"] = ((gdf.lat - offset_lat) // raster_size) * raster_size + offset_lat
+        gdf["raster_lon"] = ((gdf.lon - offset_lon) // raster_size) * raster_size + offset_lon
         columns_of_interest = [
             "id",
             "erfassungszeit",
@@ -86,9 +69,7 @@ def main():
 
 
 def download_spatial_descriptors(ods_id):
-    url = (
-        f"https://data.bs.ch/api/explore/v2.1/catalog/datasets/{ods_id}/exports/geojson"
-    )
+    url = f"https://data.bs.ch/api/explore/v2.1/catalog/datasets/{ods_id}/exports/geojson"
     r = common.requests_get(url)
     gdf = gpd.read_file(StringIO(r.text))
     return gdf.to_crs("EPSG:4326")

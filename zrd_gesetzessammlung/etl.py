@@ -3,10 +3,11 @@ import logging
 import os
 import re
 
-import common
 import pandas as pd
 import requests
-from common import FTP_SERVER, FTP_USER, FTP_PASS
+
+import common
+from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 
 def main():
@@ -39,9 +40,7 @@ def get_texts_of_law():
         df.at[index, "title_full"] = get_full_path(df, index, "title")
 
     # Remove brackets in column children
-    df["children"] = (
-        df["children"].astype(str).str.replace("[", "").str.replace("]", "")
-    )
+    df["children"] = df["children"].astype(str).str.replace("[", "").str.replace("]", "")
 
     # Texts of law are stored as a list of dictionaries in the 'tols' column
     # We need to explode this list of dictionaries into separate rows and columns
@@ -49,9 +48,7 @@ def get_texts_of_law():
     df = pd.concat([df.drop(["tols"], axis=1), df["tols"].apply(pd.Series)], axis=1)
 
     # id is stored as a float, convert to string
-    df.loc[df["id"].notna(), "id"] = (
-        df.loc[df["id"].notna(), "id"].astype(int).astype(str)
-    )
+    df.loc[df["id"].notna(), "id"] = df.loc[df["id"].notna(), "id"].astype(int).astype(str)
 
     # Get every version for every text of law
     dfs_versions = []
@@ -60,33 +57,23 @@ def get_texts_of_law():
         dfs_versions.append(get_versions(df.at[index, "id"]))
         # last 3 characters are the /de
         if df.at[index, "original_url_de"]:
-            base_url = df.at[index, "original_url_de"].replace(
-                "/data/", "/api/de/texts_of_law/"
-            )[0:-3]
-            dfs_tols.append(
-                get_text_of_law(base_url, df.at[index, "systematic_number"])
-            )
+            base_url = df.at[index, "original_url_de"].replace("/data/", "/api/de/texts_of_law/")[0:-3]
+            dfs_tols.append(get_text_of_law(base_url, df.at[index, "systematic_number"]))
     df_versions = pd.concat(dfs_versions)
     df_tols = pd.concat(dfs_tols)
 
     # First merge the df_versions with df on the id column
-    df = pd.merge(
-        df, df_versions, on="id", how="left", suffixes=("_current", "_version")
-    )
+    df = pd.merge(df, df_versions, on="id", how="left", suffixes=("_current", "_version"))
     # Combine the columns of the two dataframes by taking the version value if it exists, otherwise the current value
     for col in df_versions.columns:
         if f"{col}_version" in df.columns:
             df[col] = df[f"{col}_version"].combine_first(df[f"{col}_current"])
             df = df.drop(columns=[f"{col}_current", f"{col}_version"])
     # v_id is stored as a float, convert to string
-    df.loc[df["v_id"].notna(), "v_id"] = (
-        df.loc[df["v_id"].notna(), "v_id"].astype(int).astype(str)
-    )
+    df.loc[df["v_id"].notna(), "v_id"] = df.loc[df["v_id"].notna(), "v_id"].astype(int).astype(str)
 
     # Merge the df_tols with df on the systematic_number and version_active_since columns
-    df = pd.merge(
-        df, df_tols, on=["systematic_number", "version_active_since"], how="left"
-    )
+    df = pd.merge(df, df_tols, on=["systematic_number", "version_active_since"], how="left")
 
     # Date columns from %d.%m.%Y to %Y-%m-%d (string)
     date_columns = [
@@ -135,9 +122,7 @@ def get_texts_of_law():
 
 def get_versions(t_id):
     # Convert t_id to integer and then to string
-    r = common.requests_get(
-        "http://www.lexfind.ch/api/fe/de/texts-of-law/" + t_id + "/with-versions"
-    )
+    r = common.requests_get("http://www.lexfind.ch/api/fe/de/texts-of-law/" + t_id + "/with-versions")
     r.raise_for_status()
     versions = r.json()
     df = pd.json_normalize(versions, record_path="versions")
@@ -161,9 +146,7 @@ def get_text_of_law(base_url, systematic_number):
     url = base_url + "/show_as_json"
     r = requests.get(url)
     if r.status_code == 404:
-        logging.warning(
-            f"JSON with text of law not found for systematic number {systematic_number} and url {url}"
-        )
+        logging.warning(f"JSON with text of law not found for systematic number {systematic_number} and url {url}")
         return pd.DataFrame()
     r.raise_for_status()
     current_json = r.json()
@@ -174,8 +157,7 @@ def get_text_of_law(base_url, systematic_number):
         r = requests.get(url_version)
         if r.status_code == 404:
             logging.warning(
-                f"Version with text of law not found for systematic number {systematic_number} and "
-                f"url {url_version}"
+                f"Version with text of law not found for systematic number {systematic_number} and url {url_version}"
             )
             df.at[index, "version_url_de"] = pd.NA
             continue
@@ -183,21 +165,15 @@ def get_text_of_law(base_url, systematic_number):
         current_json = r.json()
         if current_json["text_of_law"]["selected_version"]["json_content"]:
             df.at[index, "text_of_law"] = extract_html_content(
-                current_json["text_of_law"]["selected_version"]["json_content"][
-                    "document"
-                ]
+                current_json["text_of_law"]["selected_version"]["json_content"]["document"]
             )
         else:
-            logging.warning(
-                f"HTML content not found for systematic number {systematic_number} and url {url_version}"
-            )
+            logging.warning(f"HTML content not found for systematic number {systematic_number} and url {url_version}")
             df.at[index, "version_url_de"] = pd.NA
 
     df["systematic_number"] = systematic_number
     # Turn the api url into the app url
-    df["version_url_de"] = (
-        df["version_url_de"].str.replace("api", "app").str.replace("/show_as_json", "")
-    )
+    df["version_url_de"] = df["version_url_de"].str.replace("api", "app").str.replace("/show_as_json", "")
     return df
 
 
@@ -262,11 +238,7 @@ def get_full_path(df, index, column_name):
     if pd.isna(df.at[index, "parent"]):
         return df.at[index, column_name]
     else:
-        return (
-            get_full_path(df, df.at[index, "parent"], column_name)
-            + "/"
-            + df.at[index, column_name]
-        )
+        return get_full_path(df, df.at[index, "parent"], column_name) + "/" + df.at[index, column_name]
 
 
 def get_changes(process_all=False):
@@ -324,9 +296,7 @@ def process_recent_changes(df):
     df = pd.concat(
         [
             df.drop(["text_of_law_version.dtah_urls"], axis=1),
-            df["text_of_law_version.dtah_urls"]
-            .apply(pd.Series)
-            .add_prefix("tolsv_dtah_"),
+            df["text_of_law_version.dtah_urls"].apply(pd.Series).add_prefix("tolsv_dtah_"),
         ],
         axis=1,
     )
@@ -393,9 +363,7 @@ def upload_to_ftp_per_month(df):
         period_df = df[df["change_date"].dt.to_period("M") == period]
 
         # Save to CSV
-        output_path = os.path.join(
-            os.path.join("data", "changes_per_month"), f"{year_month}.csv"
-        )
+        output_path = os.path.join(os.path.join("data", "changes_per_month"), f"{year_month}.csv")
         period_df.to_csv(output_path, index=False)
         common.upload_ftp(
             output_path,
@@ -408,18 +376,10 @@ def convert_date_columns(df, date_columns):
     def parse_date(column):
         return (
             pd.to_datetime(column, format="%Y-%m-%d", errors="coerce")  # ISO format
-            .combine_first(
-                pd.to_datetime(column, format="%d.%m.%Y", errors="coerce")
-            )  # DD.MM.YYYY format
-            .combine_first(
-                pd.to_datetime(column, format="%d_%m_%Y", errors="coerce")
-            )  # DD_MM_YYYY format
-            .combine_first(
-                pd.to_datetime(column, unit="ms", errors="coerce")
-            )  # Unix timestamps in milliseconds
-            .combine_first(
-                pd.to_datetime(column, errors="coerce", dayfirst=True)
-            )  # General fallback
+            .combine_first(pd.to_datetime(column, format="%d.%m.%Y", errors="coerce"))  # DD.MM.YYYY format
+            .combine_first(pd.to_datetime(column, format="%d_%m_%Y", errors="coerce"))  # DD_MM_YYYY format
+            .combine_first(pd.to_datetime(column, unit="ms", errors="coerce"))  # Unix timestamps in milliseconds
+            .combine_first(pd.to_datetime(column, errors="coerce", dayfirst=True))  # General fallback
         )
 
     # Apply the parsing logic to each specified column

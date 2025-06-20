@@ -5,9 +5,7 @@ import pandas as pd
 
 
 def main():
-    file_name = os.path.join(
-        "data_orig", "Beitraege Swisslos-Fonds BS 2023_Dezember.xls"
-    )
+    file_name = os.path.join("data_orig", "Beitraege Swisslos-Fonds BS 2023_Dezember.xls")
     df = pd.read_excel(
         file_name,
         skiprows=7,

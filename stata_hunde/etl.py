@@ -6,9 +6,7 @@ import pandas as pd
 
 def main():
     logging.info("Reading data from source...")
-    df = pd.read_csv(
-        os.path.join("data", "Hunde für OGD.csv"), sep=";"
-    )
+    df = pd.read_csv(os.path.join("data", "Hunde für OGD.csv"), sep=";")
 
     logging.info(
         "Extracting jahr, gemeinde_name, hund_geschlecht, hund_geburtsjahr, hund_alter, hund_rasse, hund_farbe..."
@@ -27,9 +25,7 @@ def main():
     ]
     # Data cleaning
     df_hunde = df_hunde.copy()  # Ensure we are working on a copy
-    df_hunde["hund_geburtsjahr"] = df_hunde["hund_geburtsjahr"].astype(
-        str
-    )  # Explicitly cast to string
+    df_hunde["hund_geburtsjahr"] = df_hunde["hund_geburtsjahr"].astype(str)  # Explicitly cast to string
     df_hunde["hund_geschlecht"] = df_hunde["hund_geschlecht"].replace("?", "unbekannt")
     df_hunde.loc[df_hunde["hund_alter"] == 888, "hund_geburtsjahr"] = "unbekannt"
 
@@ -56,21 +52,15 @@ def main():
         usecols="B, D:F",
     )
     df_webtabelle = df_webtabelle.dropna(how="all")
-    df_melted = df_webtabelle.melt(
-        id_vars="Gemeinde", var_name="gemeinde_name", value_name="anzahl_hunde"
-    )
+    df_melted = df_webtabelle.melt(id_vars="Gemeinde", var_name="gemeinde_name", value_name="anzahl_hunde")
     df_melted["Gemeinde"] = pd.to_numeric(df_melted["Gemeinde"], errors="coerce")
-    df_melted["anzahl_hunde"] = pd.to_numeric(
-        df_melted["anzahl_hunde"], errors="coerce"
-    )
+    df_melted["anzahl_hunde"] = pd.to_numeric(df_melted["anzahl_hunde"], errors="coerce")
     df_filtered = df_melted[df_melted["Gemeinde"] <= 2007]
     df_filtered = df_filtered.rename(columns={"Gemeinde": "jahr"})
 
     logging.info("Counting number of dogs per year, Wohnviertel and gemeinde...")
     df_hundebestand = (
-        df.groupby(["jahr", "wohnviertel_aktuell", "gemeinde_name"])
-        .size()
-        .reset_index(name="anzahl_hunde")
+        df.groupby(["jahr", "wohnviertel_aktuell", "gemeinde_name"]).size().reset_index(name="anzahl_hunde")
     )
     df_hundebestand = pd.concat([df_hundebestand, df_filtered], ignore_index=True)
     path_hundestand = os.path.join("data", "100445_hundebestand.csv")
@@ -80,9 +70,7 @@ def main():
     # First replace NaN, -, ?, 3, 4 with "unbekannt"
     df["hund_name"] = df["hund_name"].replace(["-", "?", "3", "4"], "unbekannt")
     df["hund_name"] = df["hund_name"].fillna("unbekannt")
-    df_hundenamen = (
-        df.groupby(["jahr", "hund_name"]).size().reset_index(name="anzahl_hunde")
-    )
+    df_hundenamen = df.groupby(["jahr", "hund_name"]).size().reset_index(name="anzahl_hunde")
     path_hundenamen = os.path.join("data", "100446_hundenamen.csv")
     df_hundenamen.to_csv(path_hundenamen, index=False)
 
@@ -96,9 +84,9 @@ def main():
     df_hundehalter = df_hundehalter.transpose()
     df_hundehalter.columns = df_hundehalter.iloc[0]
     df_hundehalter = df_hundehalter[1:]
-    df_hundehalter = df_hundehalter.rename(
-        columns={"Total Hundehalter (neu erhoben ab 2018)": "anzahl_hundehalter"}
-    )[["anzahl_hundehalter"]]
+    df_hundehalter = df_hundehalter.rename(columns={"Total Hundehalter (neu erhoben ab 2018)": "anzahl_hundehalter"})[
+        ["anzahl_hundehalter"]
+    ]
     df_hundehalter = df_hundehalter.dropna(subset=["anzahl_hundehalter"])
     df_hundehalter = df_hundehalter.reset_index()
     df_hundehalter = df_hundehalter.rename(columns={"index": "jahr"})

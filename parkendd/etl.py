@@ -4,9 +4,10 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import common
 import pandas as pd
 from bs4 import BeautifulSoup
+
+import common
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 
@@ -41,19 +42,13 @@ def find_additional_info(url_lot: str):
             regex_results_claramatte = re.findall(regex_claramatte, total_str)
 
             if len(regex_results_badbahnhof) == 1:
-                regex_results_badbahnhof_ints = [
-                    int(item) for item in regex_results_badbahnhof[0]
-                ]
+                regex_results_badbahnhof_ints = [int(item) for item in regex_results_badbahnhof[0]]
                 total = max(regex_results_badbahnhof_ints)
             elif len(regex_results_messe) == 1:
-                regex_results_messe_ints = [
-                    int(item) for item in regex_results_messe[0]
-                ]
+                regex_results_messe_ints = [int(item) for item in regex_results_messe[0]]
                 total = sum(regex_results_messe_ints)
             elif len(regex_results_claramatte) == 1:
-                regex_results_claramatte_ints = [
-                    int(item) for item in regex_results_claramatte[0]
-                ]
+                regex_results_claramatte_ints = [int(item) for item in regex_results_claramatte[0]]
                 total = max(regex_results_claramatte_ints)
             else:
                 exit(
@@ -66,18 +61,14 @@ def find_additional_info(url_lot: str):
     additional_info["total"] = total
 
     try:
-        durchfahrtshoehe_str = soup.find_all("b", string="Durchfahrtshöhe:")[
-            0
-        ].next_sibling.strip()
+        durchfahrtshoehe_str = soup.find_all("b", string="Durchfahrtshöhe:")[0].next_sibling.strip()
     except IndexError:
         durchfahrtshoehe_str = ""
 
     additional_info["durchfahrtshoehe"] = durchfahrtshoehe_str
 
     # Read CSV and get additional info
-    csv_path_of_manually_curated = os.path.join(
-        "data", "csv", "lots", "parkhaeuser_manually_curated.csv"
-    )
+    csv_path_of_manually_curated = os.path.join("data", "csv", "lots", "parkhaeuser_manually_curated.csv")
     df = pd.read_csv(csv_path_of_manually_curated)
     lot_info = df.set_index("link").loc[url_lot]
 
@@ -106,9 +97,7 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
         .isoformat(timespec="seconds")
     )
 
-    formatted_timestamp_now = datetime.now(ZoneInfo("Europe/Zurich")).isoformat(
-        timespec="seconds"
-    )
+    formatted_timestamp_now = datetime.now(ZoneInfo("Europe/Zurich")).isoformat(timespec="seconds")
 
     lots_data = []
     for section in soup.find_all("section", class_="middle"):
@@ -122,29 +111,19 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
                 href = link_element["href"]
 
                 if href.count("/") != 1:
-                    raise ValueError(
-                        f"Invalid href format: {href}. Expected exactly one '/'"
-                    )
+                    raise ValueError(f"Invalid href format: {href}. Expected exactly one '/'")
 
                 prefix, id2 = href.split("/")
 
                 status = row.find("td", class_="parkh_status").get_text(strip=True)
-                state = (
-                    "open"
-                    if status == "offen"
-                    else "closed"
-                    if status == "zu"
-                    else "unknown state"
-                )
+                state = "open" if status == "offen" else "closed" if status == "zu" else "unknown state"
 
                 url_lot = url_to_scrape_from + href
                 additional_info_scraped = find_additional_info(url_lot=url_lot)
 
                 lot_data = {
                     "name": row.find("td", class_="parkh_name").get_text(strip=True),
-                    "free": int(
-                        row.find("td", class_="parkh_belegung").get_text(strip=True)
-                    ),
+                    "free": int(row.find("td", class_="parkh_belegung").get_text(strip=True)),
                     "status": status,
                     "state": state,
                     "last_updated": formatted_timestamp_last_updated,
@@ -162,9 +141,7 @@ def scrape_data_from_parkleitsystem() -> pd.DataFrame:
                 lots_data.append(lot_data)
 
     normalized_scraped = pd.DataFrame(lots_data)
-    normalized_scraped["title"] = (
-        normalized_scraped["lot_type"] + " " + normalized_scraped["name"]
-    )
+    normalized_scraped["title"] = normalized_scraped["lot_type"] + " " + normalized_scraped["name"]
     normalized_scraped["link"] = url_to_scrape_from + normalized_scraped["href"]
     normalized_scraped["published"] = normalized_scraped["last_downloaded"]
 
@@ -199,19 +176,13 @@ def main():
     lots.to_csv(lots_file_name, index=False)
     common.update_ftp_and_odsp(lots_file_name, "parkendd/csv/lots", "100044")
 
-    values_file_name = (
-        f"data/csv/values/parkendd-{str(datetime.now()).replace(':', '')}.csv"
-    )
+    values_file_name = f"data/csv/values/parkendd-{str(datetime.now()).replace(':', '')}.csv"
     logging.info(f"Creating values file and saving as {values_file_name}...")
     values = normalized[["published", "free", "id", "id2"]]
     values.to_csv(values_file_name, index=False)
     folder = datetime.now().strftime("%Y-%m")
-    common.ensure_ftp_dir(
-        FTP_SERVER, FTP_USER, FTP_PASS, f"parkendd/csv/values/{folder}"
-    )
-    common.update_ftp_and_odsp(
-        values_file_name, f"parkendd/csv/values/{folder}", "100014"
-    )
+    common.ensure_ftp_dir(FTP_SERVER, FTP_USER, FTP_PASS, f"parkendd/csv/values/{folder}")
+    common.update_ftp_and_odsp(values_file_name, f"parkendd/csv/values/{folder}", "100014")
 
 
 if __name__ == "__main__":

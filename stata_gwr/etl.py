@@ -2,9 +2,10 @@ import logging
 import os
 import zipfile
 
+import pandas as pd
+
 import common
 import common.change_tracking as ct
-import pandas as pd
 
 
 def main():
@@ -45,13 +46,13 @@ def main():
     all_entities = [GEB, DOM, WHG]
 
     DECODED_COL_APPENDIX = "_DECODED"
-    DECODED_FILE_APPENDIX = "_bs"  # with empty string, this overwrites original files. Use 'decoded' or similar to create new files
+    DECODED_FILE_APPENDIX = (
+        "_bs"  # with empty string, this overwrites original files. Use 'decoded' or similar to create new files
+    )
 
     r = common.requests_get("https://public.madd.bfs.admin.ch/bs.zip")
     r.raise_for_status()
-    data_orig_path = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "data_orig"
-    )
+    data_orig_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_orig")
     zip_folder = "bs"
     zip_file_path = os.path.join(data_orig_path, f"{zip_folder}.zip")
     with open(zip_file_path, "wb") as f:
@@ -75,14 +76,12 @@ def main():
             for var in entity["to_decode"]:
                 ent.insert(ent.columns.get_loc(var) + 1, var + DECODED_COL_APPENDIX, "")
                 ent[var + DECODED_COL_APPENDIX] = ent[var].map(code_map)
-            export_file_path = os.path.join(
-                data_path, entity["filename"].format(DECODED_FILE_APPENDIX)
-            )
+            export_file_path = os.path.join(data_path, entity["filename"].format(DECODED_FILE_APPENDIX))
             ent.to_csv(export_file_path, index=False, sep="\t")
             exported_files.append(export_file_path)
         for filename in os.listdir(data_path):
             file_path = os.path.join(data_path, filename)
-            if (os.path.isfile(file_path) and ".csv" in file_path and ct.has_changed(file_path)):
+            if os.path.isfile(file_path) and ".csv" in file_path and ct.has_changed(file_path):
                 common.upload_ftp(file_path, remote_path="gwr/opendata_export")
         ods_ids = ["100230", "100231", "100232"]
         for ods_id in ods_ids:

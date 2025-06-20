@@ -29,9 +29,7 @@ def process_upload(upload):
 def process_single_file(upload, file, changed):
     file_path = os.path.join("data", file)
 
-    if (not upload.get("embargo")) or (
-        upload.get("embargo") and common.is_embargo_over(file_path)
-    ):
+    if (not upload.get("embargo")) or (upload.get("embargo") and common.is_embargo_over(file_path)):
         if ct.has_changed(file_path, method="modification_date"):
             changed = True
             ct.update_mod_timestamp_file(file_path)
@@ -50,9 +48,7 @@ def process_single_file(upload, file, changed):
 
 def main():
     # Open the JSON file where the uploads are saved
-    path_uploads = os.path.join(
-        "data", "StatA", "harvesters", "StatA", "stata_daily_uploads.json"
-    )
+    path_uploads = os.path.join("data", "StatA", "harvesters", "StatA", "stata_daily_uploads.json")
     with open(path_uploads, "r") as jsonfile:
         uploads = json.load(jsonfile)
 

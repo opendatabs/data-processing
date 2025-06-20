@@ -2,11 +2,10 @@ import os
 
 import numpy as np
 import pandas as pd
+
 from common import change_tracking as ct
 
-filename = os.path.join(
-    os.path.dirname(__file__), "data/gefahrenstufen", "warn_levels.xml"
-)
+filename = os.path.join(os.path.dirname(__file__), "data/gefahrenstufen", "warn_levels.xml")
 if ct.has_changed(filename, method="modification_date"):
     df = pd.read_xml(filename)
 
@@ -43,8 +42,6 @@ if ct.has_changed(filename, method="modification_date"):
         ]
     ]
 
-    export_filename = os.path.join(
-        os.path.dirname(__file__), "data/gefahrenstufen", "gefahrenstufen.csv"
-    )
+    export_filename = os.path.join(os.path.dirname(__file__), "data/gefahrenstufen", "gefahrenstufen.csv")
     df_export.to_csv(export_filename, index=False)
     ct.update_mod_timestamp_file(filename)

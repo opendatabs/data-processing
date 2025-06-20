@@ -1,8 +1,9 @@
 import logging
 import os
 
-import common
 import pandas as pd
+
+import common
 
 
 def main():
@@ -11,17 +12,11 @@ def main():
     df_MKB = remove_commas_at_end(df_MKB)
     df_MKB = remove_irrelevant(df_MKB)
     # split up Kurzbezeichning and Titel
-    df_MKB[["Kurzbezeichnung", "Titel"]] = df_MKB[
-        "Kurzbezeichnung und Titel"
-    ].str.split(":", expand=True, n=1)
+    df_MKB[["Kurzbezeichnung", "Titel"]] = df_MKB["Kurzbezeichnung und Titel"].str.split(":", expand=True, n=1)
     # split off Einlaufnummer from Einlauf-Info
-    df_MKB[["Einlaufnummer", "Einlauf-Info"]] = df_MKB["Einlauf-Info"].str.split(
-        ",", expand=True, n=1
-    )
+    df_MKB[["Einlaufnummer", "Einlauf-Info"]] = df_MKB["Einlauf-Info"].str.split(",", expand=True, n=1)
     # "Aus rechtlichen Gründen nicht angezeigt" should appear in both columns
-    df_MKB["Einlauf-Info"].fillna(
-        "Aus rechtlichen Gründen nicht angezeigt", inplace=True
-    )
+    df_MKB["Einlauf-Info"].fillna("Aus rechtlichen Gründen nicht angezeigt", inplace=True)
     # remove Einlaufnummern VI_0000.1, VI_0000.2
     df_MKB = remove_einlaufnummern(df_MKB)
     # Select columns in the right order
@@ -42,9 +37,7 @@ def main():
     df_MKB = join_duplicates(df_MKB)
     # df_MKB.to_csv("MKB_Sammlung_Europa_new.csv", index=False)
     # export new file
-    path_export_file = os.path.join(
-        "data", "export", "MKB_Sammlung_Europa_transformed.csv"
-    )
+    path_export_file = os.path.join("data", "export", "MKB_Sammlung_Europa_transformed.csv")
     df_MKB.to_csv(path_export_file, index=False)
     common.update_ftp_and_odsp(path_export_file, "mkb/sammlung_europa", "100148")
 
@@ -131,9 +124,7 @@ def remove_irrelevant(df_MKB):
 
     # remove text from Datierung column
     for item in text_to_remove:
-        df_MKB["Datierung"] = df_MKB["Datierung"].str.replace(
-            str(item), "", regex=False
-        )
+        df_MKB["Datierung"] = df_MKB["Datierung"].str.replace(str(item), "", regex=False)
     return df_MKB
 
 
@@ -146,12 +137,8 @@ def join_duplicates(df_MKB):
     # first remove all duplicates
     df_MKB_without_duplicates = df_MKB.drop(index_duplicates)
     # split duplicates into two dataframes
-    list_inventar_duplicates_1 = df_MKB[
-        df_MKB.duplicated(subset=["Inventarnummer"], keep="first")
-    ].reset_index()
-    list_inventar_duplicates_2 = df_MKB[
-        df_MKB.duplicated(subset=["Inventarnummer"], keep="last")
-    ].reset_index()
+    list_inventar_duplicates_1 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep="first")].reset_index()
+    list_inventar_duplicates_2 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep="last")].reset_index()
     # make dataframe with one entry for each duplicate, with two different entries for Herkunft separated by a comma
     df_duplicates = list_inventar_duplicates_1[
         [
@@ -167,9 +154,7 @@ def join_duplicates(df_MKB):
     ]
     df_duplicates["Herkunft"] = ""
     df_duplicates["Herkunft"] = (
-        list_inventar_duplicates_1["Herkunft"].astype(str)
-        + ", "
-        + list_inventar_duplicates_2["Herkunft"].astype(str)
+        list_inventar_duplicates_1["Herkunft"].astype(str) + ", " + list_inventar_duplicates_2["Herkunft"].astype(str)
     )
     # concatenate the two data frames
     df_MKB = pd.concat([df_MKB_without_duplicates, df_duplicates])

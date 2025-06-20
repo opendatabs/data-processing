@@ -1,19 +1,17 @@
 import os
-import pathlib
 
-import common
 import dateparser
 import numpy as np
 import pandas as pd
+
+import common
 
 
 def main():
     data_file_names = ["Resultate_EID.xlsx", "Resultate_KAN.xlsx"]
     abst_date, concatenated_df = calculate_details(data_file_names)
 
-    export_file_name = os.path.join(
-        "data", "data-processing-output", f"Abstimmungen_Details_{abst_date}.csv"
-    )
+    export_file_name = os.path.join("data", "data-processing-output", f"Abstimmungen_Details_{abst_date}.csv")
     print(f"Exporting to {export_file_name}...")
     concatenated_df.to_csv(export_file_name, index=False)
 
@@ -45,9 +43,7 @@ def calculate_details(data_file_names):
     for data_file_name in data_file_names:
         import_file_name = os.path.join("data", data_file_name)
         print(f"Reading dataset from {import_file_name} to retrieve sheet names...")
-        sheets = pd.read_excel(
-            import_file_name, sheet_name=None, skiprows=4, index_col=None
-        )
+        sheets = pd.read_excel(import_file_name, sheet_name=None, skiprows=4, index_col=None)
         dat_sheet_names = []
         print('Determining "DAT n" sheets...')
         for key in sheets:
@@ -85,9 +81,7 @@ def calculate_details(data_file_names):
         for sheet_name in dat_sheet_names:
             is_gegenvorschlag = False  # Is this a sheet that contains a Gegenvorschlag?
             print(f"Reading Abstimmungstitel from {sheet_name}...")
-            df_title = pd.read_excel(
-                import_file_name, sheet_name=sheet_name, skiprows=4, index_col=None
-            )
+            df_title = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=4, index_col=None)
             abst_title_raw = df_title.columns[1]
             # Get String that starts form ')' plus space + 1 characters to the right
             abst_title = abst_title_raw[abst_title_raw.find(")") + 2 :]
@@ -95,13 +89,9 @@ def calculate_details(data_file_names):
                 is_gegenvorschlag = True
 
             print(f"Reading Abstimmungsart and Date from {sheet_name}...")
-            df_meta = pd.read_excel(
-                import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None
-            )
+            df_meta = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None)
             title_string = df_meta.columns[1]
-            abst_type = (
-                "kantonal" if title_string.startswith("Kantonal") else "national"
-            )
+            abst_type = "kantonal" if title_string.startswith("Kantonal") else "national"
             abst_date_raw = title_string[title_string.find("vom ") + 4 :]
             abst_date = dateparser.parse(abst_date_raw).strftime("%Y-%m-%d")
 
@@ -140,9 +130,7 @@ def calculate_details(data_file_names):
             df["Abst_ID"] = sheet_name[sheet_name.find("DAT ") + 4]
             df["abst_typ"] = "Abstimmung ohne Gegenvorschlag / Stichfrage"
 
-            df.Guelt_Anz.replace(
-                0, pd.NA, inplace=True
-            )  # Prevent division by zero errors
+            df.Guelt_Anz.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
             if is_gegenvorschlag:
                 print("Adding Gegenvorschlag data...")
@@ -170,14 +158,10 @@ def calculate_details(data_file_names):
                     df.Sti_Initiative_Anz,
                     df.Sti_Gegenvorschlag_Anz,
                 ]:
-                    column.replace(
-                        0, pd.NA, inplace=True
-                    )  # Prevent division by zero errors
+                    column.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
                 df["anteil_ja_stimmen"] = df.Ja_Anz / (df.Ja_Anz + df.Nein_Anz)
-                df["gege_anteil_ja_Stimmen"] = df.Gege_Ja_Anz / (
-                    df.Gege_Ja_Anz + df.Gege_Nein_Anz
-                )
+                df["gege_anteil_ja_Stimmen"] = df.Gege_Ja_Anz / (df.Gege_Ja_Anz + df.Gege_Nein_Anz)
                 df["sti_anteil_init_stimmen"] = df.Sti_Initiative_Anz / (
                     df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz
                 )
@@ -195,9 +179,7 @@ def calculate_details(data_file_names):
             else:
                 print("Adding data for case that is not with Gegenvorschlag...")
                 result_type = df_meta.columns[8]
-                print(
-                    "Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag..."
-                )
+                print("Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag...")
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
             df["Result_Art"] = result_type
@@ -221,16 +203,12 @@ def calculate_details(data_file_names):
             concatenated_df["Abst_ID"],
         )
     print('Creating column "Abst_ID_Titel"...')
-    concatenated_df["Abst_ID_Titel"] = (
-        concatenated_df["Abst_ID"].astype(str) + ": " + concatenated_df["Abst_Titel"]
-    )
+    concatenated_df["Abst_ID_Titel"] = concatenated_df["Abst_ID"].astype(str) + ": " + concatenated_df["Abst_Titel"]
     # add Wahllokal_ID
     path_wahllokale = "data/Wahllokale.csv"
     df_wahllokale = pd.read_csv(path_wahllokale, encoding="unicode_escape")
     df_wahllokale.rename(columns={"Wahllok_Name": "Wahllok_name"}, inplace=True)
-    concatenated_df = pd.merge(
-        concatenated_df, df_wahllokale, on=["Wahllok_name"], how="inner"
-    )
+    concatenated_df = pd.merge(concatenated_df, df_wahllokale, on=["Wahllok_name"], how="inner")
     concatenated_df["id"] = (
         concatenated_df["Abst_Datum"]
         + "_"

@@ -6,11 +6,12 @@ import sqlite3
 import zipfile
 from datetime import timedelta
 
-import common
 import numpy as np
 import pandas as pd
 import pytz
 import shapefile  # library pyshp
+
+import common
 from common import change_tracking as ct
 
 
@@ -95,27 +96,13 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
             .drop(columns=["dummy"])
         )
         # Ignore all rows that do not have the correct format
-        df = df[
-            df.Messung_Datum.str.match(
-                r"^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.\d{2}$"
-            )
-        ]
-        df = df[
-            df.Messung_Zeit.str.match(
-                r"^(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$"
-            )
-        ]
+        df = df[df.Messung_Datum.str.match(r"^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.\d{2}$")]
+        df = df[df.Messung_Zeit.str.match(r"^(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$")]
         df = df[df.V_Einfahrt.str.match(r"^\d{3}$")]
         df = df[df.V_Ausfahrt.str.match(r"^\d{3}$")]
-        df["Messung_Timestamp"] = pd.to_datetime(
-            df.Messung_Datum + "T" + df.Messung_Zeit, format="%d.%m.%yT%H:%M:%S"
-        )
-        df["is_dt"] = df["Messung_Timestamp"].apply(
-            lambda x: is_dt(x, pytz.timezone("Europe/Zurich"))
-        )
-        df.loc[df["is_dt"], "Messung_Timestamp"] = df[
-            "Messung_Timestamp"
-        ] - pd.Timedelta(hours=1)
+        df["Messung_Timestamp"] = pd.to_datetime(df.Messung_Datum + "T" + df.Messung_Zeit, format="%d.%m.%yT%H:%M:%S")
+        df["is_dt"] = df["Messung_Timestamp"].apply(lambda x: is_dt(x, pytz.timezone("Europe/Zurich")))
+        df.loc[df["is_dt"], "Messung_Timestamp"] = df["Messung_Timestamp"] - pd.Timedelta(hours=1)
         df.Messung_Timestamp = df.Messung_Timestamp.dt.tz_localize(
             "Europe/Zurich",
             ambiguous=np.array(~df["is_dt"]),
@@ -130,9 +117,9 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
         df["V_Ausfahrt"] = df.V_Ausfahrt.astype(int)
         df["V_Delta"] = df.V_Ausfahrt - df.V_Einfahrt
         # Determining Zyklus and Smiley_Nr of measurement
-        df_m1 = pd.merge(
-            df_einsatz_days, df, how="right", on=["id_standort", "day_str"]
-        ).drop(columns=["datum_aktiv", "day_str"])
+        df_m1 = pd.merge(df_einsatz_days, df, how="right", on=["id_standort", "day_str"]).drop(
+            columns=["datum_aktiv", "day_str"]
+        )
         df_m = pd.merge(
             df_m1,
             df_einsatze,
@@ -142,8 +129,7 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
         )
         df_m = df_m.drop(columns=["id_Standort", "is_dt"])
         df_m["Phase"] = np.where(
-            (df_m.Messung_Timestamp < df_m.Start_Vormessung)
-            | (df_m.Start_Vormessung.isna()),
+            (df_m.Messung_Timestamp < df_m.Start_Vormessung) | (df_m.Start_Vormessung.isna()),
             "Vor Vormessung",
             np.where(
                 df_m.Messung_Timestamp < df_m.Start_Betrieb,
@@ -151,9 +137,7 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
                 np.where(
                     df_m.Messung_Timestamp < df_m.Start_Nachmessung,
                     "Betrieb",
-                    np.where(
-                        df_m.Messung_Timestamp < df_m.Ende, "Nachmessung", "Nach Ende"
-                    ),
+                    np.where(df_m.Messung_Timestamp < df_m.Ende, "Nachmessung", "Nach Ende"),
                 ),
             ),
         )
@@ -214,14 +198,8 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
             "V_50": np.median(df_all_v.V),
             "V_85": np.percentile(df_all_v.V, 85),
             "Geschwindigkeit": geschw,
-            "V_Einfahrt_pct_ueber_limite": (
-                df_phase.V_Einfahrt > df_phase.Geschwindigkeit
-            ).mean()
-            * 100,
-            "V_Ausfahrt_pct_ueber_limite": (
-                df_phase.V_Ausfahrt > df_phase.Geschwindigkeit
-            ).mean()
-            * 100,
+            "V_Einfahrt_pct_ueber_limite": (df_phase.V_Einfahrt > df_phase.Geschwindigkeit).mean() * 100,
+            "V_Ausfahrt_pct_ueber_limite": (df_phase.V_Ausfahrt > df_phase.Geschwindigkeit).mean() * 100,
             "Anzahl_Messungen": anz_messungen,
             "Messdauer_h": messdauer_h,
             "dtv": dtv,
@@ -237,9 +215,7 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
 
 
 def parse_einsatzplaene():
-    einsatzplan_files = glob.glob(
-        os.path.join("data_orig", "Einsatzplan", "Zyklus_[0-9][0-9]_20[0-9][0-9].xlsx")
-    )
+    einsatzplan_files = glob.glob(os.path.join("data_orig", "Einsatzplan", "Zyklus_[0-9][0-9]_20[0-9][0-9].xlsx"))
     einsatzplan_dfs = []
     for f in einsatzplan_files:
         df = pd.read_excel(
@@ -265,19 +241,13 @@ def parse_einsatzplaene():
             logging.info(f"Localizing timestamp in col {col}...")
             # Add time to date
             df[col] = df[f"Datum_{ph}"] + pd.to_timedelta(
-                pd.to_datetime(df[f"Uhrzeit_{ph}"], format="%H:%M:%S").dt.time.astype(
-                    str
-                )
+                pd.to_datetime(df[f"Uhrzeit_{ph}"], format="%H:%M:%S").dt.time.astype(str)
             )
             df.drop(columns=[f"Datum_{ph}", f"Uhrzeit_{ph}"], inplace=True)
-            df["is_dt"] = df[col].apply(
-                lambda x: is_dt(x, pytz.timezone("Europe/Zurich"))
-            )
+            df["is_dt"] = df[col].apply(lambda x: is_dt(x, pytz.timezone("Europe/Zurich")))
             df.loc[df["is_dt"], col] = df[col] - pd.Timedelta(hours=1)
             df[col] = (
-                df[col]
-                .dt.tz_localize("Europe/Zurich", ambiguous="infer", nonexistent="NaT")
-                .drop(columns=["is_dt"])
+                df[col].dt.tz_localize("Europe/Zurich", ambiguous="infer", nonexistent="NaT").drop(columns=["is_dt"])
             )
         df = df[
             [
@@ -344,9 +314,7 @@ def df_to_sqlite(df):
             "V_Delta",
         ]
     ]
-    sqlite_path = os.path.join(
-        "data", "datasette", "Smiley-Geschwindigkeitsmessungen.db"
-    )
+    sqlite_path = os.path.join("data", "datasette", "Smiley-Geschwindigkeitsmessungen.db")
 
     # Connect to SQLite database (or create it if it doesn't exist)
     conn = sqlite3.connect(sqlite_path)
@@ -442,9 +410,7 @@ def df_to_sqlite(df):
 def main():
     logging.info("Parsing Einsatzplaene...")
     df_einsaetze = parse_einsatzplaene()
-    req = common.requests_get(
-        "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp"
-    )
+    req = common.requests_get("https://data.bs.ch/api/explore/v2.1/catalog/datasets/100286/exports/shp")
     shp_path = os.path.join("data", "Smiley-Standorte")
     zip_file = io.BytesIO(req.content)
     with zipfile.ZipFile(zip_file, "r") as zip_ref:
@@ -460,22 +426,18 @@ def main():
         right_on="idstandort",
     ).drop(columns=["idstandort"])
     logging.info("Creating df_einsatz_days with one row per day and standort_id...")
-    df_einsaetze["geo_point_2d"] = df_einsaetze[df_einsaetze["coords"].notna()][
-        "coords"
-    ].apply(lambda x: f"{x[0][1]}, {x[0][0]}")
-    df_einsaetze = df_einsaetze.drop(columns=["coords"])
-    df_einsaetze = df_einsaetze.dropna(
-        subset=["Start_Vormessung", "Start_Betrieb", "Start_Nachmessung", "Ende"]
+    df_einsaetze["geo_point_2d"] = df_einsaetze[df_einsaetze["coords"].notna()]["coords"].apply(
+        lambda x: f"{x[0][1]}, {x[0][0]}"
     )
+    df_einsaetze = df_einsaetze.drop(columns=["coords"])
+    df_einsaetze = df_einsaetze.dropna(subset=["Start_Vormessung", "Start_Betrieb", "Start_Nachmessung", "Ende"])
     df_einsatz_days = pd.concat(
         [
             pd.DataFrame(
                 {
                     "id_standort": row.id_Standort,
                     "Zyklus": row.Zyklus,
-                    "datum_aktiv": pd.date_range(
-                        row.Start_Vormessung, row.Ende, freq="D", normalize=True
-                    ),
+                    "datum_aktiv": pd.date_range(row.Start_Vormessung, row.Ende, freq="D", normalize=True),
                 }
             )
             for i, row in df_einsaetze.iterrows()

@@ -2,11 +2,12 @@ import logging
 import os
 from io import StringIO
 
-import common
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -50,9 +51,7 @@ def main():
         df.lat = pd.to_numeric(df.lat)
         df.lon = pd.to_numeric(df.lon)
 
-        logging.info(
-            "Randomizing coordinates and getting rid of data we don't want to have published..."
-        )
+        logging.info("Randomizing coordinates and getting rid of data we don't want to have published...")
         df = df.apply(randomize_coordinates, axis=1)
 
         df.drop(["geometry", "coords", "lat", "lon", "adresse"], axis=1, inplace=True)
@@ -69,37 +68,21 @@ def main():
 
         logging.info("Reading Bezirk data into geopandas df...")
         # see e.g. https://stackoverflow.com/a/58518583/5005585
-        get_text_from_url(
-            "https://data.bs.ch/explore/dataset/100042/download/?format=geojson"
-        )
+        get_text_from_url("https://data.bs.ch/explore/dataset/100042/download/?format=geojson")
 
-        df_wv = gpd.read_file(
-            get_text_from_url(
-                "https://data.bs.ch/explore/dataset/100042/download/?format=geojson"
-            )
-        )
-        df_bez = gpd.read_file(
-            get_text_from_url(
-                "https://data.bs.ch/explore/dataset/100039/download/?format=geojson"
-            )
-        )
+        df_wv = gpd.read_file(get_text_from_url("https://data.bs.ch/explore/dataset/100042/download/?format=geojson"))
+        df_bez = gpd.read_file(get_text_from_url("https://data.bs.ch/explore/dataset/100039/download/?format=geojson"))
         df_points = gpd.GeoDataFrame(
             df,
             crs="EPSG:2056",
-            geometry=gpd.points_from_xy(
-                df.randomly_shifted_lon, df.randomly_shifted_lat
-            ),
+            geometry=gpd.points_from_xy(df.randomly_shifted_lon, df.randomly_shifted_lat),
         )
         logging.info("Re-projecting points...")
         df_points = df_points.to_crs("EPSG:4326")
         logging.info("Spatially joining points with Wohnviertel...")
-        gdf_wv = gpd.sjoin(
-            df_points, df_wv, how="left", op="within", rsuffix="wv", lsuffix="points"
-        )
+        gdf_wv = gpd.sjoin(df_points, df_wv, how="left", op="within", rsuffix="wv", lsuffix="points")
         logging.info("Spatially joining points with Bezirk...")
-        gdf_wv_bez = gpd.sjoin(
-            gdf_wv, df_bez, how="left", op="within", rsuffix="bez", lsuffix="points"
-        )
+        gdf_wv_bez = gpd.sjoin(gdf_wv, df_bez, how="left", op="within", rsuffix="bez", lsuffix="points")
         logging.info("Dropping unnecessary columns...")
         gdf_wv_bez.drop(
             columns=[

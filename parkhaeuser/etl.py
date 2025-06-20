@@ -3,10 +3,11 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import common
 import pandas as pd
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -25,9 +26,7 @@ def main():
     date_str = str(parking_header.find("p").contents[0]).strip()
     time_str = parking_header.find("span", class_="stempel_zeit").string.strip()
     local_timezone = ZoneInfo("Europe/Zurich")
-    timestamp = datetime.strptime(
-        f"{date_str} {time_str}", "%d.%m.%Y %H:%M:%S"
-    ).replace(tzinfo=local_timezone)
+    timestamp = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M:%S").replace(tzinfo=local_timezone)
     published = timestamp.isoformat(timespec="seconds")
     formatted_timestamp_now = datetime.now(local_timezone).isoformat(timespec="seconds")
 
@@ -47,9 +46,7 @@ def main():
                 href = link_element["href"]
 
                 if href.count("/") != 1:
-                    raise ValueError(
-                        f"Invalid href format: {href}. Expected exactly one '/'"
-                    )
+                    raise ValueError(f"Invalid href format: {href}. Expected exactly one '/'")
 
                 prefix, id2 = href.split("/")
                 link = url_to_scrape_from + href
@@ -76,9 +73,7 @@ def main():
 
     df_scraped = pd.DataFrame(lots_data)
 
-    df_for_upload = df_scraped[
-        ["id", "title", "free", "status", "published", "last_downloaded", "link"]
-    ].copy()
+    df_for_upload = df_scraped[["id", "title", "free", "status", "published", "last_downloaded", "link"]].copy()
 
     common.ods_realtime_push_df(df_for_upload, ODS_PUSH_URL)
 

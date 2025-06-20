@@ -19,6 +19,7 @@ def main():
             time.sleep(5)
     print("Job successful!")
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f"Executing {__file__}...")

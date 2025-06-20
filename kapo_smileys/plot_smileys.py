@@ -94,13 +94,7 @@ def create_histogram_plot(
     plt.savefig(
         os.path.join(
             curr_dir,
-            "plots\\hist_Zyk"
-            + zyklus
-            + "_ID"
-            + str(id_standort)
-            + "_"
-            + str(street_name)
-            + ".png",
+            "plots\\hist_Zyk" + zyklus + "_ID" + str(id_standort) + "_" + str(street_name) + ".png",
         )
     )
     plt.close()
@@ -118,9 +112,7 @@ def create_box_violin_plot(
     geschw,
 ):
     plt.figure(figsize=(15, 6))
-    plt.title(
-        f"Zyklus: {zyklus} - {street_name} Boxplot and Violin Plot ({geschw}km/h)"
-    )
+    plt.title(f"Zyklus: {zyklus} - {street_name} Boxplot and Violin Plot ({geschw}km/h)")
     box_data = []
     colors = []
     for phase in phase_order:
@@ -142,17 +134,13 @@ def create_box_violin_plot(
     positions = np.arange(1, len(box_data) + 1)
 
     # Boxplot
-    box = plt.boxplot(
-        box_data, positions=positions - 0.2, widths=0.25, patch_artist=True
-    )
+    box = plt.boxplot(box_data, positions=positions - 0.2, widths=0.25, patch_artist=True)
     # Set box colors
     for patch, color in zip(box["boxes"], colors):
         patch.set_facecolor(color)
 
     # Violinplots
-    violin = plt.violinplot(
-        box_data, positions=positions + 0.2, showmeans=True, showmedians=False
-    )
+    violin = plt.violinplot(box_data, positions=positions + 0.2, showmeans=True, showmedians=False)
     # Set violin plot colors
     for pc, color in zip(violin["bodies"], colors):
         pc.set_facecolor(color)
@@ -174,21 +162,13 @@ def create_box_violin_plot(
     plt.gca().set_ylim(bottom=0)
 
     # Legend
-    plt.legend(
-        [box["boxes"][0], box["boxes"][1]], ["Einfahrt", "Ausfahrt"], loc="upper right"
-    )
+    plt.legend([box["boxes"][0], box["boxes"][1]], ["Einfahrt", "Ausfahrt"], loc="upper right")
 
     plt.tight_layout()
     plt.savefig(
         os.path.join(
             curr_dir,
-            "plots\\box_violin_Zyk"
-            + zyklus
-            + "_ID"
-            + str(id_standort)
-            + "_"
-            + str(street_name)
-            + ".png",
+            "plots\\box_violin_Zyk" + zyklus + "_ID" + str(id_standort) + "_" + str(street_name) + ".png",
         )
     )
     plt.close()
@@ -197,9 +177,7 @@ def create_box_violin_plot(
 def main():
     curr_dir = os.path.dirname(os.path.realpath(__file__))
     dataset = pd.read_csv(os.path.join(curr_dir, "data\\all_data.csv"))
-    streets = dataset[
-        ["Zyklus", "Strassenname", "id_standort", "Geschwindigkeit"]
-    ].drop_duplicates()
+    streets = dataset[["Zyklus", "Strassenname", "id_standort", "Geschwindigkeit"]].drop_duplicates()
     phase_order = ["Vormessung", "Betrieb", "Nachmessung"]
     phase_colors = {"Vormessung": "blue", "Betrieb": "green", "Nachmessung": "red"}
     einfahrt_color = "royalblue"
@@ -211,10 +189,7 @@ def main():
         street_name = streets.iloc[i]["Strassenname"]
         id_standort = streets.iloc[i]["id_standort"]
         geschw = int(streets.iloc[i]["Geschwindigkeit"])
-        street_data = dataset[
-            (dataset["Strassenname"] == street_name)
-            & (dataset["Phase"].isin(phase_order))
-        ]
+        street_data = dataset[(dataset["Strassenname"] == street_name) & (dataset["Phase"].isin(phase_order))]
 
         create_histogram_plot(
             curr_dir,

@@ -1,15 +1,16 @@
-import logging
 import json
+import logging
 import os
 import re
 from datetime import datetime, timedelta
 
-import common
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
+
+import common
 
 load_dotenv()
 
@@ -40,35 +41,23 @@ def main():
             )
             #  manually specify which datetime objects must be considered DT
             # (https://stackoverflow.com/questions/36757981/python-pandas-tz-localize-ambiguoustimeerror-cannot-infer-dst-time-with-non-d)
-            infer_dst = np.array(
-                [False] * df_method.shape[0]
-            )  # all False -> every row considered DT
-            df_method["timestamp"] = pd.to_datetime(
-                df_method.timestamp, format="%d.%m.%Y %H"
-            ).dt.tz_localize(
+            infer_dst = np.array([False] * df_method.shape[0])  # all False -> every row considered DT
+            df_method["timestamp"] = pd.to_datetime(df_method.timestamp, format="%d.%m.%Y %H").dt.tz_localize(
                 "Europe/Zurich", nonexistent="shift_forward", ambiguous=infer_dst
             )
-            duplicate_index = [
-                idx
-                for idx, value in enumerate(df_method.timestamp.duplicated(keep="last"))
-                if value
-            ]
+            duplicate_index = [idx for idx, value in enumerate(df_method.timestamp.duplicated(keep="last")) if value]
             if duplicate_index:
                 df_method["timestamp"] = [
                     correct_dst_timezone(x) if idx != duplicate_index[0] else x
                     for idx, x in enumerate(df_method["timestamp"])
                 ]
             else:
-                df_method["timestamp"] = [
-                    correct_dst_timezone(x) for x in df_method["timestamp"]
-                ]
+                df_method["timestamp"] = [correct_dst_timezone(x) for x in df_method["timestamp"]]
             df = pd.concat([df, df_method])
             df = df.reset_index(drop=True)
         logging.info("add timestamp with daylight saving time if needed")
         for column in ["hh", "dd", "mm"]:
-            df[column] = [
-                x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)
-            ]
+            df[column] = [x if len(x) == 2 else ("0" + x) for x in df[column].astype(str)]
         # Alle Zeitstempel sind immer in Winterzeit (UTC+1)
 
         logging.info('remove measured data and add once with method "gemessen"')
@@ -102,9 +91,7 @@ def main():
             f"{river}_Vorhersagen.csv",
         )
         df_export.to_csv(export_filename, index=False, sep=";")
-        common.update_ftp_and_odsp(
-            export_filename, "hydrodata.ch/data/vorhersagen", DICT_ID[river]
-        )
+        common.update_ftp_and_odsp(export_filename, "hydrodata.ch/data/vorhersagen", DICT_ID[river])
 
 
 def get_date_time(line):
@@ -134,9 +121,7 @@ def extract_data(river, method):
     gemessen_info = str(lines[8])
     gemessen = get_date_time(gemessen_info)
     curr_dir = os.path.dirname(os.path.realpath(__file__))
-    path_to_file = (
-        f"{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt"
-    )
+    path_to_file = f"{curr_dir}/data/vorhersagen/latest_data/det_{method}_{river}_table.txt"
     with open(path_to_file, mode="wb") as file:
         for line in lines[14::]:
             file.write(line)
@@ -179,9 +164,7 @@ def get_quantiles(river, method, url):
     req = common.requests_get(url, auth=HTTPBasicAuth(HTTPS_USER, HTTPS_PASS))
     lines = req.content.splitlines()
     curr_dir = os.path.dirname(os.path.realpath(__file__))
-    path_to_file = (
-        f"{curr_dir}/data/vorhersagen/latest_data/quant_{method}_{river}_table.txt"
-    )
+    path_to_file = f"{curr_dir}/data/vorhersagen/latest_data/quant_{method}_{river}_table.txt"
     with open(path_to_file, mode="wb") as file:
         for line in lines[14::]:
             file.write(line)

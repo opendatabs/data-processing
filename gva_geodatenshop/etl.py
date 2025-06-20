@@ -8,13 +8,14 @@ import urllib.parse
 import zipfile
 from datetime import datetime
 
-import common
 import geopandas as gpd
 import pandas as pd
 import requests
 from charset_normalizer import from_path
-from common import change_tracking as ct
 from dotenv import load_dotenv
+
+import common
+from common import change_tracking as ct
 
 load_dotenv()
 
@@ -89,16 +90,12 @@ def create_map_links(geometry, p1, p2):
 
     #  create a Map_links
     lat, lon = centroid.y, centroid.x
-    Map_links = (
-        f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}"
-    )
+    Map_links = f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}"
     return Map_links
 
 
 data = open_csv(os.path.join("data_orig", "ogd_datensaetze.csv"))
-metadata = pd.read_excel(
-    os.path.join("data_harvester", "Metadata.xlsx"), na_filter=False
-)
+metadata = pd.read_excel(os.path.join("data_harvester", "Metadata.xlsx"), na_filter=False)
 pub_org = open_csv(os.path.join("data_harvester", "Publizierende_organisation.csv"))
 
 logging.info("Left-joining data, metadata and publizierende_organisation...")
@@ -116,21 +113,14 @@ for index, row in joined_data.iterrows():
     logging.info("Checking " + path + "...")
 
     # Exclude raster data for the moment - we don't have them yet
-    if (
-        row["import"] is True and row["art"] == "Vektor"
-    ):  # and (str(row['ordnerpfad'])) in required_topics
+    if row["import"] is True and row["art"] == "Vektor":  # and (str(row['ordnerpfad'])) in required_topics
         # Get files from folder
         files = os.listdir(path)
         # create a temporary folder for data processing
         temp_folder_path = os.path.join("data", "temp_folder")
         os.makedirs(temp_folder_path, exist_ok=True)
         # make a copy of all files in temporary folder
-        [
-            shutil.copy(
-                os.path.join(path, files), os.path.join(temp_folder_path, files)
-            )
-            for files in os.listdir(path)
-        ]
+        [shutil.copy(os.path.join(path, files), os.path.join(temp_folder_path, files)) for files in os.listdir(path)]
         # How many unique shp files are there?
         shpfiles = glob.glob(os.path.join(path, "*.shp"))
         logging.info(str(len(shpfiles)) + " shp files in " + path)
@@ -156,15 +146,9 @@ for index, row in joined_data.iterrows():
                 query_string = redirect_link.split("?")[1]
                 # Splitting the parameters at'&'
                 params = query_string.split("&")
-                tree_groups = [
-                    param.replace("tree_groups=", "")
-                    for param in params
-                    if "tree_groups=" in param
-                ][0]
+                tree_groups = [param.replace("tree_groups=", "") for param in params if "tree_groups=" in param][0]
                 tree_group_layers_ = [
-                    param.replace("tree_group_layers_", "")
-                    for param in params
-                    if "tree_group_layers_" in param
+                    param.replace("tree_group_layers_", "") for param in params if "tree_group_layers_" in param
                 ][0]
                 # read the shape file in GVA folder
                 gdf = gpd.read_file(shpfile)
@@ -172,9 +156,7 @@ for index, row in joined_data.iterrows():
                 gdf_transformed = gdf.copy()
                 gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
                 gdf_transformed["Map Links"] = gdf_transformed.apply(
-                    lambda row2: create_map_links(
-                        row2["geometry"], tree_groups, tree_group_layers_
-                    ),
+                    lambda row2: create_map_links(row2["geometry"], tree_groups, tree_group_layers_),
                     axis=1,
                     result_type="expand",
                 )
@@ -195,17 +177,13 @@ for index, row in joined_data.iterrows():
                 # create local subfolder mirroring mounted drive
                 folder = shppath.replace("data_orig", "")
                 folder_flat = folder.replace("/", "__").replace("\\", "__")
-                zipfilepath = os.path.join(
-                    "data", folder_flat + "__" + shpfilename_noext + ".zip"
-                )
+                zipfilepath = os.path.join("data", folder_flat + "__" + shpfilename_noext + ".zip")
                 logging.info("Creating zip file " + zipfilepath)
                 zipf = zipfile.ZipFile(zipfilepath, "w")
                 # zipf = zipfile.ZipFile(os.path.join(path, shpfilename_noext + '.zip'), 'w')
                 logging.info("Finding Files to add to zip")
                 # Include all files with shpfile's name
-                files_to_zip = glob.glob(
-                    os.path.join(temp_folder_path, shpfilename_noext + ".*")
-                )
+                files_to_zip = glob.glob(os.path.join(temp_folder_path, shpfilename_noext + ".*"))
                 for file_to_zip in files_to_zip:
                     # Do not add the zip file into the zip file...
                     if not file_to_zip.endswith(".zip"):
@@ -216,9 +194,7 @@ for index, row in joined_data.iterrows():
                 # Upload zip file to ftp server
                 ftp_remote_dir = "harvesters/GVA/data"
                 if ct.has_changed(zipfilepath) and (not no_file_copy):
-                    common.upload_ftp(
-                        zipfilepath, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir
-                    )
+                    common.upload_ftp(zipfilepath, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
                     ct.update_hash_file(zipfilepath)
 
                 # Load metadata from geocat.ch
@@ -232,14 +208,10 @@ for index, row in joined_data.iterrows():
 
                 # In some geocat URLs there's a tab character, remove it.
                 geocat_uid = row["geocat"].rsplit("/", 1)[-1].replace("\t", "")
-                geocat_url = (
-                    f"https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}"
-                )
+                geocat_url = f"https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}"
                 logging.info(f"Getting metadata from {geocat_url}...")
                 # todo: Locally save geocat metadata file and use this if the https request fails (which seems to happen often)
-                r = common.requests_get(
-                    geocat_url, headers={"accept": "application/xml, application/json"}
-                )
+                r = common.requests_get(geocat_url, headers={"accept": "application/xml, application/json"})
                 r.raise_for_status()
                 metadata = r.json()
 
@@ -254,11 +226,7 @@ for index, row in joined_data.iterrows():
                 #     metadata = json.loads(json_string)
                 #     # ...continue code on this level...
 
-                modified = (
-                    datetime.strptime(str(row["dateaktualisierung"]), "%Y%m%d")
-                    .date()
-                    .strftime("%Y-%m-%d")
-                )
+                modified = datetime.strptime(str(row["dateaktualisierung"]), "%Y%m%d").date().strftime("%Y-%m-%d")
                 schema_file = ""
 
                 # Get the correct title and ods_id from the list of titles in the title_nice column by checking the index of the current shpfile_noext in the shapes column
@@ -270,11 +238,7 @@ for index, row in joined_data.iterrows():
                     if row["schema_file"] == "True":
                         schema_file = f"{ods_id}.csv"
                 # Column "shapes" is empty, a title is set in column "title_nice", only one shape is present
-                elif (
-                    len(shapes_to_load) == 0
-                    and len(str(row["titel_nice"])) > 0
-                    and len(shpfiles) == 1
-                ):
+                elif len(shapes_to_load) == 0 and len(str(row["titel_nice"])) > 0 and len(shpfiles) == 1:
                     title = str(row["titel_nice"])
                     ods_id = str(row["ods_id"])
                     if row["schema_file"] == "True":
@@ -290,24 +254,18 @@ for index, row in joined_data.iterrows():
                         schema_file = f"{ods_id}.csv"
 
                 # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
-                geocat_description_textgroup = metadata["gmd:identificationInfo"][
-                    "che:CHE_MD_DataIdentification"
-                ]["gmd:abstract"]["gmd:PT_FreeText"]["gmd:textGroup"]
+                geocat_description_textgroup = metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"][
+                    "gmd:abstract"
+                ]["gmd:PT_FreeText"]["gmd:textGroup"]
                 geocat_description = (
-                    geocat_description_textgroup[0]["gmd:LocalisedCharacterString"][
-                        "#text"
-                    ]
+                    geocat_description_textgroup[0]["gmd:LocalisedCharacterString"]["#text"]
                     if isinstance(geocat_description_textgroup, list)
-                    else geocat_description_textgroup["gmd:LocalisedCharacterString"][
-                        "#text"
-                    ]
+                    else geocat_description_textgroup["gmd:LocalisedCharacterString"]["#text"]
                 )
                 # Check if a description to the current shape is given in Metadata.csv
                 description_list = str(row["beschreibung"]).split(";")
                 description = (
-                    description_list[shp_to_load_number]
-                    if len(description_list) - 1 >= shp_to_load_number
-                    else ""
+                    description_list[shp_to_load_number] if len(description_list) - 1 >= shp_to_load_number else ""
                 )
 
                 dcat_ap_ch_domain = ""
@@ -320,9 +278,7 @@ for index, row in joined_data.iterrows():
                         "ods_id": ods_id,
                         "name": geocat_uid + ":" + shpfilename_noext,
                         "title": title,
-                        "description": description
-                        if len(description) > 0
-                        else geocat_description,
+                        "description": description if len(description) > 0 else geocat_description,
                         # Only add nonempty strings as references
                         "references": "; ".join(
                             filter(
@@ -378,17 +334,10 @@ for index, row in joined_data.iterrows():
                         "publizierende-organisation": row["publizierende_organisation"],
                         # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
                         "tags": ";".join(
-                            [
-                                i
-                                for i in list(
-                                    set(row["tags"].split(";") + ["opendata.swiss"])
-                                )
-                                if i != ""
-                            ]
+                            [i for i in list(set(row["tags"].split(";") + ["opendata.swiss"])) if i != ""]
                         ),
                         "geodaten-modellbeschreibung": row["modellbeschreibung"],
-                        "source_dataset": "https://data-bs.ch/opendatasoft/harvesters/GVA/"
-                        + zipfilepath,
+                        "source_dataset": "https://data-bs.ch/opendatasoft/harvesters/GVA/" + zipfilepath,
                         "schema_file": schema_file,
                     }
                 )
@@ -404,19 +353,13 @@ for index, row in joined_data.iterrows():
         shutil.rmtree(temp_folder_path)
 # Save harvester file
 if len(metadata_for_ods) > 0:
-    ods_metadata = pd.concat(
-        [pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False
-    )
+    ods_metadata = pd.concat([pd.DataFrame(), pd.DataFrame(metadata_for_ods)], ignore_index=True, sort=False)
     ods_metadata_filename = os.path.join("data", "Opendatasoft_Export_GVA.csv")
     ods_metadata.to_csv(ods_metadata_filename, index=False, sep=";")
 
     if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
-        logging.info(
-            f"Uploading ODS harvester file {ods_metadata_filename} to FTP Server..."
-        )
-        common.upload_ftp(
-            ods_metadata_filename, FTP_SERVER, FTP_USER, FTP_PASS, "harvesters/GVA"
-        )
+        logging.info(f"Uploading ODS harvester file {ods_metadata_filename} to FTP Server...")
+        common.upload_ftp(ods_metadata_filename, FTP_SERVER, FTP_USER, FTP_PASS, "harvesters/GVA")
         ct.update_hash_file(ods_metadata_filename)
 
     # Upload each schema_file
@@ -425,9 +368,7 @@ if len(metadata_for_ods) > 0:
         if schemafile != "":
             schemafile_with_path = os.path.join("schema_files", schemafile)
             if ct.has_changed(schemafile_with_path) and (not no_file_copy):
-                logging.info(
-                    f"Uploading ODS schema file to FTP Server: {schemafile_with_path}..."
-                )
+                logging.info(f"Uploading ODS schema file to FTP Server: {schemafile_with_path}...")
                 common.upload_ftp(
                     schemafile_with_path,
                     FTP_SERVER,

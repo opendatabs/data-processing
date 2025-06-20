@@ -1,8 +1,10 @@
-import pandas as pd
-import geopandas as gpd
-from aue_fischereistatistik import credentials
 import locale
 from datetime import datetime
+
+import geopandas as gpd
+import pandas as pd
+
+from aue_fischereistatistik import credentials
 
 # When adding data for new year:
 # 1. In the new Excel file, filter out all rows that have 'zurückgesetzt' in the Bemerkungen column
@@ -43,9 +45,7 @@ for year in range(2010, 2022):
     df_year["Jahr"] = year
     # replace '0' with empty string
     # Question: In Gewässercode: 0=unbekannt?
-    df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[
-        ["Datum", "Monat", "Fischart", "Länge"]
-    ].replace("0", "")
+    df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace("0", "")
 
     # make month column complete/in same format and add day column
     if (df_year["Monat"] == "").all():
@@ -55,13 +55,9 @@ for year in range(2010, 2022):
         df_year["Datum"] = df_year["Datum"].apply(
             lambda x: x[:-1] if (x != "" and (x[-1] == "." or x[-1] == ",")) else x
         )
-        df_year["Monat"] = pd.to_datetime(
-            df_year["Datum"], format="%d.%m", errors="coerce"
-        ).dt.strftime("%m")
+        df_year["Monat"] = pd.to_datetime(df_year["Datum"], format="%d.%m", errors="coerce").dt.strftime("%m")
         # add day column
-        df_year["Tag"] = pd.to_datetime(
-            df_year["Datum"], format="%d.%m", errors="coerce"
-        ).dt.strftime("%d")
+        df_year["Tag"] = pd.to_datetime(df_year["Datum"], format="%d.%m", errors="coerce").dt.strftime("%d")
     else:
         # Complete month column all in same format
         # need to correct in month column: 'juli' 'juö' 'ap' '3' 'mai' '0' ''
@@ -72,16 +68,12 @@ for year in range(2010, 2022):
         df_year["Monat"].replace("juö", "Juli", inplace=True)
         # change month names to zero-padded decimal numbers
         df_year["Monat"] = df_year["Monat"].apply(
-            lambda x: datetime.strptime(x, "%B")
-            if type(x) == str and x != ""
-            else pd.NaT
+            lambda x: datetime.strptime(x, "%B") if isinstance(x, str) and x != "" else pd.NaT
         )
         df_year["Monat"] = df_year["Monat"].dt.strftime("%m")
         # add day column
         if year == "2012":
-            df_year["Tag"] = pd.to_datetime(
-                df_year["Datum"], format="%d.%m.", errors="coerce"
-            ).dt.strftime("%d")
+            df_year["Tag"] = pd.to_datetime(df_year["Datum"], format="%d.%m.", errors="coerce").dt.strftime("%d")
         else:
             df_year["Tag"] = df_year["Datum"]
     df = pd.concat([df, df_year])
@@ -119,12 +111,8 @@ df["Gewässer"] = df["Gewässercode"].map(dict_gew)
 df["Länge"].replace("unbekannt", "", inplace=True)
 
 # force some columns to be of integer type
-df["Kesslergrundel"] = pd.to_numeric(
-    df["Kesslergrundel"], errors="coerce", downcast="integer"
-).fillna(0)
-df["Schwarzmundgrundel"] = pd.to_numeric(
-    df["Schwarzmundgrundel"], errors="coerce", downcast="integer"
-).fillna(0)
+df["Kesslergrundel"] = pd.to_numeric(df["Kesslergrundel"], errors="coerce", downcast="integer").fillna(0)
+df["Schwarzmundgrundel"] = pd.to_numeric(df["Schwarzmundgrundel"], errors="coerce", downcast="integer").fillna(0)
 
 # make new column with total grundel
 df["Grundel Total"] = df["Kesslergrundel"] + df["Schwarzmundgrundel"]
@@ -154,16 +142,13 @@ df = df[condition]
 df["Fischereikarte"] = df["Fischereikarte"].str.replace(" R$", " Rhein", regex=True)
 df["Fischereikarte"] = df["Fischereikarte"].str.replace(" W$", " Wiese", regex=True)
 df["Fischereikarte"] = df["Fischereikarte"].str.replace(" B$", " Birs", regex=True)
-df["Fischereikarte"] = df["Fischereikarte"].str.replace(
-    "Fischerkarte", "Fischereikarte"
-)
+df["Fischereikarte"] = df["Fischereikarte"].str.replace("Fischerkarte", "Fischereikarte")
 df["Fischereikarte"] = df["Fischereikarte"].str.replace("Jahreskarte", "Fischereikarte")
 
 dict_karten = {
     "unbekannt": "Fischereikarte Rhein",
     "Fischereikarte der Gemeinde Riehen": "Fischereikarte Wiese",
     "Fischereikarte Wiese, Fischereikarte der Gemeinde Riehen": "Fischereikarte Wiese",
-    "Fischereikarte der Gemeinde Riehen": "Fischereikarte Wiese",
     "Fischereikarte Riehen": "Fischereikarte Wiese",
     "Galgenkarte": "Galgenkarte Rhein",
     "Jugendfischerkarte Rhein": "Jugendfischereikarte Rhein",
@@ -179,10 +164,7 @@ df["Fischereikarte"].replace(dict_karten, inplace=True)
 # if Fischereikarte Wiese: 'Wiese - Pachtstrecke Riehen'
 # if Galgenkarte/Fischereikarte Rhein: 'Rhein - Basel-Stadt'
 df.loc[
-    (
-        (df["Gewässer"] == "unbekannt")
-        & (df["Fischereikarte"] == "Fischereikarte Wiese")
-    ),
+    ((df["Gewässer"] == "unbekannt") & (df["Fischereikarte"] == "Fischereikarte Wiese")),
     "Gewässer",
 ] = "Wiese - Pachtstrecke Riehen"
 df.loc[
@@ -190,10 +172,7 @@ df.loc[
     "Gewässer",
 ] = "Rhein - Basel-Stadt"
 df.loc[
-    (
-        (df["Gewässer"] == "unbekannt")
-        & (df["Fischereikarte"] == "Fischereikarte Rhein")
-    ),
+    ((df["Gewässer"] == "unbekannt") & (df["Fischereikarte"] == "Fischereikarte Rhein")),
     "Gewässer",
 ] = "Rhein - Basel-Stadt"
 

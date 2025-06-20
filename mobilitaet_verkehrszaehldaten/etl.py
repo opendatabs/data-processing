@@ -5,12 +5,12 @@ import sqlite3
 import sys
 from shutil import copy2
 
-import common
+import dashboard_calc
 import pandas as pd
-from common import change_tracking as ct
 from dotenv import load_dotenv
 
-import dashboard_calc
+import common
+from common import change_tracking as ct
 
 load_dotenv()
 
@@ -42,9 +42,7 @@ def parse_truncate(path, filename, no_file_cp):
         },
     )
     logging.info(f"Processing {path_to_copied_file}...")
-    data["DateTimeFrom"] = pd.to_datetime(
-        data["Date"] + " " + data["TimeFrom"], format="%d.%m.%Y %H:%M"
-    )
+    data["DateTimeFrom"] = pd.to_datetime(data["Date"] + " " + data["TimeFrom"], format="%d.%m.%Y %H:%M")
     data["DateTimeTo"] = data["DateTimeFrom"] + pd.Timedelta(hours=1)
     data["Year"] = data["DateTimeFrom"].dt.year
     data["Month"] = data["DateTimeFrom"].dt.month
@@ -61,12 +59,8 @@ def parse_truncate(path, filename, no_file_cp):
         velo_data = data[(data["TrafficType"] != "MIV") & (data["TrafficType"].notna())]
         miv_filename = "MIV_" + filename
         velo_filename = "Velo_" + filename
-        miv_data.to_csv(
-            os.path.join("data", miv_filename), sep=";", encoding="utf-8", index=False
-        )
-        velo_data.to_csv(
-            os.path.join("data", velo_filename), sep=";", encoding="utf-8", index=False
-        )
+        miv_data.to_csv(os.path.join("data", miv_filename), sep=";", encoding="utf-8", index=False)
+        velo_data.to_csv(os.path.join("data", velo_filename), sep=";", encoding="utf-8", index=False)
         dashboard_calc.create_files_for_dashboard(velo_data, filename)
         dashboard_calc.create_files_for_dashboard(miv_data, filename)
         generated_filenames = generate_files(miv_data, miv_filename)
@@ -91,13 +85,7 @@ def parse_truncate(path, filename, no_file_cp):
         if "Fussgänger" in data.columns:
             data.drop(columns=["Fussgänger"], inplace=True)
         logging.info("Updating TrafficType depending on the filename for FLIR data...")
-        data["TrafficType"] = (
-            "MIV"
-            if "MIV6" in filename
-            else "Velo"
-            if "Velo" in filename
-            else "Fussgänger"
-        )
+        data["TrafficType"] = "MIV" if "MIV6" in filename else "Velo" if "Velo" in filename else "Fussgänger"
         dashboard_calc.create_files_for_dashboard(data, filename)
         generated_filenames = generate_files(data, filename)
         if "MIV" in filename:
@@ -116,9 +104,7 @@ def parse_truncate(path, filename, no_file_cp):
     else:
         logging.info("Retrieving Zst_id as the first word in SiteName...")
         data["Zst_id"] = data["SiteName"].str.split().str[0]
-        logging.info(
-            f"Creating files for dashboard for the following data: {filename}..."
-        )
+        logging.info(f"Creating files for dashboard for the following data: {filename}...")
         dashboard_calc.create_files_for_dashboard(data, filename)
         generated_filenames = generate_files(data, filename)
         if "MIV_Class" in filename:
@@ -135,18 +121,12 @@ def parse_truncate(path, filename, no_file_cp):
             conn.close()
         if "MIV_Speed" in filename:
             logging.info("Adding data to database MIV_Geschwindigkeitsklassen")
-            conn = sqlite3.connect(
-                os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db")
-            )
-            data.to_sql(
-                "MIV_Geschwindigkeitsklassen", conn, if_exists="append", index=False
-            )
+            conn = sqlite3.connect(os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db"))
+            data.to_sql("MIV_Geschwindigkeitsklassen", conn, if_exists="append", index=False)
             conn.commit()
             conn.close()
 
-    logging.info(
-        f"Created the following files to further processing: {str(generated_filenames)}"
-    )
+    logging.info(f"Created the following files to further processing: {str(generated_filenames)}")
     return generated_filenames
 
 
@@ -163,9 +143,7 @@ def generate_files(df, filename):
     logging.info(f"Creating dataset {current_filename}...")
     latest_year = df["Year"].max()
     years = range(latest_year - keep_years, latest_year + 1)
-    logging.info(
-        f"Keeping only data for the following years in the truncated file: {list(years)}..."
-    )
+    logging.info(f"Keeping only data for the following years in the truncated file: {list(years)}...")
     truncated_data = df[df.Year.isin(years)]
     logging.info(f"Saving {current_filename}...")
     truncated_data.to_csv(current_filename, sep=";", encoding="utf-8", index=False)
@@ -269,9 +247,7 @@ def create_databases():
     conn.close()
 
     logging.info("Creating MIV_Geschwindigkeitsklassen database...")
-    conn = sqlite3.connect(
-        os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db")
-    )
+    conn = sqlite3.connect(os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db"))
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE MIV_Geschwindigkeitsklassen (
@@ -369,9 +345,7 @@ def create_indices_databases():
     conn.commit()
     conn.close()
 
-    conn = sqlite3.connect(
-        os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db")
-    )
+    conn = sqlite3.connect(os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db"))
     common.create_indices(conn, "MIV_Geschwindigkeitsklassen", columns_to_index_miv)
     conn.commit()
     conn.close()

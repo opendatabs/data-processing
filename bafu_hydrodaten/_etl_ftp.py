@@ -2,15 +2,14 @@ import os
 from datetime import datetime
 from ftplib import FTP
 
-import common
 import numpy as np
 import pandas as pd
+
+import common
 from bafu_hydrodaten import credentials
 
 print("Connecting to FTP Server to read data...")
-ftp = FTP(
-    credentials.ftp_read_server, credentials.ftp_read_user, credentials.ftp_read_pass
-)
+ftp = FTP(credentials.ftp_read_server, credentials.ftp_read_user, credentials.ftp_read_pass)
 print(f"Changing to remote dir {credentials.ftp_read_remote_path}...")
 ftp.cwd(credentials.ftp_read_remote_path)
 local_path = "bafu_hydrodaten/data"
@@ -52,9 +51,9 @@ print("Fixing entries with zeit == 24:00...")
 merged_df.loc[merged_df.zeit == "24:00", "zeit"] = "23:59"
 # Time is given in MEZ (UTC+1) thus use 'Etc/GMT-1' according to https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 # merged_df['timestamp'] = pd.to_datetime(merged_df.datum + ' ' + merged_df.zeit, format='%d.%m.%Y %H:%M').dt.tz_localize('Europe/Zurich')
-merged_df["timestamp"] = pd.to_datetime(
-    merged_df.datum + " " + merged_df.zeit, format="%d.%m.%Y %H:%M"
-).dt.tz_localize("Etc/GMT-1")
+merged_df["timestamp"] = pd.to_datetime(merged_df.datum + " " + merged_df.zeit, format="%d.%m.%Y %H:%M").dt.tz_localize(
+    "Etc/GMT-1"
+)
 # Adding a minute to entries with time 23:59 then replacing 23:59 with 24:00 again
 merged_df.timestamp = np.where(
     merged_df.zeit != "23:59",

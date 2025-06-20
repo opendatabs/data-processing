@@ -2,8 +2,9 @@ import logging
 import os
 from datetime import datetime
 
-import common
 import pandas as pd
+
+import common
 
 
 def main():

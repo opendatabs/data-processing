@@ -3,7 +3,6 @@ import pathlib
 
 import numpy as np
 import pandas as pd
-
 from etl_details import calculate_details
 from etl_kennzahlen import calculate_kennzahlen
 
@@ -23,12 +22,8 @@ def bring_in_right_form_to_compare(df):
 
 
 # process old data files
-path_files = os.path.join(
-    pathlib.Path(__file__).parents[1], "data/Schlussresultate_abst"
-)
-files = [
-    f for f in os.listdir(path_files) if os.path.isfile(os.path.join(path_files, f))
-]
+path_files = os.path.join(pathlib.Path(__file__).parents[1], "data/Schlussresultate_abst")
+files = [f for f in os.listdir(path_files) if os.path.isfile(os.path.join(path_files, f))]
 
 dates = set()
 for file in files:
@@ -44,7 +39,9 @@ for date in dates:
 
 
 # compare data from dataportal with newly processed data
-path_all = "/Users/hester/PycharmProjects/data-processing/staka_abstimmungen/src/dataset_process_harmonize_old_datasets.csv"
+path_all = (
+    "/Users/hester/PycharmProjects/data-processing/staka_abstimmungen/src/dataset_process_harmonize_old_datasets.csv"
+)
 df_dataportal_all = pd.read_csv(path_all)
 df_dataportal_all = bring_in_right_form_to_compare(df_dataportal_all)
 df_test = bring_in_right_form_to_compare(df_test)

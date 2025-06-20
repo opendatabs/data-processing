@@ -1,10 +1,10 @@
 import logging
 import os
 
-import common
+import create_ics
 import pandas as pd
 
-import create_ics
+import common
 
 
 def main():
@@ -12,18 +12,12 @@ def main():
     xlsx = pd.ExcelFile(excel_path)
     sheet_names = xlsx.sheet_names
     df = pd.concat(
-        [
-            extract_relevant_rows(sheet, excel_path)
-            for sheet in sheet_names
-            if sheet != "Vorlage"
-        ],
+        [extract_relevant_rows(sheet, excel_path) for sheet in sheet_names if sheet != "Vorlage"],
         ignore_index=True,
     )
     df.columns = ["Wochentag", "Datum", "Bezeichnung", "Anzahl_Tage"]
     # Give Wochentag german names Montag etc
-    df["Wochentag"] = df["Datum"].apply(
-        lambda x: x.strftime("%A") if pd.notna(x) else None
-    )
+    df["Wochentag"] = df["Datum"].apply(lambda x: x.strftime("%A") if pd.notna(x) else None)
     df["Wochentag"] = df["Wochentag"].replace(
         {
             "Monday": "Montag",
@@ -69,9 +63,7 @@ def update_ics_file_on_ftp_server() -> None:
                 filename=ics_file_name,
                 remote_path=remote_path,
             )
-            logging.info(
-                f"ICS file uploaded successfully to FTP server in folder '{remote_path}'"
-            )
+            logging.info(f"ICS file uploaded successfully to FTP server in folder '{remote_path}'")
         except Exception as e:
             logging.error(f"Error uploading ICS file to FTP server: {str(e)}")
     else:

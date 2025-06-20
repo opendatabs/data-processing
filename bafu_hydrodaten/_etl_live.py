@@ -1,7 +1,8 @@
 from xml.etree import ElementTree
 
-import common
 import requests
+
+import common
 from bafu_hydrodaten import credentials
 
 print("Connecting to HTTPS Server to read data...")

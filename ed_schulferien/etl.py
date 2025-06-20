@@ -6,21 +6,19 @@ import shutil
 import zipfile
 from datetime import timedelta
 
-import common
+import create_ics
 import pandas as pd
 import vobject
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-import create_ics
+import common
 
 load_dotenv()
 
 ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100397")
 
-website_to_fetch_from = (
-    "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
-)
+website_to_fetch_from = "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
 
 data_orig_path = "data_orig/"
 data_path = "data/"
@@ -30,12 +28,7 @@ def get_smallest_year(data_orig_path_abs: str) -> int:
     years = []
     for foldername in os.listdir(data_orig_path_abs):
         parts = foldername.split()
-        if (
-            len(parts) >= 2
-            and parts[0] == "Schulferien"
-            and parts[1].isdigit()
-            and len(parts[1]) == 4
-        ):
+        if len(parts) >= 2 and parts[0] == "Schulferien" and parts[1].isdigit() and len(parts[1]) == 4:
             years.append(int(parts[1]))
     return min(years) if years else None
 
@@ -46,9 +39,7 @@ def fetch_data_from_website(data_orig_path_abs: str) -> None:
     response = common.requests_get(website_to_fetch_from)
     soup = BeautifulSoup(response.content, "html.parser")
 
-    zip_links = [
-        a["href"] for a in soup.find_all("a", href=True) if a["href"].endswith(".zip")
-    ]
+    zip_links = [a["href"] for a in soup.find_all("a", href=True) if a["href"].endswith(".zip")]
 
     for link in zip_links:
         zip_filename = os.path.basename(link)
@@ -108,9 +99,7 @@ def process_ics_file(file_path: str, csv_writer: csv.writer) -> None:
         csv_writer.writerow([year, name, start_date_str, end_date_str])
 
 
-def transform_all_ics_to_csv(
-    data_orig_path_abs: str, data_path_abs: str, output_filename_csv: str
-) -> None:
+def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str, output_filename_csv: str) -> None:
     csv_file_path = os.path.join(data_path_abs, output_filename_csv)
     with open(csv_file_path, "w", newline="", encoding="utf-8") as csvfile:
         csv_writer = csv.writer(csvfile, delimiter=";")
@@ -136,9 +125,7 @@ def push_all_data_csv_with_realtime_push(data_path_abs: str):
             logging.info(f"Ignoring {filename}; Not a csv file")
             continue
         if "school_holidays_since_" not in filename:
-            logging.info(
-                f"Ignoring {filename}; Not of the form school_holidays_since_*.csv"
-            )
+            logging.info(f"Ignoring {filename}; Not of the form school_holidays_since_*.csv")
             continue
 
         csv_file_path_abs = os.path.join(data_path_abs, filename)
@@ -161,9 +148,7 @@ def clean_data_orig_folder(data_orig_path_abs) -> None:
             elif os.path.isdir(item_path):
                 shutil.rmtree(item_path)
 
-    logging.info(
-        f'All files and folders in "{data_orig_path_abs}" except dummy.txt have been deleted.'
-    )
+    logging.info(f'All files and folders in "{data_orig_path_abs}" except dummy.txt have been deleted.')
 
 
 def update_ics_file_on_ftp_server() -> None:
@@ -182,9 +167,7 @@ def update_ics_file_on_ftp_server() -> None:
                     filename=ics_file_name,
                     remote_path=remote_path,
                 )
-                logging.info(
-                    f"ICS file uploaded successfully to FTP server in folder '{remote_path}'"
-                )
+                logging.info(f"ICS file uploaded successfully to FTP server in folder '{remote_path}'")
             except Exception as e:
                 logging.error(f"Error uploading ICS file to FTP server: {str(e)}")
         else:

@@ -2,7 +2,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 # Specify the file path
-file_path = 'data/100097.parquet'
+file_path = "data/100097.parquet"
 
 # Read the Parquet file
 df = pd.read_parquet(file_path)

@@ -4,9 +4,10 @@ import os
 import pathlib
 from datetime import datetime
 
-import common
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -26,14 +27,12 @@ def main():
         logging.info("No rows to push to ODS... ")
     df = pd.read_csv(io.StringIO(s), sep=";")
     df = df.dropna(subset=["Anfangszeit"])
-    df["timestamp"] = pd.to_datetime(
-        df.Anfangszeit, format="%d.%m.%Y %H:%M:%S"
-    ).dt.tz_localize("Europe/Zurich", ambiguous=True, nonexistent="shift_forward")
+    df["timestamp"] = pd.to_datetime(df.Anfangszeit, format="%d.%m.%Y %H:%M:%S").dt.tz_localize(
+        "Europe/Zurich", ambiguous=True, nonexistent="shift_forward"
+    )
 
     logging.info("Melting dataframe...")
-    ldf = df.melt(
-        id_vars=["Anfangszeit", "timestamp"], var_name="station", value_name="pm_2_5"
-    )
+    ldf = df.melt(id_vars=["Anfangszeit", "timestamp"], var_name="station", value_name="pm_2_5")
     logging.info("Dropping rows with empty pm25 value...")
     ldf["pm_2_5"] = pd.to_numeric(ldf["pm_2_5"], errors="coerce")
     ldf = ldf.dropna(subset=["pm_2_5"])

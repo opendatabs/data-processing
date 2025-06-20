@@ -1,11 +1,11 @@
 import logging
 import os
 
-import common
 import pandas as pd
-import requests
 from dotenv import load_dotenv
 from requests_ntlm import HttpNtlmAuth
+
+import common
 
 load_dotenv()
 

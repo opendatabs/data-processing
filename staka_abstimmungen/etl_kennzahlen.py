@@ -1,19 +1,18 @@
 import os
 from functools import reduce
 
-import common
 import dateparser
 import numpy as np
 import pandas as pd
+
+import common
 
 
 def main():
     data_file_names = ["Resultate_EID.xlsx", "Resultate_KAN.xlsx"]
     abst_date, concatenated_df = calculate_kennzahlen(data_file_names)
 
-    export_file_name = os.path.join(
-        "data", "data-processing-output", f"Abstimmungen_{abst_date}.csv"
-    )
+    export_file_name = os.path.join("data", "data-processing-output", f"Abstimmungen_{abst_date}.csv")
     print(f"Exporting to {export_file_name}...")
     concatenated_df.to_csv(export_file_name, index=False)
 
@@ -52,9 +51,7 @@ def calculate_kennzahlen(data_file_names):
     for data_file_name in data_file_names:
         import_file_name = os.path.join("data", data_file_name)
         print(f"Reading dataset from {import_file_name} to retrieve sheet names...")
-        sheets = pd.read_excel(
-            import_file_name, sheet_name=None, skiprows=4, index_col=None
-        )
+        sheets = pd.read_excel(import_file_name, sheet_name=None, skiprows=4, index_col=None)
         dat_sheet_names = []
         print('Determining "DAT n" sheets...')
         for key in sheets:
@@ -74,9 +71,7 @@ def calculate_kennzahlen(data_file_names):
         for sheet_name in dat_sheet_names:
             is_gegenvorschlag = False  # Is this a sheet that contains a Gegenvorschlag?
             print(f"Reading Abstimmungstitel from {sheet_name}...")
-            df_title = pd.read_excel(
-                import_file_name, sheet_name=sheet_name, skiprows=4, index_col=None
-            )
+            df_title = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=4, index_col=None)
             abst_title_raw = df_title.columns[1]
             # Get String that starts form ')' plus space + 1 characters to the right
             abst_title = abst_title_raw[abst_title_raw.find(")") + 2 :]
@@ -84,13 +79,9 @@ def calculate_kennzahlen(data_file_names):
                 is_gegenvorschlag = True
 
             print(f"Reading Abstimmungsart and Date from {sheet_name}...")
-            df_meta = pd.read_excel(
-                import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None
-            )
+            df_meta = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None)
             title_string = df_meta.columns[1]
-            abst_type = (
-                "kantonal" if title_string.startswith("Kantonal") else "national"
-            )
+            abst_type = "kantonal" if title_string.startswith("Kantonal") else "national"
             abst_date_raw = title_string[title_string.find("vom ") + 4 :]
             abst_date = dateparser.parse(abst_date_raw).strftime("%Y-%m-%d")
 
@@ -153,14 +144,10 @@ def calculate_kennzahlen(data_file_names):
                     df.Sti_Initiative_Anz,
                     df.Sti_Gegenvorschlag_Anz,
                 ]:
-                    column.replace(
-                        0, pd.NA, inplace=True
-                    )  # Prevent division by zero errors
+                    column.replace(0, pd.NA, inplace=True)  # Prevent division by zero errors
 
                 df["anteil_ja_stimmen"] = df.Ja_Anz / (df.Ja_Anz + df.Nein_Anz)
-                df["gege_anteil_ja_Stimmen"] = df.Gege_Ja_Anz / (
-                    df.Gege_Ja_Anz + df.Gege_Nein_Anz
-                )
+                df["gege_anteil_ja_Stimmen"] = df.Gege_Ja_Anz / (df.Gege_Ja_Anz + df.Gege_Nein_Anz)
                 df["sti_anteil_init_stimmen"] = df.Sti_Initiative_Anz / (
                     df.Sti_Initiative_Anz + df.Sti_Gegenvorschlag_Anz
                 )
@@ -178,9 +165,7 @@ def calculate_kennzahlen(data_file_names):
             else:
                 print("Adding data for case that is not with Gegenvorschlag...")
                 result_type = df_meta.columns[8]
-                print(
-                    "Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag..."
-                )
+                print("Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag...")
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
             df["Result_Art"] = result_type
@@ -199,9 +184,7 @@ def calculate_kennzahlen(data_file_names):
             "Total Kanton": "Basel-Stadt",
         }
         for repl in wahllok_replacements:
-            all_df.loc[(df["Gemein_Name"] == repl), "Gemein_Name"] = (
-                wahllok_replacements[repl]
-            )
+            all_df.loc[(df["Gemein_Name"] == repl), "Gemein_Name"] = wahllok_replacements[repl]
 
         print("Adding Gemein_ID to all_df...")
         gemein_ids = {
@@ -212,15 +195,11 @@ def calculate_kennzahlen(data_file_names):
             "Basel-Stadt": 99,
         }
         for gemein_name in gemein_ids:
-            all_df.loc[(all_df["Gemein_Name"] == gemein_name), "Gemein_ID"] = (
-                gemein_ids[gemein_name]
-            )
+            all_df.loc[(all_df["Gemein_Name"] == gemein_name), "Gemein_ID"] = gemein_ids[gemein_name]
 
         stimmber_sheet_name = "Stimmberechtigte (Details)"
         print(f"Reading data from {stimmber_sheet_name}...")
-        df_stimmber = pd.read_excel(
-            import_file_name, sheet_name=stimmber_sheet_name, skiprows=4, index_col=None
-        )
+        df_stimmber = pd.read_excel(import_file_name, sheet_name=stimmber_sheet_name, skiprows=4, index_col=None)
         print(f"Renaming columns in sheet {stimmber_sheet_name}...")
         df_stimmber.rename(
             columns={
@@ -238,24 +217,18 @@ def calculate_kennzahlen(data_file_names):
         # df_stimmber.loc[(df_stimmber['Gemein_Name'] == 'Total Kanton'), 'Gemein_Name'] = 'Basel-Stadt'
         gemein_replacements = {"Total Kanton": "Basel-Stadt"}
         for repl in gemein_replacements:
-            df_stimmber.loc[(df_stimmber["Gemein_Name"] == repl), "Gemein_Name"] = (
-                gemein_replacements[repl]
-            )
+            df_stimmber.loc[(df_stimmber["Gemein_Name"] == repl), "Gemein_Name"] = gemein_replacements[repl]
 
         kennz_sheet_name = "Abstimmungs-Kennzahlen"
         # number of empty rows may be different for KAN and EID files
         # skip_rows = 4 if '_KAN' in import_file_name else 7
-        df_kennz_sheet = pd.read_excel(
-            import_file_name, sheet_name=kennz_sheet_name, index_col=None
-        )
+        df_kennz_sheet = pd.read_excel(import_file_name, sheet_name=kennz_sheet_name, index_col=None)
         skip_rows = None
         for index, row in df_kennz_sheet.iterrows():
             # Check if the row contains table headers
             if "Stimmberechtigte" in row.values or "\nStimmberechtigte" in row.values:
                 skip_rows = index + 1  # Set the table start index
-        print(
-            f"Reading data from {kennz_sheet_name}, skipping first {skip_rows} rows..."
-        )
+        print(f"Reading data from {kennz_sheet_name}, skipping first {skip_rows} rows...")
         df_kennz = pd.read_excel(
             import_file_name,
             sheet_name=kennz_sheet_name,
@@ -283,16 +256,12 @@ def calculate_kennzahlen(data_file_names):
 
         print(f"Cleaning up Gemeinde names in {kennz_sheet_name}...")
         for repl in gemein_replacements:
-            df_kennz.loc[(df_kennz["Gemein_Name"] == repl), "Gemein_Name"] = (
-                gemein_replacements[repl]
-            )
+            df_kennz.loc[(df_kennz["Gemein_Name"] == repl), "Gemein_Name"] = gemein_replacements[repl]
         # print(f'Removing duplicate column stimmber_anz from {kennz_sheet_name}...')
         # df_kennz.drop(columns=['Stimmber_Anz'], inplace=True)
         print("Remove e-voting for Gemeinde")
         gemeinde = ["Basel", "Riehen", "Bettingen"]
-        df_kennz.loc[
-            df_kennz["Gemein_Name"].isin(gemeinde), "Anz_Elektr_pro_Abst_Art"
-        ] = pd.NA
+        df_kennz.loc[df_kennz["Gemein_Name"].isin(gemeinde), "Anz_Elektr_pro_Abst_Art"] = pd.NA
         print("Joining all sheets into one...")
         frames_to_join = [all_df, df_kennz, df_stimmber]
         df_merged = reduce(
@@ -316,9 +285,7 @@ def calculate_kennzahlen(data_file_names):
             concatenated_df["Abst_ID"],
         )
     print('Creating column "Abst_ID_Titel"...')
-    concatenated_df["Abst_ID_Titel"] = (
-        concatenated_df["Abst_ID"].astype(str) + ": " + concatenated_df["Abst_Titel"]
-    )
+    concatenated_df["Abst_ID_Titel"] = concatenated_df["Abst_ID"].astype(str) + ": " + concatenated_df["Abst_Titel"]
     # print(f'Calculating Stimmbeteiligung...')
     # concatenated_df['Stimmbet'] = concatenated_df['Eingel_Anz'] / concatenated_df['Stimmber_Anz']
     concatenated_df["id"] = (

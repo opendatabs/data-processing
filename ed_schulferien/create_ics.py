@@ -10,9 +10,7 @@ import uuid
 import pytz
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Path configuration
 data_dir = "data"
@@ -23,9 +21,7 @@ template_file = os.path.join(os.path.dirname(__file__), "SchulferienBS.ics.templ
 # Based on the template description: "Zur Referenz sind vergangene Ferien des aktuellen und vorherigen Schuljahres
 # sowie zukünftige Ferien für ungefähr 3 Jahre im Voraus enthalten."
 current_year = datetime.datetime.now().year
-YEAR_RANGE_START = (
-    current_year - 2
-)  # Previous school year (better more than not enough)
+YEAR_RANGE_START = current_year - 2  # Previous school year (better more than not enough)
 YEAR_RANGE_END = current_year + 3  # Approximately 3 years in the future
 # IMPORTANT: If these year ranges are modified, make sure to update the description in the SchulferienBS.ics.template file as well
 
@@ -84,9 +80,7 @@ def parse_existing_ics(file_path):
                             "dtstamp": event_dtstamp,
                         }
                     current_event = None
-                    event_uid = event_summary = event_start = event_end = (
-                        event_dtstamp
-                    ) = None
+                    event_uid = event_summary = event_start = event_end = event_dtstamp = None
                 elif current_event is not None:
                     if line.startswith("UID:"):
                         event_uid = line[4:]
@@ -116,9 +110,7 @@ def main():
     # Sort files by year (descending) so newer files are processed first
     csv_files.sort(key=extract_year_from_filename, reverse=True)
 
-    logging.info(
-        f"Found {len(csv_files)} CSV files in the data directory{':' if csv_files else '.'}"
-    )
+    logging.info(f"Found {len(csv_files)} CSV files in the data directory{':' if csv_files else '.'}")
     for csv_file in csv_files:
         year = extract_year_from_filename(csv_file)
         logging.info(f"- {csv_file} (year: {year})")
@@ -158,10 +150,7 @@ def main():
                     end_date_formatted = end_date.replace("-", "")
 
                     # Make sure that the dates are exactly 8 characters long and numbers only, if not, skip the event
-                    if (
-                        len(start_date_formatted) != 8
-                        or not start_date_formatted.isdigit()
-                    ):
+                    if len(start_date_formatted) != 8 or not start_date_formatted.isdigit():
                         logging.warning(f"Invalid start date: {start_date_formatted}")
                         continue
                     if len(end_date_formatted) != 8 or not end_date_formatted.isdigit():
@@ -173,9 +162,7 @@ def main():
 
                     # Filter events to only include those in the configured year range
                     if YEAR_RANGE_START <= event_year <= YEAR_RANGE_END:
-                        all_events.append(
-                            (year, name, start_date_formatted, end_date_formatted)
-                        )
+                        all_events.append((year, name, start_date_formatted, end_date_formatted))
                     else:
                         logging.debug(
                             f"Skipping event outside year range: {name} ({start_date_formatted} to {end_date_formatted})"
@@ -210,25 +197,17 @@ def main():
         # Check if this event already exists in the ICS file
         if event_uid in existing_events:
             existing_event = existing_events[event_uid]
-            existing_summary = (
-                existing_event["summary"].strip() if existing_event["summary"] else ""
-            )
+            existing_summary = existing_event["summary"].strip() if existing_event["summary"] else ""
 
             # If the event exists with the same details, no need to update
-            if (
-                existing_summary == name
-                and existing_event["start"] == start_date
-                and existing_event["end"] == end_date
-            ):
+            if existing_summary == name and existing_event["start"] == start_date and existing_event["end"] == end_date:
                 logging.debug(
                     f"Event '{name}' ({start_date} to {end_date}) already exists with the same details - skipping"
                 )
                 skipped_events_count += 1
 
                 # Use the original timestamp for unchanged events
-                event_timestamp = (
-                    existing_event["dtstamp"] if existing_event["dtstamp"] else dtstamp
-                )
+                event_timestamp = existing_event["dtstamp"] if existing_event["dtstamp"] else dtstamp
 
                 # We still need to add the existing event to the output
                 end_date_exclusive = add_one_day(end_date)
@@ -245,9 +224,7 @@ def main():
                 ics_content.extend(event_block)
                 continue
             else:
-                logging.info(
-                    f"Event '{name}' exists but details have changed - updating"
-                )
+                logging.info(f"Event '{name}' exists but details have changed - updating")
                 # The event will be updated by proceeding with the code below
                 updated_events_count += 1
 
@@ -312,26 +289,16 @@ def main():
 
     # Log a summary of what happened
     if skipped_events_count > 0:
-        logging.info(
-            f"Skipped {skipped_events_count} events that already existed with the same details"
-        )
+        logging.info(f"Skipped {skipped_events_count} events that already existed with the same details")
     if updated_events_count > 0:
         logging.info(f"Updated {updated_events_count} events that had changed details")
     if preserved_events_count > 0:
-        logging.info(
-            f"Preserved {preserved_events_count} existing events that were not in the CSV files"
-        )
+        logging.info(f"Preserved {preserved_events_count} existing events that were not in the CSV files")
     if deleted_events_count > 0:
-        logging.info(
-            f"Deleted {deleted_events_count} old events outside the configured year range"
-        )
+        logging.info(f"Deleted {deleted_events_count} old events outside the configured year range")
 
-    logging.info(
-        f"Added {len(processed_events) - skipped_events_count - updated_events_count} new events"
-    )
-    logging.info(
-        f"ICS file contains events from {YEAR_RANGE_START} to {YEAR_RANGE_END}"
-    )
+    logging.info(f"Added {len(processed_events) - skipped_events_count - updated_events_count} new events")
+    logging.info(f"ICS file contains events from {YEAR_RANGE_START} to {YEAR_RANGE_END}")
     logging.info(f"ICS file created successfully at {output_ics_file}")
 
     return output_ics_file

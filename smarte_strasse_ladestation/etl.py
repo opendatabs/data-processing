@@ -2,10 +2,11 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-import common
 import pandas as pd
-from common import ODS_API_KEY
 from dotenv import load_dotenv
+
+import common
+from common import ODS_API_KEY
 
 load_dotenv()
 
@@ -20,9 +21,7 @@ API_KEY = os.getenv("API_KEY_LADESTATIONEN")
 def main():
     latest_ods_start_time = get_latest_ods_start_time()
     from_filter = datetime.fromisoformat(latest_ods_start_time) - timedelta(days=7)
-    logging.info(
-        f"Latest starttime in ods: {latest_ods_start_time}, retrieving charges from {from_filter}..."
-    )
+    logging.info(f"Latest starttime in ods: {latest_ods_start_time}, retrieving charges from {from_filter}...")
 
     token = authenticate()
     df = extract_data(token=token, from_filter=from_filter)
@@ -73,9 +72,7 @@ def get_latest_ods_start_time():
     record_count = len(r.json()["records"])
     # if dataset is empty: return 1970-01-01
     latest_ods_start_time = (
-        "1970-01-01T00:00:00+00:00"
-        if record_count == 0
-        else r.json()["records"][0]["fields"]["starttime"]
+        "1970-01-01T00:00:00+00:00" if record_count == 0 else r.json()["records"][0]["fields"]["starttime"]
     )
     return latest_ods_start_time
 

@@ -4,11 +4,12 @@ import os
 import zipfile
 from datetime import datetime
 
-import common
 import geopandas as gpd
 import pandas as pd
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
+
+import common
 
 load_dotenv()
 
@@ -36,9 +37,7 @@ def download_spatial_descriptors(url):
     gdf = gpd.read_file(export_filename, encoding="utf-8")
     gdf.to_crs("EPSG:2056")
     # Gruppieren von Polygone nach "begehrenid" und Zusammenfügen der Polygone
-    grouped_gdf = (
-        gdf.groupby("begehrenid")["geometry"].agg(lambda x: x.unary_union).reset_index()
-    )
+    grouped_gdf = gdf.groupby("begehrenid")["geometry"].agg(lambda x: x.unary_union).reset_index()
     # Beispiel zum Testen
     # shape = grouped_gdf[grouped_gdf['begehrenid'] == 9077159]
     # ax = shape.plot(edgecolor='black',color='green', alpha=0.5, figsize=(10, 10))
@@ -69,23 +68,19 @@ def main():
                 "dokument3",
             ]
         ]
-        df_export.datum_von = pd.to_datetime(
-            df_export["datum_von"], format="%d.%m.%Y", errors="raise"
-        ).dt.strftime("%Y-%m-%d")
-        df_export.datum_bis = pd.to_datetime(
-            df_export["datum_bis"], format="%d.%m.%Y", errors="raise"
-        ).dt.strftime("%Y-%m-%d")
+        df_export.datum_von = pd.to_datetime(df_export["datum_von"], format="%d.%m.%Y", errors="raise").dt.strftime(
+            "%Y-%m-%d"
+        )
+        df_export.datum_bis = pd.to_datetime(df_export["datum_bis"], format="%d.%m.%Y", errors="raise").dt.strftime(
+            "%Y-%m-%d"
+        )
         df_export["allmendbewilligungen"] = (
             "https://data.bs.ch/explore/dataset/100018/table/?refine.belgartbez=Baustelle&q=begehrenid="
             + df_export.id.astype(str)
         )
-    df_allm = download_spatial_descriptors(
-        "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018/exports/shp"
-    )
+    df_allm = download_spatial_descriptors("https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018/exports/shp")
     df_allm["begehrenid"] = df_allm["begehrenid"].astype("int64")
-    df_export = df_export.merge(
-        df_allm, how="left", left_on="id", right_on="begehrenid"
-    )
+    df_export = df_export.merge(df_allm, how="left", left_on="id", right_on="begehrenid")
     df_export = df_export.drop(columns=["begehrenid"])
     export_filename = "data/baustellen.csv"
     df_export.to_csv(export_filename, index=False)

@@ -1,17 +1,14 @@
 import logging
 import os
 
-import common
 import numpy as np
 import pandas as pd
+
+import common
 from common import change_tracking as ct
 
-RAW_METADATA_FILENAME = os.path.join(
-    "data_orig", "geschwindigkeitsmonitoring_raw_metadata.pkl"
-)
-RICHTUNG_METADATA_FILENAME = os.path.join(
-    "data_orig", "geschwindigkeitsmonitoring_richtung.pkl"
-)
+RAW_METADATA_FILENAME = os.path.join("data_orig", "geschwindigkeitsmonitoring_raw_metadata.pkl")
+RICHTUNG_METADATA_FILENAME = os.path.join("data_orig", "geschwindigkeitsmonitoring_richtung.pkl")
 DATA_FILENAME = os.path.join("data_orig", "geschwindigkeitsmonitoring_data.pkl")
 
 
@@ -21,9 +18,7 @@ def main():
         or ct.has_changed(RICHTUNG_METADATA_FILENAME)
         or ct.has_changed(DATA_FILENAME)
     ):
-        logging.info(
-            "Reading pickle data files created by kapo_geschwindigkitsmonitoring.etl:"
-        )
+        logging.info("Reading pickle data files created by kapo_geschwindigkitsmonitoring.etl:")
         logging.info(f"Reading into df from pickle {RAW_METADATA_FILENAME}...")
         df_metadata_raw = pd.read_pickle(RAW_METADATA_FILENAME)
         logging.info(f"Reading into df from pickle {RICHTUNG_METADATA_FILENAME}...")
@@ -44,26 +39,20 @@ def main():
             include_lowest=True,
         )
 
-        logging.info(
-            "Calculating Messdauer by using first and last vehicle per Messung-ID..."
-        )
+        logging.info("Calculating Messdauer by using first and last vehicle per Messung-ID...")
         df_dtv_messung = df_data.groupby(["Messung-ID"], as_index=False).agg(
             min_timestamp=("Timestamp", min), max_timestamp=("Timestamp", max)
         )
-        df_dtv_messung["Messdauer_h"] = (
-            df_dtv_messung.max_timestamp - df_dtv_messung.min_timestamp
-        ) / pd.Timedelta(hours=1)
-
-        logging.info(
-            "Counting number of data points per Messung-ID, and Richtung ID..."
+        df_dtv_messung["Messdauer_h"] = (df_dtv_messung.max_timestamp - df_dtv_messung.min_timestamp) / pd.Timedelta(
+            hours=1
         )
-        df_dtv_richtung = df_data.groupby(
-            ["Messung-ID", "Richtung ID"], as_index=False
-        ).agg(count=("Fahrzeuglänge", "count"))
 
-        logging.info(
-            "Calculating number of data points per Messung-ID, Richtung ID, and Laengenklasse..."
+        logging.info("Counting number of data points per Messung-ID, and Richtung ID...")
+        df_dtv_richtung = df_data.groupby(["Messung-ID", "Richtung ID"], as_index=False).agg(
+            count=("Fahrzeuglänge", "count")
         )
+
+        logging.info("Calculating number of data points per Messung-ID, Richtung ID, and Laengenklasse...")
         df_dtv_laengenklasse = (
             df_data.groupby(["Messung-ID", "Richtung ID", "Laengenklasse"])
             .agg(count=("Fahrzeuglänge", "count"))
@@ -85,23 +74,15 @@ def main():
         logging.info("calculating DTV...")
         df_dtv["dtv"] = df_dtv["count"] / df_dtv["Messdauer_h"] * 24
         df_dtv["dtv_lt_3.5m"] = df_dtv["count_lt_3.5m"] / df_dtv.Messdauer_h * 24
-        df_dtv["dtv_3.5_to_lt_8m"] = (
-            df_dtv["count_3.5_to_lt_8m"] / df_dtv.Messdauer_h * 24
-        )
+        df_dtv["dtv_3.5_to_lt_8m"] = df_dtv["count_3.5_to_lt_8m"] / df_dtv.Messdauer_h * 24
         df_dtv["dtv_gte_8m"] = df_dtv["count_gte_8m"] / df_dtv.Messdauer_h * 24
 
         logging.info("Calculating column extraordinary_traffic_routing...")
         df_metadata_raw["extraordinary_traffic_routing"] = (
-            df_metadata_raw["Messung während ausserordentlicher Verkehrsführung"]
-            .fillna(0)
-            .astype(bool)
+            df_metadata_raw["Messung während ausserordentlicher Verkehrsführung"].fillna(0).astype(bool)
         )
-        logging.info(
-            "Filtering out measurements based on Status, and joining with df_metadata_raw ..."
-        )
-        df_status = df_metadata_raw.query("Status == 'Messung beendet'").rename(
-            columns={"ID": "Messung-ID"}
-        )
+        logging.info("Filtering out measurements based on Status, and joining with df_metadata_raw ...")
+        df_status = df_metadata_raw.query("Status == 'Messung beendet'").rename(columns={"ID": "Messung-ID"})
         df_dtv_status = df_status.merge(df_dtv, how="inner")
 
         df_export = df_dtv_status[

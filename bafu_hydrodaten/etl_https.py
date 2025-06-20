@@ -4,11 +4,12 @@ import os
 from datetime import datetime
 from functools import reduce
 
-import common
 import pandas as pd
 import urllib3
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
+
+import common
 
 load_dotenv()
 
@@ -37,9 +38,7 @@ def process_river(river_files, river_name, river_id, variable_names, push_url):
         df = pd.read_csv(response.raw, parse_dates=True, infer_datetime_format=True)
         dfs.append(df)
     print("Merging data frames...")
-    all_df = reduce(
-        lambda left, right: pd.merge(left, right, on=["Time"], how="outer"), dfs
-    )
+    all_df = reduce(lambda left, right: pd.merge(left, right, on=["Time"], how="outer"), dfs)
     all_filename = f"data/{river_name}/{river_name}_hydrodata_{datetime.today().strftime('%Y-%m-%d')}.csv"
     all_df.to_csv(all_filename, index=False)
     ftp_dir = f"hydrodata.ch/data/{river_name}"

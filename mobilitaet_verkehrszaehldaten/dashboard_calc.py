@@ -3,10 +3,11 @@ import json
 import logging
 import os
 
-import common
 import pandas as pd
-from common import change_tracking as ct
 from dotenv import load_dotenv
+
+import common
+from common import change_tracking as ct
 
 load_dotenv()
 
@@ -80,23 +81,17 @@ def create_files_for_dashboard(df, filename):
                 subfolder = traffic_type
 
             # Save the original site data
-            current_filename = os.path.join(
-                "data", "sites", subfolder, f"{str(site)}.csv"
-            )
+            current_filename = os.path.join("data", "sites", subfolder, f"{str(site)}.csv")
             logging.info(f"Saving {current_filename}...")
             site_data.to_csv(current_filename, sep=";", encoding="utf-8", index=False)
 
             if ct.has_changed(current_filename):
                 # Add Direction_LaneName column
                 site_data["Direction_LaneName"] = (
-                    site_data["DirectionName"].astype(str)
-                    + "#"
-                    + site_data["LaneName"].astype(str)
+                    site_data["DirectionName"].astype(str) + "#" + site_data["LaneName"].astype(str)
                 )
                 # Convert Date to string format like '2022-01-01'
-                site_data["Date"] = pd.to_datetime(
-                    site_data["Date"], format="%d.%m.%Y"
-                ).dt.strftime("%Y-%m-%d")
+                site_data["Date"] = pd.to_datetime(site_data["Date"], format="%d.%m.%Y").dt.strftime("%Y-%m-%d")
 
                 # Perform aggregations
                 aggregate_hourly(site_data, categories, subfolder, site, filename)
@@ -179,15 +174,11 @@ def aggregate_hourly(site_data, categories, subfolder, site, filename):
     # Determine the date range
     min_date = pd.to_datetime(site_data["Date"]).min()
     max_date = pd.to_datetime(site_data["Date"]).max()
-    date_range = pd.DataFrame(
-        {"Date": pd.date_range(start=min_date, end=max_date).strftime("%Y-%m-%d")}
-    )
+    date_range = pd.DataFrame({"Date": pd.date_range(start=min_date, end=max_date).strftime("%Y-%m-%d")})
 
     for category in categories[filename]:
         # Calculate the total counts per hour for each date, direction, and lane
-        df_to_pivot = site_data[
-            ["Date", "Direction_LaneName", "HourFrom", category]
-        ].copy()
+        df_to_pivot = site_data[["Date", "Direction_LaneName", "HourFrom", category]].copy()
         df_agg = df_to_pivot.pivot_table(
             index=["Date", "Direction_LaneName"],
             values=category,
@@ -200,22 +191,16 @@ def aggregate_hourly(site_data, categories, subfolder, site, filename):
         complete_dates = pd.MultiIndex.from_product(
             [date_range["Date"], directions_lanes], names=["Date", "Direction_LaneName"]
         ).to_frame(index=False)
-        df_agg = complete_dates.merge(
-            df_agg, on=["Date", "Direction_LaneName"], how="left"
-        )
+        df_agg = complete_dates.merge(df_agg, on=["Date", "Direction_LaneName"], how="left")
 
         df_agg["Weekday"] = pd.to_datetime(df_agg["Date"]).dt.weekday
-        df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split(
-            "#", expand=True
-        )
+        df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split("#", expand=True)
         df_agg = df_agg.drop(columns=["Direction_LaneName"])
 
         # Save the hourly data
         save_upload_remove(
             df_agg,
-            os.path.join(
-                "data", "sites", subfolder, f"{str(site)}_{category}_hourly.csv"
-            ),
+            os.path.join("data", "sites", subfolder, f"{str(site)}_{category}_hourly.csv"),
             f"verkehrszaehl_dashboard/data/{subfolder}",
         )
 
@@ -232,22 +217,14 @@ def aggregate_daily(site_data, categories, subfolder, site, filename):
     - filename (str): Name of the file being processed.
     """
     # Calculate the daily counts per weekday for each date, direction, and lane
-    df_to_group = site_data[
-        ["Date", "Direction_LaneName"] + categories[filename]
-    ].copy()
+    df_to_group = site_data[["Date", "Direction_LaneName"] + categories[filename]].copy()
 
     # Determine the date range
     min_date = pd.to_datetime(site_data["Date"]).min()
     max_date = pd.to_datetime(site_data["Date"]).max()
-    date_range = pd.DataFrame(
-        {"Date": pd.date_range(start=min_date, end=max_date).strftime("%Y-%m-%d")}
-    )
+    date_range = pd.DataFrame({"Date": pd.date_range(start=min_date, end=max_date).strftime("%Y-%m-%d")})
 
-    df_agg = (
-        df_to_group.groupby(["Date", "Direction_LaneName"])[categories[filename]]
-        .sum()
-        .reset_index()
-    )
+    df_agg = df_to_group.groupby(["Date", "Direction_LaneName"])[categories[filename]].sum().reset_index()
     df_agg = df_agg[df_agg["Total"] > 0]
     df_agg["Weekday"] = pd.to_datetime(df_agg["Date"]).dt.weekday
     df_agg["Week"] = pd.to_datetime(df_agg["Date"]).dt.isocalendar().week
@@ -260,9 +237,7 @@ def aggregate_daily(site_data, categories, subfolder, site, filename):
     ).to_frame(index=False)
     df_agg = complete_dates.merge(df_agg, on=["Date", "Direction_LaneName"], how="left")
 
-    df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split(
-        "#", expand=True
-    )
+    df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split("#", expand=True)
     df_agg = df_agg.drop(columns=["Direction_LaneName"])
 
     # Save the daily data
@@ -292,17 +267,13 @@ def aggregate_monthly(site_data, categories, subfolder, site, filename):
     df_agg = df_agg[df_agg["Total"] > 0]
 
     # Count the number of measures
-    df_measures = (
-        df_to_group.groupby(group_cols)["DateTimeFrom"].nunique().reset_index()
-    )
+    df_measures = df_to_group.groupby(group_cols)["DateTimeFrom"].nunique().reset_index()
     df_measures.rename(columns={"DateTimeFrom": "NumMeasures"}, inplace=True)
     df_agg = df_agg.merge(df_measures, on=group_cols, how="left")
     for col in categories[filename]:
         df_agg[col] = df_agg[col] / df_agg["NumMeasures"] * 24
 
-    df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split(
-        "#", expand=True
-    )
+    df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split("#", expand=True)
     df_agg = df_agg.drop(columns=["Direction_LaneName"])
 
     # Save the aggregated data
@@ -332,9 +303,7 @@ def aggregate_yearly(site_data, categories, subfolder, site, filename):
     df_agg = df_agg[df_agg["Total"] > 0]
 
     # Count the number of measures
-    df_measures = (
-        df_to_group.groupby(group_cols)["DateTimeFrom"].nunique().reset_index()
-    )
+    df_measures = df_to_group.groupby(group_cols)["DateTimeFrom"].nunique().reset_index()
     df_measures.rename(columns={"DateTimeFrom": "NumMeasures"}, inplace=True)
     df_agg = df_agg.merge(df_measures, on=group_cols, how="left")
     for col in categories[filename]:
@@ -351,9 +320,7 @@ def aggregate_yearly(site_data, categories, subfolder, site, filename):
 
     # Merge with the complete range
     df_agg = complete_years.merge(df_agg, on=group_cols, how="left")
-    df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split(
-        "#", expand=True
-    )
+    df_agg[["DirectionName", "LaneName"]] = df_agg["Direction_LaneName"].str.split("#", expand=True)
     df_agg = df_agg.drop(columns=["Direction_LaneName"])
 
     # Save the aggregated data
@@ -419,9 +386,7 @@ def merge_dtv_with_counts_and_locations(df, df_dtv, df_locations):
     Returns:
     - pd.DataFrame: The merged DataFrame.
     """
-    df_count = (
-        df.groupby(["Zst_id", "TrafficType"])["DateTimeFrom"].count().reset_index()
-    )
+    df_count = df.groupby(["Zst_id", "TrafficType"])["DateTimeFrom"].count().reset_index()
     df_count = df_count[df_count["DateTimeFrom"] > 0]
     df_dtv = df_dtv.merge(df_count, on=["Zst_id", "TrafficType"], how="left")
     df_dtv.rename(columns={"DateTimeFrom": "NumMeasures"}, inplace=True)
@@ -482,9 +447,7 @@ def calculate_dtv_zst_miv(df, df_locations, filename):
     }
     if filename in aggregation_dict:
         columns = aggregation_dict[filename]
-        df_tv = (
-            df.groupby(["Zst_id", "Date", "TrafficType"])[columns].sum().reset_index()
-        )
+        df_tv = df.groupby(["Zst_id", "Date", "TrafficType"])[columns].sum().reset_index()
         # Remove rows with Total = 0
         df_tv = df_tv[df_tv["Total"] > 0]
         df_dtv = df_tv.groupby(["Zst_id", "TrafficType"])[columns].mean().reset_index()
@@ -517,9 +480,7 @@ def calculate_dtv_zst_velo_fuss(df, df_locations):
 
     df_dtv_velo = df_dtv[df_dtv["TrafficType"] == "Velo"]
     df_dtv_fuss = df_dtv[df_dtv["TrafficType"] == "Fussgänger"]
-    df_dtv_fuss["TrafficType"] = (
-        "Fussgaenger"  # Correcting the TrafficType for consistency
-    )
+    df_dtv_fuss["TrafficType"] = "Fussgaenger"  # Correcting the TrafficType for consistency
     return df_dtv_velo, df_dtv_fuss
 
 

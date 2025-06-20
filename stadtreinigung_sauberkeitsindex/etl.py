@@ -5,12 +5,13 @@ import shutil
 import zipfile
 from datetime import datetime
 
-import common
 import geopandas as gpd
 import pandas as pd
 from charset_normalizer import from_path
-from common import FTP_PASS, FTP_SERVER, FTP_USER
 from requests.auth import HTTPBasicAuth
+
+import common
+from common import FTP_PASS, FTP_SERVER, FTP_USER
 
 URL = os.getenv("HTTPS_URL_TBA_SAUBERKEITSINDEX")
 USER = os.getenv("HTTPS_USER_TBA")
@@ -28,9 +29,7 @@ def main():
         file.write(r.text)
     df = add_datenstand(export_filename)
     df.to_csv(export_filename, encoding="cp1252", index=False)
-    common.update_ftp_and_odsp(
-        export_filename, "stadtreinigung/sauberkeitsindex/roh", "100288"
-    )
+    common.update_ftp_and_odsp(export_filename, "stadtreinigung/sauberkeitsindex/roh", "100288")
 
     aggregate_and_upload_to_ftp()
 
@@ -39,9 +38,7 @@ def add_datenstand(path_csv):
     result = from_path(path_csv)
     enc = result.best().encoding
     df = pd.read_csv(path_csv, encoding=enc, sep=";")
-    df["datenstand"] = pd.to_datetime(
-        os.path.basename(path_csv).split("_")[1].split(".")[0]
-    )
+    df["datenstand"] = pd.to_datetime(os.path.basename(path_csv).split("_")[1].split(".")[0])
     return df
 
 
@@ -60,9 +57,7 @@ def delete_tmp_dir(tmp_path):
         raise
 
 
-def create_aggregated_csv(
-    filename_aggregated_csv: str, tmp_dir_name: str, data_agg_dir_name: str
-):
+def create_aggregated_csv(filename_aggregated_csv: str, tmp_dir_name: str, data_agg_dir_name: str):
     logging.debug(f"Temporary directory path: {tmp_dir_name}")
     logging.debug(f"Data aggregation directory path: {data_agg_dir_name}")
 
@@ -70,9 +65,7 @@ def create_aggregated_csv(
         os.makedirs(tmp_dir_name, exist_ok=False)
         logging.debug(f"Created temporary directory: {tmp_dir_name}")
     except FileExistsError:
-        logging.warning(
-            f"Temporary directory already exists: {tmp_dir_name}. Deleting and recreating."
-        )
+        logging.warning(f"Temporary directory already exists: {tmp_dir_name}. Deleting and recreating.")
         delete_tmp_dir(tmp_path=tmp_dir_name)
         os.makedirs(tmp_dir_name, exist_ok=True)
         logging.debug(f"Recreated temporary directory: {tmp_dir_name}")
@@ -105,12 +98,8 @@ def create_aggregated_csv(
         data_year = data_date.year
         data_month = data_date.month
 
-        file_info.append(
-            {"file": file, "date": data_date, "year": data_year, "month": data_month}
-        )
-        logging.debug(
-            f"Processed file info: {file} - Year: {data_year}, Month: {data_month}"
-        )
+        file_info.append({"file": file, "date": data_date, "year": data_year, "month": data_month})
+        logging.debug(f"Processed file info: {file} - Year: {data_year}, Month: {data_month}")
 
     # Group files by their respective quarters based on the actual data month
     quarters = {}
@@ -120,15 +109,11 @@ def create_aggregated_csv(
             quarters[quarter] = []
         quarters[quarter].append(info)
 
-    logging.debug(
-        f"Grouped files into {len(quarters)} quarters: {list(quarters.keys())}"
-    )
+    logging.debug(f"Grouped files into {len(quarters)} quarters: {list(quarters.keys())}")
 
     # Ensure that each quarter has all three months of data
     complete_quarters = {q: files for q, files in quarters.items() if len(files) == 3}
-    logging.debug(
-        f"Found {len(complete_quarters)} complete quarters: {list(complete_quarters.keys())}"
-    )
+    logging.debug(f"Found {len(complete_quarters)} complete quarters: {list(complete_quarters.keys())}")
 
     # Download spatial descriptors
     ods_id = "100042"
@@ -145,13 +130,9 @@ def create_aggregated_csv(
     gdf_viertel_full = gdf.to_crs("EPSG:2056")  # Change to a suitable projected CRS
 
     # Create gdf_viertel without Riehen and Bettingen
-    gdf_viertel = gdf_viertel_full[
-        ~gdf_viertel_full["wov_name"].isin(["Riehen", "Bettingen"])
-    ]
+    gdf_viertel = gdf_viertel_full[~gdf_viertel_full["wov_name"].isin(["Riehen", "Bettingen"])]
 
-    logging.debug(
-        "Loaded and reprojected spatial data. Removed Riehen and Bettingen from gdf_viertel."
-    )
+    logging.debug("Loaded and reprojected spatial data. Removed Riehen and Bettingen from gdf_viertel.")
 
     # Aggregate SKI (CCI) values by Wohnviertel and Quarter
     results = []
@@ -159,9 +140,7 @@ def create_aggregated_csv(
         logging.debug(f"Processing quarter: {quarter[0]}-{quarter[1]}")
         quarter_data = []
         for file_info in files:
-            logging.debug(
-                f"Processing file: {file_info['file']} for {file_info['year']}-{file_info['month']:02d}"
-            )
+            logging.debug(f"Processing file: {file_info['file']} for {file_info['year']}-{file_info['month']:02d}")
             df = pd.read_csv(
                 os.path.join(tmp_dir_name, file_info["file"]),
                 encoding="cp1252",
@@ -182,9 +161,7 @@ def create_aggregated_csv(
             gdf["wov_name"] = gdf["centroid"].apply(get_wov_name)
 
             quarter_data.append(gdf)
-            logging.debug(
-                f"Processed {len(gdf)} records for {file_info['year']}-{file_info['month']:02d}"
-            )
+            logging.debug(f"Processed {len(gdf)} records for {file_info['year']}-{file_info['month']:02d}")
 
         if not quarter_data:
             logging.warning(
@@ -236,7 +213,9 @@ def aggregate_and_upload_to_ftp():
     logging.debug("Starting aggregate_and_upload_to_ftp.")
 
     filename_aggregated_csv = "aggregated_ski_by_quarter.csv"
-    tmp_dir_name = "tmp_nt3478ws83w87"  # Random name to make it very unlikely that someone else creates the same tmp_dir
+    tmp_dir_name = (
+        "tmp_nt3478ws83w87"  # Random name to make it very unlikely that someone else creates the same tmp_dir
+    )
     data_agg_dir_name = "data_agg"
 
     logging.debug(f"Creating aggregated CSV: {filename_aggregated_csv}")
@@ -252,9 +231,7 @@ def aggregate_and_upload_to_ftp():
 
     logging.debug("Uploading aggregated CSV to FTP.")
     try:
-        common.update_ftp_and_odsp(
-            aggregated_csv_path, "stadtreinigung/sauberkeitsindex/quartal", "100362"
-        )
+        common.update_ftp_and_odsp(aggregated_csv_path, "stadtreinigung/sauberkeitsindex/quartal", "100362")
         logging.info("Aggregated CSV uploaded to FTP successfully.")
     except Exception as e:
         logging.error(f"Failed to upload aggregated CSV to FTP: {e}")
@@ -262,9 +239,7 @@ def aggregate_and_upload_to_ftp():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
     logging.info(f"Executing {__file__}...")
     main()
     logging.info("Job successful!")

@@ -2,9 +2,10 @@ import logging
 import os
 import sqlite3
 
+import pandas as pd
+
 import common
 import common.change_tracking as ct
-import pandas as pd
 
 
 def main():
@@ -55,7 +56,7 @@ def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folde
         data = pd.read_csv(data_file)
 
         # Create a connection
-        export_path = os.path.join('data', export_folder, export_file)
+        export_path = os.path.join("data", export_folder, export_file)
         conn = sqlite3.connect(export_path)
 
         # Write the data to the database
@@ -64,14 +65,13 @@ def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folde
         # TODO: Use var_file to create descriptions of columns
 
         # Create indices for every column except weight and year
-        columns_to_index = [
-            col for col in data.columns if col not in ["weight", "Jahr", "ID"]
-        ]
+        columns_to_index = [col for col in data.columns if col not in ["weight", "Jahr", "ID"]]
         common.create_indices(conn, "Antworten", columns_to_index)
 
         # Upload to ftp
         common.upload_ftp(
-            export_path, remote_path=f"befragungen/{ftp_folder}",
+            export_path,
+            remote_path=f"befragungen/{ftp_folder}",
         )
 
         conn.close()

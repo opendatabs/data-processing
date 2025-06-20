@@ -4,11 +4,12 @@ import os
 import warnings
 from datetime import datetime
 
-import common
 import pandas as pd
 import urllib3
-from common import change_tracking as ct
 from more_itertools import chunked
+
+import common
+from common import change_tracking as ct
 
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_07")
@@ -20,9 +21,7 @@ def main():
     today_string = datetime.today().strftime("%d.%m.%Y")
     decades = ["01.01.2000", "01.01.2010", "01.01.2020", today_string]
     for i in range(len(decades) - 1):
-        logging.info(
-            f"Processing data for the period {decades[i]} - {decades[i + 1]}..."
-        )
+        logging.info(f"Processing data for the period {decades[i]} - {decades[i + 1]}...")
 
         base_payload = {
             "jsform": "true",
@@ -68,9 +67,7 @@ def main():
             )
             warnings.resetwarnings()
 
-            raw_file = os.path.join(
-                "data", f"Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}-raw.csv"
-            )
+            raw_file = os.path.join("data", f"Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}-raw.csv")
             logging.info(f"Writing data into file {raw_file}...")
             with open(raw_file, "wb") as fd:
                 for chunk in r.iter_content(chunk_size=128):
@@ -101,13 +98,9 @@ def main():
                         "PM2.5 (Stundenmittelwerte  [µg/m³])": "pm2_5_stundenmittelwerte_ug_m3",
                     }
                 )
-                export_file = os.path.join(
-                    "data", f"Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}.csv"
-                )
+                export_file = os.path.join("data", f"Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}.csv")
                 df.to_csv(export_file, index=False)
-                common.upload_ftp(
-                    export_file, FTP_SERVER, FTP_USER, FTP_PASS, "luftqualitaet_ch"
-                )
+                common.upload_ftp(export_file, FTP_SERVER, FTP_USER, FTP_PASS, "luftqualitaet_ch")
                 if ct.has_changed(export_file):
                     chunk_size = 25000
                     df_chunks = chunked(df.index, chunk_size)

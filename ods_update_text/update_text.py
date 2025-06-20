@@ -1,9 +1,11 @@
-import ods_utils_py as ods_utils 
-import common 
 import logging
 
+import ods_utils_py as ods_utils
+
+import common
 
 # The skript modifies text in the metadata of public datasets. It requires the parameters 'new_text' and 'old_text'
+
 
 def replace_text_in_metadata(metadata, old_text: str, new_text: str):
     """
@@ -24,18 +26,20 @@ def replace_text_in_metadata(metadata, old_text: str, new_text: str):
 
     return recursive_replace(metadata)
 
-base_url = "https://data.bs.ch/api/automation/v1.0/"   
 
-def main ():
+base_url = "https://data.bs.ch/api/automation/v1.0/"
+
+
+def main():
     ids_url = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100057/exports/json?select=dataset_identifier&limit=-1&timezone=UTC&use_labels=false&epsg=4326"
-   
+
     logging.info("get the IDs of the records")
     r = ods_utils.requests_get(ids_url)
     response_data = r.json()
     ids = [id["dataset_identifier"] for id in response_data]
-   
+
     for id in ids:
-        try: 
+        try:
             metadata = ods_utils.get_dataset_metadata(dataset_id=id)
             if not metadata:
                 logging.info(f"No metadata found for ID {id}")
@@ -43,11 +47,11 @@ def main ():
 
             # Replace text
             new_text = "Open Data Basel-Stadt"
-            old_text = "Fachstelle für OGD Basel-Stadt",
-            updated_metadata = replace_text_in_metadata(metadata,old_text=old_text, new_text=new_text )
-          
+            old_text = ("Fachstelle für OGD Basel-Stadt",)
+            updated_metadata = replace_text_in_metadata(metadata, old_text=old_text, new_text=new_text)
+
             # Get the uid of dataset
-            dataset_uid = common.get_ods_uid_by_id(id,common.credentials) 
+            dataset_uid = common.get_ods_uid_by_id(id, common.credentials)
 
             # Update the dataset ( Update + Publish)
             r = ods_utils.requests_put(url=f"{base_url}/datasets/{dataset_uid}/metadata/", json=updated_metadata)
@@ -59,13 +63,10 @@ def main ():
                 logging.info(f"Error in {id}: {r.status_code} - {r.text}")
         except Exception as e:
             logging.info(f"Error in {id}: {str(e)}")
-    
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.info(f'Executing {__file__}...')
+    logging.info(f"Executing {__file__}...")
     main()
-    logging.info(f'Job completed successfully!')
-
-
-
+    logging.info("Job completed successfully!")

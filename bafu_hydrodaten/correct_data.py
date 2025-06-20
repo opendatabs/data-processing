@@ -1,6 +1,7 @@
-import common
 import pandas as pd
 import urllib3
+
+import common
 from bafu_hydrodaten import credentials
 
 # Push correct data received from BAFU to ODS via realtime API
@@ -22,9 +23,7 @@ df = df.rename(
     }
 )
 
-df["timestamp_dt"] = pd.to_datetime(
-    df.datum_zeit, format="%d.%m.%Y %H:%M:%S"
-).dt.tz_localize("Etc/GMT-1")
+df["timestamp_dt"] = pd.to_datetime(df.datum_zeit, format="%d.%m.%Y %H:%M:%S").dt.tz_localize("Etc/GMT-1")
 # in the following line we created the wrong dates since Python only takes the first date to infer the format...!
 # df['timestamp_dt'] = pd.to_datetime(df.datum_zeit, infer_datetime_format=True).dt.tz_localize('Etc/GMT-1')
 df["timestamp"] = df.timestamp_dt.dt.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -35,9 +34,7 @@ print(f"Pushing {realtime_df.timestamp.count()} rows to ODS realtime API...")
 # print(f'Pushing the following data to ODS: {json.dumps(json.loads(payload), indent=4)}')
 urllib3.disable_warnings()
 
-r = common.requests_post(
-    url=credentials.ods_live_push_api_url, data=payload, verify=False
-)
+r = common.requests_post(url=credentials.ods_live_push_api_url, data=payload, verify=False)
 r.raise_for_status()
 print(r.json())
 

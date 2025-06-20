@@ -15,9 +15,7 @@ def test_regression_kennzahlen(tmp_path):
     ]
 
     abst_date, df_report = etl_kennzahlen.calculate_kennzahlen(source_files)
-    file_to_test = os.path.join(
-        CURR_DIR, "fixtures", f"Abstimmungen_{abst_date}_generated_by_test.csv"
-    )
+    file_to_test = os.path.join(CURR_DIR, "fixtures", f"Abstimmungen_{abst_date}_generated_by_test.csv")
     df_report.to_csv(file_to_test, index=False)
     assert filecmp.cmp(ref_file, file_to_test)
 
@@ -30,8 +28,6 @@ def test_regression_details(tmp_path):
     ]
 
     abst_date, df_report = etl_details.calculate_details(source_files)
-    file_to_test = os.path.join(
-        CURR_DIR, "fixtures", f"Abstimmungen_Details_{abst_date}_generated_by_test.csv"
-    )
+    file_to_test = os.path.join(CURR_DIR, "fixtures", f"Abstimmungen_Details_{abst_date}_generated_by_test.csv")
     df_report.to_csv(file_to_test, index=False)
     assert filecmp.cmp(ref_file, file_to_test)

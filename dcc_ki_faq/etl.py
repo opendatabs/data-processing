@@ -1,12 +1,12 @@
 import logging
 import os
 
-import common
 import markdown
 import pandas as pd
-import numpy as np
 from markdown_newtab import NewTabExtension
 from openpyxl import load_workbook
+
+import common
 
 
 def cleanup_text_for_display(text):
@@ -90,25 +90,16 @@ def main():
         df = df.rename(columns=lambda x: "Frage" if x.startswith("Frage") else x)
         df = df.rename(columns=lambda x: "Antwort" if x.startswith("Antwort") else x)
         df = df.rename(columns=lambda x: "Sprache" if x.startswith("Sprache") else x)
-        df = df.rename(
-            columns=lambda x: "Verantwortung" if x.startswith("Verantwortung") else x
-        )
+        df = df.rename(columns=lambda x: "Verantwortung" if x.startswith("Verantwortung") else x)
         df = df.rename(columns=lambda x: "Kontakt" if x.startswith("Kontakt") else x)
-        df = df.rename(
-            columns=lambda x: "Link Anzeigetext" if x.startswith("Link") else x
-        )
-        df = df.rename(
-            columns=lambda x: "Zuletzt aktualisiert"
-            if x.startswith("Zuletzt aktualisiert")
-            else x
-        )
+        df = df.rename(columns=lambda x: "Link Anzeigetext" if x.startswith("Link") else x)
+        df = df.rename(columns=lambda x: "Zuletzt aktualisiert" if x.startswith("Zuletzt aktualisiert") else x)
         df = df.rename(columns=lambda x: "Thema" if x.startswith("Thema") else x)
         df = df.rename(columns=lambda x: "Keywords" if x.startswith("Keywords") else x)
 
         link_list = []
         link_text_list = []
         number_link_column = df.columns.get_loc("Link Anzeigetext")
-
 
         for row_idx, row in enumerate(
             ws.iter_rows(min_row=2, max_row=1 + df.shape[0], min_col=1, max_col=10),
@@ -122,14 +113,10 @@ def main():
         df["Link"] = link_list
         df["Link Anzeigetext"] = link_text_list
 
-        logging.info(
-            f"Processing {filename} with {df.shape[0]} rows. Turning markdown into HTML..."
-        )
+        logging.info(f"Processing {filename} with {df.shape[0]} rows. Turning markdown into HTML...")
 
         df["Antwort HTML"] = df["Antwort"].apply(
-            lambda x: markdown.markdown(x, extensions=["nl2br", NewTabExtension()])
-            if pd.notna(x)
-            else x
+            lambda x: markdown.markdown(x, extensions=["nl2br", NewTabExtension()]) if pd.notna(x) else x
         )
 
         df_all = pd.concat([df_all, df], ignore_index=True)

@@ -3,9 +3,10 @@ import os
 import pathlib
 from datetime import datetime
 
-import common
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -34,9 +35,7 @@ def main():
 
 def get_data():
     provider = "pesslCityClimateBasel"
-    url = (
-        f"https://measurements-api.meteoblue.com/v2/provider/{provider}/measurement/get"
-    )
+    url = f"https://measurements-api.meteoblue.com/v2/provider/{provider}/measurement/get"
     params = {
         "stations": ["0020F940"],
         "fields": [
@@ -58,9 +57,7 @@ def get_data():
     df_import = pd.DataFrame.from_dict(data)
     df_export = pd.DataFrame()
     for column in df_import["column"]:
-        df_export[column] = list(
-            df_import.loc[(df_import["column"] == column), "values"]
-        )[0]
+        df_export[column] = list(df_import.loc[(df_import["column"] == column), "values"])[0]
     # Rename columns since the names are still from the API v1
     df_export.rename(
         columns={
@@ -72,9 +69,7 @@ def get_data():
         },
         inplace=True,
     )
-    df_export["timestamp"] = pd.to_datetime(
-        df_export["timestamp"], unit="s"
-    ).dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    df_export["timestamp"] = pd.to_datetime(df_export["timestamp"], unit="s").dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     return df_export
 
 

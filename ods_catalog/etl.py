@@ -2,9 +2,10 @@ import logging
 import os
 from io import StringIO
 
-import common
 import openpyxl
 import pandas as pd
+
+import common
 from common import ODS_API_KEY
 
 
@@ -31,9 +32,7 @@ def main():
     df_list = df[new_col]
     df_sorted = df_list.sort_values(by="Issued", ascending=False)
     # Make sure the 'Issued' column is a date
-    df_sorted["Issued"] = pd.to_datetime(
-        df_sorted["Issued"], errors="coerce", format="%Y-%m-%d"
-    )
+    df_sorted["Issued"] = pd.to_datetime(df_sorted["Issued"], errors="coerce", format="%Y-%m-%d")
     # Remove missing values
     df_sorted = df_sorted.dropna(subset=["Issued"])
     # Create Excel Workbook

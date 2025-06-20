@@ -1,8 +1,9 @@
 import logging
 import os
 
-import common
 import pandas as pd
+
+import common
 
 
 def main():
@@ -27,13 +28,9 @@ def main():
     df_MKB = remove_commas_at_end(df_MKB)
     df_MKB = remove_irrelevant(df_MKB)
     # split up Kurzbezeichning and Titel
-    df_MKB[["Kurzbezeichnung", "Titel"]] = df_MKB[
-        "Kurzbezeichnung und Titel"
-    ].str.split(":", expand=True, n=1)
+    df_MKB[["Kurzbezeichnung", "Titel"]] = df_MKB["Kurzbezeichnung und Titel"].str.split(":", expand=True, n=1)
     # split off Einlaufnummer from Einlauf-Info
-    df_MKB[["Einlaufnummer", "Einlauf-Info"]] = df_MKB["Einlauf-Info"].str.split(
-        ",", expand=True, n=1
-    )
+    df_MKB[["Einlaufnummer", "Einlauf-Info"]] = df_MKB["Einlauf-Info"].str.split(",", expand=True, n=1)
 
     # "Aus rechtlichen Gründen nicht angezeigt" in der Spalte  «Einlieferer*in, Erwerbungsart, Jahr der Einlieferung» = 'Einlauf-Info' for
     # Alle Nummern ab VI 63692 und «RHO».
@@ -45,10 +42,7 @@ def main():
     # print(tuple(['VI ' + str(i) for i in from_number]))
     df_MKB["Einlauf-Info"] = [
         df_MKB.loc[i, "Einlauf-Info"]
-        if (
-            (not einlaufinfo_nicht_angezeigt_VI.loc[i])
-            and (not einlaufinfo_nicht_angezeigt_rho.loc[i])
-        )
+        if ((not einlaufinfo_nicht_angezeigt_VI.loc[i]) and (not einlaufinfo_nicht_angezeigt_rho.loc[i]))
         else "Aus rechtlichen Gründen nicht angezeigt"
         for i in range(len(df_MKB))
     ]
@@ -157,9 +151,7 @@ def remove_irrelevant(df_MKB):
 
     # remove text from Datierung column
     for item in text_to_remove:
-        df_MKB["Datierung"] = df_MKB["Datierung"].str.replace(
-            str(item), "", regex=False
-        )
+        df_MKB["Datierung"] = df_MKB["Datierung"].str.replace(str(item), "", regex=False)
     return df_MKB
 
 
@@ -172,12 +164,8 @@ def join_duplicates(df_MKB):
     # first remove all duplicates
     df_MKB_without_duplicates = df_MKB.drop(index_duplicates)
     # split duplicates into two dataframes
-    list_inventar_duplicates_1 = df_MKB[
-        df_MKB.duplicated(subset=["Inventarnummer"], keep="first")
-    ].reset_index()
-    list_inventar_duplicates_2 = df_MKB[
-        df_MKB.duplicated(subset=["Inventarnummer"], keep="last")
-    ].reset_index()
+    list_inventar_duplicates_1 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep="first")].reset_index()
+    list_inventar_duplicates_2 = df_MKB[df_MKB.duplicated(subset=["Inventarnummer"], keep="last")].reset_index()
     # make dataframe with one entry for each duplicate, with two different entries for Herkunft separated by a comma
     df_duplicates = list_inventar_duplicates_1[
         [
@@ -193,9 +181,7 @@ def join_duplicates(df_MKB):
     ]
     df_duplicates["Herkunft"] = ""
     df_duplicates["Herkunft"] = (
-        list_inventar_duplicates_1["Herkunft"].astype(str)
-        + ", "
-        + list_inventar_duplicates_2["Herkunft"].astype(str)
+        list_inventar_duplicates_1["Herkunft"].astype(str) + ", " + list_inventar_duplicates_2["Herkunft"].astype(str)
     )
     # concatenate the two data frames
     df_MKB = pd.concat([df_MKB_without_duplicates, df_duplicates])

@@ -2,9 +2,10 @@ import logging
 import os
 from datetime import datetime
 
-import common
 import pandas as pd
 from bs4 import BeautifulSoup
+
+import common
 
 
 def main():
@@ -60,30 +61,20 @@ def main():
         "St. Jakob Familienbad": "https://data.bs.ch/explore/dataset/100151/table/?q=id_angebot:157",
     }
     # Filtering the data frame rows
-    df_aktuell = df_aktuell[
-        df_aktuell["Name"].apply(lambda x: any(pool in x for pool in desired_pools))
-    ]
+    df_aktuell = df_aktuell[df_aktuell["Name"].apply(lambda x: any(pool in x for pool in desired_pools))]
     # Map coordinates to names
     df_aktuell["Koordinaten"] = df_aktuell["Name"].map(coordinates)
     df_aktuell["URL_Sportanlage"] = df_aktuell["Name"].map(links_to_sportanlagen)
     # Extract only the numbers from the 'Temperatur' column
-    df_aktuell["Temperatur"] = (
-        df_aktuell["Temperatur"].str.extract(r"(\d+)").astype(float)
-    )
-    st_jakob_zeitpunkt = df_aktuell.loc[
-        df_aktuell["Name"] == "St. Jakob Familienbad", "Zeitpunkt"
-    ].values[0]
-    df_aktuell.loc[df_aktuell["Name"] == "St. Jakob Sportbad", "Zeitpunkt"] = (
-        st_jakob_zeitpunkt
-    )
+    df_aktuell["Temperatur"] = df_aktuell["Temperatur"].str.extract(r"(\d+)").astype(float)
+    st_jakob_zeitpunkt = df_aktuell.loc[df_aktuell["Name"] == "St. Jakob Familienbad", "Zeitpunkt"].values[0]
+    df_aktuell.loc[df_aktuell["Name"] == "St. Jakob Sportbad", "Zeitpunkt"] = st_jakob_zeitpunkt
     # Apply the function to the 'Zeitpunkt' column
-    df_aktuell["Zeitpunkt"] = pd.to_datetime(
-        df_aktuell["Zeitpunkt"].apply(convert_datetime)
-    ).dt.tz_localize("Europe/Zurich", ambiguous=True)
-    df_aktuell = df_aktuell.dropna()
-    df_aktuell["Zeitpunkt_Job"] = pd.to_datetime(datetime.now()).tz_localize(
-        "Europe/Zurich"
+    df_aktuell["Zeitpunkt"] = pd.to_datetime(df_aktuell["Zeitpunkt"].apply(convert_datetime)).dt.tz_localize(
+        "Europe/Zurich", ambiguous=True
     )
+    df_aktuell = df_aktuell.dropna()
+    df_aktuell["Zeitpunkt_Job"] = pd.to_datetime(datetime.now()).tz_localize("Europe/Zurich")
     path_export = os.path.join("data", "export", "100388_gartenbaeder_temp_live.csv")
     df_aktuell.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "/jfs/gartenbaeder", "100388")

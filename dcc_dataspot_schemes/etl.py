@@ -3,10 +3,10 @@ import os
 import urllib
 from io import BytesIO
 
-import common
 import pandas as pd
-
 from dataspot_auth import DataspotAuth
+
+import common
 
 ods_id = {
     "Datensaetze": 100433,
@@ -23,10 +23,7 @@ S_id = pd.Series(data=ods_id)
 
 def download_datennutzungskatalog_excel():
     auth = DataspotAuth()
-    url = (
-        auth.get_base_url()
-        + "/api/prod/schemes/Datennutzungskatalog/download?format=xlsx&language=de"
-    )
+    url = auth.get_base_url() + "/api/prod/schemes/Datennutzungskatalog/download?format=xlsx&language=de"
     headers = auth.get_headers()
     response = common.requests_get(url=url, headers=headers)
     return response.content
@@ -57,7 +54,7 @@ def main():
         if sheet_name not in ["Datensätze", "Bestandteile"]:
             if sheet_name == "__literals__":
                 sheet_name = "Literals"
-            save_path = os.path.join('data', f"{S_id[sheet_name]}_{sheet_name}.csv")
+            save_path = os.path.join("data", f"{S_id[sheet_name]}_{sheet_name}.csv")
             df.to_csv(save_path, sep=";", index=False)
             # In FTP Server speichern
             common.update_ftp_and_odsp(save_path, "dataspot", S_id[sheet_name])
@@ -69,19 +66,14 @@ def main():
 
     # Prüfen, ob "Name" in "Bestandteil von" vorkommt und dann Spalte "Bestandteile" erstellen
     df_data["Bestandteile"] = df_data["Name"].apply(
-        lambda name: "https://data.bs.ch/explore/dataset/100434/table/?refine.bestandteil_von="
-        + encode_for_url(name)
+        lambda name: "https://data.bs.ch/explore/dataset/100434/table/?refine.bestandteil_von=" + encode_for_url(name)
         if name in df_bestand["Bestandteil von"].values
         else ""
     )
     # Ersetze Zeilenumbrüche in der Spalte "Schlüsselwörter" mit Kommas
-    df_data["Schlüsselwörter"] = (
-        df_data["Schlüsselwörter"].astype(str).str.replace(r"[\n\r]+", ", ", regex=True)
-    )
+    df_data["Schlüsselwörter"] = df_data["Schlüsselwörter"].astype(str).str.replace(r"[\n\r]+", ", ", regex=True)
     # NaN-Werte in leere Strings umwandeln
-    df_data["Schlüsselwörter"] = (
-        df_data["Schlüsselwörter"].replace("nan", "").replace("NaN", "")
-    )
+    df_data["Schlüsselwörter"] = df_data["Schlüsselwörter"].replace("nan", "").replace("NaN", "")
     # Hole die Spaltenliste
     columns = list(df_data.columns)
     # Bestimme die letzte Spalte
@@ -92,10 +84,10 @@ def main():
     # Wende die neue Spaltenreihenfolge auf das DataFrame an
     df_data = df_data[new_order]
 
-    save_path = os.path.join('data', f"{S_id['Datensaetze']}_Datensaetze.csv")
+    save_path = os.path.join("data", f"{S_id['Datensaetze']}_Datensaetze.csv")
     df_data.to_csv(save_path, sep=";", index=False)
     common.update_ftp_and_odsp(save_path, "dataspot", S_id["Datensaetze"])
-    save_path = os.path.join('data', f"{S_id['Bestandteile']}_Bestandteile.csv")
+    save_path = os.path.join("data", f"{S_id['Bestandteile']}_Bestandteile.csv")
     df_bestand.to_csv(save_path, sep=";", index=False)
     common.update_ftp_and_odsp(save_path, "dataspot", S_id["Bestandteile"])
 

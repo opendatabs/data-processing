@@ -1,12 +1,15 @@
+import json
 import logging
+
 import pandas as pd
 import requests
-import json
+
 
 def main():
     df = get_all_accidents_by_canton("BS")
     df = df.drop_duplicates(subset=["featureId"])
     df.to_excel("data/Unfaelle.xlsx", sheet_name="Unfaelle", index=False)
+
 
 def get_all_accidents_by_canton(canton_code):
     url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify"
@@ -40,6 +43,7 @@ def get_all_accidents_by_canton(canton_code):
         offset += batch_size
 
     return pd.json_normalize(all_results)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

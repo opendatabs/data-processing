@@ -1,12 +1,12 @@
+import locale
 import logging
 import os
 from datetime import datetime
 
-import common
 import pandas as pd
-from common import change_tracking as ct
 
-import locale
+import common
+
 locale.setlocale(locale.LC_TIME, "de_CH.UTF-8")
 
 
@@ -67,9 +67,7 @@ def make_dataframe_bs():
         "Serotyp/Subtyp [Erreger]": "Type",
     }
     df_bs.rename(columns=new_names, inplace=True)
-    df_bs = df_bs.pivot_table(
-        index="Datum", columns="Type", aggfunc="size", fill_value=0
-    )
+    df_bs = df_bs.pivot_table(index="Datum", columns="Type", aggfunc="size", fill_value=0)
     df_bs.columns.name = None
     df_bs = df_bs.add_prefix("Anz_pos_")
     df_bs = df_bs.add_suffix("_BS")
@@ -137,20 +135,14 @@ def make_df_infl_bs_bl():
 
 
 def make_dataframe_rsv():
-    path_fortlaufend = os.path.join(
-        "data", "Falldaten-BS", "RSV_Nachweise_USB-fortlaufend ab 2024.csv"
-    )
+    path_fortlaufend = os.path.join("data", "Falldaten-BS", "RSV_Nachweise_USB-fortlaufend ab 2024.csv")
     df_fortlaufend = pd.read_csv(path_fortlaufend, sep=";")
-    df_fortlaufend = df_fortlaufend.rename(
-        columns={"DATUM_RSV_NACHWEIS_KALENDERWOCHE": "KW"}
-    )["KW"]
+    df_fortlaufend = df_fortlaufend.rename(columns={"DATUM_RSV_NACHWEIS_KALENDERWOCHE": "KW"})["KW"]
     # Group by "KW" and save the count into "Anz_pos_RSV_USB"
     df_fortlaufend = df_fortlaufend.value_counts().reset_index()
     df_fortlaufend = df_fortlaufend.rename(columns={"count": "KW_Anz_pos_RSV_USB"})
     df_fortlaufend["KW"] = df_fortlaufend["KW"].str.replace("-KW", "_")
-    path_retro = os.path.join(
-        "data", "Falldaten-BS", "2021-2023 Retrospektive Daten_RSV_Nachweise_USB.xlsx"
-    )
+    path_retro = os.path.join("data", "Falldaten-BS", "2021-2023 Retrospektive Daten_RSV_Nachweise_USB.xlsx")
     df_retro = pd.read_excel(path_retro)
     df_retro = df_retro.rename(columns={"RSV positiv (Anzahl)": "KW_Anz_pos_RSV_USB"})
     df_rsv = pd.concat([df_retro, df_fortlaufend]).reset_index(drop=True)
@@ -191,4 +183,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f"Executing {__file__}...")
     main()
-    logging.info(f"Job successful")
+    logging.info("Job successful")

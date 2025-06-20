@@ -10,9 +10,7 @@ import uuid
 import pytz
 
 # Logging setup
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Paths
 data_dir = "data"
@@ -27,9 +25,7 @@ dtstamp = now_utc.strftime("%Y%m%dT%H%M%SZ")
 
 
 def extract_year_from_filename(filename):
-    match = re.search(
-        r"frei-und-feiertage(?:_(\d{4}))?\.csv", os.path.basename(filename)
-    )
+    match = re.search(r"frei-und-feiertage(?:_(\d{4}))?\.csv", os.path.basename(filename))
     return int(match.group(1)) if match and match.group(1) else 0
 
 
@@ -112,11 +108,7 @@ def main():
                 event_dtstamp = dtstamp
                 exists = existing_events.get(uid)
                 if exists:
-                    if (
-                        exists["summary"] == name
-                        and exists["start"] == date_str
-                        and exists["end"] == end_date_str
-                    ):
+                    if exists["summary"] == name and exists["start"] == date_str and exists["end"] == end_date_str:
                         event_dtstamp = exists.get("dtstamp", dtstamp)
                         logging.debug(f"Skipping unchanged event: {name}")
                     else:

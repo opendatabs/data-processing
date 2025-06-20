@@ -1,8 +1,9 @@
 import os
 import pathlib
 
-import common
 import pandas as pd
+
+import common
 from bafu_hydrodaten import credentials
 
 # get the data from ftp_archive_rhein_backup
@@ -55,16 +56,12 @@ def upload_to_ftp(local_export_path, new_path=credentials.ftp_archive_rhein):
     )
 
 
-def change_order_columns(
-    old_path, new_path, local_path, file_pattern, river_id, columns
-):
+def change_order_columns(old_path, new_path, local_path, file_pattern, river_id, columns):
     local_export_path = os.path.join(
         pathlib.Path(__file__).parent,
         f"data/new_archive/{river_id}/{river_id}_bis_2023-04-26.csv",
     )
-    files = get_data(
-        old_path=old_path, local_path=local_path, file_pattern=file_pattern
-    )
+    files = get_data(old_path=old_path, local_path=local_path, file_pattern=file_pattern)
     set_column_order(files, columns, local_export_path)
     # upload_to_ftp(new_path, local_export_path)
 
@@ -89,9 +86,7 @@ for river_id in river_ids:
     change_order_columns(
         old_path=ftp_remote_dir,
         new_path=ftp_remote_dir,
-        local_path=os.path.join(
-            pathlib.Path(__file__).parent, f"data/backup/{river_id}"
-        ),
+        local_path=os.path.join(pathlib.Path(__file__).parent, f"data/backup/{river_id}"),
         file_pattern=f"{river_id}_pegel*.csv",
         river_id=river_id,
         columns=columns,

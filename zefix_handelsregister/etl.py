@@ -5,8 +5,6 @@ import os
 import pathlib
 import time
 
-import common
-import common.change_tracking as ct
 import geopandas as gpd
 import pandas as pd
 from geopy.extra.rate_limiter import RateLimiter
@@ -14,6 +12,9 @@ from geopy.geocoders import Nominatim
 from rapidfuzz import process
 from shapely.geometry import Point
 from SPARQLWrapper import JSON, SPARQLWrapper
+
+import common
+import common.change_tracking as ct
 
 
 def main():
@@ -24,9 +25,7 @@ def main():
 
     # Extract data for Basel-Stadt and make ready for data.bs.ch
     file_name = "100330_zefix_firmen_BS.csv"
-    path_export = os.path.join(
-        pathlib.Path(__file__).parents[0], "data", "export", file_name
-    )
+    path_export = os.path.join(pathlib.Path(__file__).parents[0], "data", "export", file_name)
     df_BS = work_with_BS_data()
     df_BS.to_csv(path_export, index=False)
     common.update_ftp_and_odsp(path_export, "zefix_handelsregister", "100330")
@@ -37,9 +36,7 @@ def create_diff_files(path_to_new):
     logging.info("Creating diff files...")
     # Load last version of the file
     df_new = pd.read_csv(path_to_new)
-    path_to_last = os.path.join(
-        pathlib.Path(__file__).parents[0], "data", "handelsregister_last_version.csv"
-    )
+    path_to_last = os.path.join(pathlib.Path(__file__).parents[0], "data", "handelsregister_last_version.csv")
     if os.path.exists(path_to_last):
         df_last = pd.read_csv(path_to_last)
         # Find new rows if any
@@ -52,9 +49,7 @@ def create_diff_files(path_to_new):
         )
         upload_rows_to_ftp(new_rows, path_export)
         # Find modified rows if any
-        deprecated_rows, updated_rows = ct.find_modified_rows(
-            df_last, df_new, "company_uid"
-        )
+        deprecated_rows, updated_rows = ct.find_modified_rows(df_last, df_new, "company_uid")
         path_export = os.path.join(
             pathlib.Path(__file__).parents[0],
             "data",
@@ -165,9 +160,7 @@ def get_data_of_all_cantons():
         results = sparql.query().convert()
         results_df = pd.json_normalize(results["results"]["bindings"])
         results_df = results_df.filter(regex="value$", axis=1)
-        new_column_names = {
-            col: col.replace(".value", "") for col in results_df.columns
-        }
+        new_column_names = {col: col.replace(".value", "") for col in results_df.columns}
         results_df = results_df.rename(columns=new_column_names)
         # Split the column 'address' into zusatz and street,
         # but if there is no zusatz, then street is in the first column
@@ -196,26 +189,18 @@ def get_data_of_all_cantons():
         """
 
         file_name = f"companies_{short_name_canton}.csv"
-        path_export = os.path.join(
-            pathlib.Path(__file__).parents[0], "data", "all_cantons", file_name
-        )
+        path_export = os.path.join(pathlib.Path(__file__).parents[0], "data", "all_cantons", file_name)
         results_df.to_csv(path_export, index=False)
         if ct.has_changed(path_export):
             logging.info(f"Exporting {file_name} to FTP server")
-            common.upload_ftp(
-                path_export, remote_path="zefix_handelsregister/all_cantons"
-            )
+            common.upload_ftp(path_export, remote_path="zefix_handelsregister/all_cantons")
             ct.update_hash_file(path_export)
 
 
 def get_gebaeudeeingaenge():
-    raw_data_file = os.path.join(
-        pathlib.Path(__file__).parent, "data", "gebaeudeeingaenge.csv"
-    )
+    raw_data_file = os.path.join(pathlib.Path(__file__).parent, "data", "gebaeudeeingaenge.csv")
     logging.info(f"Downloading Gebäudeeingänge from ods to file {raw_data_file}...")
-    r = common.requests_get(
-        "https://data.bs.ch/api/records/1.0/download?dataset=100231"
-    )
+    r = common.requests_get("https://data.bs.ch/api/records/1.0/download?dataset=100231")
     with open(raw_data_file, "wb") as f:
         f.write(r.content)
     return pd.read_csv(raw_data_file, sep=";")
@@ -231,33 +216,21 @@ def get_coordinates_from_gwr(df, df_geb_eing):
         + " "
         + df_geb_eing["dplzname"]
     )
-    df = df.merge(
-        df_geb_eing[["address", "eingang_koordinaten"]], on="address", how="left"
-    )
+    df = df.merge(df_geb_eing[["address", "eingang_koordinaten"]], on="address", how="left")
     df.rename(columns={"eingang_koordinaten": "coordinates"}, inplace=True)
     return df
 
 
-def get_coordinates_from_nominatim(
-    df, cached_coordinates, use_rapidfuzz=False, street_series=None
-):
+def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, street_series=None):
     geolocator = Nominatim(user_agent="zefix_handelsregister")
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
-    shp_file_path = os.path.join(
-        pathlib.Path(__file__).parents[0], "data", "shp_bs", "bs.shp"
-    )
+    shp_file_path = os.path.join(pathlib.Path(__file__).parents[0], "data", "shp_bs", "bs.shp")
     gdf_bs = gpd.read_file(shp_file_path)
     missing_coords = df[df["coordinates"].isna()]
     for index, row in missing_coords.iterrows():
         if use_rapidfuzz:
             closest_streetname = find_closest_streetname(row["street"], street_series)
-            address = (
-                closest_streetname
-                + ", "
-                + row["plz"]
-                + " "
-                + row["locality"].split(" ")[0]
-            )
+            address = closest_streetname + ", " + row["plz"] + " " + row["locality"].split(" ")[0]
         else:
             address = row["address"]
         if address not in cached_coordinates:
@@ -266,9 +239,7 @@ def get_coordinates_from_nominatim(
                 if location:
                     point = Point(location.longitude, location.latitude)
                     is_in_bs = (
-                        "Basel" in row["locality"]
-                        or "Riehen" in row["locality"]
-                        or "Bettingen" in row["locality"]
+                        "Basel" in row["locality"] or "Riehen" in row["locality"] or "Bettingen" in row["locality"]
                     )
                     if is_in_bs != gdf_bs.contains(point).any():
                         logging.info(f"Location {location} is not in Basel-Stadt")
@@ -291,9 +262,7 @@ def get_coordinates_from_nominatim(
 
 def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
     # Get lookup table for addresses that could not be found
-    path_lookup_table = os.path.join(
-        pathlib.Path(__file__).parents[0], "data", "addr_to_coords_lookup_table.json"
-    )
+    path_lookup_table = os.path.join(pathlib.Path(__file__).parents[0], "data", "addr_to_coords_lookup_table.json")
     if os.path.exists(path_lookup_table):
         with open(path_lookup_table, "r") as f:
             cached_coordinates = json.load(f)
@@ -318,33 +287,21 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 def find_closest_streetname(street, street_series):
     if street:
         closest_address, _, _ = process.extractOne(street, street_series)
-        logging.info(
-            f"Closest address for {street} according to fuzzy matching is: {closest_address}"
-        )
+        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
         return closest_address
     return street
 
 
 def work_with_BS_data():
-    path_BS = os.path.join(
-        pathlib.Path(__file__).parents[0], "data", "all_cantons", "companies_BS.csv"
-    )
+    path_BS = os.path.join(pathlib.Path(__file__).parents[0], "data", "all_cantons", "companies_BS.csv")
     df_BS = pd.read_csv(path_BS)
     # Pre-processing
     df_BS["plz"] = df_BS["plz"].fillna(0).astype(int).astype(str).replace("0", "")
     df_BS["street"] = df_BS["street"].str.replace("Str.", "Strasse", regex=False)
     df_BS["street"] = df_BS["street"].str.replace("str.", "strasse", regex=False)
     # Replace *St. followed by a letter with *St. * and then the letter
-    df_BS["street"] = df_BS["street"].str.replace(
-        "St\.([a-zA-Z])", "St. \\1", regex=True
-    )
-    df_BS["address"] = (
-        df_BS["street"]
-        + ", "
-        + df_BS["plz"]
-        + " "
-        + df_BS["locality"].str.split(" ").str[0]
-    )
+    df_BS["street"] = df_BS["street"].str.replace("St\.([a-zA-Z])", "St. \\1", regex=True)
+    df_BS["address"] = df_BS["street"] + ", " + df_BS["plz"] + " " + df_BS["locality"].str.split(" ").str[0]
     # Get data of Gebäudeeingänge https://data.bs.ch/explore/dataset/100231
     df_geb_eing = get_gebaeudeeingaenge()
 

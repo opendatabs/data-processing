@@ -5,12 +5,13 @@ import os
 import zipfile
 from io import StringIO
 
-import common
 import geopandas as gpd
 import pandas as pd
-from common import change_tracking as ct
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
+
+import common
+from common import change_tracking as ct
 
 load_dotenv()
 
@@ -41,9 +42,7 @@ def create_diff_files(path_to_new):
         # Find new rows if any
         new_rows = ct.find_new_rows(df_last, df_new, "id")
         if len(new_rows) > 0:
-            path_export = os.path.join(
-                "data", "diff_files", f"parkflaechen_new_{datetime.date.today()}.csv"
-            )
+            path_export = os.path.join("data", "diff_files", f"parkflaechen_new_{datetime.date.today()}.csv")
             new_rows.to_csv(path_export, index=False)
         # Find modified rows if any
         deprecated_rows, updated_rows = ct.find_modified_rows(df_last, df_new, "id")
@@ -86,28 +85,16 @@ def main():
         gdf.set_geometry("geometry", inplace=True)
         gdf = gdf.set_crs("EPSG:4326")
         gdf = gdf.to_crs("EPSG:2056")  # Change to a suitable projected CRS
-        logging.info(
-            "Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid..."
-        )
+        logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid...")
         gdf["centroid"] = gdf["geometry"].centroid
         gdf_plz = download_spatial_descriptors("100016")
-        gdf["plz"] = gdf["centroid"].apply(
-            lambda x: gdf_plz[gdf_plz.contains(x)]["plz"].values[0]
-        )
+        gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["plz"].values[0])
         gdf_viertel = download_spatial_descriptors("100042")
-        gdf["wov_id"] = gdf["centroid"].apply(
-            lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_id"].values[0]
-        )
-        gdf["wov_name"] = gdf["centroid"].apply(
-            lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_name"].values[0]
-        )
+        gdf["wov_id"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_id"].values[0])
+        gdf["wov_name"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_name"].values[0])
         gdf_bezirke = download_spatial_descriptors("100039")
-        gdf["bez_id"] = gdf["centroid"].apply(
-            lambda x: gdf_bezirke[gdf_bezirke.contains(x)]["bez_id"].values[0]
-        )
-        gdf["bez_name"] = gdf["centroid"].apply(
-            lambda x: gdf_bezirke[gdf_bezirke.contains(x)]["bez_name"].values[0]
-        )
+        gdf["bez_id"] = gdf["centroid"].apply(lambda x: gdf_bezirke[gdf_bezirke.contains(x)]["bez_id"].values[0])
+        gdf["bez_name"] = gdf["centroid"].apply(lambda x: gdf_bezirke[gdf_bezirke.contains(x)]["bez_name"].values[0])
 
         # Filter on PLZ that start with 40 (Basel)
         gdf = gdf[gdf["plz"].str.startswith("40")]

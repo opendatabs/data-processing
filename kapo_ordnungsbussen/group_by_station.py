@@ -1,25 +1,20 @@
 import os
 
 import polars as pl
+
 from kapo_ordnungsbussen import credentials
 
 
 def group_by_station(df):
     # Step 1: Filter rows for BuZi and Übertretungsjahr
-    filtered_df = df.filter(
-        (df["BuZi"].str.starts_with("303")) & (df["Übertretungsjahr"] == 2023)
-    )
+    filtered_df = df.filter((df["BuZi"].str.starts_with("303")) & (df["Übertretungsjahr"] == 2023))
 
     # Step 2: Concatenate "GPS Länge", "GPS Breite" to create a new column "GPS Koordinaten"
     filtered_df = filtered_df.with_columns(
-        pl.concat_str(
-            [filtered_df["GPS Breite"], pl.lit(", "), filtered_df["GPS Länge"]]
-        ).alias("GPS Koordinaten")
+        pl.concat_str([filtered_df["GPS Breite"], pl.lit(", "), filtered_df["GPS Länge"]]).alias("GPS Koordinaten")
     )
     # Step 3: Extract coordinates from the "coordinates" column. If they are enclosed in () or in [], remove them
-    filtered_df = filtered_df.with_columns(
-        filtered_df["coordinates"].alias("Nominatim Koordinaten")
-    )
+    filtered_df = filtered_df.with_columns(filtered_df["coordinates"].alias("Nominatim Koordinaten"))
     filtered_df = filtered_df.with_columns(
         filtered_df["Nominatim Koordinaten"]
         .str.replace(r"\[", "")
@@ -58,9 +53,7 @@ def group_by_station(df):
     result_sorted = result.sort("Ertrag aus Erfassung", descending=True)
 
     # Save or display the result
-    output_path = os.path.join(
-        credentials.export_path, "filtered_and_grouped_results_2023.csv"
-    )
+    output_path = os.path.join(credentials.export_path, "filtered_and_grouped_results_2023.csv")
     result_sorted.write_csv(output_path)
 
 

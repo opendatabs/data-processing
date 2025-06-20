@@ -3,11 +3,12 @@ import logging
 import os
 from zoneinfo import ZoneInfo
 
-import common
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from pyproj import Transformer
+
+import common
 
 load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")
@@ -42,14 +43,12 @@ def process(file, x_coords_1416):
             names=["StationNr", "SensorNr", "Date_text", "Time", "Value"],
             low_memory=False,
         )
-        logging.info(f"Pre-processing archive dataframe...")
+        logging.info("Pre-processing archive dataframe...")
         dfa.Value = dfa.Value.replace("---", np.nan)
         dfa = dfa.dropna(subset=["Value"])
         dfa["StationId"] = dfa.StationNr.str.lstrip("0")
         dfa["StationNr"] = dfa["StationNr"].astype(str).str.zfill(10)
-        dfa["Date"] = pd.to_datetime(dfa["Date_text"], dayfirst=True).dt.strftime(
-            date_format="%Y-%m-%d"
-        )
+        dfa["Date"] = pd.to_datetime(dfa["Date_text"], dayfirst=True).dt.strftime(date_format="%Y-%m-%d")
         metadata_file = common.download_ftp(
             ["Ergaenzende_Angaben.xlsx"],
             FTP_SERVER,
@@ -70,9 +69,7 @@ def process(file, x_coords_1416):
         df["Status"] = "cleansed"
         export_stats = False
     else:
-        logging.info(
-            f"Starting reading csv into dataframe ({datetime.datetime.now()})..."
-        )
+        logging.info(f"Starting reading csv into dataframe ({datetime.datetime.now()})...")
         df = pd.read_csv(file, sep=";", encoding="cp1252", low_memory=False)
     logging.info(f"Dataframe present in memory now ({datetime.datetime.now()}).")
     df["timestamp_text"] = df.Date + "T" + df.Time
@@ -81,14 +78,12 @@ def process(file, x_coords_1416):
         .dt.tz_localize(ZoneInfo("Etc/GMT-1"))
         .dt.tz_convert("UTC")
     )
-    logging.info(f"Rounding LV95 coordinates as required...")
+    logging.info("Rounding LV95 coordinates as required...")
     df.XCoord = df.XCoord.round(0).astype(int)
     df.YCoord = df.YCoord.round(0).astype(int)
-    logging.info(
-        f'Replacing potentially wrong xcoord for 1416 with value "{x_coords_1416}"...'
-    )
+    logging.info(f'Replacing potentially wrong xcoord for 1416 with value "{x_coords_1416}"...')
     df.loc[(df.StationNr == "0000001416"), "XCoord"] = x_coords_1416
-    logging.info(f"transforming coords to WGS84")
+    logging.info("transforming coords to WGS84")
     # see https://stackoverflow.com/a/65711998
     t = Transformer.from_crs("EPSG:2056", "EPSG:4326", always_xy=True)
     df["lon"], df["lat"] = t.transform(df.XCoord.values, df.YCoord.values)
@@ -99,10 +94,7 @@ def process(file, x_coords_1416):
         logging.info(f"Processing values for SensorNr {sensornr_filter}...")
         df["StationId"] = df.StationNr.astype(str).str.lstrip("0")
         df["StationNr"] = df["StationNr"].astype(str).str.zfill(10)
-        df["bohrkataster-link"] = (
-            "https://data.bs.ch/explore/dataset/100182/table/?refine.catnum45="
-            + df.StationId
-        )
+        df["bohrkataster-link"] = "https://data.bs.ch/explore/dataset/100182/table/?refine.catnum45=" + df.StationId
         df_filter = df.query('SensorNr == @sensornr_filter and StationId != "1632"')
         value_filename = os.path.join(
             "data",
@@ -186,16 +178,12 @@ def process(file, x_coords_1416):
                 remote_path=f"aue_grundwasser/stat/SensorNr_{sensornr_filter}",
             )
         else:
-            logging.info(
-                f"Skipped processing stats for the current file and sensor {sensornr_filter}..."
-            )
+            logging.info(f"Skipped processing stats for the current file and sensor {sensornr_filter}...")
     return exported_files
 
 
 def archive(file):
-    to_name = os.path.basename(file).replace(
-        "BS_Grundwasser_odExp_", "BS_Grundwasser_odProc_"
-    )
+    to_name = os.path.basename(file).replace("BS_Grundwasser_odExp_", "BS_Grundwasser_odProc_")
     logging.info(f"Renaming file on FTP server from {file} to {to_name}...")
     common.rename_ftp(file, to_name, FTP_SERVER, FTP_USER, FTP_PASS)
 

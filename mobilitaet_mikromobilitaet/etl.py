@@ -3,10 +3,11 @@ import logging
 import os
 import shutil
 
-import common
 import geopandas as gpd
 import pandas as pd
 from owslib.wfs import WebFeatureService
+
+import common
 
 
 def create_map_links(geometry, p1, p2):
@@ -20,9 +21,7 @@ def create_map_links(geometry, p1, p2):
         centroid = geometry
 
     lat, lon = centroid.y, centroid.x
-    map_link = (
-        f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}"
-    )
+    map_link = f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}"
     return map_link
 
 
@@ -139,12 +138,8 @@ def compare_geometries_and_filter_moved(gdf_previous, gdf_current):
     :return: (moved_ids_current, moved_ids_previous, gdf_current_moved)
     """
     # Filter out Bird
-    gdf_previous_2056 = gdf_previous[gdf_previous["xs_provider_name"] != "Bird"].to_crs(
-        epsg=2056
-    )
-    gdf_current_2056 = gdf_current[gdf_current["xs_provider_name"] != "Bird"].to_crs(
-        epsg=2056
-    )
+    gdf_previous_2056 = gdf_previous[gdf_previous["xs_provider_name"] != "Bird"].to_crs(epsg=2056)
+    gdf_current_2056 = gdf_current[gdf_current["xs_provider_name"] != "Bird"].to_crs(epsg=2056)
 
     merged = gdf_current_2056[["xs_bike_id", "geometry"]].merge(
         gdf_previous_2056[["xs_bike_id", "geometry"]],
@@ -156,21 +151,15 @@ def compare_geometries_and_filter_moved(gdf_previous, gdf_current):
     merged["distance_m"] = merged.geometry_current.distance(merged.geometry_previous)
 
     # Bikes that moved >100m or are new
-    moved_over_100m_current = merged[
-        (merged["distance_m"] > 100) | (merged["geometry_previous"].isna())
-    ].copy()
+    moved_over_100m_current = merged[(merged["distance_m"] > 100) | (merged["geometry_previous"].isna())].copy()
     moved_ids_current = moved_over_100m_current["xs_bike_id"].unique()
 
     # Bikes that moved >100m or no longer exist
-    moved_over_100m_previous = merged[
-        (merged["distance_m"] > 100) | (merged["geometry_current"].isna())
-    ].copy()
+    moved_over_100m_previous = merged[(merged["distance_m"] > 100) | (merged["geometry_current"].isna())].copy()
     moved_ids_previous = moved_over_100m_previous["xs_bike_id"].unique()
 
     gdf_current_moved = gdf_current[gdf_current["xs_bike_id"].isin(moved_ids_current)]
-    logging.info(
-        f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m or new ones."
-    )
+    logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m or new ones.")
     logging.info(
         f"Filtered gdf_previous down to {len(moved_ids_previous)} records with movement > 100m or missing ones."
     )
@@ -186,10 +175,7 @@ def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
 
     # Update timestamp_moved for bikes that have not moved yet, but now have
-    mask_to_update = (
-        gdf_zeitreihe["xs_bike_id"].isin(moved_ids_previous)
-        & gdf_zeitreihe["timestamp_moved"].isna()
-    )
+    mask_to_update = gdf_zeitreihe["xs_bike_id"].isin(moved_ids_previous) & gdf_zeitreihe["timestamp_moved"].isna()
     gdf_zeitreihe.loc[mask_to_update, "timestamp_moved"] = timestamp
 
     # Append new moved bikes to the timeseries
@@ -213,9 +199,7 @@ def convert_to_csv(gdf_zeitreihe):
         .str.replace("(", "", regex=False)
         .str.replace(")", "", regex=False)
     )
-    gdf_zeitreihe["geo_point_2d"] = (
-        gdf_zeitreihe["geo_point_2d"].str.split(" ").apply(lambda x: f"{x[1]}, {x[0]}")
-    )
+    gdf_zeitreihe["geo_point_2d"] = gdf_zeitreihe["geo_point_2d"].str.split(" ").apply(lambda x: f"{x[1]}, {x[0]}")
 
     # Drop geometry and 'Map Links' before pushing
     df_zeitreihe = gdf_zeitreihe.drop(columns=["geometry", "Map Links"]).copy()
@@ -244,9 +228,7 @@ def main():
 
     tree_groups = "Geteilte Mikromobilität"
     tree_group_layers_ = (
-        "Geteilte Mikromobilität="
-        "XS_Bird,XS_Bolt,XS_Carvelo,XS_Lime,"
-        "XS_PickEBike,XS_PickEMoped,XS_Velospot,XS_Voi"
+        "Geteilte Mikromobilität=XS_Bird,XS_Bolt,XS_Carvelo,XS_Lime,XS_PickEBike,XS_PickEMoped,XS_Velospot,XS_Voi"
     )
     gdf_current = add_map_links(gdf_current, tree_groups, tree_group_layers_)
     gdf_current = prepare_gdf(gdf_current, drop_cols=["gml_id"])
@@ -254,24 +236,16 @@ def main():
     filename_current = "aktuelle_verfuegbarkeit.gpkg"
     gdf_previous = export_current_data(gdf_current, filename_current)
 
-    moved_ids_previous, gdf_current_moved = compare_geometries_and_filter_moved(
-        gdf_previous, gdf_current
-    )
+    moved_ids_previous, gdf_current_moved = compare_geometries_and_filter_moved(gdf_previous, gdf_current)
 
-    current_timestamp = gdf_current["timestamp"].iloc[
-        0
-    ]  # Same timestamp for the entire current dataset
-    gdf_zeitreihe = update_timeseries(
-        moved_ids_previous, gdf_current_moved, current_timestamp
-    )
+    current_timestamp = gdf_current["timestamp"].iloc[0]  # Same timestamp for the entire current dataset
+    gdf_zeitreihe = update_timeseries(moved_ids_previous, gdf_current_moved, current_timestamp)
 
     convert_to_csv(gdf_zeitreihe)
 
     # FTP and ODS upload (in the end to avoid incomplete data, if something fails)
     path_export_current = os.path.join("data", filename_current)
-    common.update_ftp_and_odsp(
-        path_export_current, "mobilitaet/mikromobilitaet", "100415"
-    )
+    common.update_ftp_and_odsp(path_export_current, "mobilitaet/mikromobilitaet", "100415")
 
     logging.info("Job successful!")
 

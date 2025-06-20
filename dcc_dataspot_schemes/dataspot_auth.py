@@ -2,8 +2,9 @@ import os
 from datetime import datetime, timedelta
 
 import requests
-from common import requests_post
 from dotenv import load_dotenv
+
+from common import requests_post
 
 
 class DataspotAuth:

@@ -5,12 +5,9 @@ import os
 import time
 import zipfile
 
-import common
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from common import change_tracking as ct
-from common import email_message
 from geopy.distance import geodesic
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
@@ -18,20 +15,20 @@ from rapidfuzz import process
 from shapely.geometry import Point
 from tqdm import tqdm
 
+import common
+from common import change_tracking as ct
+from common import email_message
+
 
 def main():
     list_path = os.path.join("data_orig", "list_directories.txt")
-    directories = common.list_directories(
-        "data_orig", list_path, ["Old", "export", "2020_07_27"]
-    )
+    directories = common.list_directories("data_orig", list_path, ["Old", "export", "2020_07_27"])
     if ct.has_changed(list_path):
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
         df_all = append_coordinates(df_all)
-        df_all["coordinates"] = (
-            df_all["coordinates"].astype(str).str.strip("()").str.strip("[]")
-        )
+        df_all["coordinates"] = df_all["coordinates"].astype(str).str.strip("()").str.strip("[]")
         # df_all = calculate_distances(df_all)
         big_bussen = os.path.join("data", "big_bussen.csv")
         new_plz = os.path.join("data", "new_plz.csv")
@@ -39,9 +36,7 @@ def main():
         if ct.has_changed(big_bussen):
             text = f"The exported file {big_bussen} has changed, please check.\n"
             text += "It contains new values with Bussen > 300 CHF."
-            msg = email_message(
-                subject="Warning Ordnungsbussen", text=text, img=None, attachment=None
-            )
+            msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
             common.send_email(msg)
             ct.update_hash_file(big_bussen)
         if ct.has_changed(new_plz):
@@ -50,9 +45,7 @@ def main():
             text += f"PLZ before: {df_plz['Ü-Ort PLZ'].to_list()}\n"
             df_new_plz = pd.read_csv(new_plz)
             text += f"PLZ after: {df_new_plz['Ü-Ort PLZ'].to_list()}"
-            msg = email_message(
-                subject="Warning Ordnungsbussen", text=text, img=None, attachment=None
-            )
+            msg = email_message(subject="Warning Ordnungsbussen", text=text, img=None, attachment=None)
             common.send_email(msg)
             df_plz.to_csv(os.path.join("data", "plz.csv"))
             ct.update_hash_file(new_plz)
@@ -70,11 +63,7 @@ def main():
 def calculate_distances(df):
     # Function to calculate distance between two points
     def calculate_distance(row):
-        if (
-            pd.isna(row["GPS Breite"])
-            or pd.isna(row["GPS Länge"])
-            or pd.isna(row["coordinates"])
-        ):
+        if pd.isna(row["GPS Breite"]) or pd.isna(row["GPS Länge"]) or pd.isna(row["coordinates"]):
             return float("nan")
         point1 = (row["GPS Breite"], row["GPS Länge"])
         point2 = tuple(map(float, row["coordinates"].split(",")))
@@ -93,9 +82,7 @@ def process_data_2017():
         sep=";",
         encoding="cp1252",
     )
-    df_2020_07_27["Übertretungsdatum"] = pd.to_datetime(
-        df_2020_07_27["Übertretungsdatum"], format="%d.%m.%Y"
-    )
+    df_2020_07_27["Übertretungsdatum"] = pd.to_datetime(df_2020_07_27["Übertretungsdatum"], format="%d.%m.%Y")
     df_2017 = df_2020_07_27.query("Übertretungsjahr == 2017")
     return df_2017
 
@@ -119,17 +106,13 @@ def process_data_from_2018(list_directories, df_2017):
 
 def transform_for_export(df_all):
     logging.info("Calculating weekday, weekday number, and its combination...")
-    df_all["Übertretungswochentag"] = df_all["Übertretungsdatum"].dt.weekday.apply(
-        lambda x: common.weekdays_german[x]
-    )
+    df_all["Übertretungswochentag"] = df_all["Übertretungsdatum"].dt.weekday.apply(lambda x: common.weekdays_german[x])
     # Translate from Mo=0 to So=1, Mo=2 etc. to be backward.compatible with previously used SAS code
-    df_all["ÜbertretungswochentagNummer"] = df_all[
-        "Übertretungsdatum"
-    ].dt.weekday.replace({0: 2, 1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 1})
+    df_all["ÜbertretungswochentagNummer"] = df_all["Übertretungsdatum"].dt.weekday.replace(
+        {0: 2, 1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 1}
+    )
     df_all["Wochentag"] = (
-        df_all["ÜbertretungswochentagNummer"].astype(str)
-        + " "
-        + df_all["Übertretungswochentag"].astype(str)
+        df_all["ÜbertretungswochentagNummer"].astype(str) + " " + df_all["Übertretungswochentag"].astype(str)
     )
 
     logging.info("Replacing wrong PLZ...")
@@ -149,20 +132,14 @@ def transform_for_export(df_all):
     df_all["Ü-Ort PLZ"] = df_all["Ü-Ort PLZ"].replace(plz_replacements).astype(int)
 
     logging.info("Replacing old BuZi with new ones using lookup table...")
-    df_lookup = pd.read_excel(
-        os.path.join("data_orig", "2022_06_30", "Lookup-Tabelle BuZi.xlsx")
-    )
-    df_all["BuZi"] = df_all["BuZi"].replace(
-        df_lookup.ALT.to_list(), df_lookup.NEU.to_list()
-    )
+    df_lookup = pd.read_excel(os.path.join("data_orig", "2022_06_30", "Lookup-Tabelle BuZi.xlsx"))
+    df_all["BuZi"] = df_all["BuZi"].replace(df_lookup.ALT.to_list(), df_lookup.NEU.to_list())
 
     logging.info("Cleaning up data for export...")
     df_all["Laufnummer"] = range(1, 1 + len(df_all))
     df_all["BuZi Text"] = df_all["BuZi Text"].str.replace('"', "'")
     # Remove newline, carriage return, and tab, see https://stackoverflow.com/a/67541987
-    df_all["BuZi Text"] = df_all["BuZi Text"].str.replace(
-        r"\r+|\n+|\t+", "", regex=True
-    )
+    df_all["BuZi Text"] = df_all["BuZi Text"].str.replace(r"\r+|\n+|\t+", "", regex=True)
 
     df_bussen_big = df_all.query("`Bussen-Betrag` > 300")
 
@@ -218,9 +195,7 @@ def append_coordinates(df):
 def get_gebaeudeeingaenge():
     raw_data_file = os.path.join("data", "gebaeudeeingaenge.csv")
     logging.info(f"Downloading Gebäudeeingänge from ods to file {raw_data_file}...")
-    r = common.requests_get(
-        "https://data.bs.ch/api/records/1.0/download?dataset=100231"
-    )
+    r = common.requests_get("https://data.bs.ch/api/records/1.0/download?dataset=100231")
     with open(raw_data_file, "wb") as f:
         f.write(r.content)
     return pd.read_csv(raw_data_file, sep=";")
@@ -229,9 +204,7 @@ def get_gebaeudeeingaenge():
 def get_street_shapes():
     path_to_folder = os.path.join("data", "streets")
     logging.info(f"Downloading street shapes from ods to file {path_to_folder}...")
-    r = common.requests_get(
-        "https://data.bs.ch/explore/dataset/100189/download/?format=shp"
-    )
+    r = common.requests_get("https://data.bs.ch/explore/dataset/100189/download/?format=shp")
     z = zipfile.ZipFile(io.BytesIO(r.content))
     z.extractall(path_to_folder)
     path_to_shp = os.path.join(path_to_folder, "100189.shp")
@@ -249,30 +222,22 @@ def get_coordinates_from_gwr(df, df_geb_eing):
         + " "
         + df_geb_eing["dplzname"]
     )
-    df = df.merge(
-        df_geb_eing[["address", "eingang_koordinaten"]], on="address", how="left"
-    )
+    df = df.merge(df_geb_eing[["address", "eingang_koordinaten"]], on="address", how="left")
     df.rename(columns={"eingang_koordinaten": "coordinates"}, inplace=True)
     return df
 
 
-def get_coordinates_from_nominatim(
-    df, cached_coordinates, use_rapidfuzz=False, street_series=None
-):
+def get_coordinates_from_nominatim(df, cached_coordinates, use_rapidfuzz=False, street_series=None):
     geolocator = Nominatim(user_agent="zefix_handelsregister")
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
     shp_file_path = os.path.join("data", "shp_bs", "bs.shp")
     gdf_bs = gpd.read_file(shp_file_path)
     # If there are missing coordinates, try to get them from Nominatim
     # and there is no nan in address
-    missing_coords = df[
-        df["coordinates"].isna() & ~df["address"].str.contains(" nan, ")
-    ]
+    missing_coords = df[df["coordinates"].isna() & ~df["address"].str.contains(" nan, ")]
     for index, row in missing_coords.iterrows():
         if use_rapidfuzz:
-            closest_streetname = find_closest_streetname(
-                str(row["Ü-Ort STR"]), street_series
-            )
+            closest_streetname = find_closest_streetname(str(row["Ü-Ort STR"]), street_series)
             row["closest_adress"] = (
                 closest_streetname
                 + " "
@@ -291,9 +256,7 @@ def get_coordinates_from_nominatim(
                 if location:
                     point = Point(location.longitude, location.latitude)
                     is_in_bs = (
-                        "Basel" in row["Ü-Ort ORT"]
-                        or "Riehen" in row["Ü-Ort ORT"]
-                        or "Bettingen" in row["Ü-Ort ORT"]
+                        "Basel" in row["Ü-Ort ORT"] or "Riehen" in row["Ü-Ort ORT"] or "Bettingen" in row["Ü-Ort ORT"]
                     )
                     if is_in_bs != gdf_bs.contains(point).any():
                         logging.info(f"Location {location} is not in Basel-Stadt")
@@ -342,9 +305,7 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 def find_closest_streetname(street, street_series):
     if street:
         closest_address, _, _ = process.extractOne(str(street), street_series)
-        logging.info(
-            f"Closest address for {street} according to fuzzy matching is: {closest_address}"
-        )
+        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
         return closest_address
     return street
 

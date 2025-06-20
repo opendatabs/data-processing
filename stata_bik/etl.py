@@ -2,10 +2,11 @@ import datetime
 import logging
 import os
 
-import common
 import pandas as pd
 import pytz
-from common import FTP_SERVER, FTP_USER, FTP_PASS
+
+import common
+from common import FTP_PASS, FTP_SERVER, FTP_USER
 from common import change_tracking as ct
 
 
@@ -20,26 +21,18 @@ def main():
     df_embargo = df_embargo.apply(lambda x: x.replace(hour=8, minute=30))
     df_embargo = df_embargo.dt.tz_localize("Europe/Zurich")
     if df_embargo[
-        (df_embargo.dt.month == datetime.datetime.now().month)
-        & (df_embargo.dt.year == datetime.datetime.now().year)
+        (df_embargo.dt.month == datetime.datetime.now().month) & (df_embargo.dt.year == datetime.datetime.now().year)
     ].empty:
-        raise ValueError(
-            "No embargo date found for this month and year. Please add it to the calendar."
-        )
+        raise ValueError("No embargo date found for this month and year. Please add it to the calendar.")
     embargo = df_embargo[
-        (df_embargo.dt.month == datetime.datetime.now().month)
-        & (df_embargo.dt.year == datetime.datetime.now().year)
+        (df_embargo.dt.month == datetime.datetime.now().month) & (df_embargo.dt.year == datetime.datetime.now().year)
     ].iloc[0]
-    current_time = datetime.datetime.now(tz=datetime.timezone.utc).astimezone(
-        pytz.timezone("Europe/Zurich")
-    )
+    current_time = datetime.datetime.now(tz=datetime.timezone.utc).astimezone(pytz.timezone("Europe/Zurich"))
     if embargo > current_time:
         logging.info("Embargo is not over yet.")
         return
     logging.info("Embargo is over in this month")
-    common.download_ftp(
-        [], FTP_SERVER, FTP_USER, FTP_PASS, "bik", "data", "bik_full.csv"
-    )
+    common.download_ftp([], FTP_SERVER, FTP_USER, FTP_PASS, "bik", "data", "bik_full.csv")
     path_import = os.path.join("data", "bik_full.csv")
     if not ct.has_changed(path_import):
         logging.info("No changes in the data.")

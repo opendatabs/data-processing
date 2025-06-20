@@ -2,10 +2,11 @@ import logging
 import os
 from io import StringIO
 
-import common
 import geopandas as gpd
 import pandas as pd
 from dotenv import load_dotenv
+
+import common
 
 load_dotenv()
 
@@ -38,18 +39,12 @@ def main():
         df.lat = pd.to_numeric(df.lat)
         df.lon = pd.to_numeric(df.lon)
 
-        logging.info(
-            "Rasterizing coordinates and getting rid of data we don't want to have published..."
-        )
+        logging.info("Rasterizing coordinates and getting rid of data we don't want to have published...")
         offset_lon = 2608700
         offset_lat = 1263200
         raster_size = 50  # 50 m raster
-        df["raster_lat"] = (
-            (df.lat - offset_lat) // raster_size
-        ) * raster_size + offset_lat
-        df["raster_lon"] = (
-            (df.lon - offset_lon) // raster_size
-        ) * raster_size + offset_lon
+        df["raster_lat"] = ((df.lat - offset_lat) // raster_size) * raster_size + offset_lat
+        df["raster_lon"] = ((df.lon - offset_lon) // raster_size) * raster_size + offset_lon
         # df['diff_lat'] = df.lat - df.raster_lat
         # df['diff_lon'] = df.lon - df.raster_lon
 
@@ -62,20 +57,10 @@ def main():
 
         logging.info("Reading Bezirk data into geopandas df...")
         # see e.g. https://stackoverflow.com/a/58518583/5005585
-        get_text_from_url(
-            "https://data.bs.ch/explore/dataset/100042/download/?format=geojson"
-        )
+        get_text_from_url("https://data.bs.ch/explore/dataset/100042/download/?format=geojson")
 
-        df_wv = gpd.read_file(
-            get_text_from_url(
-                "https://data.bs.ch/explore/dataset/100042/download/?format=geojson"
-            )
-        )
-        df_bez = gpd.read_file(
-            get_text_from_url(
-                "https://data.bs.ch/explore/dataset/100039/download/?format=geojson"
-            )
-        )
+        df_wv = gpd.read_file(get_text_from_url("https://data.bs.ch/explore/dataset/100042/download/?format=geojson"))
+        df_bez = gpd.read_file(get_text_from_url("https://data.bs.ch/explore/dataset/100039/download/?format=geojson"))
         df_points = gpd.GeoDataFrame(
             df,
             crs="EPSG:2056",
@@ -121,9 +106,7 @@ def main():
         file_path = os.path.join("data", "wildedeponien.csv")
         logging.info(f"Exporting data to {file_path}...")
         gdf_export.to_csv(file_path, index=False, date_format="%Y-%m-%dT%H:%M:%S%z")
-        common.update_ftp_and_odsp(
-            file_path, "stadtreinigung/illegale-deponien", "100070"
-        )
+        common.update_ftp_and_odsp(file_path, "stadtreinigung/illegale-deponien", "100070")
 
         file_path_all = os.path.join("data", "wildedeponien_all.csv")
         logging.info(f"Exporting all data to {file_path_all}...")

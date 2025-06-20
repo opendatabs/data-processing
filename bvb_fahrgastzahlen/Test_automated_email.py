@@ -1,13 +1,12 @@
 from datetime import datetime
 
-from bvb_fahrgastzahlen import credentials
 from exchangelib import DELEGATE, Account, Configuration, Credentials
+
+from bvb_fahrgastzahlen import credentials
 
 # Set up account and credentials
 # TODO: Still gives an SSL-Error. Fix this so the job can be fully automated.
-exchangelib_credentials = Credentials(
-    username=credentials.username, password=credentials.password
-)
+exchangelib_credentials = Credentials(username=credentials.username, password=credentials.password)
 config = Configuration(server=credentials.server, credentials=exchangelib_credentials)
 
 # Access the account
@@ -33,9 +32,7 @@ for item in account.inbox.filter(
     sender__endswith=company_email_domain,
     datetime_received__month=current_month,
 ):
-    if any(
-        attachment.name.lower() == file_name.lower() for attachment in item.attachments
-    ):
+    if any(attachment.name.lower() == file_name.lower() for attachment in item.attachments):
         print(
             f"Found attachment '{file_name}' in email from '{item.sender.email_address}' "
             f"with subject: {item.subject} received on {item.datetime_received}"
