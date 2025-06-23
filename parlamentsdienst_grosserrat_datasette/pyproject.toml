@@ -18,3 +18,26 @@ pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "12
 dev = [
     "ruff>=0.11.8",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pandas-vet
+    "PD",
+]

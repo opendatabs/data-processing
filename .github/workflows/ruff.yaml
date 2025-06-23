@@ -31,12 +31,6 @@ jobs:
           args: check --fix
           src: "."
 
-      - name: Run Ruff import sort fix
-        uses: astral-sh/ruff-action@v3
-        with:
-          args: check --select I --fix
-          src: "."
-
       - name: Commit and create pull request
         uses: peter-evans/create-pull-request@v7
         with:

@@ -2,3 +2,21 @@ target-version = "py312"
 line-length = 120
 fix = true
 exclude = ["archived_etl_jobs"]
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pandas-vet
+    "PD",
+]
