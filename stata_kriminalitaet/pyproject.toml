@@ -1,0 +1,48 @@
+[project]
+name = "stata-kriminalitaet"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "geopandas>=1.0.1",
+    "geopy>=2.4.1",
+    "matplotlib>=3.10.3",
+    "pandas>=2.2.3",
+    "rapidfuzz>=3.13.0",
+    "shapely>=2.1.0",
+    "tqdm>=4.67.1",
+    "typer>=0.15.4",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.8",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pandas-vet
+    "PD",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "v0.1.0" }
