@@ -1,7 +1,6 @@
 import logging
 
 import typer
-
 from config import DATA_DIR, ODS_PLZ, ODS_STREETS, ODS_VIERTEL, OPENDATA_CSV, OUTPUT_CSV
 from enrichment import add_availability_flags, annotate, reconcile_wohnviertel
 from io_helpers import download_gwr, download_shapefile, read_pks

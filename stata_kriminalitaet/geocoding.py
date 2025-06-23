@@ -5,13 +5,12 @@ import time
 
 import geopandas as gpd
 import pandas as pd
+from config import ADDR_CACHE
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
+from io_helpers import load_cache, save_cache
 from rapidfuzz import process
 from shapely.geometry import Point
-
-from config import ADDR_CACHE
-from io_helpers import load_cache, save_cache
 
 
 class Geocoder:

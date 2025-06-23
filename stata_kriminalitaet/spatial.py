@@ -4,11 +4,10 @@ import logging
 
 import geopandas as gpd
 import pandas as pd
+from config import CRS_CH_LV95, CRS_WGS84  # same as before
 from pyproj import Transformer
 from rapidfuzz import process
 from shapely.geometry import Point
-
-from config import CRS_CH_LV95, CRS_WGS84  # same as before
 
 
 def to_wgs84(x_lv95: float, y_lv95: float) -> tuple[float, float]:
