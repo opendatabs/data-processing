@@ -13,30 +13,4 @@ dependencies = [
 [tool.uv.sources]
 common = { git = "https://github.com/opendatabs/common", rev = "1a7ec054c92e694f5727ea94f90e6c8f2472aea7" }
 
-[dependency-groups]
-dev = [
-    "ruff>=0.11.7",
-]
 
-[tool.ruff]
-target-version = "py312"
-line-length = 120
-fix = true
-
-[tool.ruff.lint]
-select = [
-    # pycodestyle
-    "E",
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # pandas-vet
-    "PD",
-]
