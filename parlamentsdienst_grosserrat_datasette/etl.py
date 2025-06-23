@@ -87,7 +87,7 @@ def main():
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
 
     df_dok = pd.read_csv(csv_dokumente)
-    for method in  ['pdfplumber', 'pymupdf']:
+    for method in ["pdfplumber", "pymupdf"]:
         zip_path = Path("data") / "text" / f"gr_dokumente_text_{method}.zip"
         pdf_converter.create_text_from_column(
             df_dok,
@@ -106,7 +106,6 @@ def main():
             zip_path,
             "dok_laufnr",
         )
-    
 
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
     create_sqlite_table(db_path, df_dok, "Dokumente", columns_to_index=columns_to_index)
@@ -186,7 +185,7 @@ def main():
 
     df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
 
-    for method in ['pdfplumber', 'pymupdf']:
+    for method in ["pdfplumber", "pymupdf"]:
         zip_path = Path("data") / "text" / f"gr_tagesordnung_text_{method}.zip"
         pdf_converter.create_text_from_column(
             df_tagesordnung,
