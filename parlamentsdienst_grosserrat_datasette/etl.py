@@ -85,22 +85,28 @@ def main():
 
     # 100313
     csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
-    csv_dokumente_md = os.path.join("data", "markdown", "gr_dokumente_with_markdown.csv")
 
     df_dok = pd.read_csv(csv_dokumente)
-
-    for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = Path("data") / "markdown" / f"gr_dokumente_md_{method}.zip"
-        colname = f"dok_md_{method}"
-        df_dok = pdf_converter.add_markdown_column(
+    for method in  ['pdfplumber', 'pymupdf']:
+        zip_path = Path("data") / "text" / f"gr_dokumente_text_{method}.zip"
+        pdf_converter.create_text_from_column(
             df_dok,
             "url_dok",
             method,
-            md_column=colname,
-            csv_output_path=csv_dokumente_md,
-            zip_path=zip_path,
-            md_name_column="dok_laufnr",
+            zip_path,
+            "dok_laufnr",
         )
+
+    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+        zip_path = Path("data") / "markdown" / f"gr_dokumente_md_{method}.zip"
+        pdf_converter.create_markdown_from_column(
+            df_dok,
+            "url_dok",
+            method,
+            zip_path,
+            "dok_laufnr",
+        )
+    
 
     columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
     create_sqlite_table(db_path, df_dok, "Dokumente", columns_to_index=columns_to_index)
@@ -113,7 +119,6 @@ def main():
 
     # 100348
     csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
-    csv_tagesordnung_md = os.path.join("data", "markdown", "gr_traktanden_with_markdown.csv")
 
     df_tag_trakt = pd.read_csv(csv_traktanden)
 
@@ -181,17 +186,24 @@ def main():
 
     df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
 
-    for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = Path("data") / "markdown" / f"gr_tagesordnung_md_{method}.zip"
-        colname = f"vollprotokoll_md_{method}"
-        df_tagesordnung = pdf_converter.add_markdown_column(
+    for method in ['pdfplumber', 'pymupdf']:
+        zip_path = Path("data") / "text" / f"gr_tagesordnung_text_{method}.zip"
+        pdf_converter.create_text_from_column(
             df_tagesordnung,
             "url_vollprotokoll",
             method,
-            md_column=colname,
-            csv_output_path=csv_tagesordnung_md,
-            zip_path=zip_path,
-            md_name_column="tag1",
+            zip_path,
+            "tag1",
+        )
+
+    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+        zip_path = Path("data") / "markdown" / f"gr_tagesordnung_md_{method}.zip"
+        pdf_converter.create_markdown_from_column(
+            df_tagesordnung,
+            "url_vollprotokoll",
+            method,
+            zip_path,
+            "tag1",
         )
 
     columns_to_index = []

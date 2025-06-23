@@ -999,19 +999,17 @@ dependencies = [
     { name = "pdf-converter" },
 ]
 
-
 [package.metadata]
 requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=1a7ec054c92e694f5727ea94f90e6c8f2472aea7" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=128d8255c0ffd6ee8f84ecd5b151fbd1dcbff1e4" },
+    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=9423c4f69cf8e328c8469c58cd5d90c5a174acbd" },
 ]
-
 
 [[package]]
 name = "pdf-converter"
-version = "0.1.1"
-source = { git = "https://github.com/opendatabs/pdf_converter?rev=128d8255c0ffd6ee8f84ecd5b151fbd1dcbff1e4#128d8255c0ffd6ee8f84ecd5b151fbd1dcbff1e4" }
+version = "0.1.2"
+source = { git = "https://github.com/opendatabs/pdf_converter?rev=9423c4f69cf8e328c8469c58cd5d90c5a174acbd#9423c4f69cf8e328c8469c58cd5d90c5a174acbd" }
 dependencies = [
     { name = "docling" },
     { name = "markdown" },
@@ -1547,7 +1545,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c5/5b/a9920e9a2dc43b066ff13b7fde2e7bffcca315cfa43ae6f4cc15970e39eb/rtree-1.4.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:a67bee1233370a4c72c0969a96d2a1df1ba404ddd9f146849c53ab420eab361b", size = 1554860, upload-time = "2025-03-05T23:31:43.091Z" },
     { url = "https://files.pythonhosted.org/packages/ce/c2/362f2cc36a7a57b47380061c23fc109c7222c1a544ffd24cda289ba19673/rtree-1.4.0-py3-none-win_amd64.whl", hash = "sha256:ba83efc7b7563905b1bfdfc14490c4bfb59e92e5e6156bdeb6ec5df5117252f4", size = 385221, upload-time = "2025-03-05T23:31:44.537Z" },
 ]
-
 
 [[package]]
 name = "safetensors"
