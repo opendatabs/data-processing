@@ -6,11 +6,10 @@ from typing import Any
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pyproj import Transformer
-from shapely.geometry import Point
-
 from config import COLUMNS_OF_INTEREST, CRS_CH_LV95, CRS_WGS84
 from geocoding import Geocoder
+from pyproj import Transformer
+from shapely.geometry import Point
 from spatial import (
     assign_plz,
     assign_wohnviertel,

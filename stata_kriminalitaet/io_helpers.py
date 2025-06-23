@@ -8,10 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import common
+import config
 import geopandas as gpd
 import pandas as pd
-
-import config
 from config import DATA_DIR
 
 
