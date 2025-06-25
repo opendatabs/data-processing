@@ -444,7 +444,7 @@ def main():
     df_wms.to_csv(os.path.join("data", "Hier_wms.csv"), sep=";", index=False)
     df_fgi.to_csv(os.path.join("data", "mapBS_shapes.csv"), sep=";", index=False)
     df_wms_not_in_wfs.to_csv(os.path.join("data", "wms_not_in_wfs.csv"), sep=";", index=False)
-    path_export = os.path.join("data", "100406_OGD_datensaetze.csv")
+    path_export = os.path.join("data", "100395_OGD_datensaetze.csv")
     df_wfs.to_csv(path_export, sep=";", index=False)
     common.update_ftp_and_odsp(path_export, "opendatabs", "100395")
 
