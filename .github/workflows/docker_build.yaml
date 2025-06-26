@@ -113,6 +113,9 @@ jobs:
             luftqualitaet_ch:
               - 'Dockerfile'
               - 'luftqualitaet_ch/**'
+            kapo_eventverkehr_stjakob:
+              - 'Dockerfile'
+              - 'kapo_eventverkehr_stjakob/**'
             kapo_ordnungsbussen:
               - 'Dockerfile'
               - 'kapo_ordnungsbussen/**'
