@@ -43,7 +43,7 @@ def main():
     df_anreiseempf["Text_HTML"] = df_anreiseempf["Text"].apply(
         lambda x: markdown.markdown(x, extensions=["nl2br", NewTabExtension()]) if pd.notna(x) else x
     )
-    df_anreiseempf[["Alt_Texts", "Bild_Quellen"]] = df_anreiseempf["Bilder"].apply(
+    df_anreiseempf[["Alt-Texte", "Bildquellen"]] = df_anreiseempf["Bilder"].apply(
         lambda x: pd.Series(split_markdown_image(x))
     )
 
