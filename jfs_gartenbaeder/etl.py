@@ -5,6 +5,8 @@ from datetime import datetime
 import common
 import pandas as pd
 from bs4 import BeautifulSoup
+from common import change_tracking as ct
+from common import FTP_SERVER, FTP_USER, FTP_PASS
 
 
 def main():
@@ -97,7 +99,12 @@ def main():
     df.to_csv(path_export, index=False)
     # In case the FTP writes an empty file, backup
     df.to_csv(path_backup, index=False)
-    common.update_ftp_and_odsp(path_export, "/jfs/gartenbaeder", "100384")
+    if ct.has_changed(path_export):
+        common.upload_ftp(path_export, FTP_SERVER, FTP_USER, FTP_PASS, "/jfs/gartenbaeder")
+        # Only publish ODS dataset on the full hour. Otherwise it would be published every 15 minutes.
+        if datetime.now().minute == 0:
+            common.publish_ods_dataset_by_id("100384")
+            ct.update_hash_file(path_export)
 
 
 def convert_datetime(datum_str):
