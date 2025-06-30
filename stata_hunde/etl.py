@@ -72,7 +72,7 @@ def main():
     df["hund_name"] = df["hund_name"].fillna("unbekannt")
     df_hundenamen = df.groupby(["jahr", "hund_name"]).size().reset_index(name="anzahl_hunde")
     path_hundenamen = os.path.join("data", "100446_hundenamen.csv")
-    df_hundenamen.to_csv(path_hundenamen, index=False)
+    df_hundenamen.to_csv(path_hundenamen, index=False, encoding="utf-8")
 
     logging.info("Reading number of dog owners per year, reading every column after AB")
     df_hundehalter = pd.read_excel(
