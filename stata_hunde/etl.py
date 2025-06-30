@@ -6,7 +6,7 @@ import pandas as pd
 
 def main():
     logging.info("Reading data from source...")
-    df = pd.read_csv(os.path.join("data", "Hunde für OGD.csv"), sep=";")
+    df = pd.read_csv(os.path.join("data", "Hunde für OGD.csv"), sep=";", encoding="cp1252")
 
     logging.info(
         "Extracting jahr, gemeinde_name, hund_geschlecht, hund_geburtsjahr, hund_alter, hund_rasse, hund_farbe..."
