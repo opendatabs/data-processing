@@ -71,7 +71,7 @@ def main():
     df["hund_name"] = df["hund_name"].replace(["-", "?", "3", "4"], "unbekannt")
     df["hund_name"] = df["hund_name"].fillna("unbekannt")
     # Make sure hund_name is properly decoded before writing
-    df["hund_name"] = df["hund_name"].str.encode('latin1').str.decode('utf-8', errors='strict')
+    df["hund_name"] = df["hund_name"].str.encode("latin1").str.decode("utf-8", errors="strict")
     df_hundenamen = df.groupby(["jahr", "hund_name"]).size().reset_index(name="anzahl_hunde")
     path_hundenamen = os.path.join("data", "100446_hundenamen.csv")
     df_hundenamen.to_csv(path_hundenamen, index=False, encoding="utf-8")
