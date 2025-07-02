@@ -3,119 +3,101 @@ import logging
 import os
 import pathlib
 import shutil
-import zipfile
-from datetime import timedelta
-
-import common
-import create_ics
 import pandas as pd
 import vobject
-from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+import common
+import create_ics
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100397")
 
-website_to_fetch_from = "https://www.bs.ch/themen/bildung-und-kinderbetreuung/schulferien"
+excel_file = "Schulferien BS.xlsx"
 
 data_orig_path = "data_orig/"
 data_path = "data/"
 
 
-def get_smallest_year(data_orig_path_abs: str) -> int:
-    years = []
-    for foldername in os.listdir(data_orig_path_abs):
-        parts = foldername.split()
-        if len(parts) >= 2 and parts[0] == "Schulferien" and parts[1].isdigit() and len(parts[1]) == 4:
-            years.append(int(parts[1]))
-    return min(years) if years else None
-
-
-def fetch_data_from_website(data_orig_path_abs: str) -> None:
-    os.makedirs(data_orig_path_abs, exist_ok=True)
-
-    response = common.requests_get(website_to_fetch_from)
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    zip_links = [a["href"] for a in soup.find_all("a", href=True) if a["href"].endswith(".zip")]
-
-    for link in zip_links:
-        zip_filename = os.path.basename(link)
-        zip_path = os.path.join(data_orig_path_abs, zip_filename)
-
-        response = common.requests_get(link)
-        with open(zip_path, "wb") as f:
-            f.write(response.content)
-
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(data_orig_path_abs)
-
-        os.remove(zip_path)
-
-    logging.info(f"Downloaded and extracted {len(zip_links)} zip files.")
-
-
-def clean_name(name: str) -> str:
-    name = name.strip()
-    name_year = name.rsplit(" ", 1)
+def get_smallest_year_from_excel(excel_path: str) -> int:
+    """Get the smallest year from the Excel sheet names"""
     try:
-        int(name_year[1][:3])
-        name = name_year[0]
-    except ValueError:
-        name = " ".join(name_year)
-    except IndexError:
-        name = name_year[0]
-    if "1.Mai" in name:
-        name = name.replace("1.Mai", "1. Mai")
-    if "ü" in name:
-        name = name.replace("ü", "ue")
-    return name
+        xl = pd.ExcelFile(excel_path)
+        # Filter sheet names that are digits and convert to integers
+        years = [int(sheet) for sheet in xl.sheet_names if sheet.isdigit()]
+        return min(years) if years else None
+    except Exception as e:
+        logging.error(f"Error reading Excel file: {str(e)}")
+        return None
 
 
-def process_ics_file(file_path: str, csv_writer: csv.writer) -> None:
-    with open(file_path, "r", encoding="utf-8") as f:
-        ics_content = f.read()
-
-    cal = vobject.readOne(ics_content)
-
-    for event in cal.vevent_list:
-        name = clean_name(event.summary.value)
-
-        start_date = event.dtstart.value
-
-        end_date = event.dtend.value
-        if end_date.weekday() != 6:
-            end_date -= timedelta(days=1)
-
-        year = start_date.year
-
-        # Timestamps and 'if end_date.weekday() != 6' are added because of the ODS bug where a timestamp is introduced
-        # when exporting automatically generated ics file from ods. TODO: Can be simplified once this ods-bug is fixed
-        start_date_str = start_date.strftime("%Y-%m-%d 00:00:00")
-        end_date_str = end_date.strftime("%Y-%m-%d 23:59:00")
-
-        csv_writer.writerow([year, name, start_date_str, end_date_str])
-
-
-def transform_all_ics_to_csv(data_orig_path_abs: str, data_path_abs: str, output_filename_csv: str) -> None:
-    csv_file_path = os.path.join(data_path_abs, output_filename_csv)
-    with open(csv_file_path, "w", newline="", encoding="utf-8") as csvfile:
+def process_excel_file(excel_path: str, data_path_abs: str, output_filename_csv: str) -> None:
+    """Process the Excel file and extract holiday data into CSV format"""
+    xl = pd.ExcelFile(excel_path)
+    
+    # Filter sheets that are named with years (digits only)
+    year_sheets = [sheet for sheet in xl.sheet_names if sheet.isdigit()]
+    
+    with open(os.path.join(data_path_abs, output_filename_csv), "w", newline="", encoding="utf-8") as csvfile:
         csv_writer = csv.writer(csvfile, delimiter=";")
         csv_writer.writerow(["year", "name", "start_date", "end_date"])
-
-        for foldername in os.listdir(data_orig_path_abs):
-            if foldername == "dummy.txt":
-                continue
-
-            folder_path = os.path.join(data_orig_path_abs, foldername)
-            if not os.path.isdir(folder_path):
-                continue
-
-            for filename in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, filename)
-
-                process_ics_file(file_path, csv_writer)
+        
+        for sheet in year_sheets:
+            logging.info(f"Processing sheet {sheet}")
+            # Read the Excel sheet, skipping the first 4 rows (headers start at row 5)
+            df = pd.read_excel(excel_path, sheet_name=sheet, header=3)
+            
+            # Find the row where "Feriendaten" or holiday data starts
+            for i, row in df.iterrows():
+                # Skip rows without a name or with specific excluded rows
+                if pd.isna(row[0]) or row[0] in ["Ausserdem schulfrei", "Semesterdaten", "Gesamtkonferenz KSBS:"]:
+                    continue
+                    
+                # Skip italicized entries (like "Basler Fasnacht" and "Dreitageblock")
+                if row[0].startswith("Basler Fasnacht") or row[0].startswith("Dreitageblock"):
+                    continue
+                    
+                # Process only rows with dates
+                if not pd.isna(row[1]) and not pd.isna(row[2]):
+                    name = row[0].strip()
+                    
+                    # Convert dates to datetime and then to string format
+                    start_date = pd.to_datetime(row[1]).strftime("%Y-%m-%d 00:00:00")
+                    end_date = pd.to_datetime(row[2]).strftime("%Y-%m-%d 23:59:00")
+                    
+                    # Get year from start date
+                    year = pd.to_datetime(row[1]).year
+                    
+                    csv_writer.writerow([year, name, start_date, end_date])
+            
+            # Now process the "Ausserdem schulfrei" section if it exists
+            found_schulfrei = False
+            for i, row in df.iterrows():
+                if not pd.isna(row[0]) and row[0] == "Ausserdem schulfrei":
+                    found_schulfrei = True
+                    continue
+                    
+                if found_schulfrei and not pd.isna(row[0]) and not pd.isna(row[1]):
+                    # Skip if we've reached another section
+                    if row[0] in ["Semesterdaten", "Gesamtkonferenz KSBS:"]:
+                        break
+                        
+                    name = row[0].strip()
+                    
+                    # For single-day events, both start and end are the same day
+                    start_date = pd.to_datetime(row[1]).strftime("%Y-%m-%d 00:00:00")
+                    
+                    # If end date is provided, use it, otherwise use the start date
+                    if not pd.isna(row[2]):
+                        end_date = pd.to_datetime(row[2]).strftime("%Y-%m-%d 23:59:00")
+                    else:
+                        end_date = pd.to_datetime(row[1]).strftime("%Y-%m-%d 23:59:00")
+                    
+                    # Get year from start date
+                    year = pd.to_datetime(row[1]).year
+                    
+                    csv_writer.writerow([year, name, start_date, end_date])
 
 
 def push_all_data_csv_with_realtime_push(data_path_abs: str):
@@ -183,31 +165,43 @@ def main():
 
     data_path_abs = os.path.join(script_dir, data_path)
     data_orig_path_abs = os.path.join(script_dir, data_orig_path)
+    excel_path = os.path.join(script_dir, excel_file)
 
-    fetch_data_from_website(data_orig_path_abs=data_orig_path_abs)
+    # Ensure directories exist
+    os.makedirs(data_path_abs, exist_ok=True)
+    os.makedirs(data_orig_path_abs, exist_ok=True)
 
-    smallest_year = get_smallest_year(data_orig_path_abs)
+    # Get the smallest year from Excel sheets
+    smallest_year = get_smallest_year_from_excel(excel_path)
     if smallest_year is None:
-        raise ValueError("No valid year found in folder names")
+        raise ValueError("No valid year found in Excel sheets")
+        
     output_filename_csv = f"school_holidays_since_{smallest_year}.csv"
 
-    transform_all_ics_to_csv(
-        data_orig_path_abs=data_orig_path_abs,
+    # Process the Excel file and create CSV
+    process_excel_file(
+        excel_path=excel_path,
         data_path_abs=data_path_abs,
         output_filename_csv=output_filename_csv,
     )
 
-    common.update_ftp_and_odsp(
-        path_export=os.path.join(data_path_abs, output_filename_csv),
-        folder_name="ed/schulferien",
-        dataset_id="100397",
-    )
+    DEBUG = True
+    if not DEBUG:
+        # Update FTP and ODSP
+        common.update_ftp_and_odsp(
+            path_export=os.path.join(data_path_abs, output_filename_csv),
+            folder_name="ed/schulferien",
+            dataset_id="100397",
+        )
 
-    push_all_data_csv_with_realtime_push(data_path_abs=data_path_abs)
+        # Push data with realtime push
+        push_all_data_csv_with_realtime_push(data_path_abs=data_path_abs)
 
+        # Update ICS file on FTP server
+        update_ics_file_on_ftp_server()
+
+    # Clean data_orig folder
     clean_data_orig_folder(data_orig_path_abs=data_orig_path_abs)
-
-    update_ics_file_on_ftp_server()
 
 
 if __name__ == "__main__":
