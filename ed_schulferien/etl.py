@@ -18,6 +18,66 @@ data_orig_path = "data_orig/"
 data_path = "data/"
 
 
+def verify_excel(excel_path: str, sheet_name: str) -> bool:
+    """Verify that the Excel sheet has the expected structure"""
+    try:
+        # Load the Excel file
+        df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
+        
+        # Define the expected structure as a list of tuples containing ((row, col), expected_value)
+        expected_structure = [
+            # Section headers
+            ((3, 0), "Feriendaten"),
+            ((12, 0), "Ausserdem schulfrei"),
+            ((17, 0), "Semesterdaten"),
+            ((21, 0), "Gesamtkonferenz KSBS:"),
+            
+            # Column headers
+            ((3, 1), "Beginn (Samstag)"),
+            ((3, 2), "Ende (Sonntag)"),
+            ((3, 3), "Schulanfang (Montag)"),
+            ((12, 1), "Beginn"),
+            ((12, 2), "Ende"),
+            ((17, 1), "Beginn"),
+            ((17, 2), "Ende"),
+            
+            # Holiday names
+            ((4, 0), "Herbstferien"),
+            ((5, 0), "Weihnachtsferien"),
+            ((6, 0), "Fasnachts- und Sportferien"),
+            ((7, 0), "Basler Fasnacht"),
+            ((8, 0), "Frühjahrsferien"),
+            ((9, 0), "Dreitageblock"),
+            ((10, 0), "Sommerferien"),
+            
+            # Special days off
+            ((13, 0), "Schulfrei (1. Mai)"),
+            ((14, 0), "Schulfrei (Auffahrt)"),
+            ((15, 0), "Schulfrei (Pfingstmontag)"),
+            
+            # Semester data
+            ((18, 0), "1. Semester"),
+            ((19, 0), "2. Semester")
+        ]
+
+        # Sort by row, then by column
+        expected_structure.sort(key=lambda x: (x[0][0], x[0][1]))
+        
+        # Check each expected value
+        for (row, col), expected_value in expected_structure:
+            actual_value = str(df.iloc[row, col])
+            if expected_value != actual_value:
+                logging.error(f"Template verification failed: Expected '{expected_value}' at position ({row+1}, {col+1}), but got '{actual_value}'")
+                return False
+        
+        logging.info(f"Verification passed for sheet '{sheet_name}'!")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error verifying Excel sheet '{sheet_name}': {str(e)}")
+        return False
+
+
 def get_smallest_year_from_excel(excel_path: str) -> int:
     """Get the smallest year from the Excel sheet names"""
     try:
@@ -43,6 +103,12 @@ def process_excel_file(excel_path: str, data_path_abs: str, output_filename_csv:
         
         for sheet in year_sheets:
             logging.info(f"Processing sheet {sheet}")
+            
+            # Verify the structure of the year sheet before processing
+            if not verify_excel(excel_path, sheet):
+                logging.error(f"Sheet {sheet} failed verification - cannot proceed")
+                raise ValueError(f"Excel sheet {sheet} has an invalid structure")
+                
             # Read the Excel sheet, skipping the first 4 rows (headers start at row 5)
             df = pd.read_excel(excel_path, sheet_name=sheet, header=3)
             
@@ -168,6 +234,10 @@ def main():
     # Ensure directories exist
     os.makedirs(data_path_abs, exist_ok=True)
     os.makedirs(data_orig_path_abs, exist_ok=True)
+
+    # Verify the Excel TEMPLATE sheet
+    if not verify_excel(excel_path, "TEMPLATE"):
+        raise ValueError("Excel TEMPLATE verification failed. Please check the template structure.")
 
     # Get the smallest year from Excel sheets
     smallest_year = get_smallest_year_from_excel(excel_path)
