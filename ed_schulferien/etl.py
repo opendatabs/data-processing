@@ -4,8 +4,6 @@ import os
 import pathlib
 import shutil
 import pandas as pd
-import vobject
-from datetime import datetime, timedelta
 import common
 import create_ics
 from dotenv import load_dotenv
@@ -51,51 +49,51 @@ def process_excel_file(excel_path: str, data_path_abs: str, output_filename_csv:
             # Find the row where "Feriendaten" or holiday data starts
             for i, row in df.iterrows():
                 # Skip rows without a name or with specific excluded rows
-                if pd.isna(row[0]) or row[0] in ["Ausserdem schulfrei", "Semesterdaten", "Gesamtkonferenz KSBS:"]:
+                if pd.isna(row.iloc[0]) or row.iloc[0] in ["Ausserdem schulfrei", "Semesterdaten", "Gesamtkonferenz KSBS:"]:
                     continue
                     
                 # Skip italicized entries (like "Basler Fasnacht" and "Dreitageblock")
-                if row[0].startswith("Basler Fasnacht") or row[0].startswith("Dreitageblock"):
+                if row.iloc[0].startswith("Basler Fasnacht") or row.iloc[0].startswith("Dreitageblock"):
                     continue
                     
                 # Process only rows with dates
-                if not pd.isna(row[1]) and not pd.isna(row[2]):
-                    name = row[0].strip()
+                if not pd.isna(row.iloc[1]) and not pd.isna(row.iloc[2]):
+                    name = row.iloc[0].strip()
                     
                     # Convert dates to datetime and then to string format
-                    start_date = pd.to_datetime(row[1]).strftime("%Y-%m-%d 00:00:00")
-                    end_date = pd.to_datetime(row[2]).strftime("%Y-%m-%d 23:59:00")
+                    start_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 00:00:00")
+                    end_date = pd.to_datetime(row.iloc[2]).strftime("%Y-%m-%d 23:59:00")
                     
                     # Get year from start date
-                    year = pd.to_datetime(row[1]).year
+                    year = pd.to_datetime(row.iloc[1]).year
                     
                     csv_writer.writerow([year, name, start_date, end_date])
             
             # Now process the "Ausserdem schulfrei" section if it exists
             found_schulfrei = False
             for i, row in df.iterrows():
-                if not pd.isna(row[0]) and row[0] == "Ausserdem schulfrei":
+                if not pd.isna(row.iloc[0]) and row.iloc[0] == "Ausserdem schulfrei":
                     found_schulfrei = True
                     continue
                     
-                if found_schulfrei and not pd.isna(row[0]) and not pd.isna(row[1]):
+                if found_schulfrei and not pd.isna(row.iloc[0]) and not pd.isna(row.iloc[1]):
                     # Skip if we've reached another section
-                    if row[0] in ["Semesterdaten", "Gesamtkonferenz KSBS:"]:
+                    if row.iloc[0] in ["Semesterdaten", "Gesamtkonferenz KSBS:"]:
                         break
                         
-                    name = row[0].strip()
+                    name = row.iloc[0].strip()
                     
                     # For single-day events, both start and end are the same day
-                    start_date = pd.to_datetime(row[1]).strftime("%Y-%m-%d 00:00:00")
+                    start_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 00:00:00")
                     
                     # If end date is provided, use it, otherwise use the start date
-                    if not pd.isna(row[2]):
-                        end_date = pd.to_datetime(row[2]).strftime("%Y-%m-%d 23:59:00")
+                    if not pd.isna(row.iloc[2]):
+                        end_date = pd.to_datetime(row.iloc[2]).strftime("%Y-%m-%d 23:59:00")
                     else:
-                        end_date = pd.to_datetime(row[1]).strftime("%Y-%m-%d 23:59:00")
+                        end_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 23:59:00")
                     
                     # Get year from start date
-                    year = pd.to_datetime(row[1]).year
+                    year = pd.to_datetime(row.iloc[1]).year
                     
                     csv_writer.writerow([year, name, start_date, end_date])
 
@@ -200,8 +198,8 @@ def main():
         # Update ICS file on FTP server
         update_ics_file_on_ftp_server()
 
-    # Clean data_orig folder
-    clean_data_orig_folder(data_orig_path_abs=data_orig_path_abs)
+        # Clean data_orig folder
+        clean_data_orig_folder(data_orig_path_abs=data_orig_path_abs)
 
 
 if __name__ == "__main__":
