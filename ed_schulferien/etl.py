@@ -11,12 +11,27 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Constants and configuration
 ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100397")
 
 excel_file = "Schulferien BS.xlsx"
 
 data_orig_path = "data_orig/"
 data_path = "data/"
+
+# Event names to include in CSV files
+CSV_INCLUDE_EVENTS = [
+    "Herbstferien",
+    "Weihnachtsferien",
+    "Fasnachts- und Sportferien",
+    "Frühjahrsferien",
+    "Sommerferien",
+    "Basler Fasnacht",
+    "Dreitageblock",
+    "Schulfrei (1. Mai)",
+    "Schulfrei (Auffahrt)",
+    "Schulfrei (Pfingstmontag)"
+]
 
 
 def verify_excel(excel_path: str, sheet_name: str) -> bool:
@@ -116,52 +131,22 @@ def process_excel_file(excel_path: str, data_path_abs: str) -> list:
             # Read the Excel sheet, skipping the first 4 rows (headers start at row 5)
             df = pd.read_excel(excel_path, sheet_name=sheet, header=3)
             
-            # Find the row where "Feriendaten" or holiday data starts
+            # Process all rows in the sheet
             for i, row in df.iterrows():
-                # Skip rows without a name or with specific excluded rows
-                if pd.isna(row.iloc[0]) or row.iloc[0] in ["Ausserdem schulfrei", "Semesterdaten", "Gesamtkonferenz KSBS:"]:
+                # Skip rows with empty names
+                if pd.isna(row.iloc[0]):
                     continue
                     
-                # Skip italicized entries (like "Basler Fasnacht" and "Dreitageblock")
-                if row.iloc[0].startswith("Basler Fasnacht") or row.iloc[0].startswith("Dreitageblock"):
+                # Get event name and check if it's in our include list
+                name = row.iloc[0]
+                if name not in CSV_INCLUDE_EVENTS:
                     continue
-                    
-                # Process only rows with dates
+                
+                # Process only rows with both start and end dates
                 if not pd.isna(row.iloc[1]) and not pd.isna(row.iloc[2]):
-                    name = row.iloc[0].strip()
-                    
                     # Convert dates to datetime and then to string format
                     start_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 00:00:00")
                     end_date = pd.to_datetime(row.iloc[2]).strftime("%Y-%m-%d 23:59:00")
-                    
-                    # Get year from start date
-                    year = pd.to_datetime(row.iloc[1]).year
-                    
-                    csv_writer.writerow([year, name, start_date, end_date])
-            
-            # Now process the "Ausserdem schulfrei" section if it exists
-            found_schulfrei = False
-            for i, row in df.iterrows():
-                if not pd.isna(row.iloc[0]) and row.iloc[0] == "Ausserdem schulfrei":
-                    found_schulfrei = True
-                    continue
-                    
-                if found_schulfrei and not pd.isna(row.iloc[0]) and not pd.isna(row.iloc[1]):
-                    # Skip if we've reached another section
-                    if row.iloc[0] in ["Semesterdaten", "Gesamtkonferenz KSBS:"]:
-                        break
-                        
-                    name = row.iloc[0].strip()
-                    
-                    # For single-day events, both start and end are the same day
-                    start_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 00:00:00")
-                    
-                    # If end date is provided, use it, otherwise use the start date
-                    if not pd.isna(row.iloc[2]):
-                        end_date = pd.to_datetime(row.iloc[2]).strftime("%Y-%m-%d 23:59:00")
-                    else:
-                        # Raise error instead of defaulting to start date
-                        raise ValueError(f"Missing end date for '{name}' starting on {start_date}")
                     
                     # Get year from start date
                     year = pd.to_datetime(row.iloc[1]).year
@@ -255,7 +240,7 @@ def check_embargo(excel_path: str) -> bool:
         embargo_date = pd.to_datetime(embargo_cell).date()
         today = datetime.date.today()
         
-        # Check if embargo has passed
+        # Check if embargo date has passed
         if today <= embargo_date:
             logging.error(f"Embargo date not yet passed. Today: {today}, Embargo until: {embargo_date}")
             return False

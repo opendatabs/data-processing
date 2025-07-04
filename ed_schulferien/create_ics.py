@@ -25,6 +25,18 @@ YEAR_RANGE_START = current_year - 2  # Previous school year (better more than no
 YEAR_RANGE_END = current_year + 3  # Approximately 3 years in the future
 # IMPORTANT: If these year ranges are modified, make sure to update the description in the SchulferienBS.ics.template file as well
 
+# Events that should be included in the ICS file
+ICS_INCLUDE_EVENTS = [
+    "Herbstferien", 
+    "Weihnachtsferien", 
+    "Fasnachts- und Sportferien",
+    "Frühjahrsferien",
+    "Sommerferien",
+    "Schulfrei (1. Mai)",
+    "Schulfrei (Auffahrt)",
+    "Schulfrei (Pfingstmontag)"
+]
+
 
 # Function to add one day to a date string in YYYYMMDD format
 def add_one_day(date_str):
@@ -134,6 +146,7 @@ def main():
 
     # Collect all events from CSV files
     all_events = []
+    
     for csv_file in csv_files:
         if os.path.exists(csv_file):
             with open(csv_file, "r", encoding="utf-8") as f:
@@ -141,21 +154,17 @@ def main():
                 next(reader)  # Skip header
                 for row in reader:
                     year, name, start_date, end_date = row
-                    # Strip whitespace from the name
-                    name = name.strip()
+                    
+                    # Include only events that should be in the ICS file
+                    if name not in ICS_INCLUDE_EVENTS:
+                        logging.debug(f"Skipping event not in include list: {name}")
+                        continue
+                    
                     # Remove any time portion and convert to proper format for iCalendar (YYYYMMDD)
                     start_date = start_date.split(" ")[0]
                     end_date = end_date.split(" ")[0]
                     start_date_formatted = start_date.replace("-", "")
                     end_date_formatted = end_date.replace("-", "")
-
-                    # Make sure that the dates are exactly 8 characters long and numbers only, if not, skip the event
-                    if len(start_date_formatted) != 8 or not start_date_formatted.isdigit():
-                        logging.warning(f"Invalid start date: {start_date_formatted}")
-                        continue
-                    if len(end_date_formatted) != 8 or not end_date_formatted.isdigit():
-                        logging.warning(f"Invalid end date: {end_date_formatted}")
-                        continue
 
                     # Extract the year from the start date to filter events by year range
                     event_year = int(start_date_formatted[:4])
@@ -183,9 +192,6 @@ def main():
 
     # Add events to ICS content
     for year, name, start_date, end_date in all_events:
-        # Strip whitespace from the name
-        name = name.strip()
-
         # Generate a deterministic UID for this event
         event_uid = generate_event_uid(year, name, start_date, end_date)
 
@@ -252,6 +258,11 @@ def main():
             event_year = int(event["start"][:4])
             if YEAR_RANGE_START <= event_year <= YEAR_RANGE_END:
                 summary = event["summary"].strip() if event["summary"] else ""
+                
+                # Only include events that should be in the ICS file
+                if summary not in ICS_INCLUDE_EVENTS:
+                    logging.debug(f"Skipping existing event not in include list: {summary}")
+                    continue
 
                 # Use the original timestamp for preserved events
                 event_timestamp = event["dtstamp"] if event["dtstamp"] else dtstamp
