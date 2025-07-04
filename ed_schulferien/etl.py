@@ -4,6 +4,7 @@ import os
 import pathlib
 import shutil
 import pandas as pd
+import datetime
 import common
 import create_ics
 from dotenv import load_dotenv
@@ -229,6 +230,44 @@ def update_ics_file_on_ftp_server() -> None:
         logging.error(f"Error generating ICS file: {str(e)}")
 
 
+def check_embargo(excel_path: str) -> bool:
+    """
+    Check if the embargo date has passed.
+    Returns True if processing can proceed (embargo passed), False otherwise.
+    """
+    try:
+        # Check if "Drucken" tab exists
+        xl = pd.ExcelFile(excel_path)
+        if "Drucken" not in xl.sheet_names:
+            logging.error("Embargo check failed: 'Drucken' tab does not exist in the Excel file")
+            return False
+        
+        # Read the embargo date from cell B2
+        df = pd.read_excel(excel_path, sheet_name="Drucken", header=None)
+        embargo_cell = df.iloc[1, 1]  # B2 is at index [1,1]
+        
+        # Check if the cell contains a valid date
+        if not isinstance(embargo_cell, pd.Timestamp) and not isinstance(embargo_cell, datetime.datetime):
+            logging.error(f"Embargo check failed: Cell B2 does not contain a valid date: {embargo_cell}")
+            return False
+            
+        # Convert to datetime for comparison
+        embargo_date = pd.to_datetime(embargo_cell).date()
+        today = datetime.date.today()
+        
+        # Check if embargo has passed
+        if today <= embargo_date:
+            logging.error(f"Embargo date not yet passed. Today: {today}, Embargo until: {embargo_date}")
+            return False
+            
+        logging.info(f"Embargo date has passed. Today: {today}, Embargo was until: {embargo_date}")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error checking embargo date: {str(e)}")
+        return False
+
+
 def main():
     # TODO: This is really ugly, but the easiest way I found to make it runnable both locally and on the server
     script_dir = pathlib.Path(__file__).parent.absolute()
@@ -242,6 +281,11 @@ def main():
     # Ensure directories exist
     os.makedirs(data_path_abs, exist_ok=True)
     os.makedirs(data_orig_path_abs, exist_ok=True)
+    
+    # Check embargo before proceeding
+    if not check_embargo(excel_path):
+        logging.warning("Processing aborted due to active embargo")
+        return
 
     # Verify the Excel TEMPLATE sheet
     if not verify_excel(excel_path, "TEMPLATE"):
