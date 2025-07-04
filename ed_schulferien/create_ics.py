@@ -35,7 +35,7 @@ def add_one_day(date_str):
 
 # Function to extract year from CSV filename
 def extract_year_from_filename(filename):
-    match = re.search(r"school_holidays_since_(\d+)\.csv", os.path.basename(filename))
+    match = re.search(r"school_holidays_(\d+)\.csv", os.path.basename(filename))
     if match:
         return int(match.group(1))
     logging.warning(f"No year found in filename: {filename}")

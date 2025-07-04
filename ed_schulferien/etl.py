@@ -90,25 +90,28 @@ def get_smallest_year_from_excel(excel_path: str) -> int:
         return None
 
 
-def process_excel_file(excel_path: str, data_path_abs: str, output_filename_csv: str) -> None:
-    """Process the Excel file and extract holiday data into CSV format"""
+def process_excel_file(excel_path: str, data_path_abs: str) -> list:
+    """Process the Excel file and extract holiday data into separate CSV files per year tab"""
     xl = pd.ExcelFile(excel_path)
     
     # Filter sheets that are named with years (digits only)
     year_sheets = [sheet for sheet in xl.sheet_names if sheet.isdigit()]
+    processed_files = []
     
-    with open(os.path.join(data_path_abs, output_filename_csv), "w", newline="", encoding="utf-8") as csvfile:
-        csv_writer = csv.writer(csvfile, delimiter=";")
-        csv_writer.writerow(["year", "name", "start_date", "end_date"])
+    for sheet in year_sheets:
+        logging.info(f"Processing sheet {sheet}")
+        year = int(sheet)
+        output_filename_csv = f"school_holidays_{year}.csv"
         
-        for sheet in year_sheets:
-            logging.info(f"Processing sheet {sheet}")
+        # Verify the structure of the year sheet before processing
+        if not verify_excel(excel_path, sheet):
+            logging.error(f"Sheet {sheet} failed verification - cannot proceed")
+            raise ValueError(f"Excel sheet {sheet} has an invalid structure")
+        
+        with open(os.path.join(data_path_abs, output_filename_csv), "w", newline="", encoding="utf-8") as csvfile:
+            csv_writer = csv.writer(csvfile, delimiter=";")
+            csv_writer.writerow(["year", "name", "start_date", "end_date"])
             
-            # Verify the structure of the year sheet before processing
-            if not verify_excel(excel_path, sheet):
-                logging.error(f"Sheet {sheet} failed verification - cannot proceed")
-                raise ValueError(f"Excel sheet {sheet} has an invalid structure")
-                
             # Read the Excel sheet, skipping the first 4 rows (headers start at row 5)
             df = pd.read_excel(excel_path, sheet_name=sheet, header=3)
             
@@ -163,6 +166,10 @@ def process_excel_file(excel_path: str, data_path_abs: str, output_filename_csv:
                     year = pd.to_datetime(row.iloc[1]).year
                     
                     csv_writer.writerow([year, name, start_date, end_date])
+        
+        processed_files.append(output_filename_csv)
+    
+    return processed_files
 
 
 def push_all_data_csv_with_realtime_push(data_path_abs: str):
@@ -170,8 +177,8 @@ def push_all_data_csv_with_realtime_push(data_path_abs: str):
         if not filename.endswith(".csv"):
             logging.info(f"Ignoring {filename}; Not a csv file")
             continue
-        if "school_holidays_since_" not in filename:
-            logging.info(f"Ignoring {filename}; Not of the form school_holidays_since_*.csv")
+        if not filename.startswith("school_holidays_"):
+            logging.info(f"Ignoring {filename}; Not of the form school_holidays_*.csv")
             continue
 
         csv_file_path_abs = os.path.join(data_path_abs, filename)
@@ -240,28 +247,23 @@ def main():
     if not verify_excel(excel_path, "TEMPLATE"):
         raise ValueError("Excel TEMPLATE verification failed. Please check the template structure.")
 
-    # Get the smallest year from Excel sheets
-    smallest_year = get_smallest_year_from_excel(excel_path)
-    if smallest_year is None:
-        raise ValueError("No valid year found in Excel sheets")
-        
-    output_filename_csv = f"school_holidays_since_{smallest_year}.csv"
-
-    # Process the Excel file and create CSV
-    process_excel_file(
+    # Process the Excel file and create separate CSV files per year tab
+    processed_files = process_excel_file(
         excel_path=excel_path,
         data_path_abs=data_path_abs,
-        output_filename_csv=output_filename_csv,
     )
+    
+    logging.info(f"Processed {len(processed_files)} year tabs into separate CSV files")
 
     DEBUG = True
     if not DEBUG:
-        # Update FTP and ODSP
-        common.update_ftp_and_odsp(
-            path_export=os.path.join(data_path_abs, output_filename_csv),
-            folder_name="ed/schulferien",
-            dataset_id="100397",
-        )
+        # Update FTP and ODSP for each processed file
+        for csv_file in processed_files:
+            common.update_ftp_and_odsp(
+                path_export=os.path.join(data_path_abs, csv_file),
+                folder_name="ed/schulferien",
+                dataset_id="100397",
+            )
 
         # Push data with realtime push
         push_all_data_csv_with_realtime_push(data_path_abs=data_path_abs)
