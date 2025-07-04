@@ -83,7 +83,8 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
         for (row, col), expected_value in expected_structure:
             actual_value = str(df.iloc[row, col])
             if expected_value != actual_value:
-                logging.error(f"Template verification failed: Expected '{expected_value}' at position ({row+1}, {col+1}), but got '{actual_value}'")
+                position = get_excel_cell_reference(row, col)
+                logging.error(f"Sheet '{sheet_name}': Template verification failed: Expected '{expected_value}' at position {position}, but got '{actual_value}'")
                 return False
         
         # Skip date validation for template sheets
@@ -106,7 +107,8 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
             ]
             for row, col in date_coordinates:
                 if pd.isna(df.iloc[row, col]):
-                    logging.error(f"Template verification failed: Date field at position ({row+1}, {col+1}) contains NaN value")
+                    position = get_excel_cell_reference(row, col)
+                    logging.error(f"Sheet '{sheet_name}': Template verification failed: Date field at position {position} contains NaN value")
                     return False
                 
                 # Verify that the value is a valid date
@@ -116,10 +118,12 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
                         # Try to convert to datetime - if it fails, it's not a valid date
                         converted = pd.to_datetime(date_value, errors='coerce')
                         if pd.isna(converted):
-                            logging.error(f"Template verification failed: Field at position ({row+1}, {col+1}) contains '{date_value}' which is not a valid date")
+                            position = get_excel_cell_reference(row, col)
+                            logging.error(f"Sheet '{sheet_name}': Template verification failed: Field at position {position} contains '{date_value}' which is not a valid date")
                             return False
                 except Exception as e:
-                    logging.error(f"Template verification failed: Error validating date at position ({row+1}, {col+1}): {str(e)}")
+                    position = get_excel_cell_reference(row, col)
+                    logging.error(f"Sheet '{sheet_name}': Template verification failed: Error validating date at position {position}: {str(e)}")
                     return False
         
         logging.info(f"Verification passed for sheet '{sheet_name}'!")
@@ -128,6 +132,20 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
     except Exception as e:
         logging.error(f"Error verifying Excel sheet '{sheet_name}': {str(e)}")
         return False
+
+
+def get_excel_cell_reference(row: int, col: int) -> str:
+    """Convert zero-based row and column indices to Excel cell reference (A1, B2, etc.) or (row+1, col+1) format for columns beyond D"""
+    if col == 0:
+        return f"A{row+1}"
+    elif col == 1:
+        return f"B{row+1}"
+    elif col == 2:
+        return f"C{row+1}"
+    elif col == 3:
+        return f"D{row+1}"
+    else:
+        return f"({row+1}, {col+1})"
 
 
 def get_smallest_year_from_excel(excel_path: str) -> int:
