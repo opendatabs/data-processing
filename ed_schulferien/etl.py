@@ -34,7 +34,7 @@ CSV_INCLUDE_EVENTS = [
 ]
 
 
-def verify_excel(excel_path: str, sheet_name: str) -> bool:
+def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) -> bool:
     """Verify that the Excel sheet has the expected structure"""
     try:
         # Load the Excel file
@@ -46,7 +46,7 @@ def verify_excel(excel_path: str, sheet_name: str) -> bool:
             ((3, 0), "Feriendaten"),
             ((12, 0), "Ausserdem schulfrei"),
             ((17, 0), "Semesterdaten"),
-            #((21, 0), "Gesamtkonferenz KSBS:"),
+            ((21, 0), "Gesamtkonferenz KSBS:"),
             
             # Column headers
             ((3, 1), "Beginn (Samstag)"),
@@ -72,8 +72,8 @@ def verify_excel(excel_path: str, sheet_name: str) -> bool:
             ((15, 0), "Schulfrei (Pfingstmontag)"),
             
             # Semester data
-            #((18, 0), "1. Semester"),
-            #((19, 0), "2. Semester")
+            ((18, 0), "1. Semester"),
+            ((19, 0), "2. Semester")
         ]
 
         # Sort by row, then by column
@@ -85,6 +85,42 @@ def verify_excel(excel_path: str, sheet_name: str) -> bool:
             if expected_value != actual_value:
                 logging.error(f"Template verification failed: Expected '{expected_value}' at position ({row+1}, {col+1}), but got '{actual_value}'")
                 return False
+        
+        # Skip date validation for template sheets
+        if not is_template:
+            # Check that critical date fields are not NaN
+            date_coordinates = [
+                (4, 1), (4, 2),
+                (5, 1), (5, 2),
+                (6, 1), (6, 2),
+                (7, 1), (7, 2),
+                (8, 1), (8, 2),
+                (9, 1), (9, 2),
+                (10, 1), (10, 2),
+                (13, 1), (13, 2),
+                (14, 1), (14, 2),
+                (15, 1), (15, 2),
+                (18, 1), (18, 2),
+                (19, 1), (19, 2),
+                (21, 1) # No end date here
+            ]
+            for row, col in date_coordinates:
+                if pd.isna(df.iloc[row, col]):
+                    logging.error(f"Template verification failed: Date field at position ({row+1}, {col+1}) contains NaN value")
+                    return False
+                
+                # Verify that the value is a valid date
+                try:
+                    date_value = df.iloc[row, col]
+                    if not isinstance(date_value, (datetime.datetime, pd.Timestamp)):
+                        # Try to convert to datetime - if it fails, it's not a valid date
+                        converted = pd.to_datetime(date_value, errors='coerce')
+                        if pd.isna(converted):
+                            logging.error(f"Template verification failed: Field at position ({row+1}, {col+1}) contains '{date_value}' which is not a valid date")
+                            return False
+                except Exception as e:
+                    logging.error(f"Template verification failed: Error validating date at position ({row+1}, {col+1}): {str(e)}")
+                    return False
         
         logging.info(f"Verification passed for sheet '{sheet_name}'!")
         return True
@@ -273,7 +309,7 @@ def main():
         return
 
     # Verify the Excel TEMPLATE sheet
-    if not verify_excel(excel_path, "TEMPLATE"):
+    if not verify_excel(excel_path, "TEMPLATE", is_template=True):
         raise ValueError("Excel TEMPLATE verification failed. Please check the template structure.")
 
     # Process the Excel file and create separate CSV files per year tab
