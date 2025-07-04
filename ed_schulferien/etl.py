@@ -30,7 +30,7 @@ def verify_excel(excel_path: str, sheet_name: str) -> bool:
             ((3, 0), "Feriendaten"),
             ((12, 0), "Ausserdem schulfrei"),
             ((17, 0), "Semesterdaten"),
-            ((21, 0), "Gesamtkonferenz KSBS:"),
+            #((21, 0), "Gesamtkonferenz KSBS:"),
             
             # Column headers
             ((3, 1), "Beginn (Samstag)"),
@@ -56,8 +56,8 @@ def verify_excel(excel_path: str, sheet_name: str) -> bool:
             ((15, 0), "Schulfrei (Pfingstmontag)"),
             
             # Semester data
-            ((18, 0), "1. Semester"),
-            ((19, 0), "2. Semester")
+            #((18, 0), "1. Semester"),
+            #((19, 0), "2. Semester")
         ]
 
         # Sort by row, then by column
@@ -156,7 +156,8 @@ def process_excel_file(excel_path: str, data_path_abs: str, output_filename_csv:
                     if not pd.isna(row.iloc[2]):
                         end_date = pd.to_datetime(row.iloc[2]).strftime("%Y-%m-%d 23:59:00")
                     else:
-                        end_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 23:59:00")
+                        # Raise error instead of defaulting to start date
+                        raise ValueError(f"Missing end date for '{name}' starting on {start_date}")
                     
                     # Get year from start date
                     year = pd.to_datetime(row.iloc[1]).year
