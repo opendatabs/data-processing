@@ -34,6 +34,57 @@ CSV_INCLUDE_EVENTS = [
 ]
 
 
+def main():
+    # TODO: This is really ugly, but the easiest way I found to make it runnable both locally and on the server
+    script_dir = pathlib.Path(__file__).parent.absolute()
+    if os.path.basename(script_dir) != "ed_schulferien":
+        script_dir = os.path.join(script_dir, "ed_schulferien")
+
+    data_path_abs = os.path.join(script_dir, data_path)
+    data_orig_path_abs = os.path.join(script_dir, data_orig_path)
+    excel_path = os.path.join(script_dir, excel_file)
+
+    # Ensure directories exist
+    os.makedirs(data_path_abs, exist_ok=True)
+    os.makedirs(data_orig_path_abs, exist_ok=True)
+
+    # Check embargo before proceeding
+    if not check_embargo(excel_path):
+        logging.warning("Processing aborted due to active embargo")
+        return
+
+    # Verify the Excel TEMPLATE sheet
+    if not verify_excel(excel_path, "TEMPLATE", is_template=True):
+        raise ValueError("Excel TEMPLATE verification failed. Please check the template structure.")
+
+    # Process the Excel file and create separate CSV files per year tab
+    processed_files = process_excel_file(
+        excel_path=excel_path,
+        data_path_abs=data_path_abs,
+    )
+
+    logging.info(f"Processed {len(processed_files)} year tabs into separate CSV files")
+
+    DEBUG = True
+    if not DEBUG:
+        # Update FTP and ODSP for each processed file
+        for csv_file in processed_files:
+            common.update_ftp_and_odsp(
+                path_export=os.path.join(data_path_abs, csv_file),
+                folder_name="ed/schulferien",
+                dataset_id="100397",
+            )
+
+        # Push data with realtime push
+        push_all_data_csv_with_realtime_push(data_path_abs=data_path_abs)
+
+        # Update ICS file on FTP server
+        update_ics_file_on_ftp_server()
+
+        # Clean data_orig folder
+        clean_data_orig_folder(data_orig_path_abs=data_orig_path_abs)
+
+
 def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) -> bool:
     """Verify that the Excel sheet has the expected structure"""
     try:
@@ -305,57 +356,6 @@ def check_embargo(excel_path: str) -> bool:
     except Exception as e:
         logging.error(f"Error checking embargo date: {str(e)}")
         return False
-
-
-def main():
-    # TODO: This is really ugly, but the easiest way I found to make it runnable both locally and on the server
-    script_dir = pathlib.Path(__file__).parent.absolute()
-    if os.path.basename(script_dir) != "ed_schulferien":
-        script_dir = os.path.join(script_dir, "ed_schulferien")
-
-    data_path_abs = os.path.join(script_dir, data_path)
-    data_orig_path_abs = os.path.join(script_dir, data_orig_path)
-    excel_path = os.path.join(script_dir, excel_file)
-
-    # Ensure directories exist
-    os.makedirs(data_path_abs, exist_ok=True)
-    os.makedirs(data_orig_path_abs, exist_ok=True)
-    
-    # Check embargo before proceeding
-    if not check_embargo(excel_path):
-        logging.warning("Processing aborted due to active embargo")
-        return
-
-    # Verify the Excel TEMPLATE sheet
-    if not verify_excel(excel_path, "TEMPLATE", is_template=True):
-        raise ValueError("Excel TEMPLATE verification failed. Please check the template structure.")
-
-    # Process the Excel file and create separate CSV files per year tab
-    processed_files = process_excel_file(
-        excel_path=excel_path,
-        data_path_abs=data_path_abs,
-    )
-    
-    logging.info(f"Processed {len(processed_files)} year tabs into separate CSV files")
-
-    DEBUG = True
-    if not DEBUG:
-        # Update FTP and ODSP for each processed file
-        for csv_file in processed_files:
-            common.update_ftp_and_odsp(
-                path_export=os.path.join(data_path_abs, csv_file),
-                folder_name="ed/schulferien",
-                dataset_id="100397",
-            )
-
-        # Push data with realtime push
-        push_all_data_csv_with_realtime_push(data_path_abs=data_path_abs)
-
-        # Update ICS file on FTP server
-        update_ics_file_on_ftp_server()
-
-        # Clean data_orig folder
-        clean_data_orig_folder(data_orig_path_abs=data_orig_path_abs)
 
 
 if __name__ == "__main__":
