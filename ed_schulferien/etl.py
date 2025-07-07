@@ -297,7 +297,7 @@ def update_ics_file_on_ftp_server() -> None:
     # Update create_ics module's data_dir to match our data_path_abs if in Docker environment
     if os.path.exists("/code/data_orig"):  # We're in Docker
         create_ics.data_dir = "/code/data"
-    
+
     # Generate ICS file using create_ics.py
     logging.info("Generating ICS file...")
     try:
