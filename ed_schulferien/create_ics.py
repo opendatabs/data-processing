@@ -3,8 +3,9 @@ import datetime
 import hashlib
 import logging
 import os
-import pytz
 import uuid
+
+import pytz
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -25,14 +26,14 @@ YEAR_RANGE_END = current_year + 3  # Approximately 3 years in the future
 
 # Events that should be included in the ICS file
 ICS_INCLUDE_EVENTS = [
-    "Herbstferien", 
-    "Weihnachtsferien", 
+    "Herbstferien",
+    "Weihnachtsferien",
     "Fasnachts- und Sportferien",
     "Frühjahrsferien",
     "Sommerferien",
     "Schulfrei (1. Mai)",
     "Schulfrei (Auffahrt)",
-    "Schulfrei (Pfingstmontag)"
+    "Schulfrei (Pfingstmontag)",
 ]
 
 
@@ -84,18 +85,18 @@ def main():
 
     # Collect all events from the CSV file
     all_events = []
-    
+
     with open(csv_file_path, "r", encoding="utf-8") as f:
         reader = csv.reader(f, delimiter=";")
         next(reader)  # Skip header
         for row in reader:
             year, name, start_date, end_date = row
-            
+
             # Include only events that should be in the ICS file
             if name not in ICS_INCLUDE_EVENTS:
                 logging.debug(f"Skipping event not in include list: {name}")
                 continue
-            
+
             # Remove any time portion and convert to proper format for iCalendar (YYYYMMDD)
             start_date = start_date.split(" ")[0]
             end_date = end_date.split(" ")[0]
@@ -121,7 +122,7 @@ def main():
     for year, name, start_date, end_date in all_events:
         # Generate a deterministic UID for this event
         event_uid = generate_event_uid(year, name, start_date, end_date)
-        
+
         # Add one day to end date for exclusive range
         end_date_exclusive = add_one_day(end_date)
 
