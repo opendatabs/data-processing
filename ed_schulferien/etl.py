@@ -334,13 +334,13 @@ def check_embargo(excel_path: str) -> bool:
             logging.error("Embargo check failed: 'Drucken' tab does not exist in the Excel file")
             return False
 
-        # Read the embargo date from cell B2
+        # Read the embargo date from cell C2
         df = pd.read_excel(excel_path, sheet_name="Drucken", header=None)
-        embargo_cell = df.iloc[1, 1]  # B2 is at index [1,1]
+        embargo_cell = df.iloc[1, 2]  # C2 is at index [1,2]
 
         # Check if the cell contains a valid date
         if not isinstance(embargo_cell, pd.Timestamp) and not isinstance(embargo_cell, datetime.datetime):
-            logging.error(f"Embargo check failed: Cell B2 does not contain a valid date: {embargo_cell}")
+            logging.error(f"Embargo check failed: Cell C2 does not contain a valid date: {embargo_cell}")
             return False
 
         # Convert to datetime for comparison
