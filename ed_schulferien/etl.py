@@ -35,22 +35,20 @@ CSV_INCLUDE_EVENTS = [
 
 
 def main():
-    # Set paths for both local and docker environments
+    # TODO: This is really ugly, but the easiest way I found to make it runnable both locally and on the server
     script_dir = pathlib.Path(__file__).parent.absolute()
+    if os.path.basename(script_dir) != "ed_schulferien":
+        script_dir = os.path.join(script_dir, "ed_schulferien")
+
     data_path_abs = os.path.join(script_dir, data_path)
-
-    logging.info(f"Script directory: {script_dir}")
-    logging.info(f"Data path: {data_path_abs}")
-
-    exit("Thou shalt not pass")
-
+    
     # Check if we're in Docker environment (where data_orig is mounted)
     if os.path.exists("/code/data_orig"):
+        logging.info("Running in Docker environment")
         excel_path = os.path.join("/code/data_orig", excel_filename)
     else:
-        # Local development fallback
-        if os.path.basename(script_dir) != "ed_schulferien":
-            script_dir = os.path.join(script_dir, "ed_schulferien")
+        # Local development path
+        logging.info("Running in local development environment")
         excel_path = os.path.join(script_dir, excel_filename)
 
     # Ensure directories exist
