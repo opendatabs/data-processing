@@ -111,9 +111,9 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
             ((9, 0), "Dreitageblock"),
             ((10, 0), "Sommerferien"),
             # Special days off
-            ((13, 0), "Schulfrei (1. Mai)"),
-            ((14, 0), "Schulfrei (Auffahrt)"),
-            ((15, 0), "Schulfrei (Pfingstmontag)"),
+            ((13, 0), "1. Mai"),
+            ((14, 0), "Auffahrt"),
+            ((15, 0), "Pfingstmontag"),
             # Semester data
             ((18, 0), "1. Semester"),
             ((19, 0), "2. Semester"),
