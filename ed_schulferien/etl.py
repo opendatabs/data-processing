@@ -17,6 +17,7 @@ ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100397")
 csv_filename = "schulferienBS.csv"
 excel_filename = "Schulferien BS.xlsx"
 
+# Default path for local development
 data_path = "data/"
 
 # Event names to include in CSV files
@@ -40,16 +41,17 @@ def main():
     if os.path.basename(script_dir) != "ed_schulferien":
         script_dir = os.path.join(script_dir, "ed_schulferien")
 
-    data_path_abs = os.path.join(script_dir, data_path)
-
     # Check if we're in Docker environment (where data_orig is mounted)
     if os.path.exists("/code/data_orig"):
         logging.info("Running in Docker environment")
         excel_path = os.path.join("/code/data_orig", excel_filename)
+        # Use the mounted data path directly in Docker
+        data_path_abs = "/code/data"
     else:
         # Local development path
         logging.info("Running in local development environment")
         excel_path = os.path.join(script_dir, excel_filename)
+        data_path_abs = os.path.join(script_dir, data_path)
 
     # Ensure directories exist
     os.makedirs(data_path_abs, exist_ok=True)
@@ -292,6 +294,10 @@ def push_data_csv_with_realtime_push(data_path_abs: str, filename: str):
 
 
 def update_ics_file_on_ftp_server() -> None:
+    # Update create_ics module's data_dir to match our data_path_abs if in Docker environment
+    if os.path.exists("/code/data_orig"):  # We're in Docker
+        create_ics.data_dir = "/code/data"
+    
     # Generate ICS file using create_ics.py
     logging.info("Generating ICS file...")
     try:
