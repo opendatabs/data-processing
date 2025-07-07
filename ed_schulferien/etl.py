@@ -41,7 +41,7 @@ def main():
         script_dir = os.path.join(script_dir, "ed_schulferien")
 
     data_path_abs = os.path.join(script_dir, data_path)
-    
+
     # Check if we're in Docker environment (where data_orig is mounted)
     if os.path.exists("/code/data_orig"):
         logging.info("Running in Docker environment")
