@@ -28,9 +28,9 @@ CSV_INCLUDE_EVENTS = [
     "Sommerferien",
     "Basler Fasnacht",
     "Dreitageblock",
-    "Schulfrei (1. Mai)",
-    "Schulfrei (Auffahrt)",
-    "Schulfrei (Pfingstmontag)",
+    "1. Mai",
+    "Auffahrt",
+    "Pfingstmontag",
 ]
 
 

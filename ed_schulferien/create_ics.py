@@ -31,9 +31,9 @@ ICS_INCLUDE_EVENTS = [
     "Fasnachts- und Sportferien",
     "Frühjahrsferien",
     "Sommerferien",
-    "Schulfrei (1. Mai)",
-    "Schulfrei (Auffahrt)",
-    "Schulfrei (Pfingstmontag)",
+    "1. Mai",
+    "Auffahrt",
+    "Pfingstmontag",
 ]
 
 
