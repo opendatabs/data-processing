@@ -1,11 +1,12 @@
 import csv
+import datetime
 import logging
 import os
 import pathlib
-import pandas as pd
-import datetime
+
 import common
 import create_ics
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,7 +30,7 @@ CSV_INCLUDE_EVENTS = [
     "Dreitageblock",
     "Schulfrei (1. Mai)",
     "Schulfrei (Auffahrt)",
-    "Schulfrei (Pfingstmontag)"
+    "Schulfrei (Pfingstmontag)",
 ]
 
 
@@ -37,12 +38,12 @@ def main():
     # Set paths for both local and docker environments
     script_dir = pathlib.Path(__file__).parent.absolute()
     data_path_abs = os.path.join(script_dir, data_path)
-    
+
     logging.info(f"Script directory: {script_dir}")
     logging.info(f"Data path: {data_path_abs}")
 
     exit("Thou shalt not pass")
-    
+
     # Check if we're in Docker environment (where data_orig is mounted)
     if os.path.exists("/code/data_orig"):
         excel_path = os.path.join("/code/data_orig", excel_filename)
@@ -73,8 +74,7 @@ def main():
     logging.info(f"Processed all year tabs into a single CSV file: {csv_filename}")
 
     # Update CSV on FTP
-    common.upload_ftp(filename=os.path.join(data_path_abs, csv_filename),
-                        remote_path='ed/schulferien')
+    common.upload_ftp(filename=os.path.join(data_path_abs, csv_filename), remote_path="ed/schulferien")
 
     # Push CSV data to ODS with realtime push
     push_data_csv_with_realtime_push(data_path_abs=data_path_abs, filename=csv_filename)
@@ -88,7 +88,7 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
     try:
         # Load the Excel file
         df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
-        
+
         # Define the expected structure as a list of tuples containing ((row, col), expected_value)
         expected_structure = [
             # Section headers
@@ -96,7 +96,6 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
             ((12, 0), "Ausserdem schulfrei"),
             ((17, 0), "Semesterdaten"),
             ((21, 0), "Gesamtkonferenz KSBS:"),
-            
             # Column headers
             ((3, 1), "Beginn (Samstag)"),
             ((3, 2), "Ende (Sonntag)"),
@@ -105,7 +104,6 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
             ((12, 2), "Ende"),
             ((17, 1), "Beginn"),
             ((17, 2), "Ende"),
-            
             # Holiday names
             ((4, 0), "Herbstferien"),
             ((5, 0), "Weihnachtsferien"),
@@ -114,86 +112,105 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
             ((8, 0), "Frühjahrsferien"),
             ((9, 0), "Dreitageblock"),
             ((10, 0), "Sommerferien"),
-            
             # Special days off
             ((13, 0), "Schulfrei (1. Mai)"),
             ((14, 0), "Schulfrei (Auffahrt)"),
             ((15, 0), "Schulfrei (Pfingstmontag)"),
-            
             # Semester data
             ((18, 0), "1. Semester"),
-            ((19, 0), "2. Semester")
+            ((19, 0), "2. Semester"),
         ]
 
         # Sort by row, then by column
         expected_structure.sort(key=lambda x: (x[0][0], x[0][1]))
-        
+
         # Check each expected value
         for (row, col), expected_value in expected_structure:
             actual_value = str(df.iloc[row, col])
             if expected_value != actual_value:
                 position = get_excel_cell_reference(row, col)
-                logging.error(f"Sheet '{sheet_name}': Template verification failed: Expected '{expected_value}' at position {position}, but got '{actual_value}'")
+                logging.error(
+                    f"Sheet '{sheet_name}': Template verification failed: Expected '{expected_value}' at position {position}, but got '{actual_value}'"
+                )
                 return False
-        
+
         # Skip date validation for template sheets
         if not is_template:
             # Check that critical date fields are not NaN
             date_coordinates = [
-                (4, 1), (4, 2),
-                (5, 1), (5, 2),
-                (6, 1), (6, 2),
-                (7, 1), (7, 2),
-                (8, 1), (8, 2),
-                (9, 1), (9, 2),
-                (10, 1), (10, 2),
-                (13, 1), (13, 2),
-                (14, 1), (14, 2),
-                (15, 1), (15, 2),
-                (18, 1), (18, 2),
-                (19, 1), (19, 2),
-                (21, 1) # No end date here
+                (4, 1),
+                (4, 2),
+                (5, 1),
+                (5, 2),
+                (6, 1),
+                (6, 2),
+                (7, 1),
+                (7, 2),
+                (8, 1),
+                (8, 2),
+                (9, 1),
+                (9, 2),
+                (10, 1),
+                (10, 2),
+                (13, 1),
+                (13, 2),
+                (14, 1),
+                (14, 2),
+                (15, 1),
+                (15, 2),
+                (18, 1),
+                (18, 2),
+                (19, 1),
+                (19, 2),
+                (21, 1),  # No end date here
             ]
             for row, col in date_coordinates:
                 if pd.isna(df.iloc[row, col]):
                     position = get_excel_cell_reference(row, col)
-                    logging.error(f"Sheet '{sheet_name}': Template verification failed: Date field at position {position} contains NaN value")
+                    logging.error(
+                        f"Sheet '{sheet_name}': Template verification failed: Date field at position {position} contains NaN value"
+                    )
                     return False
-                
+
                 # Verify that the value is a valid date
                 try:
                     date_value = df.iloc[row, col]
                     if not isinstance(date_value, (datetime.datetime, pd.Timestamp)):
                         # Try to convert to datetime - if it fails, it's not a valid date
-                        converted = pd.to_datetime(date_value, errors='coerce')
+                        converted = pd.to_datetime(date_value, errors="coerce")
                         if pd.isna(converted):
                             position = get_excel_cell_reference(row, col)
-                            logging.error(f"Sheet '{sheet_name}': Template verification failed: Field at position {position} contains '{date_value}' which is not a valid date")
+                            logging.error(
+                                f"Sheet '{sheet_name}': Template verification failed: Field at position {position} contains '{date_value}' which is not a valid date"
+                            )
                             return False
                 except Exception as e:
                     position = get_excel_cell_reference(row, col)
-                    logging.error(f"Sheet '{sheet_name}': Template verification failed: Error validating date at position {position}: {str(e)}")
+                    logging.error(
+                        f"Sheet '{sheet_name}': Template verification failed: Error validating date at position {position}: {str(e)}"
+                    )
                     return False
-        
+
         logging.info(f"Verification passed for sheet '{sheet_name}'!")
         return True
-        
+
     except Exception as e:
         logging.error(f"Error verifying Excel sheet '{sheet_name}': {str(e)}")
         return False
 
+
 def get_excel_cell_reference(row: int, col: int) -> str:
     """Convert zero-based row and column indices to Excel cell reference (A1, B2, etc.) or (row+1, col+1) format for columns beyond D"""
     if col == 0:
-        return f"A{row+1}"
+        return f"A{row + 1}"
     elif col == 1:
-        return f"B{row+1}"
+        return f"B{row + 1}"
     elif col == 2:
-        return f"C{row+1}"
+        return f"C{row + 1}"
     elif col == 3:
-        return f"D{row+1}"
+        return f"D{row + 1}"
     else:
-        return f"({row+1}, {col+1})"
+        return f"({row + 1}, {col + 1})"
 
 
 def get_smallest_year_from_excel(excel_path: str) -> int:
@@ -211,53 +228,53 @@ def get_smallest_year_from_excel(excel_path: str) -> int:
 def process_excel_file(excel_path: str, data_path_abs: str) -> None:
     """Process the Excel file and extract holiday data into a single CSV file with data from all year tabs"""
     xl = pd.ExcelFile(excel_path)
-    
+
     # Filter sheets that are named with years (digits only)
     year_sheets = [sheet for sheet in xl.sheet_names if sheet.isdigit()]
-    
+
     # Create a list to store all holiday data rows
     all_holiday_data = []
-    
+
     for sheet in year_sheets:
         logging.info(f"Processing sheet {sheet}")
         year = int(sheet)
-        
+
         # Verify the structure of the year sheet before processing
         if not verify_excel(excel_path, sheet):
             logging.error(f"Sheet {sheet} failed verification - cannot proceed")
             raise ValueError(f"Excel sheet {sheet} has an invalid structure")
-        
+
         # Read the Excel sheet, skipping the first 4 rows (headers start at row 5)
         df = pd.read_excel(excel_path, sheet_name=sheet, header=3)
-        
+
         # Process all rows in the sheet
         for i, row in df.iterrows():
             # Skip rows with empty names
             if pd.isna(row.iloc[0]):
                 continue
-                
+
             # Get event name and check if it's in our include list
             name = row.iloc[0]
             if name not in CSV_INCLUDE_EVENTS:
                 continue
-            
+
             # Process only rows with both start and end dates
             if not pd.isna(row.iloc[1]) and not pd.isna(row.iloc[2]):
                 # Convert dates to datetime and then to string format
                 start_date = pd.to_datetime(row.iloc[1]).strftime("%Y-%m-%d 00:00:00")
                 end_date = pd.to_datetime(row.iloc[2]).strftime("%Y-%m-%d 23:59:00")
-                
+
                 # Get year from start date
                 year = pd.to_datetime(row.iloc[1]).year
-                
+
                 # Add to our data collection
                 all_holiday_data.append([year, name, start_date, end_date])
-    
+
     # Create a single output CSV file
     with open(os.path.join(data_path_abs, csv_filename), "w", newline="", encoding="utf-8") as csvfile:
         csv_writer = csv.writer(csvfile, delimiter=";")
         csv_writer.writerow(["year", "name", "start_date", "end_date"])
-        
+
         # Write all rows to the CSV
         for row_data in all_holiday_data:
             csv_writer.writerow(row_data)
@@ -274,6 +291,7 @@ def push_data_csv_with_realtime_push(data_path_abs: str, filename: str):
     common.ods_realtime_push_df(df, ODS_PUSH_URL)
 
     logging.info("Update data with realtime push successful!")
+
 
 def update_ics_file_on_ftp_server() -> None:
     # Generate ICS file using create_ics.py
@@ -311,28 +329,28 @@ def check_embargo(excel_path: str) -> bool:
         if "Drucken" not in xl.sheet_names:
             logging.error("Embargo check failed: 'Drucken' tab does not exist in the Excel file")
             return False
-        
+
         # Read the embargo date from cell B2
         df = pd.read_excel(excel_path, sheet_name="Drucken", header=None)
         embargo_cell = df.iloc[1, 1]  # B2 is at index [1,1]
-        
+
         # Check if the cell contains a valid date
         if not isinstance(embargo_cell, pd.Timestamp) and not isinstance(embargo_cell, datetime.datetime):
             logging.error(f"Embargo check failed: Cell B2 does not contain a valid date: {embargo_cell}")
             return False
-            
+
         # Convert to datetime for comparison
         embargo_date = pd.to_datetime(embargo_cell).date()
         today = datetime.date.today()
-        
+
         # Check if embargo date has passed
         if today <= embargo_date:
             logging.error(f"Embargo date not yet passed. Today: {today}, Embargo until: {embargo_date}")
             return False
-            
+
         logging.info(f"Embargo date has passed. Today: {today}, Embargo was until: {embargo_date}")
         return True
-        
+
     except Exception as e:
         logging.error(f"Error checking embargo date: {str(e)}")
         return False
