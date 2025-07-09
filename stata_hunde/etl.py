@@ -42,7 +42,7 @@ def main():
         ]
     ).reset_index(drop=True)
     path_hunde = os.path.join("data", "100444_hunde.csv")
-    df_hunde.to_csv(path_hunde, index_label="id")
+    df_hunde.to_csv(path_hunde, index_label="id", encoding="utf-8-sig")
 
     logging.info("Reading Webtabelle for dogs at Gemeinde level...")
     df_webtabelle = pd.read_excel(
@@ -64,7 +64,7 @@ def main():
     )
     df_hundebestand = pd.concat([df_hundebestand, df_filtered], ignore_index=True)
     path_hundestand = os.path.join("data", "100445_hundebestand.csv")
-    df_hundebestand.to_csv(path_hundestand, index=False)
+    df_hundebestand.to_csv(path_hundestand, index=False, encoding="utf-8-sig")
 
     logging.info("Counting number of occurences of a dog name per year")
     # First replace NaN, -, ?, 3, 4 with "unbekannt"
@@ -72,7 +72,7 @@ def main():
     df["hund_name"] = df["hund_name"].fillna("unbekannt")
     df_hundenamen = df.groupby(["jahr", "hund_name"]).size().reset_index(name="anzahl_hunde")
     path_hundenamen = os.path.join("data", "100446_hundenamen.csv")
-    df_hundenamen.to_csv(path_hundenamen, index=False)
+    df_hundenamen.to_csv(path_hundenamen, index=False, encoding="utf-8-sig")
 
     logging.info("Reading number of dog owners per year, reading every column after AB")
     df_hundehalter = pd.read_excel(
@@ -91,7 +91,7 @@ def main():
     df_hundehalter = df_hundehalter.reset_index()
     df_hundehalter = df_hundehalter.rename(columns={"index": "jahr"})
     path_hundehalter = os.path.join("data", "100447_hundehalter.csv")
-    df_hundehalter.to_csv(path_hundehalter, index=False)
+    df_hundehalter.to_csv(path_hundehalter, index=False, encoding="utf-8-sig")
 
 
 if __name__ == "__main__":
