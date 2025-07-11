@@ -66,6 +66,13 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
         export_file_all = os.path.join("data", "all_data.csv")
         all_df_filtered.to_csv(export_file_all, index=False)
 
+        # Check if file size exceeds OpenDataSoft limit (240 MB)
+        file_size_mb = os.path.getsize(export_file_all) / (1024 * 1024)
+        if file_size_mb > 240:
+            logging.error(f"File {export_file_all} size is {file_size_mb:.2f} MB, exceeding the OpenDataSoft 240 MB limit!")
+            logging.error("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
+            logging.error("Consider reducing the number of cycles included or implementing compression.")
+
         stat_df = pd.concat(stat_dfs)
         export_file_stats = os.path.join("data", "all_stat.csv")
         stat_df.to_csv(export_file_stats, index=False)
