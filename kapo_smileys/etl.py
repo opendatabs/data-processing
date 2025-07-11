@@ -51,8 +51,20 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
             stat_dfs.append(df_stat_pro_standort)
 
         all_df = pd.concat(messdaten_dfs)
+        # Get the current and previous zyklus numbers
+        current_zyklus = df_einsaetze['Zyklus'].max()
+        previous_zyklus = current_zyklus - 1
+
+        # Filter data to include only current and previous zyklus
+        all_df_filtered = all_df[all_df['Zyklus'].isin([current_zyklus, previous_zyklus])]
+
+        # Log information about the filtered cycles and datapoints
+        logging.info(f"Extracting data for cycles {previous_zyklus} and {current_zyklus}")
+        logging.info(f"Filtered data contains {len(all_df_filtered)} datapoints out of {len(all_df)} total ({len(all_df_filtered)/len(all_df)*100:.1f}%)")
+
+        # Save the filtered version for 100268
         export_file_all = os.path.join("data", "all_data.csv")
-        all_df.to_csv(export_file_all, index=False)
+        all_df_filtered.to_csv(export_file_all, index=False)
 
         stat_df = pd.concat(stat_dfs)
         export_file_stats = os.path.join("data", "all_stat.csv")
