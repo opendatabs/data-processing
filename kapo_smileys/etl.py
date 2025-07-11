@@ -63,7 +63,7 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
         logging.info(f"Filtered data contains {len(all_df_filtered)} datapoints out of {len(all_df)} total ({len(all_df_filtered)/len(all_df)*100:.1f}%)")
 
         # Save the filtered version for 100268
-        export_file_all = os.path.join("data", "all_data.csv")
+        export_file_all = os.path.join("data", "current_previous_cycles_data.csv")
         all_df_filtered.to_csv(export_file_all, index=False)
 
         # Check if file size exceeds OpenDataSoft limit (240 MB)
