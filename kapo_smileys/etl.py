@@ -163,14 +163,7 @@ def parse_single_messdaten_folder(folder, df_einsatz_days, df_einsatze, id_stand
         df_m = df_m[df_m.Phase != "Vor Vormessung"]
 
         messdaten_dfs_pro_standort.append(df_m)
-        export_file_single = os.path.join("data", f"{day_str}_{id_standort}.csv")
-        df_m.to_csv(export_file_single, index=False)
-        if not df_m.empty:
-            common.upload_ftp(
-                export_file_single,
-                remote_path=f"kapo/smileys/data/zyklus{int(df_m.Zyklus.iloc[0])}",
-            )
-            os.remove(export_file_single)
+
     df_all_pro_standort = pd.concat(messdaten_dfs_pro_standort)
 
     if len(df_all_pro_standort.id_standort.unique()) > 1:
