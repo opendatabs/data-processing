@@ -51,6 +51,12 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
             stat_dfs.append(df_stat_pro_standort)
 
         all_df = pd.concat(messdaten_dfs)
+        
+        # Save complete unfiltered data for plotting
+        export_file_all_unfiltered = os.path.join("data", "all_data.csv")
+        all_df.to_csv(export_file_all_unfiltered, index=False)
+        logging.info(f"Saved unfiltered data with {len(all_df)} datapoints to {export_file_all_unfiltered}")
+        
         # Get the current and previous zyklus numbers
         current_zyklus = df_einsaetze['Zyklus'].max()
         previous_zyklus = current_zyklus - 1
@@ -62,14 +68,14 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
         logging.info(f"Extracting data for cycles {previous_zyklus} and {current_zyklus}")
         logging.info(f"Filtered data contains {len(all_df_filtered)} datapoints out of {len(all_df)} total ({len(all_df_filtered)/len(all_df)*100:.1f}%)")
 
-        # Save the filtered version for 100268
-        export_file_all = os.path.join("data", "current_previous_cycles_data.csv")
-        all_df_filtered.to_csv(export_file_all, index=False)
+        # Save the filtered version for dataset 100268
+        export_file_filtered = os.path.join("data", "current_previous_cycles_data.csv")
+        all_df_filtered.to_csv(export_file_filtered, index=False)
 
         # Check if file size exceeds OpenDataSoft limit (240 MB)
-        file_size_mb = os.path.getsize(export_file_all) / (1024 * 1024)
+        file_size_mb = os.path.getsize(export_file_filtered) / (1024 * 1024)
         if file_size_mb > 240:
-            logging.error(f"File {export_file_all} size is {file_size_mb:.2f} MB, exceeding the OpenDataSoft 240 MB limit!")
+            logging.error(f"File {export_file_filtered} size is {file_size_mb:.2f} MB, exceeding the OpenDataSoft 240 MB limit!")
             logging.error("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
             logging.error("Consider reducing the number of cycles included or implementing compression.")
 
@@ -79,7 +85,7 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
 
         df_to_sqlite(all_df)
         ct.update_hash_file(list_path)
-        return export_file_all, export_file_stats
+        return export_file_filtered, export_file_stats
     return None, None
 
 
@@ -457,13 +463,13 @@ def main():
     )
     df_einsatz_days["day_str"] = df_einsatz_days.datum_aktiv.dt.strftime("%y%m%d")
     logging.info("Parsing Messdaten...")
-    export_file_all, export_file_stats = parse_messdaten(df_einsatz_days, df_einsaetze)
-    if export_file_all is None or export_file_stats is None:
+    export_file_filtered, export_file_stats = parse_messdaten(df_einsatz_days, df_einsaetze)
+    if export_file_filtered is None or export_file_stats is None:
         logging.info("No new data found. Exiting...")
         return
     else:
         logging.info("Updating FTP and ODS...")
-        common.update_ftp_and_odsp(export_file_all, "kapo/smileys/all_data", "100268")
+        common.update_ftp_and_odsp(export_file_filtered, "kapo/smileys/all_data", "100268")
         common.update_ftp_and_odsp(export_file_stats, "kapo/smileys/all_data", "100277")
 
 
