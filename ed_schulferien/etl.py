@@ -163,7 +163,8 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
                 (18, 2),
                 (19, 1),
                 (19, 2),
-                (21, 1),  # No end date here
+                (21, 1),
+                (21, 2),
             ]
             for row, col in date_coordinates:
                 if pd.isna(df.iloc[row, col]):
