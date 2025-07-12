@@ -51,22 +51,24 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
             stat_dfs.append(df_stat_pro_standort)
 
         all_df = pd.concat(messdaten_dfs)
-        
+
         # Save complete unfiltered data for plotting
         export_file_all_unfiltered = os.path.join("data", "all_data.csv")
         all_df.to_csv(export_file_all_unfiltered, index=False)
         logging.info(f"Saved unfiltered data with {len(all_df)} datapoints to {export_file_all_unfiltered}")
-        
+
         # Get the current and previous zyklus numbers
-        current_zyklus = df_einsaetze['Zyklus'].max()
+        current_zyklus = df_einsaetze["Zyklus"].max()
         previous_zyklus = current_zyklus - 1
 
         # Filter data to include only current and previous zyklus
-        all_df_filtered = all_df[all_df['Zyklus'].isin([current_zyklus, previous_zyklus])]
+        all_df_filtered = all_df[all_df["Zyklus"].isin([current_zyklus, previous_zyklus])]
 
         # Log information about the filtered cycles and datapoints
         logging.info(f"Extracting data for cycles {previous_zyklus} and {current_zyklus}")
-        logging.info(f"Filtered data contains {len(all_df_filtered)} datapoints out of {len(all_df)} total ({len(all_df_filtered)/len(all_df)*100:.1f}%)")
+        logging.info(
+            f"Filtered data contains {len(all_df_filtered)} datapoints out of {len(all_df)} total ({len(all_df_filtered) / len(all_df) * 100:.1f}%)"
+        )
 
         # Save the filtered version for dataset 100268
         export_file_filtered = os.path.join("data", "current_previous_cycles_data.csv")
@@ -75,20 +77,22 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
         # Check file size for logging purposes
         file_size_mb = os.path.getsize(export_file_filtered) / (1024 * 1024)
         logging.info(f"File {export_file_filtered} size is {file_size_mb:.2f} MB")
-        
+
         # Always create a zip file for consistency
-        export_file_zip = export_file_filtered + '.zip'
-        with zipfile.ZipFile(export_file_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        export_file_zip = export_file_filtered + ".zip"
+        with zipfile.ZipFile(export_file_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(export_file_filtered, os.path.basename(export_file_filtered))
-        
+
         # Set the zip file as the file to upload
         export_file_to_upload = export_file_zip
         logging.info(f"Created compressed file: {export_file_zip}")
-        
+
         # Check the zip file size
         zip_size_mb = os.path.getsize(export_file_zip) / (1024 * 1024)
-        logging.info(f"Compressed file size: {zip_size_mb:.2f} MB (compression ratio: {zip_size_mb/file_size_mb*100:.1f}%)")
-        
+        logging.info(
+            f"Compressed file size: {zip_size_mb:.2f} MB (compression ratio: {zip_size_mb / file_size_mb * 100:.1f}%)"
+        )
+
         # Log a warning if the file size exceeds OpenDataSoft limit
         if zip_size_mb > 240:
             logging.warning(f"Even the compressed file {export_file_zip} exceeds the OpenDataSoft 240 MB limit!")
