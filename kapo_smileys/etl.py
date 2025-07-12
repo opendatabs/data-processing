@@ -72,12 +72,28 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
         export_file_filtered = os.path.join("data", "current_previous_cycles_data.csv")
         all_df_filtered.to_csv(export_file_filtered, index=False)
 
-        # Check if file size exceeds OpenDataSoft limit (240 MB)
+        # Check file size for logging purposes
         file_size_mb = os.path.getsize(export_file_filtered) / (1024 * 1024)
-        if file_size_mb > 240:
-            logging.error(f"File {export_file_filtered} size is {file_size_mb:.2f} MB, exceeding the OpenDataSoft 240 MB limit!")
-            logging.error("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
-            logging.error("Consider reducing the number of cycles included or implementing compression.")
+        logging.info(f"File {export_file_filtered} size is {file_size_mb:.2f} MB")
+        
+        # Always create a zip file for consistency
+        export_file_zip = export_file_filtered + '.zip'
+        with zipfile.ZipFile(export_file_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(export_file_filtered, os.path.basename(export_file_filtered))
+        
+        # Set the zip file as the file to upload
+        export_file_to_upload = export_file_zip
+        logging.info(f"Created compressed file: {export_file_zip}")
+        
+        # Check the zip file size
+        zip_size_mb = os.path.getsize(export_file_zip) / (1024 * 1024)
+        logging.info(f"Compressed file size: {zip_size_mb:.2f} MB (compression ratio: {zip_size_mb/file_size_mb*100:.1f}%)")
+        
+        # Log a warning if the file size exceeds OpenDataSoft limit
+        if zip_size_mb > 240:
+            logging.warning(f"Even the compressed file {export_file_zip} exceeds the OpenDataSoft 240 MB limit!")
+            logging.warning("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
+            logging.warning("Consider reducing the number of cycles included or implementing further compression.")
 
         stat_df = pd.concat(stat_dfs)
         export_file_stats = os.path.join("data", "all_stat.csv")
@@ -85,7 +101,7 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
 
         df_to_sqlite(all_df)
         ct.update_hash_file(list_path)
-        return export_file_filtered, export_file_stats
+        return export_file_to_upload, export_file_stats
     return None, None
 
 
@@ -463,13 +479,13 @@ def main():
     )
     df_einsatz_days["day_str"] = df_einsatz_days.datum_aktiv.dt.strftime("%y%m%d")
     logging.info("Parsing Messdaten...")
-    export_file_filtered, export_file_stats = parse_messdaten(df_einsatz_days, df_einsaetze)
-    if export_file_filtered is None or export_file_stats is None:
+    export_file_to_upload, export_file_stats = parse_messdaten(df_einsatz_days, df_einsaetze)
+    if export_file_to_upload is None or export_file_stats is None:
         logging.info("No new data found. Exiting...")
         return
     else:
         logging.info("Updating FTP and ODS...")
-        common.update_ftp_and_odsp(export_file_filtered, "kapo/smileys/all_data", "100268")
+        common.update_ftp_and_odsp(export_file_to_upload, "kapo/smileys/all_data", "100268")
         common.update_ftp_and_odsp(export_file_stats, "kapo/smileys/all_data", "100277")
 
 
