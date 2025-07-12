@@ -469,7 +469,7 @@ def main():
         return
     else:
         logging.info("Updating FTP and ODS...")
-        common.update_ftp_and_odsp(export_file_filtered, "kapo/smileys/all_data", "100268")
+        common.update_ftp_and_odsp(export_file_filtered, "kapo/smileys/data", "100268")
         common.update_ftp_and_odsp(export_file_stats, "kapo/smileys/all_data", "100277")
 
 
