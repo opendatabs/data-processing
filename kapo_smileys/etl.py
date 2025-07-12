@@ -258,6 +258,7 @@ def parse_einsatzplaene():
             skiprows=1,
         )
         df.replace(["", " ", "nan nan"], np.nan, inplace=True)
+        df.infer_objects(copy=False)
         df = df.dropna(subset=["Smiley-Nr."])
         filename = os.path.basename(f)
         zyklus = int(filename.split("_")[1])
