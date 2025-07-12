@@ -32,6 +32,7 @@ CSV_INCLUDE_EVENTS = [
     "1. Mai",
     "Auffahrt",
     "Pfingstmontag",
+    "Jahresversammlung der Kantonalen Schulkonferenz",
 ]
 
 
@@ -95,7 +96,7 @@ def verify_excel(excel_path: str, sheet_name: str, is_template: bool = False) ->
             ((3, 0), "Feriendaten"),
             ((12, 0), "Ausserdem schulfrei"),
             ((17, 0), "Semesterdaten"),
-            ((21, 0), "Gesamtkonferenz KSBS:"),
+            ((21, 0), "Jahresversammlung der Kantonalen Schulkonferenz"),
             # Column headers
             ((3, 1), "Beginn (Samstag)"),
             ((3, 2), "Ende (Sonntag)"),
