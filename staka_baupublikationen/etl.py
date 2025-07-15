@@ -110,6 +110,7 @@ def get_columns_of_interest(df):
     # Replace columns names so it's easier to understand
     df.columns = df.columns.str.replace("_legalEntity_multi_companies_", "_")
     df.columns = df.columns.str.replace("_multi_companies_", "_")
+
     columns_of_interest = [
         "publicationArea_selectType",
         "buildingContractor_legalEntity_selectType",
@@ -142,6 +143,13 @@ def get_columns_of_interest(df):
         "id",
         "url_kantonsblatt_ods",
     ]
+
+    # TODO: @Orhan please check which columns should be present in the dataset, and update accordingly. Then, probably remove this block again.
+    missing_columns = [col for col in columns_of_interest if col not in df.columns]
+    for col in missing_columns:
+        logging.warning(f"Filling empty value for missing column: {col}")
+        df[col] = ""
+    
     return df[columns_of_interest]
 
 
