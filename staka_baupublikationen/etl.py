@@ -149,7 +149,7 @@ def get_columns_of_interest(df):
     for col in missing_columns:
         logging.warning(f"Filling empty value for missing column: {col}")
         df[col] = ""
-    
+
     return df[columns_of_interest]
 
 
