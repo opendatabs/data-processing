@@ -142,6 +142,32 @@ def get_columns_of_interest(df):
         "id",
         "url_kantonsblatt_ods",
     ]
+
+    # TODO: @Orhan please check which columns should be present in the dataset, and update accordingly. 
+    # Also, consult the tmp_api_changes.md file for more details.
+    # Then, probably remove this block again. And also delete the md file.
+    tmp_debugging = True
+    if tmp_debugging:
+        print("The following columns are in both lists:")
+        print(set.intersection(set(df.columns), set(columns_of_interest)))
+        # {'locationCirculationOffice', 'projectFramer_company_name', 'id', 'projectFramer_company_legalForm', 'districtCadastre_relation_plot', 'districtCadastre_relation_section', 'projectFramer_legalEntity_selectType', 'buildingContractor_noUID', 'projectFramer_noUID', 'url_kantonsblatt_ods', 'projectLocation_address_town', 'projectLocation_address_street', 'entryDeadline', 'publicationArea_selectType', 'buildingContractor_company_legalForm', 'projectDescription', 'projectLocation_address_houseNumber', 'buildingContractor_legalEntity_selectType', 'buildingContractor_company_name', 'projectFramer_selectType'}
+        print()
+
+        print("The following columns are in the df but not in columns_of_interest:")
+        print(set(df.columns) - set(columns_of_interest))
+        # {'buildingContractor_legalEntity_persons_person_addressSwitzerland_houseNumber', 'buildingContractor_company_country_isoCode', 'delegation_buildingContractor_company_customAddress', 'localization_municipalityId_key', 'projectFramer_persons_person_addressSwitzerland_swissZipCode', 'buildingContractor_legalEntity_persons_person_prename', 'projectFramer_persons_person_addressSwitzerland_street', 'delegation_buildingContractor_company_name', 'buildingContractor_legalEntity_persons_person_name', 'projectFramer_company_country_isoCode', 'buildingContractor_company_country_name_fr', 'delegation_buildingContractor_noUID', 'projectFramer_company_country_name_fr', 'delegation_buildingContractor_company_country_isoCode', 'buildingContractor_legalEntity_persons_person_addressSwitzerland_street', 'projectFramer_persons_person_addressSwitzerland_houseNumber', 'projectLocation_address_locationAdditional', 'buildingContractor_legalEntity_persons_person_residence_selectType', 'projectFramer_persons_person_addressSwitzerland_town', 'delegation_buildingContractor_company_country_name_en', 'localization_municipalityId_term_de', 'projectFramer_persons_person_prename', 'projectFramer_company_country_name_en', 'delegation_selectType', 'delegation_buildingContractor_company_country_name_it', 'projectFramer_persons_person_name', 'content', 'projectFramer_company_country_name_de', 'delegation_buildingContractor_company_legalForm', 'buildingContractor_company_country_name_de', 'buildingContractor_legalEntity_persons_person_addressSwitzerland_town', 'projectFramer_persons_person_residence_selectType', 'delegation_buildingContractor_company_country_name_fr', 'buildingContractor_company_customAddress', 'projectLocation_address_swissZipCode', 'projectFramer_company_customAddress', 'delegation_buildingContractor_company_country_name_de', 'buildingContractor_company_country_name_en', 'buildingContractor_company_country_name_it', 'url_xml', 'projectFramer_company_country_name_it', 'delegation_buildingContractor_legalEntity_selectType', 'buildingContractor_legalEntity_persons_person_addressSwitzerland_swissZipCode'}
+        print()
+
+        print("IMPORTANT: The following columns are in columns_of_interest but missing in the df:")
+        print(set(columns_of_interest) - set(df.columns))
+        # {'projectFramer_company_address_street', 'buildingContractor_company_address_town', 'buildingContractor_company_address_houseNumber', 'buildingContractor_company_address_street', 'buildingContractor_company_uid', 'buildingContractor_company_address_swissZipCode', 'projectFramer_company_address_swissZipCode', 'projectFramer_company_address_houseNumber', 'projectFramer_company_address_town', 'projectFramer_company_uid'}
+        print()
+
+        missing_columns = [col for col in columns_of_interest if col not in df.columns]
+        for col in missing_columns:
+            logging.warning(f"Filling empty value for missing column: {col}")
+            df[col] = ""
+
     return df[columns_of_interest]
 
 
