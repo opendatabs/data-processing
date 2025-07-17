@@ -143,7 +143,7 @@ def get_columns_of_interest(df):
         "url_kantonsblatt_ods",
     ]
 
-    # TODO: @Orhan please check which columns should be present in the dataset, and update accordingly. 
+    # TODO: @Orhan please check which columns should be present in the dataset, and update accordingly.
     # Also, consult the tmp_api_changes.md file for more details.
     # Then, probably remove this block again. And also delete the md file.
     tmp_debugging = True
