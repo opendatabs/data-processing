@@ -47,7 +47,7 @@ def main():
             },
             {
                 "station": "bsBFB",  # Feldbergstrasse
-                "pollutants[]": ["PM10", "PM2.5", "NO2"],
+                "pollutants[]": ["PM10", "PM2.5", "O3", "NO2"],
                 "ods_id": "100050",
             },
         ]
