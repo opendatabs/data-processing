@@ -72,7 +72,7 @@ def main():
                 for chunk in r.iter_content(chunk_size=128):
                     fd.write(chunk)
 
-            if True or ct.has_changed(raw_file):
+            if ct.has_changed(raw_file):
                 logging.info("Reading csv into df...")
                 # Some lines have more than 5 columns, ignoring those.
                 df = pd.read_csv(
@@ -100,7 +100,7 @@ def main():
                 export_file = os.path.join("data", f"Luftqualitaet_ch-{station_abbrev}-{decades[i][-4:]}.csv")
                 df.to_csv(export_file, index=False)
                 common.upload_ftp(export_file, FTP_SERVER, FTP_USER, FTP_PASS, "luftqualitaet_ch")
-                if True or ct.has_changed(export_file):
+                if ct.has_changed(export_file):
                     chunk_size = 25000
                     df_chunks = chunked(df.index, chunk_size)
                     for df_chunk_indexes in df_chunks:
