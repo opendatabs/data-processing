@@ -112,7 +112,7 @@ def make_dataframe_bs_from_2023():
     df_bs = df_bs.reset_index()
     df_bs.columns.name = None
     df_bs = df_bs.drop(columns=["nicht bestimmbar"]).rename(columns={"positiv": "faelle_bs"})
-    df_bs["inzidenz07_bs"] = df_bs["faelle_bs"].rolling(window=7).sum() / pop_BS * 100000
+    df_bs["inzidenz07_bs"] = df_bs["faelle_bs"].rolling(window=7, min_periods=1).sum() / pop_BS * 100000
     return df_bs
 
 
@@ -184,7 +184,7 @@ def calculate_columns(df):
     df["Saison"] = df["Datum"].apply(lambda x: f"{x.year}/{x.year + 1}" if x.month >= 7 else f"{x.year - 1}/{x.year}")
     df["Tag der Saison"] = df["Datum"].apply(calculate_saison_tag)
     df["pos_rate_BL"] = df["Anz_pos_BL"] / (df["Anz_pos_BL"] + df["Anz_neg_BL"]) * 100
-    df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7).sum()
+    df["sum_7t_BL"] = df["Anz_pos_BL"].rolling(window=7, min_periods=1).sum()
     df["7t_inz_BL"] = df["sum_7t_BL"] / pop_BL * 100000
     df["daily_cases_BS+BL"] = df["Anz_pos_BL"].fillna(0) + df["faelle_bs"].fillna(0)
     df.loc[df["Anz_pos_BL"].isna() & df["faelle_bs"].isna(), "daily_cases_BS+BL"] = None
@@ -208,9 +208,9 @@ def calculate_columns(df):
     df["isolierte_BS+BL"] = df["Anz_Iso_BL"].fillna(0) + df["current_isolated"].fillna(0)
     df.loc[df["Anz_Iso_BL"].isna() & df["current_isolated"].isna(), "isolierte_BS+BL"] = None
     df["Ratio_Isolierte/daily_cases"] = df["isolierte_BS+BL"] / df["daily_cases_BS+BL"]
-    df["7t_median_BL"] = df["Anz_pos_BL"].rolling(window=7).median()
-    df["7t_median_BS"] = df["faelle_bs"].rolling(window=7).median()
-    df["7t_median_BS+BL"] = df["daily_cases_BS+BL"].rolling(window=7).median()
+    df["7t_median_BL"] = df["Anz_pos_BL"].rolling(window=7, min_periods=1).median()
+    df["7t_median_BS"] = df["faelle_bs"].rolling(window=7, min_periods=1).median()
+    df["7t_median_BS+BL"] = df["daily_cases_BS+BL"].rolling(window=7, min_periods=1).median()
     return df
 
 
