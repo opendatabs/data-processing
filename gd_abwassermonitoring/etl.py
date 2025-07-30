@@ -173,8 +173,8 @@ def calculate_columns(df):
     df.loc[df["Anz.pos.A_BL"].isna() & df["Anz_pos_A_BS"].isna(), "InfA_BS+BL"] = None
     df["InfB_BS+BL"] = df["Anz.pos.B_BL"].fillna(0) + df["Anz_pos_B_BS"].fillna(0)
     df.loc[df["Anz.pos.B_BL"].isna() & df["Anz_pos_B_BS"].isna(), "InfB_BS+BL"] = None
-    df["7t_median_InfA"] = df["InfA_BS+BL"].rolling(window=7).median()
-    df["7t_median_InfB"] = df["InfB_BS+BL"].rolling(window=7).median()
+    df["7t_median_InfA"] = df["InfA_BS+BL"].rolling(window=7, min_periods=1).median()
+    df["7t_median_InfB"] = df["InfB_BS+BL"].rolling(window=7, min_periods=1).median()
     return df
 
 
