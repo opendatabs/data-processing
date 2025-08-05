@@ -337,9 +337,7 @@ def df_to_sqlite(df):
     ].drop_duplicates()
     df_einsatzplan["geometry"] = df_einsatzplan["geo_point_2d"].apply(
         lambda x: (
-            f'{{"type": "Point", "coordinates": [{", ".join(str(x).split(", ")[::-1])}]}}'
-            if pd.notna(x)
-            else None
+            f'{{"type": "Point", "coordinates": [{", ".join(str(x).split(", ")[::-1])}]}}' if pd.notna(x) else None
         )
     )
     df_einsatzplan.drop(columns=["geo_point_2d"], inplace=True)
