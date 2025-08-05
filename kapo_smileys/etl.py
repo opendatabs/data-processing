@@ -407,17 +407,11 @@ def df_to_sqlite(df):
         "Start_Vormessung",
         "Start_Betrieb",
         "Start_Nachmessung",
-        "Ende"
+        "Ende",
     ]
     common.create_indices(conn, "Einsatzplan", columns_to_index_einsatzplan)
 
-    columns_to_index_einzelmessungen = [
-        "id_standort",
-        "Zyklus", 
-        "Phase", 
-        "Messung_Datum", 
-        "Messung_Timestamp"
-    ]
+    columns_to_index_einzelmessungen = ["id_standort", "Zyklus", "Phase", "Messung_Datum", "Messung_Timestamp"]
     common.create_indices(conn, "Einzelmessungen", columns_to_index_einzelmessungen)
 
     logging.info("Removing views...")
