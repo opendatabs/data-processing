@@ -378,7 +378,8 @@ def df_to_sqlite(df):
         PRIMARY KEY (id_standort, Zyklus)
     )
     """)
-    df_einsatzplan.to_sql("Einsatzplan", conn, if_exists="replace", index=False)
+    cursor.execute("DELETE FROM Einsatzplan")
+    df_einsatzplan.to_sql("Einsatzplan", conn, if_exists="append", index=False)
 
     # Create the Einzelmessungen table
     logging.info("Creating table Einzelmessungen...")
@@ -396,7 +397,8 @@ def df_to_sqlite(df):
         FOREIGN KEY (id_standort, Zyklus) REFERENCES Einsatzplan (id_standort, Zyklus)
     )
     """)
-    df_einzelmessungen.to_sql("Einzelmessungen", conn, if_exists="replace", index=False)
+    cursor.execute("DELETE FROM Einzelmessungen")
+    df_einzelmessungen.to_sql("Einzelmessungen", conn, if_exists="append", index=False)
 
     logging.info("Creating indices...")
     columns_to_index_einsatzplan = [
