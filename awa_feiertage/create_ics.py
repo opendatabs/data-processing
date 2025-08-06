@@ -24,11 +24,6 @@ now_utc = now_zurich.astimezone(pytz.UTC)
 dtstamp = now_utc.strftime("%Y%m%dT%H%M%SZ")
 
 
-def extract_year_from_filename(filename):
-    match = re.search(r"frei-und-feiertage(?:_(\d{4}))?\.csv", os.path.basename(filename))
-    return int(match.group(1)) if match and match.group(1) else 0
-
-
 def generate_event_uid(year, name, date):
     event_str = f"{year}_{name}_{date}"
     hash_obj = hashlib.md5(event_str.encode())
