@@ -4,7 +4,6 @@ import glob
 import hashlib
 import logging
 import os
-import re
 import uuid
 
 import pytz
