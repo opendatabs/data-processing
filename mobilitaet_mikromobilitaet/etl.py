@@ -25,24 +25,23 @@ def create_map_links(geometry, p1, p2):
 
 
 def load_current_data_from_wfs(url_wfs, shapes_to_load):
-    """
-    Load data from the given WFS URL for a list of layer names.
-
-    :param url_wfs: The URL to the Web Feature Service
-    :param shapes_to_load: List of WFS layer names to load
-    :return: A GeoDataFrame with all combined features
-    """
     logging.info(f"Connecting to WFS at {url_wfs}")
     wfs = WebFeatureService(url=url_wfs, version="2.0.0", timeout=120)
 
     gdf_current = gpd.GeoDataFrame()
+    failed_layers = []
+
     for shapefile in shapes_to_load:
         logging.info(f"Fetching data for layer: {shapefile}")
-        response = wfs.getfeature(typename=shapefile)
-        gdf = gpd.read_file(io.BytesIO(response.read()))
-        gdf_current = pd.concat([gdf_current, gdf])
+        try:
+            response = wfs.getfeature(typename=shapefile)
+            gdf = gpd.read_file(io.BytesIO(response.read()))
+            gdf_current = pd.concat([gdf_current, gdf])
+        except Exception as e:
+            logging.error(f"Failed to fetch layer {shapefile}: {e}")
+            failed_layers.append(shapefile)
 
-    return gdf_current
+    return gdf_current, failed_layers
 
 
 def add_map_links(gdf, tree_groups, tree_group_layers):
@@ -81,7 +80,6 @@ def prepare_gdf(gdf, drop_cols=None):
     return gdf
 
 
-# TODO: Move this to common.
 #  Keep in mind that than every Dockerfile needs to install geopandas.
 def gpd_to_mounted_file(gdf, path, *args, **kwargs):
     """
@@ -223,7 +221,7 @@ def main():
         "XS_PickEBike",
         "XS_PickEMoped",
     ]
-    gdf_current = load_current_data_from_wfs(url_wfs, shapes_to_load)
+    gdf_current, failed_layers = load_current_data_from_wfs(url_wfs, shapes_to_load)
 
     tree_groups = "Geteilte Mikromobilität"
     tree_group_layers_ = (
@@ -245,6 +243,9 @@ def main():
     # FTP and ODS upload (in the end to avoid incomplete data, if something fails)
     path_export_current = os.path.join("data", filename_current)
     common.update_ftp_and_odsp(path_export_current, "mobilitaet/mikromobilitaet", "100415")
+
+    if failed_layers:
+        raise RuntimeError(f"Job completed with errors. Failed layers: {', '.join(failed_layers)}")
 
     logging.info("Job successful!")
 
