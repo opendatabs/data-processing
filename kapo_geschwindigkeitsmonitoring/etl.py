@@ -227,54 +227,53 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     columns_to_index = ["Timestamp", "Richtung ID"]
     logging.info(f"Creating SQLite connection for {db_filename}...")
     conn = sqlite3.connect(db_filename)
-    df_metadata_per_direction.to_sql(name=table_name_direction, con=conn, if_exists="replace", index=False)
-    conn.execute(f"ALTER TABLE {table_name_direction} DROP COLUMN the_geom;")
-    common.create_indices(conn, table_name_direction, columns_to_index_direction)
-    '''
-    # Load the SpatiaLite extension module
-    conn.enable_load_extension(True)
-    conn.load_extension("/usr/lib/x86_64-linux-gnu/mod_spatialite.so")
-    # Initialize spatial metadata once
-    conn.execute("SELECT InitSpatialMetadata(1);")
-    logging.info(f'Adding metadata to SQLite table {table_name_direction}...')
-    # Add a geometry column in EPSG:2056
-    conn.execute(f"""
-        SELECT AddGeometryColumn(
-            '{table_name_direction}', 
-            'geometry', 
-            4326, 
-            'POINT', 
-            2
-        );
-    """)
-    # Convert the existing WKB data into the new Spatialite geometry column
-    conn.execute(f"""
-        UPDATE {table_name_direction}
-        SET geometry = 
-            ST_Transform(
-                GeomFromWKB(the_geom, 2056), 
-                4326
-            )
-    """)
-    # Create a spatial index
-    conn.execute(
-        f"SELECT CreateSpatialIndex('{table_name_direction}', 'geometry');"
+    cursor = conn.cursor()
+    logging.info(f"Creating table {table_name_direction} with proper schema...")
+    cursor.execute(f"""
+    CREATE TABLE IF NOT EXISTS {table_name_direction} (
+        "Messung-ID" INTEGER,
+        "Richtung ID" INTEGER,
+        "Richtung" TEXT,
+        "Fzg" INTEGER,
+        "V50" INTEGER,
+        "V85" INTEGER,
+        "Ue_Quote" REAL,
+        "geometry" TEXT,
+        "Strasse" TEXT,
+        "Strasse_Nr" TEXT,
+        "Ort" TEXT,
+        "Zone" INTEGER,
+        "Messbeginn" TEXT,
+        "Messende" TEXT
     )
-    '''
+    """)
+    cursor.execute(f"DELETE FROM {table_name_direction}")
+    conn.commit()
 
-    # Set up the schema by writing an empty DataFrame.
-    pd.DataFrame(
-        columns=[
-            "Geschwindigkeit",
-            "Zeit",
-            "Datum",
-            "Richtung ID",
-            "Fahrzeuglänge",
-            "Messung-ID",
-            "Datum_Zeit",
-            "Timestamp",
-        ]
-    ).to_sql(name=table_name, con=conn, if_exists="replace", index=False)
+    # Append data, dropping geometry if Spatialite isn't used
+    df_metadata_per_direction.drop(columns=["the_geom"], errors="ignore").to_sql(
+        name=table_name_direction,
+        con=conn,
+        if_exists="append",
+        index=False
+    )
+    common.create_indices(conn, table_name_direction, columns_to_index_direction)
+
+    logging.info(f"Creating table {table_name} with proper schema...")
+    cursor.execute(f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        Geschwindigkeit INTEGER,
+        Zeit TEXT,
+        Datum TEXT,
+        "Richtung ID" INTEGER,
+        Fahrzeuglänge REAL,
+        "Messung-ID" INTEGER,
+        Datum_Zeit TEXT,
+        Timestamp TEXT
+    )
+    """)
+    cursor.execute(f"DELETE FROM {table_name}")
+    conn.commit()
     # Drop geometry column since it is not needed anymore
     df_metadata_per_direction = df_metadata_per_direction.drop(columns=["geometry"])
     for index, row in df_meta_raw.iterrows():
