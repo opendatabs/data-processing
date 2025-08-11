@@ -1,25 +1,44 @@
 import io
 import json
-
+import os
+import glob
+from pathlib import Path
+import numpy as np
 import pdfplumber
 import pandas as pd
 import common
 
 
+def _pdfs_with_year(folder_glob: str):
+    """
+    Yield (year:int, path:str) for PDFs whose basename starts with 4-digit year.
+    Example filenames: '2023 Schulexterne Tagesstrukturen.pdf'
+    """
+    for p in sorted(glob.glob(folder_glob)):
+        name = Path(p).name
+        try:
+            year = int(name[:4])
+        except ValueError:
+            continue  # skip files not starting with a year
+        yield year, p
+
+
+def _assert_close(name: str, got, want, year: int, atol: float = 1e-6):
+    g = 0 if pd.isna(got) else float(got)
+    w = 0 if pd.isna(want) else float(want)
+    if not np.isclose(g, w, atol=atol, rtol=0):
+        raise ValueError(f"Mismatch {name} for Jahr {year}: sheet={g} vs agg={w}")
+
+
 def main():
     df_standorte = get_standorte()
-
-    process_schuleigene_tagesstrukturen(df_standorte)
-
-    process_schulexterne_tagesstrukturen()
-
-    process_anzahl_plaetze()
-
+    df_schulexterne_nach_gemeinde = process_schulexterne_tagesstrukturen()
+    df_schuleigene_nach_gemeinde = process_schuleigene_tagesstrukturen(df_standorte)
+    df_tagesferien = process_tagesferien()
+    process_anzahl_plaetze(df_schulexterne_nach_gemeinde, df_schuleigene_nach_gemeinde)
     process_oeffentliche_ausgaben()
-
-    process_tagesferien()
     
-    process_anzahl_kinder()
+    process_anzahl_kinder(df_schulexterne_nach_gemeinde, df_schuleigene_nach_gemeinde)
 
 
 def get_standorte():
@@ -63,39 +82,46 @@ def get_standorte_riehen_bettingen():
 
 
 def process_schulexterne_tagesstrukturen():
-    with pdfplumber.open("data_orig/Schulexterne Tagesstrukturen.pdf") as pdf:
-        page = pdf.pages[0]  # adjust page number
-        table = page.extract_table()
-        df_schulexterne = pd.DataFrame(table[1:], columns=table[0])
-    # Rename columns
-    df_schulexterne.columns = [
-        "number",
-        "mittagstisch",
-        "anz_pl_pro_tag_mm",
-        "anz_pl_pro_tag_nm1",
-        "anz_pl_pro_tag_nm2l",
-        "anz_pl_pro_tag_nm2k",
-        "bel_stichwoche_mm",
-        "bel_stichwoche_auslastung_mm",
-        "bel_stichwoche_nm1",
-        "bel_stichwoche_nm2l",
-        "bel_stichwoche_nm2k",
-        "tot_angm_anzahl",
-        "tot_angm_knaben",
-        "tot_angm_maedchen",
-        "tot_angm_KG",
-        "tot_angm_PS",
-    ]
-    df_schulexterne = df_schulexterne.iloc[2:-2].reset_index(drop=True)
-    df_schulexterne = df_schulexterne.drop(columns=["number"])
-    df_schulexterne["mittagstisch"] = df_schulexterne["mittagstisch"].str.replace(r"\s*[13]$", "", regex=True)
+    frames = []
+    for jahr, pdf_path in _pdfs_with_year("data_orig/schulexterne/*.pdf"):
+        with pdfplumber.open(pdf_path) as pdf:
+            page = pdf.pages[0]
+            table = page.extract_table()
+            df = pd.DataFrame(table[1:], columns=table[0])
 
-    # Load the mapping from the JSON file
+        df.columns = [
+            "number",
+            "mittagstisch",
+            "anz_pl_pro_tag_mm",
+            "anz_pl_pro_tag_nm1",
+            "anz_pl_pro_tag_nm2l",
+            "anz_pl_pro_tag_nm2k",
+            "bel_stichwoche_mm",
+            "bel_stichwoche_auslastung_mm",
+            "bel_stichwoche_nm1",
+            "bel_stichwoche_nm2l",
+            "bel_stichwoche_nm2k",
+            "tot_angm_anzahl",
+            "tot_angm_knaben",
+            "tot_angm_maedchen",
+            "tot_angm_KG",
+            "tot_angm_PS",
+        ]
+        df = df.iloc[2:-2].reset_index(drop=True)
+        df = df.drop(columns=["number"])
+        df["mittagstisch"] = df["mittagstisch"].str.replace(r"\s*[13]$", "", regex=True)
+        df["jahr"] = jahr
+        frames.append(df)
+
+    if not frames:
+        raise ValueError("Keine schulexterne PDFs gefunden in data_orig/schulexterne/")
+
+    df_schulexterne = pd.concat(frames, ignore_index=True)
+
     with open("data_orig/mittagstisch_gemeinde_mapping.json", "r", encoding="utf-8") as f:
         mittagstisch_gemeinde_mapping = json.load(f)
-
     df_schulexterne["gemeinde"] = df_schulexterne["mittagstisch"].map(mittagstisch_gemeinde_mapping)
-    # Apply numeric cleaning to all numeric columns except percentage
+
     num_cols = [
         "anz_pl_pro_tag_mm","anz_pl_pro_tag_nm1","anz_pl_pro_tag_nm2l","anz_pl_pro_tag_nm2k",
         "bel_stichwoche_mm","bel_stichwoche_nm1","bel_stichwoche_nm2l","bel_stichwoche_nm2k",
@@ -103,70 +129,106 @@ def process_schulexterne_tagesstrukturen():
     ]
     for col in num_cols:
         df_schulexterne[col] = clean_numeric(df_schulexterne[col])
-    # Special handling for percent
-    df_schulexterne["bel_stichwoche_auslastung_mm"] = clean_percent(
-        df_schulexterne["bel_stichwoche_auslastung_mm"]
+    df_schulexterne["bel_stichwoche_auslastung_mm"] = clean_percent(df_schulexterne["bel_stichwoche_auslastung_mm"])
+
+    df_schulexterne_agg = (
+        df_schulexterne
+        .groupby(["gemeinde","jahr"], as_index=False)
+        .agg({
+            "anz_pl_pro_tag_mm":"sum",
+            "anz_pl_pro_tag_nm1":"sum",
+            "anz_pl_pro_tag_nm2l":"sum",
+            "anz_pl_pro_tag_nm2k":"sum",
+            "bel_stichwoche_mm":"sum",
+            "bel_stichwoche_auslastung_mm":"mean",
+            "bel_stichwoche_nm1":"sum",
+            "bel_stichwoche_nm2l":"sum",
+            "bel_stichwoche_nm2k":"sum",
+            "tot_angm_anzahl":"sum",
+            "tot_angm_knaben":"sum",
+            "tot_angm_maedchen":"sum",
+            "tot_angm_KG":"sum",
+            "tot_angm_PS":"sum",
+        })
     )
 
-    # Aggregate by gemeinde
-    df_schulexterne = df_schulexterne.groupby("gemeinde").agg({
-        "anz_pl_pro_tag_mm": "sum",
-        "anz_pl_pro_tag_nm1": "sum",
-        "anz_pl_pro_tag_nm2l": "sum",
-        "anz_pl_pro_tag_nm2k": "sum",
-        "bel_stichwoche_mm": "sum",
-        "bel_stichwoche_auslastung_mm": "mean",
-        "bel_stichwoche_nm1": "sum",
-        "bel_stichwoche_nm2l": "sum",
-        "bel_stichwoche_nm2k": "sum",
-        "tot_angm_anzahl": "sum",
-        "tot_angm_knaben": "sum",
-        "tot_angm_maedchen": "sum",
-        "tot_angm_KG": "sum",
-        "tot_angm_PS": "sum"
-    }).reset_index()
-
     df_schulexterne.to_csv("data/schulexterne_tagesstrukturen.csv", index=False)
+    df_schulexterne_agg.to_csv("data/schulexterne_tagesstrukturen_aggregiert.csv", index=False)
+    return df_schulexterne_agg
+
 
 def process_schuleigene_tagesstrukturen(df_standorte):
-    with pdfplumber.open("data_orig/Tagesstrukturen PS.pdf") as pdf:
-        page = pdf.pages[0]  # adjust page number
-        table = page.extract_table()
-        df_schuleigene = pd.DataFrame(table[1:], columns=table[0])
-    # Rename columns
-    df_schuleigene.columns = [
-        "stufe",
-        "schule",
-        "anz_pl_pro_tag_fruehhort",
-        "anz_pl_pro_tag_mm",
-        "anz_pl_pro_tag_nm",
-        "bel_stichwoche_fruehhort",
-        "bel_stichwoche_mm",
-        "bel_stichwoche_auslastung_mm",
-        "bel_stichwoche_nm1",
-        "bel_stichwoche_nm2l",
-        "bel_stichwoche_nm2k",
-        "tot_angm_anzahl",
-        "tot_angm_knaben",
-        "tot_angm_maedchen",
-        "tot_angm_KG",
-        "tot_angm_PS",
-        "wochenbel_1tag",
-        "wochenbel_2tage",
-        "wochenbel_3tage",
-        "wochenbel_4tage",
-        "wochenbel_5tage",
+    frames = []
+    for jahr, pdf_path in _pdfs_with_year("data_orig/schuleigene/*.pdf"):
+        with pdfplumber.open(pdf_path) as pdf:
+            page = pdf.pages[0]
+            table = page.extract_table()
+            df = pd.DataFrame(table[1:], columns=table[0])
+
+        df.columns = [
+            "stufe","schule",
+            "anz_pl_pro_tag_fruehhort","anz_pl_pro_tag_mm","anz_pl_pro_tag_nm",
+            "bel_stichwoche_fruehhort","bel_stichwoche_mm","bel_stichwoche_auslastung_mm",
+            "bel_stichwoche_nm1","bel_stichwoche_nm2l","bel_stichwoche_nm2k",
+            "tot_angm_anzahl","tot_angm_knaben","tot_angm_maedchen","tot_angm_KG","tot_angm_PS",
+            "wochenbel_1tag","wochenbel_2tage","wochenbel_3tage","wochenbel_4tage","wochenbel_5tage",
+        ]
+        df = df.iloc[2:-2].reset_index(drop=True)
+        df["schule"] = df["schule"].str.replace(r"\*$", "", regex=True)
+        df = df.merge(df_standorte, left_on="schule", right_on="standort", how="left").drop(columns=["standort"])
+        df["jahr"] = jahr
+        frames.append(df)
+
+    if not frames:
+        raise ValueError("Keine schuleigene PDFs gefunden in data_orig/schuleigene/")
+
+    df_schuleigene = pd.concat(frames, ignore_index=True)
+
+    num_cols = [
+        "anz_pl_pro_tag_fruehhort","anz_pl_pro_tag_mm","anz_pl_pro_tag_nm",
+        "bel_stichwoche_fruehhort","bel_stichwoche_mm",
+        "bel_stichwoche_nm1","bel_stichwoche_nm2l","bel_stichwoche_nm2k",
+        "tot_angm_anzahl","tot_angm_knaben","tot_angm_maedchen","tot_angm_KG","tot_angm_PS",
+        "wochenbel_1tag","wochenbel_2tage","wochenbel_3tage","wochenbel_4tage","wochenbel_5tage",
     ]
-    df_schuleigene = df_schuleigene.iloc[2:-2].reset_index(drop=True)
-    # Remove the * at the end in schule
-    df_schuleigene["schule"] = df_schuleigene["schule"].str.replace(r"\*$", "", regex=True)
-    # Merge with df_standorte to add gemeinde
-    df_schuleigene = df_schuleigene.merge(df_standorte, left_on="schule", right_on="standort", how="left")
+    for col in num_cols:
+        df_schuleigene[col] = clean_numeric(df_schuleigene[col])
+
+    df_schuleigene["bel_stichwoche_auslastung_mm"] = clean_percent(df_schuleigene["bel_stichwoche_auslastung_mm"])
+
+    df_schuleigene_agg = (
+        df_schuleigene
+        .groupby(["gemeinde","jahr"], as_index=False)
+        .agg({
+            "anz_pl_pro_tag_fruehhort":"sum",
+            "anz_pl_pro_tag_mm":"sum",
+            "anz_pl_pro_tag_nm":"sum",
+            "bel_stichwoche_fruehhort":"sum",
+            "bel_stichwoche_mm":"sum",
+            "bel_stichwoche_auslastung_mm":"mean",
+            "bel_stichwoche_nm1":"sum",
+            "bel_stichwoche_nm2l":"sum",
+            "bel_stichwoche_nm2k":"sum",
+            "tot_angm_anzahl":"sum",
+            "tot_angm_knaben":"sum",
+            "tot_angm_maedchen":"sum",
+            "tot_angm_KG":"sum",
+            "tot_angm_PS":"sum",
+            "wochenbel_1tag":"sum",
+            "wochenbel_2tage":"sum",
+            "wochenbel_3tage":"sum",
+            "wochenbel_4tage":"sum",
+            "wochenbel_5tage":"sum",
+        })
+    )
+
     df_schuleigene.to_csv("data/100453_schuleigene_tagesstrukturen.csv", index=False)
-    return df_schuleigene
+    df_schuleigene_agg.to_csv("data/schuleigene_tagesstrukturen_aggregiert.csv", index=False)
+    return df_schuleigene_agg
 
 
-def process_anzahl_plaetze():
+def process_anzahl_plaetze(df_schulexterne, df_schuleigene):
+    # Sheet
     df_plaetze = pd.read_excel("data_orig/t13-2-40.xlsx", sheet_name="Plätze", usecols="B:C,E:F,H:J")
     df_plaetze.columns = [
         "jahr",
@@ -178,8 +240,45 @@ def process_anzahl_plaetze():
         "tagesferien",
     ]
     df_plaetze = df_plaetze.iloc[11:-2].reset_index(drop=True)
-    df_plaetze = df_plaetze.replace("… ", pd.NA)
-    df_plaetze.to_csv("data/100454_anzahl_plaetze.csv", index=False)
+    df_plaetze = df_plaetze.replace(["… ", "…"], pd.NA)
+
+    # Years to validate (present in either aggregation)
+    years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
+
+    # Aggregate across all Gemeinden per year
+    ig = df_schuleigene.groupby("jahr", as_index=False).agg(
+        fruehhort=("anz_pl_pro_tag_fruehhort","sum"),
+        ig_mm=("anz_pl_pro_tag_mm","sum"),
+        ig_nm=("anz_pl_pro_tag_nm","sum"),
+    )
+    ex = df_schulexterne.groupby("jahr", as_index=False).agg(
+        ex_mm=("anz_pl_pro_tag_mm","sum"),
+        ex_nm1=("anz_pl_pro_tag_nm1","sum"),
+    )
+
+    # Validate and collect rows
+    validated_rows = []
+    for y in years:
+        row = df_plaetze.loc[df_plaetze["jahr"] == y]
+        if row.empty:
+            raise ValueError(f"Jahr {y} fehlt im 'Plätze'-Sheet.")
+        row = row.iloc[0]
+
+        igy = ig.loc[ig["jahr"] == y].iloc[0] if (ig["jahr"] == y).any() else None
+        exy = ex.loc[ex["jahr"] == y].iloc[0] if (ex["jahr"] == y).any() else None
+        if igy is None or exy is None:
+            raise ValueError(f"Aggregationen fehlen für Jahr {y}.")
+
+        _assert_close("fruehhort", row["fruehhort"], igy["fruehhort"], y)
+        _assert_close("schuleigene_module_mittag", row["schuleigene_module_mittag"], igy["ig_mm"], y)
+        _assert_close("schuleigene_module_nachmittag", row["schuleigene_module_nachmittag"], igy["ig_nm"], y)
+        _assert_close("schulexterne_module_mittag", row["schulexterne_module_mittag"], exy["ex_mm"], y)
+        _assert_close("schulexterne_module_nachmittag", row["schulexterne_module_nachmittag"], exy["ex_nm1"], y)
+
+        validated_rows.append(row)
+
+    df_validated = pd.DataFrame(validated_rows).reset_index(drop=True)
+    df_validated.to_csv("data/100454_anzahl_plaetze.csv", index=False)
 
 
 def process_oeffentliche_ausgaben():
@@ -211,12 +310,14 @@ def process_oeffentliche_ausgaben():
 
 
 def process_tagesferien():
-    df_tagesferien_stadt_basel = pd.read_excel("data_orig/Gesamtübersicht Tagesferien.xlsx", usecols="A:B, E, H")
+    df_tagesferien_stadt_basel = pd.read_excel("data_orig/Gesamtübersicht Tagesferien.xlsx", usecols="A:B, E, H, L:M")
     df_tagesferien_stadt_basel.columns = [
         "jahr",
         "anzahl_angebotene_wochen",
         "anzahl_teilnehmende_sus",
         "durschnittliche_teilnahme",
+        "ferienbetreuung_total_buchungen",
+        "ferienbetreuung_durchschnittlich_teilnehmende",
     ]
     df_tagesferien_stadt_basel["gemeinde"] = "Basel"
     df_tagesferien_stadt_basel = df_tagesferien_stadt_basel.iloc[4:-16].reset_index(drop=True)
@@ -231,21 +332,9 @@ def process_tagesferien():
     df_tagesferien_riehen_bettingen["gemeinde"] = "Riehen und Bettingen"
     df_tagesferien_riehen_bettingen = df_tagesferien_riehen_bettingen.iloc[4:-16].reset_index(drop=True)
 
-    df_tagesferien_kanton_basel_stadt = pd.read_excel("data_orig/Gesamtübersicht Tagesferien.xlsx", usecols="A, D, G, J, L:M")
-    df_tagesferien_kanton_basel_stadt.columns = [
-        "jahr",
-        "anzahl_angebotene_wochen",
-        "anzahl_teilnehmende_sus",
-        "durschnittliche_teilnahme",
-        "ferienbetreuung_total_buchungen",
-        "ferienbetreuung_durchschnittlich_teilnehmende",
-    ]
-    df_tagesferien_kanton_basel_stadt["gemeinde"] = "Kanton Basel-Stadt"
-    df_tagesferien_kanton_basel_stadt = df_tagesferien_kanton_basel_stadt.iloc[4:-16].reset_index(drop=True)
-    # Concatenate the three DataFrames
+    # Concatenate the two DataFrames
     df_tagesferien = pd.concat(
-        [df_tagesferien_stadt_basel, df_tagesferien_riehen_bettingen, df_tagesferien_kanton_basel_stadt],
-        ignore_index=True
+        [df_tagesferien_stadt_basel, df_tagesferien_riehen_bettingen], ignore_index=True
     )
 
     with open("data/tagesferien_gemeinde_mapping.json", "r", encoding="utf-8") as f:
@@ -257,7 +346,7 @@ def process_tagesferien():
     df_tagesferien.to_csv("data/100456_tagesferien.csv", index=False)
     
 
-def process_anzahl_kinder():
+def process_anzahl_kinder(df_schulexterne, df_schuleigene):
     df_kinder = pd.read_excel("data_orig/t13-2-40.xlsx", sheet_name="Kinder", usecols="B:C,E:G,I:M")
     df_kinder.columns = [
         "jahr",
@@ -272,8 +361,57 @@ def process_anzahl_kinder():
         "ferienbetreuung",
     ]
     df_kinder = df_kinder.iloc[9:-2].reset_index(drop=True)
-    df_kinder = df_kinder.replace("… ", pd.NA)
-    df_kinder.to_csv("data/100457_anzahl_kinder.csv", index=False)
+    df_kinder = df_kinder.replace(["… ", "…"], pd.NA)
+
+    years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
+
+    ig = df_schuleigene.groupby("jahr", as_index=False).agg(
+        fruehhort=("bel_stichwoche_fruehhort","sum"),
+        ig_mm=("bel_stichwoche_mm","sum"),
+        ig_nm=("bel_stichwoche_nm1","sum"),
+        ig_nm2l=("bel_stichwoche_nm2l","sum"),
+        ig_nm2k=("bel_stichwoche_nm2k","sum"),
+    )
+    ex = df_schulexterne.groupby("jahr", as_index=False).agg(
+        ex_mm=("bel_stichwoche_mm","sum"),
+        ex_nm1=("bel_stichwoche_nm1","sum"),
+        ex_nm2l=("bel_stichwoche_nm2l","sum"),
+        ex_nm2k=("bel_stichwoche_nm2k","sum"),
+    )
+
+    validated_rows = []
+    for y in years:
+        row = df_kinder.loc[df_kinder["jahr"] == y]
+        if row.empty:
+            raise ValueError(f"Jahr {y} fehlt im 'Kinder'-Sheet.")
+        row = row.iloc[0]
+
+        igy = ig.loc[ig["jahr"] == y].iloc[0] if (ig["jahr"] == y).any() else None
+        exy = ex.loc[ex["jahr"] == y].iloc[0] if (ex["jahr"] == y).any() else None
+        if igy is None or exy is None:
+            raise ValueError(f"Aggregationen fehlen für Jahr {y} (Kinder).")
+
+        # Checks:
+        _assert_close("fruehhort", row["fruehhort"], igy["fruehhort"], y)
+        _assert_close("schuleigene_module_mittag", row["schuleigene_module_mittag"], igy["ig_mm"], y)
+        _assert_close(
+            "schuleigene_module_nachmittag (1+2)",
+            (row["schuleigene_module_nachmittag1"] or 0) + (row["schuleigene_module_nachmittag2"] or 0),
+            igy["ig_nm"] + igy["ig_nm2l"] + igy["ig_nm2k"],
+            y
+        )
+        _assert_close("schulexterne_module_mittag", row["schulexterne_module_mittag"], exy["ex_mm"], y)
+        _assert_close(
+            "schulexterne_module_nachmittag (1+2)",
+            (row["schulexterne_module_nachmittag1"] or 0) + (row["schulexterne_module_nachmittag2"] or 0),
+            exy["ex_nm1"] + exy["ex_nm2l"] + exy["ex_nm2k"],
+            y
+        )
+
+        validated_rows.append(row)
+
+    df_validated = pd.DataFrame(validated_rows).reset_index(drop=True)
+    df_validated.to_csv("data/100457_anzahl_kinder.csv", index=False)
 
 
 def clean_numeric(series: pd.Series) -> pd.Series:
