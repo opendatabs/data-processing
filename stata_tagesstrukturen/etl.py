@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import logging
 import glob
 from pathlib import Path
 import numpy as np
@@ -8,6 +9,9 @@ import pdfplumber
 import pandas as pd
 import common
 
+pd.set_option('future.no_silent_downcasting', True)
+logging.getLogger("pdfminer").setLevel(logging.WARNING)
+logging.getLogger("pdfplumber").setLevel(logging.WARNING)
 
 def _pdfs_with_year(folder_glob: str):
     """
@@ -107,7 +111,8 @@ def process_schulexterne_tagesstrukturen():
             "tot_angm_KG",
             "tot_angm_PS",
         ]
-        df = df.iloc[2:-2].reset_index(drop=True)
+        df = df.iloc[2:-2].copy()
+        df.reset_index(drop=True, inplace=True)
         df = df.drop(columns=["number"])
         df["mittagstisch"] = df["mittagstisch"].str.replace(r"\s*[13]$", "", regex=True)
         df["jahr"] = jahr
@@ -173,7 +178,8 @@ def process_schuleigene_tagesstrukturen(df_standorte):
             "tot_angm_anzahl","tot_angm_knaben","tot_angm_maedchen","tot_angm_KG","tot_angm_PS",
             "wochenbel_1tag","wochenbel_2tage","wochenbel_3tage","wochenbel_4tage","wochenbel_5tage",
         ]
-        df = df.iloc[2:-2].reset_index(drop=True)
+        df = df.iloc[2:-2].copy()
+        df.reset_index(drop=True, inplace=True)
         df["schule"] = df["schule"].str.replace(r"\*$", "", regex=True)
         df = df.merge(df_standorte, left_on="schule", right_on="standort", how="left").drop(columns=["standort"])
         df["jahr"] = jahr
@@ -239,8 +245,9 @@ def process_anzahl_plaetze(df_schulexterne, df_schuleigene):
         "schulexterne_module_nachmittag",
         "tagesferien",
     ]
-    df_plaetze = df_plaetze.iloc[11:-2].reset_index(drop=True)
-    df_plaetze = df_plaetze.replace(["… ", "…"], pd.NA)
+    df_plaetze = df_plaetze.iloc[11:-2].copy()
+    df_plaetze.reset_index(drop=True, inplace=True)
+    df_plaetze = df_plaetze.replace(["… ", "…"], pd.NA).infer_objects(copy=False)
 
     # Years to validate (present in either aggregation)
     years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
@@ -291,8 +298,9 @@ def process_oeffentliche_ausgaben():
         "ferienbetreuung",
     ]
     df_ausgaben_basel["gemeinden"] = "Basel"
-    df_ausgaben_basel = df_ausgaben_basel.iloc[9:-2].reset_index(drop=True)
-    df_ausgaben_basel = df_ausgaben_basel.replace("… ", pd.NA).replace("…", pd.NA)
+    df_ausgaben_basel = df_ausgaben_basel.iloc[9:-2].copy()
+    df_ausgaben_basel.reset_index(drop=True, inplace=True)
+    df_ausgaben_basel = df_ausgaben_basel.replace(["… ", "…"], pd.NA).infer_objects(copy=False)
     df_ausgaben_riehen_bettingen = pd.read_excel("data_orig/t13-2-40.xlsx", sheet_name="Ausgaben", usecols="B,H:J")
     df_ausgaben_riehen_bettingen.columns = [
         "jahr",
@@ -301,8 +309,9 @@ def process_oeffentliche_ausgaben():
         "tagesferien",
     ]
     df_ausgaben_riehen_bettingen["gemeinden"] = "Riehen und Bettingen"
-    df_ausgaben_riehen_bettingen = df_ausgaben_riehen_bettingen.iloc[9:-2].reset_index(drop=True)
-    df_ausgaben_riehen_bettingen = df_ausgaben_riehen_bettingen.replace("… ", pd.NA).replace("…", pd.NA)
+    df_ausgaben_riehen_bettingen = df_ausgaben_riehen_bettingen.iloc[9:-2].copy()
+    df_ausgaben_riehen_bettingen.reset_index(drop=True, inplace=True)
+    df_ausgaben_riehen_bettingen = df_ausgaben_riehen_bettingen.replace(["… ", "…"], pd.NA).infer_objects(copy=False)
     # Concatenate the two DataFrames
     df_ausgaben = pd.concat([df_ausgaben_basel, df_ausgaben_riehen_bettingen], ignore_index=True)
     df_ausgaben = df_ausgaben.dropna(subset=["schulexterne_module", "schuleigene_module", "tagesferien", "ferienbetreuung"], how='all')
@@ -320,7 +329,8 @@ def process_tagesferien():
         "ferienbetreuung_durchschnittlich_teilnehmende",
     ]
     df_tagesferien_stadt_basel["gemeinde"] = "Basel"
-    df_tagesferien_stadt_basel = df_tagesferien_stadt_basel.iloc[4:-16].reset_index(drop=True)
+    df_tagesferien_stadt_basel = df_tagesferien_stadt_basel.iloc[4:-16].copy()
+    df_tagesferien_stadt_basel.reset_index(drop=True, inplace=True)
 
     df_tagesferien_riehen_bettingen = pd.read_excel("data_orig/Gesamtübersicht Tagesferien.xlsx", usecols="A, C, F, I")
     df_tagesferien_riehen_bettingen.columns = [
@@ -330,7 +340,8 @@ def process_tagesferien():
         "durschnittliche_teilnahme",
     ]
     df_tagesferien_riehen_bettingen["gemeinde"] = "Riehen und Bettingen"
-    df_tagesferien_riehen_bettingen = df_tagesferien_riehen_bettingen.iloc[4:-16].reset_index(drop=True)
+    df_tagesferien_riehen_bettingen = df_tagesferien_riehen_bettingen.iloc[4:-16].copy()
+    df_tagesferien_riehen_bettingen.reset_index(drop=True, inplace=True)
 
     # Concatenate the two DataFrames
     df_tagesferien = pd.concat(
@@ -360,8 +371,9 @@ def process_anzahl_kinder(df_schulexterne, df_schuleigene):
         "tagesferien",
         "ferienbetreuung",
     ]
-    df_kinder = df_kinder.iloc[9:-2].reset_index(drop=True)
-    df_kinder = df_kinder.replace(["… ", "…"], pd.NA)
+    df_kinder = df_kinder.iloc[9:-2].copy()
+    df_kinder.reset_index(drop=True, inplace=True)
+    df_kinder = df_kinder.replace(["… ", "…"], pd.NA).infer_objects(copy=False)
 
     years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
 
@@ -439,5 +451,6 @@ def clean_percent(series: pd.Series) -> pd.Series:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()
- 
+    logging.info("Job successful!")
