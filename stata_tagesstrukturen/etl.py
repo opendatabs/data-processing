@@ -34,6 +34,12 @@ def _assert_close(name: str, got, want, year: int, atol: float = 1e-6):
         raise ValueError(f"Mismatch {name} for Jahr {year}: sheet={g} vs agg={w}")
 
 
+def _cell0(df_row_like, col):
+    """Return a single numeric value from the first row's column; NaN -> 0.0"""
+    v = pd.to_numeric(df_row_like[col].iloc[0], errors="coerce")
+    return 0.0 if pd.isna(v) else float(v)
+
+
 def main():
     df_standorte = get_standorte()
     df_schulexterne_nach_gemeinde = process_schulexterne_tagesstrukturen()
@@ -234,7 +240,7 @@ def process_schuleigene_tagesstrukturen(df_standorte):
 
 
 def process_anzahl_plaetze(df_schulexterne, df_schuleigene):
-    # Sheet
+    # Load sheet
     df_plaetze = pd.read_excel("data_orig/t13-2-40.xlsx", sheet_name="Plätze", usecols="B:C,E:F,H:J")
     df_plaetze.columns = [
         "jahr",
@@ -245,47 +251,38 @@ def process_anzahl_plaetze(df_schulexterne, df_schuleigene):
         "schulexterne_module_nachmittag",
         "tagesferien",
     ]
-    df_plaetze = df_plaetze.iloc[11:-2].copy()
-    df_plaetze.reset_index(drop=True, inplace=True)
-    df_plaetze = df_plaetze.replace(["… ", "…"], pd.NA).infer_objects(copy=False)
+    df_plaetze = df_plaetze.iloc[11:-2].reset_index(drop=True)
+    df_plaetze = df_plaetze.replace(["… ", "…"], pd.NA)
 
-    # Years to validate (present in either aggregation)
-    years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
-
-    # Aggregate across all Gemeinden per year
-    ig = df_schuleigene.groupby("jahr", as_index=False).agg(
+    # Aggregations
+    ig = df_schuleigene.groupby(["gemeinde","jahr"], as_index=False).agg(
         fruehhort=("anz_pl_pro_tag_fruehhort","sum"),
-        ig_mm=("anz_pl_pro_tag_mm","sum"),
-        ig_nm=("anz_pl_pro_tag_nm","sum"),
+        schuleigene_module_mittag=("anz_pl_pro_tag_mm","sum"),
+        schuleigene_module_nachmittag=("anz_pl_pro_tag_nm","sum"),
     )
-    ex = df_schulexterne.groupby("jahr", as_index=False).agg(
-        ex_mm=("anz_pl_pro_tag_mm","sum"),
-        ex_nm1=("anz_pl_pro_tag_nm1","sum"),
+    ex = df_schulexterne.groupby(["gemeinde","jahr"], as_index=False).agg(
+        schulexterne_module_mittag=("anz_pl_pro_tag_mm","sum"),
+        schulexterne_module_nachmittag=("anz_pl_pro_tag_nm1","sum"),
     )
 
-    # Validate and collect rows
-    validated_rows = []
+    # Validation
+    years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
     for y in years:
         row = df_plaetze.loc[df_plaetze["jahr"] == y]
         if row.empty:
-            raise ValueError(f"Jahr {y} fehlt im 'Plätze'-Sheet.")
-        row = row.iloc[0]
+            continue
+        total_ig = ig.loc[ig["jahr"] == y].drop(columns=["gemeinde"]).sum(numeric_only=True)
+        total_ex = ex.loc[ex["jahr"] == y].drop(columns=["gemeinde"]).sum(numeric_only=True)
 
-        igy = ig.loc[ig["jahr"] == y].iloc[0] if (ig["jahr"] == y).any() else None
-        exy = ex.loc[ex["jahr"] == y].iloc[0] if (ex["jahr"] == y).any() else None
-        if igy is None or exy is None:
-            raise ValueError(f"Aggregationen fehlen für Jahr {y}.")
+        _assert_close("fruehhort", _cell0(row, "fruehhort"), total_ig["fruehhort"], y)
+        _assert_close("schuleigene_module_mittag", _cell0(row, "schuleigene_module_mittag"), total_ig["schuleigene_module_mittag"], y)
+        _assert_close("schuleigene_module_nachmittag", _cell0(row, "schuleigene_module_nachmittag"), total_ig["schuleigene_module_nachmittag"], y)
+        _assert_close("schulexterne_module_mittag", _cell0(row, "schulexterne_module_mittag"), total_ex["schulexterne_module_mittag"], y)
+        _assert_close("schulexterne_module_nachmittag", _cell0(row, "schulexterne_module_nachmittag"), total_ex["schulexterne_module_nachmittag"], y)
 
-        _assert_close("fruehhort", row["fruehhort"], igy["fruehhort"], y)
-        _assert_close("schuleigene_module_mittag", row["schuleigene_module_mittag"], igy["ig_mm"], y)
-        _assert_close("schuleigene_module_nachmittag", row["schuleigene_module_nachmittag"], igy["ig_nm"], y)
-        _assert_close("schulexterne_module_mittag", row["schulexterne_module_mittag"], exy["ex_mm"], y)
-        _assert_close("schulexterne_module_nachmittag", row["schulexterne_module_nachmittag"], exy["ex_nm1"], y)
-
-        validated_rows.append(row)
-
-    df_validated = pd.DataFrame(validated_rows).reset_index(drop=True)
-    df_validated.to_csv("data/100454_anzahl_plaetze.csv", index=False)
+    # Append aggregates with gemeinde
+    df_appended = pd.concat([df_plaetze, ig, ex], ignore_index=True, sort=False)
+    df_appended.to_csv("data/100454_anzahl_plaetze.csv", index=False)
 
 
 def process_oeffentliche_ausgaben():
@@ -371,59 +368,47 @@ def process_anzahl_kinder(df_schulexterne, df_schuleigene):
         "tagesferien",
         "ferienbetreuung",
     ]
-    df_kinder = df_kinder.iloc[9:-2].copy()
-    df_kinder.reset_index(drop=True, inplace=True)
-    df_kinder = df_kinder.replace(["… ", "…"], pd.NA).infer_objects(copy=False)
+    df_kinder = df_kinder.iloc[9:-2].reset_index(drop=True)
+    df_kinder = df_kinder.replace(["… ", "…"], pd.NA)
+
+    ig = df_schuleigene.groupby(["gemeinde","jahr"], as_index=False).agg(
+        fruehhort=("bel_stichwoche_fruehhort","sum"),
+        schuleigene_module_mittag=("bel_stichwoche_mm","sum"),
+        schuleigene_module_nachmittag=("bel_stichwoche_nm1","sum"),
+        schuleigene_module_nachmittag2l=("bel_stichwoche_nm2l","sum"),
+        schuleigene_module_nachmittag2k=("bel_stichwoche_nm2k","sum"),
+    )
+    ex = df_schulexterne.groupby(["gemeinde","jahr"], as_index=False).agg(
+        schulexterne_module_mittag=("bel_stichwoche_mm","sum"),
+        schulexterne_module_nachmittag=("bel_stichwoche_nm1","sum"),
+        schulexterne_module_nachmittag2l=("bel_stichwoche_nm2l","sum"),
+        schulexterne_module_nachmittag2k=("bel_stichwoche_nm2k","sum"),
+    )
 
     years = sorted(set(df_schulexterne["jahr"]).union(df_schuleigene["jahr"]))
-
-    ig = df_schuleigene.groupby("jahr", as_index=False).agg(
-        fruehhort=("bel_stichwoche_fruehhort","sum"),
-        ig_mm=("bel_stichwoche_mm","sum"),
-        ig_nm=("bel_stichwoche_nm1","sum"),
-        ig_nm2l=("bel_stichwoche_nm2l","sum"),
-        ig_nm2k=("bel_stichwoche_nm2k","sum"),
-    )
-    ex = df_schulexterne.groupby("jahr", as_index=False).agg(
-        ex_mm=("bel_stichwoche_mm","sum"),
-        ex_nm1=("bel_stichwoche_nm1","sum"),
-        ex_nm2l=("bel_stichwoche_nm2l","sum"),
-        ex_nm2k=("bel_stichwoche_nm2k","sum"),
-    )
-
-    validated_rows = []
     for y in years:
         row = df_kinder.loc[df_kinder["jahr"] == y]
         if row.empty:
-            raise ValueError(f"Jahr {y} fehlt im 'Kinder'-Sheet.")
-        row = row.iloc[0]
+            continue
 
-        igy = ig.loc[ig["jahr"] == y].iloc[0] if (ig["jahr"] == y).any() else None
-        exy = ex.loc[ex["jahr"] == y].iloc[0] if (ex["jahr"] == y).any() else None
-        if igy is None or exy is None:
-            raise ValueError(f"Aggregationen fehlen für Jahr {y} (Kinder).")
+        total_ig = ig.loc[ig["jahr"] == y].drop(columns=["gemeinde"]).sum(numeric_only=True)
+        total_ex = ex.loc[ex["jahr"] == y].drop(columns=["gemeinde"]).sum(numeric_only=True)
 
-        # Checks:
-        _assert_close("fruehhort", row["fruehhort"], igy["fruehhort"], y)
-        _assert_close("schuleigene_module_mittag", row["schuleigene_module_mittag"], igy["ig_mm"], y)
-        _assert_close(
-            "schuleigene_module_nachmittag (1+2)",
-            (row["schuleigene_module_nachmittag1"] or 0) + (row["schuleigene_module_nachmittag2"] or 0),
-            igy["ig_nm"] + igy["ig_nm2l"] + igy["ig_nm2k"],
-            y
-        )
-        _assert_close("schulexterne_module_mittag", row["schulexterne_module_mittag"], exy["ex_mm"], y)
-        _assert_close(
-            "schulexterne_module_nachmittag (1+2)",
-            (row["schulexterne_module_nachmittag1"] or 0) + (row["schulexterne_module_nachmittag2"] or 0),
-            exy["ex_nm1"] + exy["ex_nm2l"] + exy["ex_nm2k"],
-            y
-        )
+        _assert_close("fruehhort", _cell0(row, "fruehhort"), total_ig["fruehhort"], y)
+        _assert_close("schuleigene_module_mittag", _cell0(row, "schuleigene_module_mittag"), total_ig["schuleigene_module_mittag"], y)
 
-        validated_rows.append(row)
+        ig_sheet_sum = _cell0(row, "schuleigene_module_nachmittag1") + _cell0(row, "schuleigene_module_nachmittag2")
+        ig_agg_sum = total_ig["schuleigene_module_nachmittag"] + total_ig["schuleigene_module_nachmittag2l"] + total_ig["schuleigene_module_nachmittag2k"]
+        _assert_close("schuleigene_module_nachmittag (1+2)", ig_sheet_sum, ig_agg_sum, y)
 
-    df_validated = pd.DataFrame(validated_rows).reset_index(drop=True)
-    df_validated.to_csv("data/100457_anzahl_kinder.csv", index=False)
+        _assert_close("schulexterne_module_mittag", _cell0(row, "schulexterne_module_mittag"), total_ex["schulexterne_module_mittag"], y)
+
+        ex_sheet_sum = _cell0(row, "schulexterne_module_nachmittag1") + _cell0(row, "schulexterne_module_nachmittag2")
+        ex_agg_sum = total_ex["schulexterne_module_nachmittag"] + total_ex["schulexterne_module_nachmittag2l"] + total_ex["schulexterne_module_nachmittag2k"]
+        _assert_close("schulexterne_module_nachmittag (1+2)", ex_sheet_sum, ex_agg_sum, y)
+
+    df_appended = pd.concat([df_kinder, ig, ex], ignore_index=True, sort=False)
+    df_appended.to_csv("data/100457_anzahl_kinder.csv", index=False)
 
 
 def clean_numeric(series: pd.Series) -> pd.Series:
