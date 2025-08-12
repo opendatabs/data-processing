@@ -693,7 +693,19 @@ def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
     # Create url's
     df["url_ges"] = PATH_GESCHAEFT + df["signatur_ges"]
     df["url_geschaeft_ods"] = PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
-    df["url_dok"] = np.where(df["signatur_dok"].notna(), PATH_DOKUMENT + df["signatur_dok"], df["url"])
+    def build_url(signatur):
+        if pd.isna(signatur):
+            return None
+        parts = str(signatur).split()
+        if len(parts) == 1:  # single value
+            return PATH_DOKUMENT + parts[0]
+        return None  # fallback to df["url"]
+
+    df["url_dok"] = np.where(
+        df["signatur_dok"].notna(),
+        df["signatur_dok"].apply(build_url).fillna(df["url"]),
+        df["url"]
+    )
 
     # Replacing status codes with their meanings
     df["status_ges"] = df["status_ges"].replace(REPLACE_STATUS_CODES_GES)
@@ -947,7 +959,7 @@ def create_traktanden_csv(
 
     # Select relevant columns for publication
     cols_of_interest = [
-        "tagesordnung_idnr",
+        "gr_sitzung_idnr",
         "versand",
         "tag1",
         "text1",
@@ -956,16 +968,19 @@ def create_traktanden_csv(
         "tag3",
         "text3",
         "bemerkung",
-        "url_tagesordnung_dok",
-        "url_geschaeftsverzeichnis",
-        "url_sammelmappe",
-        "url_alle_dokumente",
+        "protokollseite_von",
+        "protokollseite_bis",
         "url_vollprotokoll",
         "url_audioprotokoll_tag1",
         "url_audioprotokoll_tag2",
         "url_audioprotokoll_tag3",
+        "tagesordnung_idnr",
         "einleitungstext",
         "zwischentext",
+        "url_tagesordnung_dok",
+        "url_geschaeftsverzeichnis",
+        "url_sammelmappe",
+        "url_alle_dokumente",
         "gruppennummer",
         "gruppentitel",
         "gruppentitel_pos",
