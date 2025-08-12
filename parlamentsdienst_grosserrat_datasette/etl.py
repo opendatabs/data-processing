@@ -1,246 +1,369 @@
 import logging
-import os
 import sqlite3
 from pathlib import Path
 
-import common
 import pandas as pd
+import common
 import pdf_converter
 
 
+def safe_converter(func, *args, **kwargs):
+    try:
+        func(*args, **kwargs)
+    except Exception as e:
+        logging.exception("Converter failed: %s (%s)", func.__name__, e)
+
+
+def idx(conn, table, cols):
+    # ensure identifiers are quoted (handles hyphens like "intr-bind")
+    quoted = [f'"{c}"' if not (c.startswith('"') and c.endswith('"')) else c for c in cols]
+    common.create_indices(conn, table, quoted)
+
+
 def main():
-    # Set path for SQLite database
-    db_path = os.path.join("data", "datasette", "GrosserRat.db")
+    logging.info("Starting build…")
+    db_path = Path("data") / "datasette" / "GrosserRat.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 100307
-    csv_mitglieder = os.path.join("data_orig", "100307_gr_mitglieder.csv")
-    df_adr = pd.read_csv(csv_mitglieder)
-    columns_to_index = [
-        "ist_aktuell_grossrat",
-        "anrede",
-        "titel",
-        "gebdatum",
-        "gr_wahlkreis",
-        "partei",
-        "partei_kname",
-    ]
-    create_sqlite_table(db_path, df_adr, "Mitglieder", columns_to_index=columns_to_index)
-
-    # 100308
-    csv_mitgliedschaften = os.path.join("data_orig", "100308_gr_mitgliedschaften.csv")
-    df_mit = pd.read_csv(csv_mitgliedschaften)
-    columns_to_index = [
-        "kurzname_gre",
-        "name_gre",
-        "gremientyp",
-        "funktion_adr",
-        "anrede",
-        "name_vorname",
-        "partei_kname",
-    ]
-    create_sqlite_table(db_path, df_mit, "Mitgliedschaften", columns_to_index=columns_to_index)
-
-    # 100309
-    csv_interessensbindungen = os.path.join("data_orig", "100309_gr_interessensbindungen.csv")
-    df_int = pd.read_csv(csv_interessensbindungen)
-    columns_to_index = ["rubrik", "funktion", "anrede", "name_vorname", "partei_kname"]
-    create_sqlite_table(db_path, df_int, "Interessensbindungen", columns_to_index=columns_to_index)
-
-    # 100310
-    csv_gremien = os.path.join("data_orig", "100310_gr_gremien.csv")
-    df_gre = pd.read_csv(csv_gremien)
-    columns_to_index = ["ist_aktuelles_gremium", "kurzname", "name", "gremientyp"]
-    create_sqlite_table(db_path, df_gre, "Gremien", columns_to_index=columns_to_index)
-
-    # 100311
-    csv_geschaefte = os.path.join("data_orig", "100311_gr_geschaefte.csv")
-    df_ges = pd.read_csv(csv_geschaefte)
-    # Create SQLite dataset
-    columns_to_index = [
-        "status_ges",
-        "ga_rr_gr",
-        "anrede_urheber",
-        "name_vorname_urheber",
-        "partei_kname_urheber",
-        "anrede_miturheber",
-        "name_vorname_miturheber",
-        "partei_kname_miturheber",
-    ]
-    create_sqlite_table(db_path, df_ges, "Geschaefte", columns_to_index=columns_to_index)
-
-    # 100312
-    csv_zuweisungen = os.path.join("data_orig", "100312_gr_zuweisungen.csv")
-    df_zuw = pd.read_csv(csv_zuweisungen)
-    columns_to_index = [
-        "kurzname_an",
-        "name_an",
-        "status_zuw",
-        "status_ges",
-        "ga_rr_gr",
-        "departement_ges",
-        "kurzname_von",
-        "name_von",
-    ]
-    create_sqlite_table(db_path, df_zuw, "Zuweisungen", columns_to_index=columns_to_index)
-
-    # 100313
-    csv_dokumente = os.path.join("data_orig", "100313_gr_dokumente.csv")
-
-    df_dok = pd.read_csv(csv_dokumente)
-    for method in ["pdfplumber", "pymupdf"]:
-        zip_path = Path("data") / "text" / f"gr_dokumente_text_{method}.zip"
-        pdf_converter.create_text_from_column(
-            df_dok,
-            "url_dok",
-            method,
-            zip_path,
-            "dok_laufnr",
-        )
-
-    for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = Path("data") / "markdown" / f"gr_dokumente_md_{method}.zip"
-        pdf_converter.create_markdown_from_column(
-            df_dok,
-            "url_dok",
-            method,
-            zip_path,
-            "dok_laufnr",
-        )
-
-    columns_to_index = ["titel_dok", "status_ges", "ga_rr_gr", "departement_ges"]
-    create_sqlite_table(db_path, df_dok, "Dokumente", columns_to_index=columns_to_index)
-
-    # 100314
-    csv_vorgaenge = os.path.join("data_orig", "100314_gr_vorgaenge.csv")
-    df_vor = pd.read_csv(csv_vorgaenge)
-    columns_to_index = ["Vermerk", "status_ges", "ga_rr_gr", "departement_ges"]
-    create_sqlite_table(db_path, df_vor, "Vorgaenge", columns_to_index=columns_to_index)
-
-    # 100348
-    csv_traktanden = os.path.join("data_orig", "100348_gr_traktanden.csv")
-
-    df_tag_trakt = pd.read_csv(csv_traktanden)
-
-    columns_trakt = [
-        "tagesordnung_idnr",
-        "gruppennummer",
-        "gruppentitel",
-        "gruppentitel_pos",
-        "traktanden_idnr",
-        "laufnr",
-        "laufnr_2",
-        "status",
-        "titel",
-        "kommission",
-        "url_kommission",
-        "departement",
-        "signatur",
-        "url_ges",
-        "url_geschaeft_ods",
-        "url_dok",
-        "url_dokument_ods",
-        "Abstimmung",
-        "anr",
-        "url_abstimmungen",
-    ]
-
-    df_trakt = df_tag_trakt[columns_trakt].copy()
-
-    columns_to_index = [
-        "gruppennummer",
-        "gruppentitel",
-        "status",
-        "kommission",
-        "departement",
-    ]
-    create_sqlite_table(
-        db_path,
-        df_trakt,
-        "Traktanden",
-        columns_to_index=columns_to_index,
-    )
-
-    # Split the data into two DataFrames: df_tagesordnung and df_trakt
-    columns_tagesordnung = [
-        "tagesordnung_idnr",
-        "versand",
-        "tag1",
-        "text1",
-        "tag2",
-        "text2",
-        "tag3",
-        "text3",
-        "bemerkung",
-        "url_tagesordnung_dok",
-        "url_geschaeftsverzeichnis",
-        "url_sammelmappe",
-        "url_alle_dokumente",
-        "url_vollprotokoll",
-        "url_audioprotokoll_tag1",
-        "url_audioprotokoll_tag2",
-        "url_audioprotokoll_tag3",
-        "einleitungstext",
-        "zwischentext",
-    ]
-
-    df_tagesordnung = df_tag_trakt[columns_tagesordnung].copy().drop_duplicates()
-
-    for method in ["pdfplumber", "pymupdf"]:
-        zip_path = Path("data") / "text" / f"gr_tagesordnung_text_{method}.zip"
-        pdf_converter.create_text_from_column(
-            df_tagesordnung,
-            "url_vollprotokoll",
-            method,
-            zip_path,
-            "tag1",
-        )
-
-    for method in ["docling", "pymupdf", "pymupdf4llm"]:
-        zip_path = Path("data") / "markdown" / f"gr_tagesordnung_md_{method}.zip"
-        pdf_converter.create_markdown_from_column(
-            df_tagesordnung,
-            "url_vollprotokoll",
-            method,
-            zip_path,
-            "tag1",
-        )
-
-    columns_to_index = []
-    create_sqlite_table(
-        db_path,
-        df_tagesordnung,
-        "Tagesordnungen",
-        columns_to_index=columns_to_index,
-    )
-
-
-def create_sqlite_table(db_path, df, table_name, columns_to_index=None):
-    """
-    Create a SQLite dataset from a DataFrame.
-
-    Args:
-        db_path (str): The path to the SQLite database file.
-        df (pd.DataFrame): The DataFrame containing the data.
-        table_name: Name of the table to create in the database.
-        columns_to_index (list): List of columns to create indices on.
-    """
-    if columns_to_index is None:
-        columns_to_index = []
-    logging.info(f"Creating SQLite database at {db_path}...")
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys=ON;")
+    cur = conn.cursor()
 
-    # Write the DataFrame to the SQLite database
-    df.to_sql(name=table_name, con=conn, if_exists="replace", index=False)
+    # ---------- Load CSVs ----------
+    df_adr = pd.read_csv("data_orig/100307_gr_mitglieder.csv")
+    df_mit = pd.read_csv("data_orig/100308_gr_mitgliedschaften.csv")
+    df_int = pd.read_csv("data_orig/100309_gr_interessensbindungen.csv")
+    df_gre = pd.read_csv("data_orig/100310_gr_gremien.csv")
+    df_ges = pd.read_csv("data_orig/100311_gr_geschaefte.csv")
+    df_zuw = pd.read_csv("data_orig/100312_gr_zuweisungen.csv")
+    df_dok_full = pd.read_csv("data_orig/100313_gr_dokumente.csv")
+    df_vor = pd.read_csv("data_orig/100314_gr_vorgaenge.csv")
+    df_tag_trakt = pd.read_csv("data_orig/100348_gr_traktanden.csv")
+    df_unt = common.pandas_read_csv(
+        "https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable=unt",
+        encoding="utf-8",
+        dtype=str,
+    )
 
-    # Create indices for faster querying
-    common.create_indices(conn, table_name, columns_to_index)
+    # ---------- Converters (guarded) ----------
+    for method in ["pdfplumber", "pymupdf"]:
+        safe_converter(
+            pdf_converter.create_text_from_column,
+            df_dok_full, "url_dok", method, Path("data/text") / f"gr_dokumente_text_{method}.zip",
+            "dok_laufnr",
+        )
+    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+        safe_converter(
+            pdf_converter.create_markdown_from_column,
+            df_dok_full, "url_dok", method, Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
+            "dok_laufnr",
+        )
 
+    # Tagesordnungen PDFs come from Sessionen (url_vollprotokoll)
+    df_sessionen_src = df_tag_trakt[[
+        "gr_sitzung_idnr","versand","tag1","text1","tag2","text2","tag3","text3",
+        "bemerkung","protokollseite_von","protokollseite_bis",
+        "url_vollprotokoll","url_audioprotokoll_tag1",
+        "url_audioprotokoll_tag2","url_audioprotokoll_tag3"
+    ]].drop_duplicates()
+    for method in ["pdfplumber", "pymupdf"]:
+        safe_converter(
+            pdf_converter.create_text_from_column,
+            df_sessionen_src, "url_vollprotokoll", method, Path("data/text") / f"gr_vollprotokoll_text_{method}.zip",
+            "tag1",
+        )
+    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+        safe_converter(
+            pdf_converter.create_markdown_from_column,
+            df_sessionen_src, "url_vollprotokoll", method, Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
+            "tag1",
+        )
+
+    # ---------- Schema (with PKs & FKs) ----------
+    # Drop in FK-safe order
+    for t in [
+        "Traktanden","Tagesordnungen","Unterlagen","Sessionen","Sitzungen","Vorgaenge",
+        "Dokumente","Zuweisungen","Geschaefte","Gremienmitgliedschaften","Gremien",
+        "Interessensbindungen","Ratsmitgliedschaften"
+    ]:
+        cur.execute(f'DROP TABLE IF EXISTS "{t}"')
+
+    # Ratsmitgliedschaften (Persons). PK: uni_nr
+    cur.execute("""
+        CREATE TABLE "Ratsmitgliedschaften" (
+            "uni_nr" INTEGER PRIMARY KEY,
+            "ist_aktuell_grossrat" TEXT,
+            "anrede" TEXT,
+            "titel" TEXT,
+            "name" TEXT,
+            "vorname" TEXT,
+            "name_vorname" TEXT,
+            "gebdatum" TEXT,
+            "gr_sitzplatz" INTEGER,
+            "gr_wahlkreis" TEXT,
+            "partei" TEXT,
+            "partei_kname" TEXT,
+            "gr_beginn" TEXT,
+            "gr_ende" TEXT,
+            "url" TEXT,
+            "strasse" TEXT,
+            "plz" INTEGER,
+            "ort" TEXT,
+            "gr_beruf" TEXT,
+            "gr_arbeitgeber" TEXT,
+            "homepage" TEXT
+        )
+    """)
+    df_adr = df_adr[[
+        "uni_nr","ist_aktuell_grossrat","anrede","titel","name","vorname","name_vorname",
+        "gebdatum","gr_sitzplatz","gr_wahlkreis","partei","partei_kname","gr_beginn","gr_ende",
+        "url","strasse","plz","ort","gr_beruf","gr_arbeitgeber","homepage"
+    ]]
+    df_adr.to_sql("Ratsmitgliedschaften", conn, if_exists="append", index=False)
+    idx(conn, "Ratsmitgliedschaften", [
+        "ist_aktuell_grossrat","anrede","titel","gebdatum","gr_wahlkreis","partei",
+        "partei_kname","gr_beginn","gr_ende","ort"
+    ])
+
+    # Gremien. PK: uni_nr
+    cur.execute("""
+        CREATE TABLE "Gremien" (
+            "uni_nr" INTEGER PRIMARY KEY,
+            "ist_aktuelles_gremium" TEXT,
+            "kurzname" TEXT,
+            "name" TEXT,
+            "gremientyp" TEXT
+        )
+    """)
+    df_gre = df_gre[["uni_nr","ist_aktuelles_gremium","kurzname","name","gremientyp"]]
+    df_gre.to_sql("Gremien", conn, if_exists="append", index=False)
+    idx(conn, "Gremien", ["ist_aktuelles_gremium","kurzname","name","gremientyp"])
+
+    # Gremienmitgliedschaften. Composite PK; FKs to persons and gremien
+    cur.execute("""
+        CREATE TABLE "Gremienmitgliedschaften" (
+            "uni_nr_gre" INTEGER,
+            "uni_nr_adr" INTEGER,
+            "beginn_mit" TEXT,
+            "ende_mit" TEXT,
+            "funktion_adr" TEXT,
+            PRIMARY KEY ("uni_nr_gre","uni_nr_adr","beginn_mit"),
+            FOREIGN KEY ("uni_nr_gre") REFERENCES "Gremien"("uni_nr") ON DELETE CASCADE,
+            FOREIGN KEY ("uni_nr_adr") REFERENCES "Ratsmitgliedschaften"("uni_nr") ON DELETE CASCADE
+        )
+    """)
+    df_mit = df_mit[["uni_nr_gre","uni_nr_adr","beginn_mit","ende_mit","funktion_adr"]]
+    df_mit.to_sql("Gremienmitgliedschaften", conn, if_exists="append", index=False)
+    idx(conn, "Gremienmitgliedschaften", ["uni_nr_gre","beginn_mit","ende_mit","funktion_adr","uni_nr_adr"])
+
+    # Interessensbindungen. FK to persons
+    cur.execute("""
+        CREATE TABLE "Interessensbindungen" (
+            "rubrik" TEXT,
+            "intr-bind" TEXT,
+            "funktion" TEXT,
+            "text" TEXT,
+            "uni_nr" INTEGER,
+            FOREIGN KEY ("uni_nr") REFERENCES "Ratsmitgliedschaften"("uni_nr") ON DELETE SET NULL
+        )
+    """)
+    df_int = df_int[["rubrik","intr-bind","funktion","text","uni_nr"]]
+    df_int.to_sql("Interessensbindungen", conn, if_exists="append", index=False)
+    idx(conn, "Interessensbindungen", ["rubrik","intr-bind","funktion","uni_nr"])
+
+    # Geschaefte. PK: laufnr_ges; (optional) FK to persons for urheber/miturheber
+    cur.execute("""
+        CREATE TABLE "Geschaefte" (
+            "laufnr_ges" INTEGER PRIMARY KEY,
+            "beginn_ges" TEXT,
+            "ende_ges" TEXT,
+            "signatur_ges" TEXT,
+            "status_ges" TEXT,
+            "titel_ges" TEXT,
+            "departement_ges" TEXT,
+            "ga_rr_gr" TEXT,
+            "url_ges" TEXT,
+            "nr_urheber" INTEGER,
+            "nr_miturheber" INTEGER,
+            FOREIGN KEY ("nr_urheber") REFERENCES "Ratsmitgliedschaften"("uni_nr"),
+            FOREIGN KEY ("nr_miturheber") REFERENCES "Ratsmitgliedschaften"("uni_nr")
+        )
+    """)
+    df_ges = df_ges[[
+        "laufnr_ges","beginn_ges","ende_ges","signatur_ges","status_ges","titel_ges",
+        "departement_ges","ga_rr_gr","url_ges","nr_urheber","nr_miturheber"
+    ]]
+    df_ges.to_sql("Geschaefte", conn, if_exists="append", index=False)
+    idx(conn, "Geschaefte", ["beginn_ges","ende_ges","status_ges","departement_ges","ga_rr_gr","nr_urheber","nr_miturheber"])
+
+    # Zuweisungen. Surrogate PK; FK to Geschaefte + Gremien
+    cur.execute("""
+        CREATE TABLE "Zuweisungen" (
+            "id" INTEGER PRIMARY KEY,
+            "uni_nr_an" INTEGER,
+            "erledigt" TEXT,
+            "laufnr_ges" INTEGER,
+            "status_zuw" TEXT,
+            "termin" TEXT,
+            "titel_zuw" TEXT,
+            "bem" TEXT,
+            "uni_nr_von" INTEGER,
+            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE,
+            FOREIGN KEY ("uni_nr_an") REFERENCES "Gremien"("uni_nr"),
+            FOREIGN KEY ("uni_nr_von") REFERENCES "Gremien"("uni_nr")
+        )
+    """)
+    df_zuw = df_zuw[["uni_nr_an","erledigt","laufnr_ges","status_zuw","termin","titel_zuw","bem","uni_nr_von"]]
+    df_zuw.to_sql("Zuweisungen", conn, if_exists="append", index=False)
+    idx(conn, "Zuweisungen", ["uni_nr_an","erledigt","status_zuw","uni_nr_von","laufnr_ges"])
+
+    # Dokumente. PK: dok_laufnr; FK to Geschaefte
+    cur.execute("""
+        CREATE TABLE "Dokumente" (
+            "dok_laufnr" INTEGER PRIMARY KEY,
+            "dokudatum" TEXT,
+            "titel_dok" TEXT,
+            "url_dok" TEXT,
+            "signatur_dok" TEXT,
+            "laufnr_ges" INTEGER,
+            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE SET NULL
+        )
+    """)
+    df_dok = df_dok_full[["dok_laufnr","dokudatum","titel_dok","url_dok","signatur_dok","laufnr_ges"]]
+    df_dok.to_sql("Dokumente", conn, if_exists="append", index=False)
+    idx(conn, "Dokumente", ["dokudatum","titel_dok","laufnr_ges"])
+
+    # Vorgaenge. Composite PK: (nummer, siz_nr); FK to Geschaefte
+    cur.execute("""
+        CREATE TABLE "Vorgaenge" (
+            "nummer" INTEGER,
+            "siz_nr" INTEGER,
+            "beschlnr" TEXT,
+            "Vermerk" TEXT,
+            "laufnr_ges" INTEGER,
+            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE,
+            FOREIGN KEY ("siz_nr") REFERENCES "Sitzungen"("siz_nr") ON DELETE SET NULL
+        )
+    """)
+    df_vor = df_vor[["nummer","siz_nr","beschlnr","Vermerk","laufnr_ges"]]
+    df_vor.to_sql("Vorgaenge", conn, if_exists="append", index=False)
+    idx(conn, "Vorgaenge", ["Vermerk","siz_nr","laufnr_ges"])
+
+    # Sitzungen (SIZ). PK: siz_nr  — used as FK target for Unterlagen
+    cur.execute("""
+        CREATE TABLE "Sitzungen" (
+            "siz_nr" INTEGER PRIMARY KEY,
+            "siz_datum" TEXT
+        )
+    """)
+    # Build from Vorgaenge (unique siz_nr); siz_datum not present here → keep NULL
+    df_sitzungen = df_vor[["siz_nr"]].drop_duplicates().copy()
+    df_sitzungen["siz_datum"] = None
+    df_sitzungen.to_sql("Sitzungen", conn, if_exists="append", index=False)
+
+    # Sessionen (GR-Sitzungsdaten) — separate rich session metadata (no FK consumers here)
+    cur.execute("""
+        CREATE TABLE "Sessionen" (
+            "gr_sitzung_idnr" INTEGER PRIMARY KEY,
+            "versand" TEXT,
+            "tag1" TEXT,
+            "text1" TEXT,
+            "tag2" TEXT,
+            "text2" TEXT,
+            "tag3" TEXT,
+            "text3" TEXT,
+            "bemerkung" TEXT,
+            "protokollseite_von" INTEGER,
+            "protokollseite_bis" INTEGER,
+            "url_vollprotokoll" TEXT,
+            "url_audioprotokoll_tag1" TEXT,
+            "url_audioprotokoll_tag2" TEXT,
+            "url_audioprotokoll_tag3" TEXT
+        )
+    """)
+    df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
+
+    # Tagesordnungen. PK: tagesordnung_idnr
+    cur.execute("""
+        CREATE TABLE "Tagesordnungen" (
+            "tagesordnung_idnr" INTEGER PRIMARY KEY,
+            "gr_sitzung_idnr" INTEGER,
+            "einleitungstext" TEXT,
+            "zwischentext" TEXT,
+            "url_tagesordnung_dok" TEXT,
+            "url_geschaeftsverzeichnis" TEXT,
+            "url_sammelmappe" TEXT,
+            "url_alle_dokumente" TEXT,
+            FOREIGN KEY ("gr_sitzung_idnr") REFERENCES "Sessionen"("gr_sitzung_idnr") ON DELETE CASCADE
+        )
+    """)
+    df_tagesordnung = df_tag_trakt[[
+        "tagesordnung_idnr","gr_sitzung_idnr","einleitungstext","zwischentext",
+        "url_tagesordnung_dok","url_geschaeftsverzeichnis","url_sammelmappe","url_alle_dokumente"
+    ]].drop_duplicates()
+    df_tagesordnung.to_sql("Tagesordnungen", conn, if_exists="append", index=False)
+
+    # Traktanden. PK: traktanden_idnr; FKs: tagesordnung_idnr → Tagesordnungen, laufnr → Geschaefte
+    cur.execute("""
+        CREATE TABLE "Traktanden" (
+            "traktanden_idnr" INTEGER PRIMARY KEY,
+            "tagesordnung_idnr" INTEGER,
+            "gruppennummer" INTEGER,
+            "gruppentitel" TEXT,
+            "gruppentitel_pos" INTEGER,
+            "laufnr" INTEGER,
+            "laufnr_2" REAL,
+            "status" TEXT,
+            "titel" TEXT,
+            "kommission" TEXT,
+            "departement" TEXT,
+            "signatur" TEXT,
+            "Abstimmung" TEXT,
+            "anr" TEXT,
+            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE
+        )
+    """)
+    df_trakt = df_tag_trakt[[
+        "traktanden_idnr","tagesordnung_idnr","gruppennummer","gruppentitel","gruppentitel_pos",
+        "laufnr","laufnr_2","status","titel","kommission","departement","signatur","Abstimmung","anr"
+    ]]
+    df_trakt.to_sql("Traktanden", conn, if_exists="append", index=False)
+    idx(conn, "Traktanden", [
+        "tagesordnung_idnr","gruppennummer","gruppentitel","gruppentitel_pos",
+        "laufnr","laufnr_2","status","kommission","departement","signatur"
+    ])
+
+    # Unterlagen. FKs: siz_nr → Sitzungen, dok_nr → Dokumente, (beschluss,siz_nr) → Vorgaenge
+    cur.execute("""
+        CREATE TABLE "Unterlagen" (
+            "idnr" INTEGER PRIMARY KEY,
+            "beschluss" INTEGER,
+            "dok_nr" INTEGER,
+            "siz_nr" INTEGER,
+            FOREIGN KEY ("siz_nr")                 REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE,
+            FOREIGN KEY ("dok_nr")                 REFERENCES "Dokumente"("dok_laufnr") ON DELETE SET NULL
+        )
+    """)
+    # Make sure expected cols exist as strings/ints
+    df_unt = df_unt.rename(columns={c: c.strip() for c in df_unt.columns})
+    # keep only the expected set (cast to numeric where possible)
+    for col in ["idnr","beschluss","dok_nr","siz_nr"]:
+        if col in df_unt.columns:
+            df_unt[col] = pd.to_numeric(df_unt[col], errors="coerce")
+        else:
+            df_unt[col] = pd.NA
+    df_unt = df_unt[["idnr","beschluss","dok_nr","siz_nr"]].drop_duplicates()
+    df_unt.to_sql("Unterlagen", conn, if_exists="append", index=False)
+    # requested indices
+    idx(conn, "Unterlagen", ["siz_nr"])
+    idx(conn, "Unterlagen", ["dok_nr"])
+    idx(conn, "Unterlagen", ["beschluss"])
+
+    conn.commit()
     conn.close()
-    logging.info(f"SQLite database created successfully at {db_path}!")
+    logging.info("Build complete.")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f"Executing {__file__}...")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     main()
-    logging.info("Job successful")
