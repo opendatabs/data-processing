@@ -693,6 +693,7 @@ def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
     # Create url's
     df["url_ges"] = PATH_GESCHAEFT + df["signatur_ges"]
     df["url_geschaeft_ods"] = PATH_DATASET + "100311/?refine.signatur_ges=" + df["signatur_ges"]
+
     def build_url(signatur):
         if pd.isna(signatur):
             return None
@@ -702,9 +703,7 @@ def create_dokumente_csv(df_ges: pd.DataFrame, df_dok: pd.DataFrame) -> tuple:
         return None  # fallback to df["url"]
 
     df["url_dok"] = np.where(
-        df["signatur_dok"].notna(),
-        df["signatur_dok"].apply(build_url).fillna(df["url"]),
-        df["url"]
+        df["signatur_dok"].notna(), df["signatur_dok"].apply(build_url).fillna(df["url"]), df["url"]
     )
 
     # Replacing status codes with their meanings
