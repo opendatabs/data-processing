@@ -184,7 +184,7 @@ try:
             <p>{Beschreibung}</p>
 
             <h3>Ebenen</h3>
-            <ul>""".format(Kategorie=row["Kategorie"], Beschreibung=row["Beschreibung"])
+            <ul>""".format(Beschreibung=row["Beschreibung"])
 
         # Add layer descriptions dynamically from df_ebenen
         if pd.notna(row["Ebenen"]):
