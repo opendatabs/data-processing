@@ -2,6 +2,7 @@ import glob
 import logging
 import os
 import sqlite3
+import math
 
 import common
 import numpy as np
@@ -13,6 +14,8 @@ from common import change_tracking as ct
 from dotenv import load_dotenv
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from pathlib import Path
+
 
 load_dotenv()
 PG_CONNECTION = os.getenv("PG_CONNECTION")
@@ -396,16 +399,52 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     return all_df
 
 
-def create_measures_per_year(df_all):
-    # Create a separate data file per year
-    df_all["messbeginn_jahr"] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
-    for year_value, year_df in df_all.groupby("messbeginn_jahr"):
-        # CSV
-        current_filename = os.path.join("data", f"geschwindigkeitsmonitoring_{str(year_value)}.csv")
-        logging.info(f"Saving year {year_value} into {current_filename}...")
-        year_df.to_csv(current_filename, index=False)
-        common.upload_ftp(filename=current_filename, remote_path="kapo/geschwindigkeitsmonitoring/all_data")
-        os.remove(current_filename)
+def create_measures_per_year(df_all, chunk_size=200_000, years=None):
+    """
+    Stream df_all into one CSV per year without holding big year-sized DataFrames.
+    - chunk_size: max rows kept in memory at once
+    - years: optional iterable of years to include (e.g., YEARS_TO_PUBLISH)
+    """
+    outdir = Path("data")
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # robust year extraction (handles datetime or string)
+    years_col = pd.to_datetime(df_all["Messbeginn"], errors="coerce").dt.year
+    df_all = df_all.assign(messbeginn_jahr=years_col)
+
+    # if user passed a year filter, apply it (saves I/O and RAM)
+    if years is not None:
+        df_all = df_all[df_all["messbeginn_jahr"].isin(years)]
+
+    wrote_header = {}  # year -> bool
+
+    n = len(df_all)
+    if n == 0:
+        logging.info("No rows to write in create_measures_per_year().")
+        return
+
+    # stream by chunks to keep memory flat
+    for start in range(0, n, chunk_size):
+        part = df_all.iloc[start:start + chunk_size]
+
+        # groupby only within the small chunk (cheap)
+        for y, sub in part.groupby("messbeginn_jahr", sort=False, dropna=True):
+            y = int(y)
+            fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
+            write_header = not wrote_header.get(y, fname.exists())
+            # append without holding a copy of the whole year in RAM
+            sub.to_csv(fname, index=False, mode="a", header=write_header)
+            wrote_header[y] = True
+
+        # free the chunk aggressively
+        del part
+
+    # upload & clean up only the years we actually wrote
+    for y in wrote_header:
+        fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
+        logging.info(f"Saving year {y} into {fname}...")
+        common.upload_ftp(filename=str(fname), remote_path="kapo/geschwindigkeitsmonitoring/all_data")
+        os.remove(fname)
 
 
 if __name__ == "__main__":
