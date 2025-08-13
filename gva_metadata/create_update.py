@@ -1,9 +1,10 @@
-import requests
-import pandas as pd
-from gva_metadata import credentials
 import os
-import logging
+
 import common
+import pandas as pd
+import requests
+
+from gva_metadata import credentials
 
 # Base URL of your Open DataSoft instance
 base_url = "https://data.bs.ch/api/automation/v1.0/datasets/"
@@ -25,24 +26,21 @@ metadata_df = pd.read_csv(file_path, sep=";", encoding="utf-8")
 
 # Go through CSV data and process records
 for _, row in metadata_df.iterrows():
-    dataset_id = row["title"].lower().replace(" ", "_").replace("(", "").replace(")", "") + '_gva'
+    dataset_id = row["title"].lower().replace(" ", "_").replace("(", "").replace(")", "") + "_gva"
     # Metadaten-Payload
     payload = {
-            "dataset_id": dataset_id,
-            "is_restricted": False,
-            "metadata": {
-                "default": {
-                    "title": {"value": row["title"]},
-                    "description": {"value": row["description"]},
-                    "language": {"value": row["language"]},
-                    "attributions": {
-                        "value": [row["attributions"]]},
-                    "modified": {"value": row["modified"]},
-                },
-                "custom": {
-                    "tags": {"value": row["tags"].split(";") if pd.notna(row["tags"]) else []}
-                }
+        "dataset_id": dataset_id,
+        "is_restricted": False,
+        "metadata": {
+            "default": {
+                "title": {"value": row["title"]},
+                "description": {"value": row["description"]},
+                "language": {"value": row["language"]},
+                "attributions": {"value": [row["attributions"]]},
+                "modified": {"value": row["modified"]},
             },
+            "custom": {"tags": {"value": row["tags"].split(";") if pd.notna(row["tags"]) else []}},
+        },
     }
 
     create_url = f"{base_url}{dataset_id}"
@@ -56,6 +54,3 @@ for _, row in metadata_df.iterrows():
     else:
         response = requests.post(base_url, headers=headers, json=payload, proxies=common.credentials.proxies)
         print("Datensatz erstellt wurde")
-
-
-
