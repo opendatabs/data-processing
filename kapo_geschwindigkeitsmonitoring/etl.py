@@ -367,12 +367,11 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
                 files_to_upload_partitioned.append(filename_current_measure)
 
     for file in files_to_upload_partitioned:
-        if ct.has_changed(filename=file, method="hash"):
+        if True or ct.has_changed(filename=file, method="hash"):
             remote_path = f"kapo/geschwindigkeitsmonitoring/data_partitioned"
             common.upload_ftp(filename=file, remote_path=remote_path)
-            ct.update_hash_file(file)
     for file in files_to_upload:
-        if ct.has_changed(filename=file, method="hash"):
+        if True or ct.has_changed(filename=file, method="hash"):
             remote_path = f"kapo/geschwindigkeitsmonitoring/data"
             common.upload_ftp(filename=file, remote_path=remote_path)
             ct.update_hash_file(file)
