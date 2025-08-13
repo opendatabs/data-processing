@@ -390,69 +390,84 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     return all_df
 
 
-def create_measures_per_year(df_all, chunk_size=200_000, years=None):
+def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subset=None):
     """
     Stream df_all into one CSV per year without copying the whole frame.
-    Writes in chunks and groups within each chunk.
+    - years: set/list of years to include (e.g., YEARS_TO_PUBLISH) or None for all
+    - dedupe_subset: iterable of column names to drop duplicates per chunk (e.g.,
+      ["Messung-ID", "Richtung ID", "Timestamp"]) to guard against upstream repeats
     """
     outdir = Path("data")
     outdir.mkdir(parents=True, exist_ok=True)
 
-    wrote_header = {}  # year -> bool
+    cols = list(df_all.columns)
+    wrote_header = set()
+    totals = {}  # year -> rows written (for logging)
+
     n = len(df_all)
-    logging.info(f"create_measures_per_year: Starting with {n:,} rows in total.")
+    logging.info(f"[per-year] start: {n:,} rows total")
 
     if n == 0:
-        logging.info("No rows to write in create_measures_per_year(). Nothing to do.")
+        logging.info("[per-year] nothing to do")
         return
 
-    # process in bounded chunks
     for start in range(0, n, chunk_size):
         end = min(start + chunk_size, n)
-        logging.info(f"Processing rows {start:,}–{end-1:,} ({end-start:,} rows)…")
-
         part = df_all.iloc[start:end]
 
-        # compute year for this chunk only
-        years_col = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
+        # compute year just for this chunk
+        years_in_chunk = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
 
-        # optional filter to specific years
+        # optional year filter early
         if years is not None:
-            mask = years_col.isin(years)
+            mask = years_in_chunk.isin(years)
             if not mask.any():
-                logging.info("No rows in this chunk match the selected years. Skipping.")
-                del part
-                gc.collect()
+                logging.info(f"[per-year] chunk {start:,}-{end-1:,}: 0 rows match target years; skip")
+                del part; gc.collect()
                 continue
             part = part.loc[mask]
-            years_col = years_col.loc[mask]
+            years_in_chunk = years_in_chunk.loc[mask]
 
-        # group and write per year within this chunk
-        for y, sub_idx in years_col.groupby(years_col).groups.items():
+        if dedupe_subset:
+            before = len(part)
+            part = part.drop_duplicates(subset=dedupe_subset, keep="first")
+            after = len(part)
+            if after != before:
+                logging.info(f"[per-year] chunk {start:,}-{end-1:,}: dropped {before-after:,} dups")
+
+        # group directly on the Series → gives (year, sub-DataFrame) safely
+        for y, sub in part.groupby(years_in_chunk):
             if pd.isna(y):
-                logging.info("Found NaN year value in chunk. Skipping these rows.")
+                logging.info("[per-year] found NaN year; skipping those rows")
                 continue
             y = int(y)
             fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
-            write_header = not wrote_header.get(y, fname.exists())
+            write_header = y not in wrote_header and not fname.exists()
 
-            logging.info(f"Appending {len(sub_idx):,} rows to year {y} file: {fname}")
-            part.loc[sub_idx].to_csv(fname, index=False, mode="a", header=write_header)
-            wrote_header[y] = True
+            sub = sub.loc[:, cols]  # enforce consistent column order
+            sub.to_csv(
+                fname,
+                index=False,
+                mode="a",
+                header=write_header,
+                line_terminator="\n",
+            )
+            wrote_header.add(y)
+            totals[y] = totals.get(y, 0) + len(sub)
+            logging.info(f"[per-year] wrote {len(sub):,} rows to {fname.name} (year {y}, total {totals[y]:,})")
 
-        # free memory after each chunk
-        del part
-        gc.collect()
+        del part; gc.collect()
 
-    # upload and remove files
-    for y in wrote_header:
+    # upload + cleanup
+    for y in sorted(totals):
         fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
-        logging.info(f"Uploading file for year {y}: {fname} (size: {fname.stat().st_size/1_048_576:.2f} MB)")
+        size_mb = fname.stat().st_size / 1_048_576
+        logging.info(f"[per-year] uploading {fname.name}: {size_mb:.2f} MB, {totals[y]:,} rows")
         common.upload_ftp(filename=str(fname), remote_path="kapo/geschwindigkeitsmonitoring/all_data")
         os.remove(fname)
-        logging.info(f"Removed local file for year {y}.")
+        logging.info(f"[per-year] removed local {fname.name}")
 
-    logging.info("create_measures_per_year: Completed successfully.")
+    logging.info("[per-year] done")
 
 
 if __name__ == "__main__":
