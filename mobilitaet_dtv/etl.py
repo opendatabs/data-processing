@@ -105,7 +105,6 @@ def main():
                 "dtv_lt_3.5m",
                 "dtv_3.5_to_lt_8m",
                 "dtv_gte_8m",
-                "dataset_id",
                 "link_zu_einzelmessungen",
             ]
         ].copy()
