@@ -422,8 +422,9 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
         if years is not None:
             mask = years_in_chunk.isin(years)
             if not mask.any():
-                logging.info(f"[per-year] chunk {start:,}-{end-1:,}: 0 rows match target years; skip")
-                del part; gc.collect()
+                logging.info(f"[per-year] chunk {start:,}-{end - 1:,}: 0 rows match target years; skip")
+                del part
+                gc.collect()
                 continue
             part = part.loc[mask]
             years_in_chunk = years_in_chunk.loc[mask]
@@ -433,7 +434,7 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
             part = part.drop_duplicates(subset=dedupe_subset, keep="first")
             after = len(part)
             if after != before:
-                logging.info(f"[per-year] chunk {start:,}-{end-1:,}: dropped {before-after:,} dups")
+                logging.info(f"[per-year] chunk {start:,}-{end - 1:,}: dropped {before - after:,} dups")
 
         # group directly on the Series → gives (year, sub-DataFrame) safely
         for y, sub in part.groupby(years_in_chunk):
@@ -456,7 +457,8 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
             totals[y] = totals.get(y, 0) + len(sub)
             logging.info(f"[per-year] wrote {len(sub):,} rows to {fname.name} (year {y}, total {totals[y]:,})")
 
-        del part; gc.collect()
+        del part
+        gc.collect()
 
     # upload + cleanup
     for y in sorted(totals):
