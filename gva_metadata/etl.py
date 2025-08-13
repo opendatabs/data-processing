@@ -1,17 +1,17 @@
-import pandas as pd
-import common
-import os
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
-from gva_metadata import credentials
-import time
 import logging
+import os
 import re
-import requests
+import time
 
+import common
+import pandas as pd
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
+from gva_metadata import credentials
 
 # ChromeDriver Setup
 # driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
@@ -21,7 +21,7 @@ import requests
 # driver = webdriver.Chrome(service=service, options=options)
 
 options = Options()
-options.add_argument("--headless") 
+options.add_argument("--headless")
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
 # URL of the Website
@@ -41,7 +41,7 @@ try:
     # Extracting the topics, subtopics and additional information with BeautifulSoup
     soup = BeautifulSoup(page_source, "html.parser")
     data = []
-    ebene_data = [] # dataframe for descreption of "Ebenen"
+    ebene_data = []  # dataframe for descreption of "Ebenen"
     # Search for main topics
     headers = soup.find_all("div", class_="headerText")
     for header in headers:
@@ -83,8 +83,11 @@ try:
                 ebene_details = []
                 for ebene in ebene_container:
                     title = ebene.find("b").get_text(strip=True) if ebene.find("b") else None
-                    beschreibung = ebene.find("b").next_sibling.strip() if ebene.find("b") and ebene.find(
-                        "b").next_sibling else None
+                    beschreibung = (
+                        ebene.find("b").next_sibling.strip()
+                        if ebene.find("b") and ebene.find("b").next_sibling
+                        else None
+                    )
                     if title:
                         ebene_details.append(title)
                         ebene_data.append({"Ebene": title, "Beschreibung": beschreibung})
@@ -100,8 +103,8 @@ try:
                     "Abkuerzung": last_abbreviation,
                     "Beschreibung": description,
                     "Aktualisierung": update_date,
-                    "Ebenen": " ; ".join( ebene_details),
-                    "Bild-URL": image_url
+                    "Ebenen": " ; ".join(ebene_details),
+                    "Bild-URL": image_url,
                 }
 
                 # Add the links as separate columns
@@ -110,7 +113,16 @@ try:
 
                 data.append(entry)
         else:
-            data.append({"Kategorie": main_theme, "Thema": None,  "Abkuerzung": None, "Beschreibung": None, "Aktualisierung": None, "Ebenen": None})
+            data.append(
+                {
+                    "Kategorie": main_theme,
+                    "Thema": None,
+                    "Abkuerzung": None,
+                    "Beschreibung": None,
+                    "Aktualisierung": None,
+                    "Ebenen": None,
+                }
+            )
 
     # Save to an Excel file
     df = pd.DataFrame(data)
@@ -122,24 +134,40 @@ try:
         df["öffentlich"] = df["öffentlich"].apply(lambda x: "Kategorie A" if pd.notna(x) else None)
     if "beschränkt öffentlich" in df.columns:
         df["beschränkt öffentlich"] = df["beschränkt öffentlich"].apply(
-            lambda x: "Kategorie B" if pd.notna(x) else None)
+            lambda x: "Kategorie B" if pd.notna(x) else None
+        )
 
     # Combine the columns "öffentlich" and "beschränkt öffentlich" in a new columns "Zugriff"
     if "öffentlich" in df.columns or "beschränkt öffentlich" in df.columns:
         df["Zugriff"] = df["öffentlich"].fillna(df["beschränkt öffentlich"])
         df.drop(columns=["öffentlich", "beschränkt öffentlich"], inplace=True)
-        df['Zugriff'] = df['Zugriff'] + f": \"https://www.geo.bs.ch/erweiterte-berechtigung\""
-        df["Page"] = "https://opendatabs.github.io/geoportal-poc/?param="+df["Abkuerzung"]
+        df["Zugriff"] = df["Zugriff"] + ': "https://www.geo.bs.ch/erweiterte-berechtigung"'
+        df["Page"] = "https://opendatabs.github.io/geoportal-poc/?param=" + df["Abkuerzung"]
         # Sort the columns in the desired order
-        desired_columns = ["Kategorie", "Thema", "Abkuerzung", "Page", "Beschreibung", "Aktualisierung", "Geodaten-Shop",
-                           "Metadaten", "MapBS", "Geobasisdaten", "Ebenen", "WMS", "WFS", "WMTS", "Bild-URL",
-                           "Zugriff"]
+        desired_columns = [
+            "Kategorie",
+            "Thema",
+            "Abkuerzung",
+            "Page",
+            "Beschreibung",
+            "Aktualisierung",
+            "Geodaten-Shop",
+            "Metadaten",
+            "MapBS",
+            "Geobasisdaten",
+            "Ebenen",
+            "WMS",
+            "WFS",
+            "WMTS",
+            "Bild-URL",
+            "Zugriff",
+        ]
         existing_columns = [col for col in desired_columns if col in df.columns]
         df = df[existing_columns]
         file_name = "100410_geodatenkatalog.csv"
         file_path = os.path.join(credentials.data_path, file_name)
-        df.to_csv(file_path, index=False, sep=';')
-        common.update_ftp_and_odsp(file_path, '/gva/geodatenkatalog', '100410')
+        df.to_csv(file_path, index=False, sep=";")
+        common.update_ftp_and_odsp(file_path, "/gva/geodatenkatalog", "100410")
         logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
 
 except Exception as e:
@@ -151,10 +179,16 @@ finally:
 
 try:
     # Group by "topic" and keep the first entry of each group
-    grouped_df = df.groupby("Thema").agg({
-        "Kategorie": lambda x: ";".join(set(x)),  # Merge categories separated by ';'
-        **{col: 'first' for col in df.columns if col not in ["Thema", "Kategorie"]}
-    }).reset_index()
+    grouped_df = (
+        df.groupby("Thema")
+        .agg(
+            {
+                "Kategorie": lambda x: ";".join(set(x)),  # Merge categories separated by ';'
+                **{col: "first" for col in df.columns if col not in ["Thema", "Kategorie"]},
+            }
+        )
+        .reset_index()
+    )
 
     # Create new columns
     grouped_df["title"] = grouped_df["Thema"]
@@ -207,7 +241,7 @@ try:
 
         # Add Bild-URL
         if pd.notna(row["Bild-URL"]):
-            description += f"<div><img src='{row["Bild-URL"]}' alt='Bildbeschreibung' style='max-width:300px; height:auto; border-radius:8px;'></div>"
+            description += f"<div><img src='{row['Bild-URL']}' alt='Bildbeschreibung' style='max-width:300px; height:auto; border-radius:8px;'></div>"
 
         description += "</div>"
 
@@ -218,7 +252,7 @@ try:
     final_df = grouped_df[["title", "description", "attributions", "modified", "tags", "language"]]
     metadata_file = "gva_metadata.csv"
     metadata_file_path = os.path.join(credentials.data_path, metadata_file)
-    final_df.to_csv(metadata_file_path, index=False, sep=';')
+    final_df.to_csv(metadata_file_path, index=False, sep=";")
     logging.info(f"Neue Tabelle wurde erfolgreich gespeichert: {metadata_file}")
 
 except Exception as e:

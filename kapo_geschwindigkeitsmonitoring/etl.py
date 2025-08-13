@@ -2,20 +2,17 @@ import glob
 import logging
 import os
 import sqlite3
-import math
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import common
-import numpy as np
 import pandas as pd
 import pandas.io.sql as psql
 import psycopg2 as pg
 from charset_normalizer import from_path
 from common import change_tracking as ct
 from dotenv import load_dotenv
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from pathlib import Path
-
 
 load_dotenv()
 PG_CONNECTION = os.getenv("PG_CONNECTION")
@@ -74,7 +71,8 @@ def main():
 
     df_meta_raw["link_zu_einzelmessungen"] = (
         "https://datatools.bs.ch/Geschwindigkeitsmonitoring/Einzelmessungen"
-        + "?Messung-ID__exact=" + df_meta_raw["ID"].astype(str)
+        + "?Messung-ID__exact="
+        + df_meta_raw["ID"].astype(str)
         + "&_sort_desc=Timestamp"
     )
     df_meta_raw["Verzeichnis"] = df_meta_raw["Verzeichnis"].str.replace("\\\\bs.ch\\jdolddfsroot$", "Q:")
@@ -277,7 +275,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn.commit()
     # Drop geometry column since it is not needed anymore
     df_metadata_per_direction = df_metadata_per_direction.drop(columns=["geometry"])
-    
+
     # On Jan 1, clear the folder that holds per-measurement CSVs for 100097
     if TODAY.month == 1 and TODAY.day == 1:
         remote_year_folder = "kapo/geschwindigkeitsmonitoring/data_partitioned/100097"
@@ -368,14 +366,13 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
     for file in files_to_upload_partitioned:
         if True or ct.has_changed(filename=file, method="hash"):
-            remote_path = f"kapo/geschwindigkeitsmonitoring/data_partitioned"
+            remote_path = "kapo/geschwindigkeitsmonitoring/data_partitioned"
             common.upload_ftp(filename=file, remote_path=remote_path)
     for file in files_to_upload:
         if True or ct.has_changed(filename=file, method="hash"):
-            remote_path = f"kapo/geschwindigkeitsmonitoring/data"
+            remote_path = "kapo/geschwindigkeitsmonitoring/data"
             common.upload_ftp(filename=file, remote_path=remote_path)
             ct.update_hash_file(file)
-
 
     common.create_indices(conn, table_name, columns_to_index)
     conn.close()
@@ -414,7 +411,7 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None):
     # df_all = df_all[["Messbeginn", ... other columns you want in the CSV ...]]
 
     for start in range(0, n, chunk_size):
-        part = df_all.iloc[start:start + chunk_size]
+        part = df_all.iloc[start : start + chunk_size]
 
         # compute year ONLY for this chunk (no assign = no full-frame copy)
         years_col = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
