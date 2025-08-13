@@ -256,10 +256,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
     # Append data, dropping geometry if Spatialite isn't used
     df_metadata_per_direction.drop(columns=["the_geom"], errors="ignore").to_sql(
-        name=table_name_direction,
-        con=conn,
-        if_exists="append",
-        index=False
+        name=table_name_direction, con=conn, if_exists="append", index=False
     )
     common.create_indices(conn, table_name_direction, columns_to_index_direction)
 
