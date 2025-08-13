@@ -228,7 +228,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     table_name = "Einzelmessungen"
     # Columns to index
     columns_to_index_direction = ["Messung-ID", "Richtung ID", "Messbeginn", "Messende", "Zone", "Ort", "Strasse"]
-    columns_to_index = ["Timestamp", "Richtung ID"]
+    columns_to_index = ["Timestamp", "Richtung ID", "Messung-ID", "Datum", "Geschwindigkeit"]
     logging.info(f"Creating SQLite connection for {db_filename}...")
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
