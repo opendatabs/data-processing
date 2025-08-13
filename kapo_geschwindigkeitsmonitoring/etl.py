@@ -1,3 +1,4 @@
+import gc
 import glob
 import logging
 import os
@@ -399,45 +400,59 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None):
 
     wrote_header = {}  # year -> bool
     n = len(df_all)
+    logging.info(f"create_measures_per_year: Starting with {n:,} rows in total.")
+
     if n == 0:
-        logging.info("No rows to write in create_measures_per_year().")
+        logging.info("No rows to write in create_measures_per_year(). Nothing to do.")
         return
 
-    # keep only needed columns to reduce memory (adjust as required)
-    # df_all = df_all[["Messbeginn", ... other columns you want in the CSV ...]]
-
+    # process in bounded chunks
     for start in range(0, n, chunk_size):
-        part = df_all.iloc[start : start + chunk_size]
+        end = min(start + chunk_size, n)
+        logging.info(f"Processing rows {start:,}–{end-1:,} ({end-start:,} rows)…")
 
-        # compute year ONLY for this chunk (no assign = no full-frame copy)
+        part = df_all.iloc[start:end]
+
+        # compute year for this chunk only
         years_col = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
+
+        # optional filter to specific years
         if years is not None:
             mask = years_col.isin(years)
             if not mask.any():
+                logging.info("No rows in this chunk match the selected years. Skipping.")
+                del part
+                gc.collect()
                 continue
             part = part.loc[mask]
             years_col = years_col.loc[mask]
 
-        # group only inside the small chunk
+        # group and write per year within this chunk
         for y, sub_idx in years_col.groupby(years_col).groups.items():
             if pd.isna(y):
+                logging.info("Found NaN year value in chunk. Skipping these rows.")
                 continue
             y = int(y)
             fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
             write_header = not wrote_header.get(y, fname.exists())
-            df_chunk = part.loc[sub_idx]
-            df_chunk.to_csv(fname, index=False, mode="a", header=write_header)
+
+            logging.info(f"Appending {len(sub_idx):,} rows to year {y} file: {fname}")
+            part.loc[sub_idx].to_csv(fname, index=False, mode="a", header=write_header)
             wrote_header[y] = True
 
-        # free chunk
+        # free memory after each chunk
         del part
+        gc.collect()
 
-    # upload & cleanup
+    # upload and remove files
     for y in wrote_header:
         fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
-        logging.info(f"Uploading {fname}…")
+        logging.info(f"Uploading file for year {y}: {fname} (size: {fname.stat().st_size/1_048_576:.2f} MB)")
         common.upload_ftp(filename=str(fname), remote_path="kapo/geschwindigkeitsmonitoring/all_data")
         os.remove(fname)
+        logging.info(f"Removed local file for year {y}.")
+
+    logging.info("create_measures_per_year: Completed successfully.")
 
 
 if __name__ == "__main__":
