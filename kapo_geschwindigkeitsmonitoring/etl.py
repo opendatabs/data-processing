@@ -401,48 +401,51 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 
 def create_measures_per_year(df_all, chunk_size=200_000, years=None):
     """
-    Stream df_all into one CSV per year without holding big year-sized DataFrames.
-    - chunk_size: max rows kept in memory at once
-    - years: optional iterable of years to include (e.g., YEARS_TO_PUBLISH)
+    Stream df_all into one CSV per year without copying the whole frame.
+    Writes in chunks and groups within each chunk.
     """
     outdir = Path("data")
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # robust year extraction (handles datetime or string)
-    years_col = pd.to_datetime(df_all["Messbeginn"], errors="coerce").dt.year
-    df_all = df_all.assign(messbeginn_jahr=years_col)
-
-    # if user passed a year filter, apply it (saves I/O and RAM)
-    if years is not None:
-        df_all = df_all[df_all["messbeginn_jahr"].isin(years)]
-
     wrote_header = {}  # year -> bool
-
     n = len(df_all)
     if n == 0:
         logging.info("No rows to write in create_measures_per_year().")
         return
 
-    # stream by chunks to keep memory flat
+    # keep only needed columns to reduce memory (adjust as required)
+    # df_all = df_all[["Messbeginn", ... other columns you want in the CSV ...]]
+
     for start in range(0, n, chunk_size):
         part = df_all.iloc[start:start + chunk_size]
 
-        # groupby only within the small chunk (cheap)
-        for y, sub in part.groupby("messbeginn_jahr", sort=False, dropna=True):
+        # compute year ONLY for this chunk (no assign = no full-frame copy)
+        years_col = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
+        if years is not None:
+            mask = years_col.isin(years)
+            if not mask.any():
+                continue
+            part = part.loc[mask]
+            years_col = years_col.loc[mask]
+
+        # group only inside the small chunk
+        for y, sub_idx in years_col.groupby(years_col).groups.items():
+            if pd.isna(y):
+                continue
             y = int(y)
             fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
             write_header = not wrote_header.get(y, fname.exists())
-            # append without holding a copy of the whole year in RAM
-            sub.to_csv(fname, index=False, mode="a", header=write_header)
+            df_chunk = part.loc[sub_idx]
+            df_chunk.to_csv(fname, index=False, mode="a", header=write_header)
             wrote_header[y] = True
 
-        # free the chunk aggressively
+        # free chunk
         del part
 
-    # upload & clean up only the years we actually wrote
+    # upload & cleanup
     for y in wrote_header:
         fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
-        logging.info(f"Saving year {y} into {fname}...")
+        logging.info(f"Uploading {fname}…")
         common.upload_ftp(filename=str(fname), remote_path="kapo/geschwindigkeitsmonitoring/all_data")
         os.remove(fname)
 
