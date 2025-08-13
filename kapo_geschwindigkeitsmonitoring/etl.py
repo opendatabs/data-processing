@@ -2,6 +2,7 @@ import glob
 import logging
 import os
 import sqlite3
+import math
 
 import common
 import numpy as np
@@ -11,10 +12,18 @@ import psycopg2 as pg
 from charset_normalizer import from_path
 from common import change_tracking as ct
 from dotenv import load_dotenv
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from pathlib import Path
+
 
 load_dotenv()
 PG_CONNECTION = os.getenv("PG_CONNECTION")
 DETAIL_DATA_Q_BASE_PATH = os.getenv("DETAIL_DATA_Q_BASE_PATH")
+
+TZ = ZoneInfo("Europe/Zurich")
+TODAY = datetime.now(TZ)
+YEARS_TO_PUBLISH = {TODAY.year, TODAY.year - 1}
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -61,17 +70,12 @@ def main():
     num_ignored = df_meta_raw[df_meta_raw["Messbeginn"].isna()].shape[0]
     logging.info(f"{num_ignored} entries ignored due to missing date!")
     df_meta_raw = df_meta_raw[df_meta_raw["Messbeginn"].notna()]
-    df_meta_raw["messbeginn_jahr"] = df_meta_raw.Messbeginn.astype(str).str.slice(0, 4).astype(int)
-    df_meta_raw["dataset_id"] = np.where(
-        df_meta_raw["messbeginn_jahr"] < 2024,
-        np.where(df_meta_raw["messbeginn_jahr"] < 2021, "100200", "100358"),
-        "100097",
-    )
+    df_meta_raw["messbeginn_jahr"] = df_meta_raw["Messbeginn"].astype(str).str.slice(0, 4).astype(int)
+
     df_meta_raw["link_zu_einzelmessungen"] = (
-        "https://data.bs.ch/explore/dataset/"
-        + df_meta_raw["dataset_id"]
-        + "/table/?refine.messung_id="
-        + df_meta_raw["ID"].astype(str)
+        "https://datatools.bs.ch/Geschwindigkeitsmonitoring/Einzelmessungen"
+        + "?Messung-ID__exact=" + df_meta_raw["ID"].astype(str)
+        + "&_sort_desc=Timestamp"
     )
     df_meta_raw["Verzeichnis"] = df_meta_raw["Verzeichnis"].str.replace("\\\\bs.ch\\jdolddfsroot$", "Q:")
 
@@ -109,7 +113,6 @@ def create_metadata_per_location_df(df):
             "Messbeginn",
             "Messende",
             "messbeginn_jahr",
-            "dataset_id",
             "link_zu_einzelmessungen",
         ]
     ]
@@ -215,6 +218,7 @@ def create_metadata_per_direction_df(df_metadata):
 
 def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     dfs = []
+    files_to_upload_partitioned = []
     files_to_upload = []
     logging.info("Removing metadata without data...")
     df_meta_raw = df_meta_raw.dropna(subset=["Verzeichnis"])
@@ -224,7 +228,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     table_name = "Einzelmessungen"
     # Columns to index
     columns_to_index_direction = ["Messung-ID", "Richtung ID", "Messbeginn", "Messende", "Zone", "Ort", "Strasse"]
-    columns_to_index = ["Timestamp", "Richtung ID"]
+    columns_to_index = ["Timestamp", "Richtung ID", "Messung-ID", "Datum", "Geschwindigkeit"]
     logging.info(f"Creating SQLite connection for {db_filename}...")
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
@@ -273,6 +277,13 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     conn.commit()
     # Drop geometry column since it is not needed anymore
     df_metadata_per_direction = df_metadata_per_direction.drop(columns=["geometry"])
+    
+    # On Jan 1, clear the folder that holds per-measurement CSVs for 100097
+    if TODAY.month == 1 and TODAY.day == 1:
+        remote_year_folder = "kapo/geschwindigkeitsmonitoring/data_partitioned/100097"
+        # Assumes common.empty_ftp_folder exists; if not, implement there.
+        common.delete_dir_content_ftp(common.FTP_SERVER, common.FTP_USER, common.FTP_PASSWORD, remote_year_folder)
+
     for index, row in df_meta_raw.iterrows():
         logging.info(f"Processing row {index + 1} of {len(df_meta_raw)}...")
         measure_id = row["ID"]
@@ -288,9 +299,11 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         elif len(raw_files) > 2:
             logging.info(f"More than 2 raw files found for measurement ID {measure_id}!")
 
+        # collect parts for this measure_id
+        measure_parts = []
+
         for i, file in enumerate(raw_files):
             file = file.replace("\\", "/")
-            filename_current_measure = os.path.join("data", "processed", f"{str(measure_id)}_{i}.csv")
             result = from_path(file)
             enc = result.best().encoding
             logging.info(f"Fixing errors and reading data into dataframe from {file}...")
@@ -313,42 +326,56 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
             raw_df["Timestamp"] = pd.to_datetime(raw_df["Datum_Zeit"], format="%d.%m.%y %H:%M:%S").dt.tz_localize(
                 "Europe/Zurich", ambiguous=True, nonexistent="shift_forward"
             )
-            logging.info(f"Appending data to SQLite table {table_name} and to list dfs...")
-            raw_df.to_sql(name=table_name, con=conn, if_exists="append", index=False)
-            raw_df = raw_df.merge(df_metadata_per_direction, "left", ["Messung-ID", "Richtung ID"])
 
-            # Timestamp has to be between Messbeginn and Messende
-            num_rows_before = raw_df.shape[0]
-            raw_df = raw_df[
+            logging.info(f"Appending data to SQLite table {table_name}...")
+            raw_df.to_sql(name=table_name, con=conn, if_exists="append", index=False)
+            part_df = raw_df.merge(df_metadata_per_direction, "left", ["Messung-ID", "Richtung ID"])
+
+            num_rows_before = part_df.shape[0]
+            part_df = part_df[
                 (
-                    raw_df["Timestamp"].dt.floor("D")
-                    >= pd.to_datetime(raw_df["Messbeginn"])
+                    part_df["Timestamp"].dt.floor("D")
+                    >= pd.to_datetime(part_df["Messbeginn"])
                     .dt.tz_localize("Europe/Zurich", ambiguous=True, nonexistent="shift_forward")
                     .dt.floor("D")
                 )
                 & (
-                    raw_df["Timestamp"].dt.floor("D")
-                    <= pd.to_datetime(raw_df["Messende"])
+                    part_df["Timestamp"].dt.floor("D")
+                    <= pd.to_datetime(part_df["Messende"])
                     .dt.tz_localize("Europe/Zurich", ambiguous=True, nonexistent="shift_forward")
                     .dt.floor("D")
                 )
             ]
             logging.info(
-                f"Filtered out {num_rows_before - raw_df.shape[0]} rows "
+                f"Filtered out {num_rows_before - part_df.shape[0]} rows "
                 f"due to timestamp not being between Messbeginn and Messende..."
             )
 
-            dfs.append(raw_df)
+            measure_parts.append(part_df)
+            dfs.append(part_df)
 
-            logging.info(f"Exporting data file for current measurement to {filename_current_measure}")
-            raw_df.to_csv(filename_current_measure, index=False)
-            files_to_upload.append({"filename": filename_current_measure, "dataset_id": row["dataset_id"]})
+        # after processing all files for this measure_id, write ONE CSV
+        if measure_parts:
+            measure_df = pd.concat(measure_parts, ignore_index=True)
+            filename_current_measure = os.path.join("data", "processed", f"{str(measure_id)}.csv")
+            logging.info(f"Exporting concatenated data for measurement {measure_id} to {filename_current_measure}")
+            measure_df.to_csv(filename_current_measure, index=False)
+            files_to_upload.append(filename_current_measure)
+            # Only upload current & previous year, always to dataset 100097
+            year_val = int(str(row["Messbeginn"])[:4])
+            if year_val in YEARS_TO_PUBLISH:
+                files_to_upload_partitioned.append(filename_current_measure)
 
-    for obj in files_to_upload:
-        if ct.has_changed(filename=obj["filename"], method="hash"):
-            remote_path = f"{'kapo/geschwindigkeitsmonitoring/data_partitioned'}/{obj['dataset_id']}"
-            common.upload_ftp(filename=obj["filename"], remote_path=remote_path)
-            ct.update_hash_file(obj["filename"])
+    for file in files_to_upload_partitioned:
+        if True or ct.has_changed(filename=file, method="hash"):
+            remote_path = f"kapo/geschwindigkeitsmonitoring/data_partitioned"
+            common.upload_ftp(filename=file, remote_path=remote_path)
+    for file in files_to_upload:
+        if True or ct.has_changed(filename=file, method="hash"):
+            remote_path = f"kapo/geschwindigkeitsmonitoring/data"
+            common.upload_ftp(filename=file, remote_path=remote_path)
+            ct.update_hash_file(file)
+
 
     common.create_indices(conn, table_name, columns_to_index)
     conn.close()
@@ -364,23 +391,60 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     if ct.has_changed(filename=pkl_filename, method="hash"):
         common.upload_ftp(db_filename, remote_path="kapo/geschwindigkeitsmonitoring")
         common.publish_ods_dataset_by_id("100097")
-        common.publish_ods_dataset_by_id("100200")
-        common.publish_ods_dataset_by_id("100358")
         ct.update_hash_file(pkl_filename)
 
     return all_df
 
 
-def create_measures_per_year(df_all):
-    # Create a separate data file per year
-    df_all["messbeginn_jahr"] = df_all.Messbeginn.astype(str).str.slice(0, 4).astype(int)
-    for year_value, year_df in df_all.groupby("messbeginn_jahr"):
-        # CSV
-        current_filename = os.path.join("data", f"geschwindigkeitsmonitoring_{str(year_value)}.csv")
-        logging.info(f"Saving year {year_value} into {current_filename}...")
-        year_df.to_csv(current_filename, index=False)
-        common.upload_ftp(filename=current_filename, remote_path="kapo/geschwindigkeitsmonitoring/all_data")
-        os.remove(current_filename)
+def create_measures_per_year(df_all, chunk_size=200_000, years=None):
+    """
+    Stream df_all into one CSV per year without copying the whole frame.
+    Writes in chunks and groups within each chunk.
+    """
+    outdir = Path("data")
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    wrote_header = {}  # year -> bool
+    n = len(df_all)
+    if n == 0:
+        logging.info("No rows to write in create_measures_per_year().")
+        return
+
+    # keep only needed columns to reduce memory (adjust as required)
+    # df_all = df_all[["Messbeginn", ... other columns you want in the CSV ...]]
+
+    for start in range(0, n, chunk_size):
+        part = df_all.iloc[start:start + chunk_size]
+
+        # compute year ONLY for this chunk (no assign = no full-frame copy)
+        years_col = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
+        if years is not None:
+            mask = years_col.isin(years)
+            if not mask.any():
+                continue
+            part = part.loc[mask]
+            years_col = years_col.loc[mask]
+
+        # group only inside the small chunk
+        for y, sub_idx in years_col.groupby(years_col).groups.items():
+            if pd.isna(y):
+                continue
+            y = int(y)
+            fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
+            write_header = not wrote_header.get(y, fname.exists())
+            df_chunk = part.loc[sub_idx]
+            df_chunk.to_csv(fname, index=False, mode="a", header=write_header)
+            wrote_header[y] = True
+
+        # free chunk
+        del part
+
+    # upload & cleanup
+    for y in wrote_header:
+        fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
+        logging.info(f"Uploading {fname}…")
+        common.upload_ftp(filename=str(fname), remote_path="kapo/geschwindigkeitsmonitoring/all_data")
+        os.remove(fname)
 
 
 if __name__ == "__main__":
