@@ -30,7 +30,7 @@ def main():
     cur = conn.cursor()
 
     # ---------- Load CSVs ----------
-    df_adr = pd.read_csv("data_orig/100307_gr_mitglieder.csv")
+    df_adr_raw = pd.read_csv("data_orig/100307_gr_mitglieder.csv")
     df_mit = pd.read_csv("data_orig/100308_gr_mitgliedschaften.csv")
     df_int = pd.read_csv("data_orig/100309_gr_interessensbindungen.csv")
     df_gre = pd.read_csv("data_orig/100310_gr_gremien.csv")
@@ -106,8 +106,7 @@ def main():
             "tag1",
         )
 
-    # ---------- Schema (with PKs & FKs) ----------
-    # Drop in FK-safe order
+    # --------- Drop in FK-safe order ---------
     for t in [
         "Traktanden",
         "Tagesordnungen",
@@ -118,16 +117,40 @@ def main():
         "Dokumente",
         "Zuweisungen",
         "Geschaefte",
-        "Gremienmitgliedschaften",
+        "Mitgliedschaften",
         "Gremien",
         "Interessensbindungen",
-        "Ratsmitgliedschaften",
+        "Personen",
     ]:
         cur.execute(f'DROP TABLE IF EXISTS "{t}"')
 
-    # Ratsmitgliedschaften (Persons). PK: uni_nr
+    # --------- Personen (ADR) ---------
+    # unique by uni_nr; strip membership-ish fields
+    personen_cols = [
+        "uni_nr",
+        "ist_aktuell_grossrat",
+        "anrede",
+        "titel",
+        "name",
+        "vorname",
+        "name_vorname",
+        "gebdatum",
+        "url",
+        "strasse",
+        "plz",
+        "ort",
+        "gr_beruf",
+        "gr_arbeitgeber",
+        "gr_sitzplatz",
+        "gr_wahlkreis",
+        "partei",
+        "partei_kname",
+        "homepage",
+    ]
+    df_personen = df_adr_raw[personen_cols].sort_values(by=["gr_beginn"]).drop_duplicates(subset=["uni_nr"])
+
     cur.execute("""
-        CREATE TABLE "Ratsmitgliedschaften" (
+        CREATE TABLE "Personen" (
             "uni_nr" INTEGER PRIMARY KEY,
             "ist_aktuell_grossrat" TEXT,
             "anrede" TEXT,
@@ -136,65 +159,23 @@ def main():
             "vorname" TEXT,
             "name_vorname" TEXT,
             "gebdatum" TEXT,
-            "gr_sitzplatz" INTEGER,
-            "gr_wahlkreis" TEXT,
-            "partei" TEXT,
-            "partei_kname" TEXT,
-            "gr_beginn" TEXT,
-            "gr_ende" TEXT,
             "url" TEXT,
             "strasse" TEXT,
             "plz" INTEGER,
             "ort" TEXT,
             "gr_beruf" TEXT,
             "gr_arbeitgeber" TEXT,
+            "gr_sitzplatz" INTEGER,
+            "gr_wahlkreis" TEXT,
+            "partei" TEXT,
+            "partei_kname" TEXT,
             "homepage" TEXT
         )
     """)
-    df_adr = df_adr[
-        [
-            "uni_nr",
-            "ist_aktuell_grossrat",
-            "anrede",
-            "titel",
-            "name",
-            "vorname",
-            "name_vorname",
-            "gebdatum",
-            "gr_sitzplatz",
-            "gr_wahlkreis",
-            "partei",
-            "partei_kname",
-            "gr_beginn",
-            "gr_ende",
-            "url",
-            "strasse",
-            "plz",
-            "ort",
-            "gr_beruf",
-            "gr_arbeitgeber",
-            "homepage",
-        ]
-    ]
-    df_adr.to_sql("Ratsmitgliedschaften", conn, if_exists="append", index=False)
-    idx(
-        conn,
-        "Ratsmitgliedschaften",
-        [
-            "ist_aktuell_grossrat",
-            "anrede",
-            "titel",
-            "gebdatum",
-            "gr_wahlkreis",
-            "partei",
-            "partei_kname",
-            "gr_beginn",
-            "gr_ende",
-            "ort",
-        ],
-    )
+    df_personen.to_sql("Personen", conn, if_exists="append", index=False)
+    idx(conn, "Personen", ["ist_aktuell_grossrat", "anrede", "name", "vorname", "gebdatum", "strasse", "plz", "ort", "gr_beruf", "gr_wahlkreis", "partei", "partei_kname"])
 
-    # Gremien. PK: uni_nr
+    # --------- Gremien ---------
     cur.execute("""
         CREATE TABLE "Gremien" (
             "uni_nr" INTEGER PRIMARY KEY,
@@ -208,9 +189,9 @@ def main():
     df_gre.to_sql("Gremien", conn, if_exists="append", index=False)
     idx(conn, "Gremien", ["ist_aktuelles_gremium", "kurzname", "name", "gremientyp"])
 
-    # Gremienmitgliedschaften. Composite PK; FKs to persons and gremien
+    # --------- Mitgliedschaften (MIT) ---------
     cur.execute("""
-        CREATE TABLE "Gremienmitgliedschaften" (
+        CREATE TABLE "Mitgliedschaften" (
             "uni_nr_gre" INTEGER,
             "uni_nr_adr" INTEGER,
             "beginn_mit" TEXT,
@@ -218,14 +199,14 @@ def main():
             "funktion_adr" TEXT,
             PRIMARY KEY ("uni_nr_gre","uni_nr_adr","beginn_mit"),
             FOREIGN KEY ("uni_nr_gre") REFERENCES "Gremien"("uni_nr") ON DELETE CASCADE,
-            FOREIGN KEY ("uni_nr_adr") REFERENCES "Ratsmitgliedschaften"("uni_nr") ON DELETE CASCADE
+            FOREIGN KEY ("uni_nr_adr") REFERENCES "Personen"("uni_nr") ON DELETE CASCADE
         )
     """)
     df_mit = df_mit[["uni_nr_gre", "uni_nr_adr", "beginn_mit", "ende_mit", "funktion_adr"]]
-    df_mit.to_sql("Gremienmitgliedschaften", conn, if_exists="append", index=False)
-    idx(conn, "Gremienmitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"])
+    df_mit.to_sql("Mitgliedschaften", conn, if_exists="append", index=False)
+    idx(conn, "Mitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"])
 
-    # Interessensbindungen. FK to persons
+    # --------- Interessensbindungen (IBI) ---------
     cur.execute("""
         CREATE TABLE "Interessensbindungen" (
             "rubrik" TEXT,
@@ -233,14 +214,14 @@ def main():
             "funktion" TEXT,
             "text" TEXT,
             "uni_nr" INTEGER,
-            FOREIGN KEY ("uni_nr") REFERENCES "Ratsmitgliedschaften"("uni_nr") ON DELETE SET NULL
+            FOREIGN KEY ("uni_nr") REFERENCES "Personen"("uni_nr") ON DELETE SET NULL
         )
     """)
     df_int = df_int[["rubrik", "intr-bind", "funktion", "text", "uni_nr"]]
     df_int.to_sql("Interessensbindungen", conn, if_exists="append", index=False)
     idx(conn, "Interessensbindungen", ["rubrik", "intr-bind", "funktion", "uni_nr"])
 
-    # Geschaefte. PK: laufnr_ges; (optional) FK to persons for urheber/miturheber
+    # --------- Geschaefte ---------
     cur.execute("""
         CREATE TABLE "Geschaefte" (
             "laufnr_ges" INTEGER PRIMARY KEY,
@@ -254,8 +235,8 @@ def main():
             "url_ges" TEXT,
             "nr_urheber" INTEGER,
             "nr_miturheber" INTEGER,
-            FOREIGN KEY ("nr_urheber") REFERENCES "Ratsmitgliedschaften"("uni_nr"),
-            FOREIGN KEY ("nr_miturheber") REFERENCES "Ratsmitgliedschaften"("uni_nr")
+            FOREIGN KEY ("nr_urheber") REFERENCES "Personen"("uni_nr"),
+            FOREIGN KEY ("nr_miturheber") REFERENCES "Personen"("uni_nr")
         )
     """)
     df_ges = df_ges[
@@ -280,7 +261,7 @@ def main():
         ["beginn_ges", "ende_ges", "status_ges", "departement_ges", "ga_rr_gr", "nr_urheber", "nr_miturheber"],
     )
 
-    # Zuweisungen. Surrogate PK; FK to Geschaefte + Gremien
+    # --------- Zuweisungen ---------
     cur.execute("""
         CREATE TABLE "Zuweisungen" (
             "id" INTEGER PRIMARY KEY,
@@ -301,7 +282,7 @@ def main():
     df_zuw.to_sql("Zuweisungen", conn, if_exists="append", index=False)
     idx(conn, "Zuweisungen", ["uni_nr_an", "erledigt", "status_zuw", "uni_nr_von", "laufnr_ges"])
 
-    # Dokumente. PK: dok_laufnr; FK to Geschaefte
+    # --------- Dokumente ---------
     cur.execute("""
         CREATE TABLE "Dokumente" (
             "dok_laufnr" INTEGER PRIMARY KEY,
@@ -317,7 +298,7 @@ def main():
     df_dok.to_sql("Dokumente", conn, if_exists="append", index=False)
     idx(conn, "Dokumente", ["dokudatum", "titel_dok", "laufnr_ges"])
 
-    # Vorgaenge. Composite PK: (nummer, siz_nr); FK to Geschaefte
+    # --------- Vorgaenge & Sitzungen ---------
     cur.execute("""
         CREATE TABLE "Vorgaenge" (
             "nummer" INTEGER,
@@ -325,30 +306,27 @@ def main():
             "beschlnr" TEXT,
             "Vermerk" TEXT,
             "laufnr_ges" INTEGER,
-            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE,
-            FOREIGN KEY ("siz_nr") REFERENCES "Sitzungen"("siz_nr") ON DELETE SET NULL
+            PRIMARY KEY ("nummer","siz_nr"),
+            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE
         )
     """)
     df_vor = df_vor[["nummer", "siz_nr", "beschlnr", "Vermerk", "laufnr_ges"]]
     df_vor.to_sql("Vorgaenge", conn, if_exists="append", index=False)
     idx(conn, "Vorgaenge", ["Vermerk", "siz_nr", "laufnr_ges"])
 
-    # Sitzungen (SIZ). PK: siz_nr  — used as FK target for Unterlagen
     cur.execute("""
         CREATE TABLE "Sitzungen" (
             "siz_nr" INTEGER PRIMARY KEY,
             "siz_datum" TEXT
         )
     """)
-    # Build from Vorgaenge (unique siz_nr); siz_datum not present here → keep NULL
     df_sitzungen = df_vor[["siz_nr"]].drop_duplicates().copy()
     df_sitzungen["siz_datum"] = None
     df_sitzungen.to_sql("Sitzungen", conn, if_exists="append", index=False)
 
-    # Sessionen (GR-Sitzungsdaten) — separate rich session metadata (no FK consumers here)
     cur.execute("""
         CREATE TABLE "Sessionen" (
-            "gr_sitzung_idnr" INTEGER PRIMARY KEY,
+            "gr_situng_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
             "text1" TEXT,
@@ -367,24 +345,21 @@ def main():
     """)
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
 
-    # Tagesordnungen. PK: tagesordnung_idnr
+    # --------- Tagesordnungen & Traktanden ---------
     cur.execute("""
         CREATE TABLE "Tagesordnungen" (
             "tagesordnung_idnr" INTEGER PRIMARY KEY,
-            "gr_sitzung_idnr" INTEGER,
             "einleitungstext" TEXT,
             "zwischentext" TEXT,
             "url_tagesordnung_dok" TEXT,
             "url_geschaeftsverzeichnis" TEXT,
             "url_sammelmappe" TEXT,
-            "url_alle_dokumente" TEXT,
-            FOREIGN KEY ("gr_sitzung_idnr") REFERENCES "Sessionen"("gr_sitzung_idnr") ON DELETE CASCADE
+            "url_alle_dokumente" TEXT
         )
     """)
     df_tagesordnung = df_tag_trakt[
         [
             "tagesordnung_idnr",
-            "gr_sitzung_idnr",
             "einleitungstext",
             "zwischentext",
             "url_tagesordnung_dok",
@@ -395,7 +370,6 @@ def main():
     ].drop_duplicates()
     df_tagesordnung.to_sql("Tagesordnungen", conn, if_exists="append", index=False)
 
-    # Traktanden. PK: traktanden_idnr; FKs: tagesordnung_idnr → Tagesordnungen, laufnr → Geschaefte
     cur.execute("""
         CREATE TABLE "Traktanden" (
             "traktanden_idnr" INTEGER PRIMARY KEY,
@@ -412,7 +386,8 @@ def main():
             "signatur" TEXT,
             "Abstimmung" TEXT,
             "anr" TEXT,
-            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE
+            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE,
+            FOREIGN KEY ("laufnr")            REFERENCES "Geschaefte"("laufnr_ges") ON DELETE SET NULL
         )
     """)
     df_trakt = df_tag_trakt[
@@ -451,20 +426,19 @@ def main():
         ],
     )
 
-    # Unterlagen. FKs: siz_nr → Sitzungen, dok_nr → Dokumente, (beschluss,siz_nr) → Vorgaenge
+    # --------- Unterlagen (with indices) ---------
     cur.execute("""
         CREATE TABLE "Unterlagen" (
             "idnr" INTEGER PRIMARY KEY,
             "beschluss" INTEGER,
             "dok_nr" INTEGER,
             "siz_nr" INTEGER,
-            FOREIGN KEY ("siz_nr")                 REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE,
-            FOREIGN KEY ("dok_nr")                 REFERENCES "Dokumente"("dok_laufnr") ON DELETE SET NULL
+            FOREIGN KEY ("siz_nr")             REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE,
+            FOREIGN KEY ("dok_nr")             REFERENCES "Dokumente"("dok_laufnr") ON DELETE SET NULL,
+            FOREIGN KEY ("beschluss","siz_nr") REFERENCES "Vorgaenge"("nummer","siz_nr") ON DELETE SET NULL
         )
     """)
-    # Make sure expected cols exist as strings/ints
     df_unt = df_unt.rename(columns={c: c.strip() for c in df_unt.columns})
-    # keep only the expected set (cast to numeric where possible)
     for col in ["idnr", "beschluss", "dok_nr", "siz_nr"]:
         if col in df_unt.columns:
             df_unt[col] = pd.to_numeric(df_unt[col], errors="coerce")
@@ -472,10 +446,10 @@ def main():
             df_unt[col] = pd.NA
     df_unt = df_unt[["idnr", "beschluss", "dok_nr", "siz_nr"]].drop_duplicates()
     df_unt.to_sql("Unterlagen", conn, if_exists="append", index=False)
-    # requested indices
     idx(conn, "Unterlagen", ["siz_nr"])
     idx(conn, "Unterlagen", ["dok_nr"])
     idx(conn, "Unterlagen", ["beschluss"])
+    idx(conn, "Unterlagen", ["beschluss", "siz_nr"])  # composite
 
     conn.commit()
     conn.close()
