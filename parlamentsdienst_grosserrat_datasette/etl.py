@@ -173,7 +173,24 @@ def main():
         )
     """)
     df_personen.to_sql("Personen", conn, if_exists="append", index=False)
-    idx(conn, "Personen", ["ist_aktuell_grossrat", "anrede", "name", "vorname", "gebdatum", "strasse", "plz", "ort", "gr_beruf", "gr_wahlkreis", "partei", "partei_kname"])
+    idx(
+        conn,
+        "Personen",
+        [
+            "ist_aktuell_grossrat",
+            "anrede",
+            "name",
+            "vorname",
+            "gebdatum",
+            "strasse",
+            "plz",
+            "ort",
+            "gr_beruf",
+            "gr_wahlkreis",
+            "partei",
+            "partei_kname",
+        ],
+    )
 
     # --------- Gremien ---------
     cur.execute("""
