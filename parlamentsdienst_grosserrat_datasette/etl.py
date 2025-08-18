@@ -254,14 +254,14 @@ def main():
     df_ges["nr_miturheber_gremium"] = pd.NA
 
     # classify urheber
-    mask_person = df_ges["anrede_urheber"].notna() & (df_ges["anrede_urheber"].str.strip() != "")
-    mask_gremium = df_ges["gremientyp_urheber"].notna() & (df_ges["gremientyp_urheber"].str.strip() != "")
+    mask_person = df_ges["anrede_urheber"].notna()
+    mask_gremium = df_ges["gremientyp_urheber"].notna()
     df_ges.loc[mask_person, "nr_urheber_person"] = df_ges.loc[mask_person, "nr_urheber"]
     df_ges.loc[mask_gremium & ~mask_person, "nr_urheber_gremium"] = df_ges.loc[mask_gremium & ~mask_person, "nr_urheber"]
 
     # classify miturheber
-    mask_person = df_ges["anrede_miturheber"].notna() & (df_ges["anrede_miturheber"].str.strip() != "")
-    mask_gremium = df_ges["gremientyp_miturheber"].notna() & (df_ges["gremientyp_miturheber"].str.strip() != "")
+    mask_person = df_ges["anrede_miturheber"].notna()
+    mask_gremium = df_ges["gremientyp_miturheber"].notna()
     df_ges.loc[mask_person, "nr_miturheber_person"] = df_ges.loc[mask_person, "nr_miturheber"]
     df_ges.loc[mask_gremium & ~mask_person, "nr_miturheber_gremium"] = df_ges.loc[mask_gremium & ~mask_person, "nr_miturheber"]
 
