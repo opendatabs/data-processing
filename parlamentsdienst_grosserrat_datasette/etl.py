@@ -298,6 +298,8 @@ def main():
             FOREIGN KEY ("uni_nr_von") REFERENCES "Gremien"("uni_nr")
         )
     """)
+    df_zuw["uni_nr_an"] = df_zuw["uni_nr_an"].where(df_zuw["url_gremium_an"].notna(), pd.NA)
+    df_zuw["uni_nr_von"] = df_zuw["uni_nr_von"].where(df_zuw["url_gremium_von"].notna(), pd.NA)
     df_zuw = df_zuw[["uni_nr_an", "erledigt", "laufnr_ges", "status_zuw", "termin", "titel_zuw", "bem", "uni_nr_von"]]
     df_zuw.to_sql("Zuweisungen", conn, if_exists="append", index=False)
     common.create_indices(conn, "Zuweisungen", ["uni_nr_an", "erledigt", "status_zuw", "uni_nr_von", "laufnr_ges"])
@@ -320,7 +322,7 @@ def main():
     common.create_indices(conn, "Dokumente", ["dokudatum", "titel_dok", "laufnr_ges"])
 
     # --------- Vorgaenge & Sitzungen ---------
-    logging.info("Creating tables for Vorgaenge and Sitzungen…")
+    logging.info("Creating tables for Vorgaenge…")
     cur.execute("""
         CREATE TABLE "Vorgaenge" (
             "nummer" INTEGER,
@@ -335,7 +337,8 @@ def main():
     df_vor = df_vor[["nummer", "siz_nr", "beschlnr", "Vermerk", "laufnr_ges"]]
     df_vor.to_sql("Vorgaenge", conn, if_exists="append", index=False)
     common.create_indices(conn, "Vorgaenge", ["Vermerk", "siz_nr", "laufnr_ges"])
-
+    
+    logging.info("Creating table for Sitzungen…")
     cur.execute("""
         CREATE TABLE "Sitzungen" (
             "siz_nr" INTEGER PRIMARY KEY,
@@ -368,7 +371,7 @@ def main():
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
 
     # --------- Tagesordnungen & Traktanden ---------
-    logging.info("Creating tables for Tagesordnungen and Traktanden…")
+    logging.info("Creating tables for Tagesordnungen...")
     cur.execute("""
         CREATE TABLE "Tagesordnungen" (
             "tagesordnung_idnr" INTEGER PRIMARY KEY,
@@ -393,6 +396,7 @@ def main():
     ].drop_duplicates()
     df_tagesordnung.to_sql("Tagesordnungen", conn, if_exists="append", index=False)
 
+    logging.info("Creating table for Traktanden…")
     cur.execute("""
         CREATE TABLE "Traktanden" (
             "traktanden_idnr" INTEGER PRIMARY KEY,
