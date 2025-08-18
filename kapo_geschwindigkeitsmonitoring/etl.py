@@ -381,9 +381,12 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     all_df = pd.concat(dfs)
     pkl_filename = os.path.join("data", "geschwindigkeitsmonitoring_data.pkl")
     all_df.to_pickle(pkl_filename)
+    csv_filename = os.path.join("data", "geschwindigkeitsmonitoring_data.csv")
+    all_df.to_csv(csv_filename, index=False)
 
     logging.info(f"All data processed and saved to {db_filename} and {pkl_filename}...")
     if ct.has_changed(filename=pkl_filename, method="hash"):
+        common.upload_ftp(filename=csv_filename, remote_path="kapo/geschwindigkeitsmonitoring/data")
         common.publish_ods_dataset_by_id("100097")
         ct.update_hash_file(pkl_filename)
 
