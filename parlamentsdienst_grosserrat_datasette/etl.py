@@ -456,7 +456,7 @@ def main():
             "signatur" TEXT,
             "Abstimmung" TEXT,
             "anr" TEXT,
-            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE,
+            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE
         )
     """)
     df_trakt = df_tag_trakt[
@@ -504,7 +504,7 @@ def main():
             "dok_nr" INTEGER,
             "siz_nr" INTEGER,
             FOREIGN KEY ("siz_nr") REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE,
-            FOREIGN KEY ("dok_nr") REFERENCES "Dokumente"("dok_laufnr") ON DELETE SET NULL,
+            FOREIGN KEY ("dok_nr") REFERENCES "Dokumente"("dok_laufnr") ON DELETE SET NULL
         )
     """)
     df_unt = df_unt.rename(columns={c: c.strip() for c in df_unt.columns})
