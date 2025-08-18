@@ -271,7 +271,7 @@ def main():
         "titel_ges", "departement_ges", "ga_rr_gr", "url_ges",
         "nr_urheber_person", "nr_urheber_gremium",
         "nr_miturheber_person", "nr_miturheber_gremium"]
-    ]
+    ].drop_duplicates("laufnr_ges")
 
     df_ges.to_sql("Geschaefte", conn, if_exists="append", index=False)
     common.create_indices(conn, "Geschaefte", [
