@@ -46,6 +46,7 @@ def main():
     )
 
     # ---------- Converters (guarded) ----------
+    '''
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
     for method in ["pdfplumber", "pymupdf"]:
@@ -105,7 +106,7 @@ def main():
             Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
             "tag1",
         )
-
+    '''
     # --------- Drop in FK-safe order ---------
     for t in [
         "Traktanden",
@@ -147,7 +148,7 @@ def main():
         "partei_kname",
         "homepage",
     ]
-    df_personen = df_adr_raw[personen_cols].sort_values(by=["gr_beginn"]).drop_duplicates(subset=["uni_nr"])
+    df_personen = df_adr_raw.sort_values(by=["gr_beginn"]).drop_duplicates(subset=["uni_nr"])[personen_cols]
 
     cur.execute("""
         CREATE TABLE "Personen" (
