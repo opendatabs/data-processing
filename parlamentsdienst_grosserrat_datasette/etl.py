@@ -331,7 +331,7 @@ def main():
     """)
     df_sitzungen = df_vor[["siz_nr", "siz_datum"]].drop_duplicates().copy()
     df_sitzungen.to_sql("Sitzungen", conn, if_exists="append", index=False)
-    
+
     logging.info("Creating tables for Vorgaenge…")
     cur.execute("""
         CREATE TABLE "Vorgaenge" (
@@ -340,8 +340,8 @@ def main():
             "beschlnr" TEXT,
             "Vermerk" TEXT,
             "laufnr_ges" INTEGER,
-            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE
-            FOREIGN KEY ("siz_nr") REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE,
+            FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE,
+            FOREIGN KEY ("siz_nr") REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE
         )
     """)
     df_vor = df_vor[["nummer", "siz_nr", "beschlnr", "Vermerk", "laufnr_ges"]]
