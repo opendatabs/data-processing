@@ -193,7 +193,7 @@ def main():
             "beginn_mit" TEXT,
             "ende_mit" TEXT,
             "funktion_adr" TEXT,
-            PRIMARY KEY ("uni_nr_gre","uni_nr_adr","beginn_mit"),
+            PRIMARY KEY ("uni_nr_gre","uni_nr_adr","beginn_mit", "funktion_adr"),
             FOREIGN KEY ("uni_nr_gre") REFERENCES "Gremien"("uni_nr") ON DELETE CASCADE,
             FOREIGN KEY ("uni_nr_adr") REFERENCES "Personen"("uni_nr") ON DELETE CASCADE
         )
