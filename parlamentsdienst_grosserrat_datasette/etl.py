@@ -121,7 +121,7 @@ def main():
         cur.execute(f'DROP TABLE IF EXISTS "{t}"')
 
     # --------- Personen (ADR) ---------
-    # unique by uni_nr; strip membership-ish fields
+    logging.info("Creating table for Personen…")
     personen_cols = [
         "uni_nr",
         "ist_aktuell_grossrat",
@@ -172,6 +172,7 @@ def main():
     common.create_indices(conn, "Personen", ["ist_aktuell_grossrat", "anrede", "name", "vorname", "gebdatum", "strasse", "plz", "ort", "gr_beruf", "gr_wahlkreis", "partei", "partei_kname"])
 
     # --------- Gremien ---------
+    logging.info("Creating table for Gremien…")
     cur.execute("""
         CREATE TABLE "Gremien" (
             "uni_nr" INTEGER PRIMARY KEY,
@@ -186,6 +187,7 @@ def main():
     common.create_indices(conn, "Gremien", ["ist_aktuelles_gremium", "kurzname", "name", "gremientyp"])
 
     # --------- Mitgliedschaften (MIT) ---------
+    logging.info("Creating table for Mitgliedschaften…")
     cur.execute("""
         CREATE TABLE "Mitgliedschaften" (
             "uni_nr_gre" INTEGER,
@@ -203,6 +205,7 @@ def main():
     common.create_indices(conn, "Mitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"])
 
     # --------- Interessensbindungen (IBI) ---------
+    logging.info("Creating table for Interessensbindungen…")
     cur.execute("""
         CREATE TABLE "Interessensbindungen" (
             "rubrik" TEXT,
@@ -218,6 +221,7 @@ def main():
     common.create_indices(conn, "Interessensbindungen", ["rubrik", "intr-bind", "funktion", "uni_nr"])
 
     # --------- Geschaefte ---------
+    logging.info("Creating table for Geschaefte…")
     cur.execute("""
         CREATE TABLE "Geschaefte" (
             "laufnr_ges" INTEGER PRIMARY KEY,
@@ -258,6 +262,7 @@ def main():
     )
 
     # --------- Zuweisungen ---------
+    logging.info("Creating table for Zuweisungen…")
     cur.execute("""
         CREATE TABLE "Zuweisungen" (
             "id" INTEGER PRIMARY KEY,
@@ -279,6 +284,7 @@ def main():
     common.create_indices(conn, "Zuweisungen", ["uni_nr_an", "erledigt", "status_zuw", "uni_nr_von", "laufnr_ges"])
 
     # --------- Dokumente ---------
+    logging.info("Creating table for Dokumente…")
     cur.execute("""
         CREATE TABLE "Dokumente" (
             "dok_laufnr" INTEGER PRIMARY KEY,
@@ -295,6 +301,7 @@ def main():
     common.create_indices(conn, "Dokumente", ["dokudatum", "titel_dok", "laufnr_ges"])
 
     # --------- Vorgaenge & Sitzungen ---------
+    logging.info("Creating tables for Vorgaenge and Sitzungen…")
     cur.execute("""
         CREATE TABLE "Vorgaenge" (
             "nummer" INTEGER,
@@ -342,6 +349,7 @@ def main():
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
 
     # --------- Tagesordnungen & Traktanden ---------
+    logging.info("Creating tables for Tagesordnungen and Traktanden…")
     cur.execute("""
         CREATE TABLE "Tagesordnungen" (
             "tagesordnung_idnr" INTEGER PRIMARY KEY,
@@ -423,6 +431,7 @@ def main():
     )
 
     # --------- Unterlagen (with indices) ---------
+    logging.info("Creating table for Unterlagen…")
     cur.execute("""
         CREATE TABLE "Unterlagen" (
             "idnr" INTEGER PRIMARY KEY,
