@@ -4,7 +4,6 @@ from pathlib import Path
 
 import common
 import pandas as pd
-import pdf_converter
 
 
 def safe_converter(func, *args, **kwargs):
@@ -40,7 +39,7 @@ def main():
     )
 
     # ---------- Converters (guarded) ----------
-    '''
+    """
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
     for method in ["pdfplumber", "pymupdf"]:
@@ -61,7 +60,7 @@ def main():
             Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
             "dok_laufnr",
         )
-    '''
+    """
     # Tagesordnungen PDFs come from Sessionen (url_vollprotokoll)
     df_sessionen_src = df_tag_trakt[
         [
@@ -82,7 +81,7 @@ def main():
             "url_audioprotokoll_tag3",
         ]
     ].drop_duplicates()
-    '''
+    """
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -101,7 +100,7 @@ def main():
             Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
             "tag1",
         )
-    '''
+    """
     # --------- Drop in FK-safe order ---------
     for t in [
         "Traktanden",
@@ -169,7 +168,24 @@ def main():
         )
     """)
     df_personen.to_sql("Personen", conn, if_exists="append", index=False)
-    common.create_indices(conn, "Personen", ["ist_aktuell_grossrat", "anrede", "name", "vorname", "gebdatum", "strasse", "plz", "ort", "gr_beruf", "gr_wahlkreis", "partei", "partei_kname"])
+    common.create_indices(
+        conn,
+        "Personen",
+        [
+            "ist_aktuell_grossrat",
+            "anrede",
+            "name",
+            "vorname",
+            "gebdatum",
+            "strasse",
+            "plz",
+            "ort",
+            "gr_beruf",
+            "gr_wahlkreis",
+            "partei",
+            "partei_kname",
+        ],
+    )
 
     # --------- Gremien ---------
     logging.info("Creating table for Gremien…")
@@ -202,7 +218,9 @@ def main():
     """)
     df_mit = df_mit[["uni_nr_gre", "uni_nr_adr", "beginn_mit", "ende_mit", "funktion_adr"]]
     df_mit.to_sql("Mitgliedschaften", conn, if_exists="append", index=False)
-    common.create_indices(conn, "Mitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"])
+    common.create_indices(
+        conn, "Mitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"]
+    )
 
     # --------- Interessensbindungen (IBI) ---------
     logging.info("Creating table for Interessensbindungen…")
@@ -257,28 +275,53 @@ def main():
     mask_person = df_ges["anrede_urheber"].notna() & (df_ges["url_urheber_ratsmitgl"].notna())
     mask_gremium = df_ges["gremientyp_urheber"].notna()
     df_ges.loc[mask_person, "nr_urheber_person"] = df_ges.loc[mask_person, "nr_urheber"]
-    df_ges.loc[mask_gremium & ~mask_person, "nr_urheber_gremium"] = df_ges.loc[mask_gremium & ~mask_person, "nr_urheber"]
+    df_ges.loc[mask_gremium & ~mask_person, "nr_urheber_gremium"] = df_ges.loc[
+        mask_gremium & ~mask_person, "nr_urheber"
+    ]
 
     # classify miturheber
     mask_person = df_ges["anrede_miturheber"].notna() & (df_ges["url_miturheber_ratsmitgl"].notna())
     mask_gremium = df_ges["gremientyp_miturheber"].notna()
     df_ges.loc[mask_person, "nr_miturheber_person"] = df_ges.loc[mask_person, "nr_miturheber"]
-    df_ges.loc[mask_gremium & ~mask_person, "nr_miturheber_gremium"] = df_ges.loc[mask_gremium & ~mask_person, "nr_miturheber"]
+    df_ges.loc[mask_gremium & ~mask_person, "nr_miturheber_gremium"] = df_ges.loc[
+        mask_gremium & ~mask_person, "nr_miturheber"
+    ]
 
     # final column selection
     df_ges = df_ges[
-        ["laufnr_ges", "beginn_ges", "ende_ges", "signatur_ges", "status_ges",
-        "titel_ges", "departement_ges", "ga_rr_gr", "url_ges",
-        "nr_urheber_person", "nr_urheber_gremium",
-        "nr_miturheber_person", "nr_miturheber_gremium"]
+        [
+            "laufnr_ges",
+            "beginn_ges",
+            "ende_ges",
+            "signatur_ges",
+            "status_ges",
+            "titel_ges",
+            "departement_ges",
+            "ga_rr_gr",
+            "url_ges",
+            "nr_urheber_person",
+            "nr_urheber_gremium",
+            "nr_miturheber_person",
+            "nr_miturheber_gremium",
+        ]
     ].drop_duplicates("laufnr_ges")
 
     df_ges.to_sql("Geschaefte", conn, if_exists="append", index=False)
-    common.create_indices(conn, "Geschaefte", [
-        "beginn_ges", "ende_ges", "status_ges", "departement_ges",
-        "ga_rr_gr", "nr_urheber_person", "nr_urheber_gremium",
-        "nr_miturheber_person", "nr_miturheber_gremium"
-    ])
+    common.create_indices(
+        conn,
+        "Geschaefte",
+        [
+            "beginn_ges",
+            "ende_ges",
+            "status_ges",
+            "departement_ges",
+            "ga_rr_gr",
+            "nr_urheber_person",
+            "nr_urheber_gremium",
+            "nr_miturheber_person",
+            "nr_miturheber_gremium",
+        ],
+    )
 
     # --------- Zuweisungen ---------
     logging.info("Creating table for Zuweisungen…")
@@ -331,7 +374,7 @@ def main():
     """)
     df_sitzungen = df_vor[["siz_nr", "siz_datum"]].drop_duplicates().copy()
     df_sitzungen.to_sql("Sitzungen", conn, if_exists="append", index=False)
-    
+
     logging.info("Creating tables for Vorgaenge…")
     cur.execute("""
         CREATE TABLE "Vorgaenge" (
