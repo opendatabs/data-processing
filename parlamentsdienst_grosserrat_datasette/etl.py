@@ -14,12 +14,6 @@ def safe_converter(func, *args, **kwargs):
         logging.exception("Converter failed: %s (%s)", func.__name__, e)
 
 
-def idx(conn, table, cols):
-    # ensure identifiers are quoted (handles hyphens like "intr-bind")
-    quoted = [f'"{c}"' if not (c.startswith('"') and c.endswith('"')) else c for c in cols]
-    common.create_indices(conn, table, quoted)
-
-
 def main():
     logging.info("Starting build…")
     db_path = Path("data") / "datasette" / "GrosserRat.db"
@@ -175,7 +169,7 @@ def main():
         )
     """)
     df_personen.to_sql("Personen", conn, if_exists="append", index=False)
-    idx(conn, "Personen", ["ist_aktuell_grossrat", "anrede", "name", "vorname", "gebdatum", "strasse", "plz", "ort", "gr_beruf", "gr_wahlkreis", "partei", "partei_kname"])
+    common.create_indices(conn, "Personen", ["ist_aktuell_grossrat", "anrede", "name", "vorname", "gebdatum", "strasse", "plz", "ort", "gr_beruf", "gr_wahlkreis", "partei", "partei_kname"])
 
     # --------- Gremien ---------
     cur.execute("""
@@ -189,7 +183,7 @@ def main():
     """)
     df_gre = df_gre[["uni_nr", "ist_aktuelles_gremium", "kurzname", "name", "gremientyp"]]
     df_gre.to_sql("Gremien", conn, if_exists="append", index=False)
-    idx(conn, "Gremien", ["ist_aktuelles_gremium", "kurzname", "name", "gremientyp"])
+    common.create_indices(conn, "Gremien", ["ist_aktuelles_gremium", "kurzname", "name", "gremientyp"])
 
     # --------- Mitgliedschaften (MIT) ---------
     cur.execute("""
@@ -206,7 +200,7 @@ def main():
     """)
     df_mit = df_mit[["uni_nr_gre", "uni_nr_adr", "beginn_mit", "ende_mit", "funktion_adr"]]
     df_mit.to_sql("Mitgliedschaften", conn, if_exists="append", index=False)
-    idx(conn, "Mitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"])
+    common.create_indices(conn, "Mitgliedschaften", ["uni_nr_gre", "beginn_mit", "ende_mit", "funktion_adr", "uni_nr_adr"])
 
     # --------- Interessensbindungen (IBI) ---------
     cur.execute("""
@@ -221,7 +215,7 @@ def main():
     """)
     df_int = df_int[["rubrik", "intr-bind", "funktion", "text", "uni_nr"]]
     df_int.to_sql("Interessensbindungen", conn, if_exists="append", index=False)
-    idx(conn, "Interessensbindungen", ["rubrik", "intr-bind", "funktion", "uni_nr"])
+    common.create_indices(conn, "Interessensbindungen", ["rubrik", "intr-bind", "funktion", "uni_nr"])
 
     # --------- Geschaefte ---------
     cur.execute("""
@@ -257,7 +251,7 @@ def main():
         ]
     ]
     df_ges.to_sql("Geschaefte", conn, if_exists="append", index=False)
-    idx(
+    common.create_indices(
         conn,
         "Geschaefte",
         ["beginn_ges", "ende_ges", "status_ges", "departement_ges", "ga_rr_gr", "nr_urheber", "nr_miturheber"],
@@ -282,7 +276,7 @@ def main():
     """)
     df_zuw = df_zuw[["uni_nr_an", "erledigt", "laufnr_ges", "status_zuw", "termin", "titel_zuw", "bem", "uni_nr_von"]]
     df_zuw.to_sql("Zuweisungen", conn, if_exists="append", index=False)
-    idx(conn, "Zuweisungen", ["uni_nr_an", "erledigt", "status_zuw", "uni_nr_von", "laufnr_ges"])
+    common.create_indices(conn, "Zuweisungen", ["uni_nr_an", "erledigt", "status_zuw", "uni_nr_von", "laufnr_ges"])
 
     # --------- Dokumente ---------
     cur.execute("""
@@ -298,7 +292,7 @@ def main():
     """)
     df_dok = df_dok_full[["dok_laufnr", "dokudatum", "titel_dok", "url_dok", "signatur_dok", "laufnr_ges"]]
     df_dok.to_sql("Dokumente", conn, if_exists="append", index=False)
-    idx(conn, "Dokumente", ["dokudatum", "titel_dok", "laufnr_ges"])
+    common.create_indices(conn, "Dokumente", ["dokudatum", "titel_dok", "laufnr_ges"])
 
     # --------- Vorgaenge & Sitzungen ---------
     cur.execute("""
@@ -314,7 +308,7 @@ def main():
     """)
     df_vor = df_vor[["nummer", "siz_nr", "beschlnr", "Vermerk", "laufnr_ges"]]
     df_vor.to_sql("Vorgaenge", conn, if_exists="append", index=False)
-    idx(conn, "Vorgaenge", ["Vermerk", "siz_nr", "laufnr_ges"])
+    common.create_indices(conn, "Vorgaenge", ["Vermerk", "siz_nr", "laufnr_ges"])
 
     cur.execute("""
         CREATE TABLE "Sitzungen" (
@@ -411,7 +405,7 @@ def main():
         ]
     ]
     df_trakt.to_sql("Traktanden", conn, if_exists="append", index=False)
-    idx(
+    common.create_indices(
         conn,
         "Traktanden",
         [
@@ -448,10 +442,10 @@ def main():
             df_unt[col] = pd.NA
     df_unt = df_unt[["idnr", "beschluss", "dok_nr", "siz_nr"]].drop_duplicates()
     df_unt.to_sql("Unterlagen", conn, if_exists="append", index=False)
-    idx(conn, "Unterlagen", ["siz_nr"])
-    idx(conn, "Unterlagen", ["dok_nr"])
-    idx(conn, "Unterlagen", ["beschluss"])
-    idx(conn, "Unterlagen", ["beschluss", "siz_nr"])  # composite
+    common.create_indices(conn, "Unterlagen", ["siz_nr"])
+    common.create_indices(conn, "Unterlagen", ["dok_nr"])
+    common.create_indices(conn, "Unterlagen", ["beschluss"])
+    common.create_indices(conn, "Unterlagen", ["beschluss", "siz_nr"])  # composite
 
     conn.commit()
     conn.close()
