@@ -233,26 +233,37 @@ def main():
             "departement_ges" TEXT,
             "ga_rr_gr" TEXT,
             "url_ges" TEXT,
-            "nr_urheber" INTEGER,
-            "nr_miturheber" INTEGER,
-            FOREIGN KEY ("nr_urheber") REFERENCES "Personen"("uni_nr"),
-            FOREIGN KEY ("nr_miturheber") REFERENCES "Personen"("uni_nr")
-        )
+            "nr_urheber_person" INTEGER,
+            "nr_urheber_gremium" INTEGER,
+            "nr_miturheber_person" INTEGER,
+            "nr_miturheber_gremium" INTEGER,
+            FOREIGN KEY ("nr_urheber_person") REFERENCES Personen(uni_nr),
+            FOREIGN KEY ("nr_urheber_gremium") REFERENCES Gremien(uni_nr),
+            FOREIGN KEY ("nr_miturheber_person") REFERENCES Personen(uni_nr),
+            FOREIGN KEY ("nr_miturheber_gremium") REFERENCES Gremien(uni_nr)
+        );
     """)
+    # make IDs numeric
+    for col in ["nr_urheber", "nr_miturheber"]:
+        df_ges[col] = pd.to_numeric(df_ges[col], errors="coerce")
+    # split urheber
+    df_ges["nr_urheber_person"] = None
+    df_ges["nr_urheber_gremium"] = None
+    is_person = df_ges["anrede_urheber"].notna() & (df_ges["anrede_urheber"].str.strip() != "")
+    df_ges.loc[is_person, "nr_urheber_person"] = df_ges.loc[is_person, "nr_urheber"]
+    df_ges.loc[~is_person, "nr_urheber_gremium"] = df_ges.loc[~is_person, "nr_urheber"]
+    # split miturheber
+    df_ges["nr_miturheber_person"] = None
+    df_ges["nr_miturheber_gremium"] = None
+    is_person = df_ges["anrede_miturheber"].notna() & (df_ges["anrede_miturheber"].str.strip() != "")
+    df_ges.loc[is_person, "nr_miturheber_person"] = df_ges.loc[is_person, "nr_miturheber"]
+    df_ges.loc[~is_person, "nr_miturheber_gremium"] = df_ges.loc[~is_person, "nr_miturheber"]
+    # select columns
     df_ges = df_ges[
-        [
-            "laufnr_ges",
-            "beginn_ges",
-            "ende_ges",
-            "signatur_ges",
-            "status_ges",
-            "titel_ges",
-            "departement_ges",
-            "ga_rr_gr",
-            "url_ges",
-            "nr_urheber",
-            "nr_miturheber",
-        ]
+        ["laufnr_ges", "beginn_ges", "ende_ges", "signatur_ges", "status_ges",
+        "titel_ges", "departement_ges", "ga_rr_gr", "url_ges",
+        "nr_urheber_person", "nr_urheber_gremium",
+        "nr_miturheber_person", "nr_miturheber_gremium"]
     ]
     df_ges.to_sql("Geschaefte", conn, if_exists="append", index=False)
     common.create_indices(
