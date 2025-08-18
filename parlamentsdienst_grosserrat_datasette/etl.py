@@ -322,6 +322,16 @@ def main():
     common.create_indices(conn, "Dokumente", ["dokudatum", "titel_dok", "laufnr_ges"])
 
     # --------- Vorgaenge & Sitzungen ---------
+    logging.info("Creating table for Sitzungen…")
+    cur.execute("""
+        CREATE TABLE "Sitzungen" (
+            "siz_nr" INTEGER PRIMARY KEY,
+            "siz_datum" TEXT
+        )
+    """)
+    df_sitzungen = df_vor[["siz_nr", "siz_datum"]].drop_duplicates().copy()
+    df_sitzungen.to_sql("Sitzungen", conn, if_exists="append", index=False)
+    
     logging.info("Creating tables for Vorgaenge…")
     cur.execute("""
         CREATE TABLE "Vorgaenge" (
@@ -330,25 +340,16 @@ def main():
             "beschlnr" TEXT,
             "Vermerk" TEXT,
             "laufnr_ges" INTEGER,
-            PRIMARY KEY ("nummer","siz_nr"),
             FOREIGN KEY ("laufnr_ges") REFERENCES "Geschaefte"("laufnr_ges") ON DELETE CASCADE
+            FOREIGN KEY ("siz_nr") REFERENCES "Sitzungen"("siz_nr") ON DELETE CASCADE,
         )
     """)
     df_vor = df_vor[["nummer", "siz_nr", "beschlnr", "Vermerk", "laufnr_ges"]]
     df_vor.to_sql("Vorgaenge", conn, if_exists="append", index=False)
     common.create_indices(conn, "Vorgaenge", ["Vermerk", "siz_nr", "laufnr_ges"])
-    
-    logging.info("Creating table for Sitzungen…")
-    cur.execute("""
-        CREATE TABLE "Sitzungen" (
-            "siz_nr" INTEGER PRIMARY KEY,
-            "siz_datum" TEXT
-        )
-    """)
-    df_sitzungen = df_vor[["siz_nr"]].drop_duplicates().copy()
-    df_sitzungen["siz_datum"] = None
-    df_sitzungen.to_sql("Sitzungen", conn, if_exists="append", index=False)
 
+    # --------- Sessionen & Tagesordnungen & Traktanden ---------
+    logging.info("Creating table for Sessionen…")
     cur.execute("""
         CREATE TABLE "Sessionen" (
             "gr_sitzung_idnr" INTEGER,
@@ -370,7 +371,6 @@ def main():
     """)
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
 
-    # --------- Tagesordnungen & Traktanden ---------
     logging.info("Creating tables for Tagesordnungen...")
     cur.execute("""
         CREATE TABLE "Tagesordnungen" (
