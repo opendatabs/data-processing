@@ -33,12 +33,13 @@ def main():
     df_dok_full = pd.read_csv("data_orig/100313_gr_dokumente.csv")
     df_vor = pd.read_csv("data_orig/100314_gr_vorgaenge.csv")
     df_tag_trakt = pd.read_csv("data_orig/100348_gr_traktanden.csv")
+    '''
     df_unt = common.pandas_read_csv(
         "https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable=unt",
         encoding="utf-8",
         dtype=str,
     )
-
+    '''
     # ---------- Converters (guarded) ----------
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
