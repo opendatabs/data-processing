@@ -17,13 +17,24 @@ FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_09")
 FTP_PASS = os.getenv("FTP_PASS_09")
 
+def _table_row_count(db_path, table):
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(1) FROM {table}")
+        return cur.fetchone()[0]
+    except sqlite3.OperationalError:
+        # table might not exist yet
+        return 0
+    finally:
+        conn.close()
 
-def parse_truncate(path, filename, no_file_cp):
+
+def parse_truncate(path, filename):
     path_to_orig_file = os.path.join(path, filename)
     path_to_copied_file = os.path.join("data", filename)
-    if no_file_cp is False:
-        logging.info(f"Copying file {path_to_orig_file} to {path_to_copied_file}...")
-        copy2(path_to_orig_file, path_to_copied_file)
+    logging.info(f"Copying file {path_to_orig_file} to {path_to_copied_file}...")
+    copy2(path_to_orig_file, path_to_copied_file)
     # Parse, process, truncate and write csv file
     logging.info(f"Reading file {filename}...")
     data = pd.read_csv(
@@ -162,21 +173,16 @@ def generate_files(df, filename):
 
 def create_databases():
     """
-    Creates three empty SQLite databases for the MIV, Velo_Fuss and MIV_Geschwindigkeitsklassen data.
+    Idempotently ensures the three SQLite databases and tables exist.
+    Does NOT delete existing databases.
     """
-    logging.info("Delete databases...")
-    try:
-        os.remove(os.path.join("data", "datasette", "MIV.db"))
-        os.remove(os.path.join("data", "datasette", "Velo_Fuss.db"))
-        os.remove(os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db"))
-    except FileNotFoundError:
-        pass
-    logging.info("Creating databases...")
-    logging.info("Creating MIV database...")
+    os.makedirs(os.path.join("data", "datasette"), exist_ok=True)
+
+    logging.info("Ensuring MIV database & table exist...")
     conn = sqlite3.connect(os.path.join("data", "datasette", "MIV.db"))
     cursor = conn.cursor()
     cursor.execute("""
-    CREATE TABLE MIV (
+    CREATE TABLE IF NOT EXISTS MIV (
         Zst_id TEXT,
         SiteCode TEXT,
         SiteName TEXT, 
@@ -214,11 +220,11 @@ def create_databases():
     conn.commit()
     conn.close()
 
-    logging.info("Creating Velo_Fuss database...")
+    logging.info("Ensuring Velo_Fuss database & table exist...")
     conn = sqlite3.connect(os.path.join("data", "datasette", "Velo_Fuss.db"))
     cursor = conn.cursor()
     cursor.execute("""
-    CREATE TABLE Velo_Fuss (
+    CREATE TABLE IF NOT EXISTS Velo_Fuss (
         Zst_id TEXT,
         SiteCode TEXT,
         SiteName TEXT,
@@ -245,11 +251,11 @@ def create_databases():
     conn.commit()
     conn.close()
 
-    logging.info("Creating MIV_Geschwindigkeitsklassen database...")
+    logging.info("Ensuring MIV_Geschwindigkeitsklassen database & table exist...")
     conn = sqlite3.connect(os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db"))
     cursor = conn.cursor()
     cursor.execute("""
-    CREATE TABLE MIV_Geschwindigkeitsklassen (
+    CREATE TABLE IF NOT EXISTS MIV_Geschwindigkeitsklassen (
         Zst_id TEXT,
         SiteCode TEXT,
         SiteName TEXT,
@@ -351,13 +357,17 @@ def create_indices_databases():
 
 
 def main():
-    no_file_copy = False
-    if "no_file_copy" in sys.argv:
-        no_file_copy = True
-        logging.info("Proceeding without copying files...")
-
     dashboard_calc.download_weather_station_data()
     create_databases()
+
+    # Determine if any target tables are empty (force initial load if so)
+    miv_db   = os.path.join("data", "datasette", "MIV.db")
+    vf_db    = os.path.join("data", "datasette", "Velo_Fuss.db")
+    speed_db = os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db")
+
+    miv_empty   = _table_row_count(miv_db, "MIV") == 0
+    vf_empty    = _table_row_count(vf_db, "Velo_Fuss") == 0
+    speed_empty = _table_row_count(speed_db, "MIV_Geschwindigkeitsklassen") == 0
 
     filename_orig = [
         "MIV_Class_10_1.csv",
@@ -372,23 +382,30 @@ def main():
     # Upload processed and truncated data
     for datafile in filename_orig:
         datafile_with_path = os.path.join("data_orig", datafile)
-        if ct.has_changed(datafile_with_path):
-            file_names = parse_truncate("data_orig", datafile, no_file_copy)
-            if not no_file_copy:
-                for file in file_names:
-                    common.upload_ftp(file, FTP_SERVER, FTP_USER, FTP_PASS, "")
-                    os.remove(file)
+
+        targets_miv = ("MIV_Class" in datafile) or ("MIV_Speed" in datafile) or ("LSA" in datafile) or ("MIV6" in datafile)
+        targets_vf  = ("Velo_Fuss_Count" in datafile) or ("LSA" in datafile) or ("Velo" in datafile) or ("FG" in datafile)
+        targets_speed = ("MIV_Speed" in datafile)
+
+        initial_load_required = (targets_miv and miv_empty) or (targets_vf and vf_empty) or (targets_speed and speed_empty)
+
+        if initial_load_required or ct.has_changed(datafile_with_path):
+            file_names = parse_truncate("data_orig", datafile)
+            for file in file_names:
+                common.upload_ftp(file, FTP_SERVER, FTP_USER, FTP_PASS, "")
+                os.remove(file)
             ct.update_hash_file(datafile_with_path)
+        else:
+            logging.info(f"Skip processing {datafile}: unchanged and target tables already populated.")
 
     dashboard_calc.upload_list_of_lists()
 
     # Upload original unprocessed data
-    if not no_file_copy:
-        for orig_file in filename_orig:
-            path_to_file = os.path.join("data", orig_file)
-            if ct.has_changed(path_to_file):
-                common.upload_ftp(path_to_file, FTP_SERVER, FTP_USER, FTP_PASS, "")
-                ct.update_hash_file(path_to_file)
+    for orig_file in filename_orig:
+        path_to_file = os.path.join("data", orig_file)
+        if ct.has_changed(path_to_file):
+            common.upload_ftp(path_to_file, FTP_SERVER, FTP_USER, FTP_PASS, "")
+            ct.update_hash_file(path_to_file)
 
     create_indices_databases()
 
