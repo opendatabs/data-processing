@@ -322,7 +322,7 @@ def main():
 
     cur.execute("""
         CREATE TABLE "Sessionen" (
-            "gr_situng_idnr" INTEGER,
+            "gr_sitzung_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
             "text1" TEXT,
