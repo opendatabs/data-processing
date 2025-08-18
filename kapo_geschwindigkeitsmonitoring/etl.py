@@ -381,9 +381,12 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     all_df = pd.concat(dfs)
     pkl_filename = os.path.join("data", "geschwindigkeitsmonitoring_data.pkl")
     all_df.to_pickle(pkl_filename)
+    csv_filename = os.path.join("data", "geschwindigkeitsmonitoring_data.csv")
+    all_df.to_csv(csv_filename, index=False)
 
     logging.info(f"All data processed and saved to {db_filename} and {pkl_filename}...")
     if ct.has_changed(filename=pkl_filename, method="hash"):
+        common.upload_ftp(filename=csv_filename, remote_path="kapo/geschwindigkeitsmonitoring/data")
         common.publish_ods_dataset_by_id("100097")
         ct.update_hash_file(pkl_filename)
 
@@ -393,20 +396,16 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
 def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subset=None):
     """
     Stream df_all into one CSV per year without copying the whole frame.
-    - years: set/list of years to include (e.g., YEARS_TO_PUBLISH) or None for all
-    - dedupe_subset: iterable of column names to drop duplicates per chunk (e.g.,
-      ["Messung-ID", "Richtung ID", "Timestamp"]) to guard against upstream repeats
     """
     outdir = Path("data")
     outdir.mkdir(parents=True, exist_ok=True)
 
-    cols = list(df_all.columns)
+    cols = list(df_all.columns)  # keep stable column order
     wrote_header = set()
-    totals = {}  # year -> rows written (for logging)
+    totals = {}
 
     n = len(df_all)
     logging.info(f"[per-year] start: {n:,} rows total")
-
     if n == 0:
         logging.info("[per-year] nothing to do")
         return
@@ -415,10 +414,8 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
         end = min(start + chunk_size, n)
         part = df_all.iloc[start:end]
 
-        # compute year just for this chunk
         years_in_chunk = pd.to_datetime(part["Messbeginn"], errors="coerce").dt.year
 
-        # optional year filter early
         if years is not None:
             mask = years_in_chunk.isin(years)
             if not mask.any():
@@ -430,13 +427,16 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
             years_in_chunk = years_in_chunk.loc[mask]
 
         if dedupe_subset:
-            before = len(part)
-            part = part.drop_duplicates(subset=dedupe_subset, keep="first")
-            after = len(part)
-            if after != before:
-                logging.info(f"[per-year] chunk {start:,}-{end - 1:,}: dropped {before - after:,} dups")
+            missing = [c for c in dedupe_subset if c not in part.columns]
+            if missing:
+                logging.warning(f"[per-year] dedupe columns missing: {missing}; skipping de-dup in this chunk")
+            else:
+                before = len(part)
+                part = part.drop_duplicates(subset=dedupe_subset, keep="first")
+                after = len(part)
+                if after != before:
+                    logging.info(f"[per-year] chunk {start:,}-{end - 1:,}: dropped {before - after:,} dups")
 
-        # group directly on the Series → gives (year, sub-DataFrame) safely
         for y, sub in part.groupby(years_in_chunk):
             if pd.isna(y):
                 logging.info("[per-year] found NaN year; skipping those rows")
@@ -445,13 +445,13 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
             fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
             write_header = y not in wrote_header and not fname.exists()
 
-            sub = sub.loc[:, cols]  # enforce consistent column order
+            sub = sub.loc[:, cols]
             sub.to_csv(
                 fname,
                 index=False,
                 mode="a",
                 header=write_header,
-                line_terminator="\n",
+                lineterminator="\n",
             )
             wrote_header.add(y)
             totals[y] = totals.get(y, 0) + len(sub)
@@ -460,7 +460,6 @@ def create_measures_per_year(df_all, chunk_size=200_000, years=None, dedupe_subs
         del part
         gc.collect()
 
-    # upload + cleanup
     for y in sorted(totals):
         fname = outdir / f"geschwindigkeitsmonitoring_{y}.csv"
         size_mb = fname.stat().st_size / 1_048_576

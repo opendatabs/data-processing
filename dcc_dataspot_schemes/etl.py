@@ -85,10 +85,10 @@ def main():
 
     save_path = os.path.join("data", f"{S_id['Datensaetze']}_Datensaetze.csv")
     df_data.to_csv(save_path, sep=";", index=False)
-    common.update_ftp_and_odsp(save_path, "dataspot", S_id["Datensaetze"])
+    common.update_ftp_and_odsp(save_path, "dataspot", S_id["Datensaetze"], unpublish_first=True)
     save_path = os.path.join("data", f"{S_id['Bestandteile']}_Bestandteile.csv")
     df_bestand.to_csv(save_path, sep=";", index=False)
-    common.update_ftp_and_odsp(save_path, "dataspot", S_id["Bestandteile"])
+    common.update_ftp_and_odsp(save_path, "dataspot", S_id["Bestandteile"], unpublish_first=True)
 
 
 if __name__ == "__main__":
