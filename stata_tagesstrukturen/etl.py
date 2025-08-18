@@ -387,6 +387,10 @@ def process_oeffentliche_ausgaben():
     df_ausgaben = df_ausgaben.dropna(
         subset=["schulexterne_module", "schuleigene_module", "tagesferien", "ferienbetreuung"], how="all"
     )
+    # Calculate times 1000 for monetary values
+    monetary_cols = ["schulexterne_module", "schuleigene_module", "tagesferien", "ferienbetreuung"]
+    for col in monetary_cols:
+        df_ausgaben[col] = clean_numeric(df_ausgaben[col]) * 1000
     df_ausgaben.to_csv("data/100455_oeffentliche_ausgaben.csv", index=False)
 
 
