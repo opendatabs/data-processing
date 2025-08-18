@@ -67,7 +67,7 @@ def main():
             Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
             "dok_laufnr",
         )
-
+    '''
     # Tagesordnungen PDFs come from Sessionen (url_vollprotokoll)
     df_sessionen_src = df_tag_trakt[
         [
@@ -88,6 +88,7 @@ def main():
             "url_audioprotokoll_tag3",
         ]
     ].drop_duplicates()
+    '''
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
