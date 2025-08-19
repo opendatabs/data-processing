@@ -66,6 +66,7 @@ def main():
     df_sessionen_src = df_tag_trakt[
         [
             "gr_sitzung_idnr",
+            "tagesordnung_idnr",
             "versand",
             "tag1",
             "text1",
@@ -212,7 +213,6 @@ def main():
             "beginn_mit" TEXT,
             "ende_mit" TEXT,
             "funktion_adr" TEXT,
-            PRIMARY KEY ("uni_nr_gre","uni_nr_adr","beginn_mit", "funktion_adr"),
             FOREIGN KEY ("uni_nr_gre") REFERENCES "Gremien"("uni_nr") ON DELETE CASCADE,
             FOREIGN KEY ("uni_nr_adr") REFERENCES "Personen"("uni_nr") ON DELETE CASCADE
         )
@@ -396,7 +396,8 @@ def main():
     logging.info("Creating table for Sessionen…")
     cur.execute("""
         CREATE TABLE "Sessionen" (
-            "gr_sitzung_idnr" INTEGER,
+            "gr_sitzung_idnr" INTEGER PRIMARY KEY,
+            "tagesordnung_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
             "text1" TEXT,
@@ -410,7 +411,8 @@ def main():
             "url_vollprotokoll" TEXT,
             "url_audioprotokoll_tag1" TEXT,
             "url_audioprotokoll_tag2" TEXT,
-            "url_audioprotokoll_tag3" TEXT
+            "url_audioprotokoll_tag3" TEXT,
+            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE
         )
     """)
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
@@ -419,17 +421,20 @@ def main():
     cur.execute("""
         CREATE TABLE "Tagesordnungen" (
             "tagesordnung_idnr" INTEGER PRIMARY KEY,
+            "gr_sitzung_idnr" INTEGER,
             "einleitungstext" TEXT,
             "zwischentext" TEXT,
             "url_tagesordnung_dok" TEXT,
             "url_geschaeftsverzeichnis" TEXT,
             "url_sammelmappe" TEXT,
-            "url_alle_dokumente" TEXT
+            "url_alle_dokumente" TEXT,
+            FOREIGN KEY ("gr_sitzung_idnr") REFERENCES "Sessionen"("gr_sitzung_idnr") ON DELETE CASCADE
         )
     """)
     df_tagesordnung = df_tag_trakt[
         [
             "tagesordnung_idnr",
+            "gr_sitzung_idnr",
             "einleitungstext",
             "zwischentext",
             "url_tagesordnung_dok",
