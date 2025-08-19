@@ -80,7 +80,7 @@ def main():
 
     df_metadata = create_metadata_per_location_df(df_meta_raw)
     df_metadata_per_direction = create_metadata_per_direction_df(df_metadata)
-    df_measurements = create_measurements_df(df_meta_raw, df_metadata_per_direction)
+    df_measurements = create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata)
     create_measures_per_year(df_measurements)
 
 
@@ -215,7 +215,7 @@ def create_metadata_per_direction_df(df_metadata):
     return df_richtung
 
 
-def create_measurements_df(df_meta_raw, df_metadata_per_direction):
+def create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata_per_location):
     dfs = []
     files_to_upload_partitioned = []
     files_to_upload = []
@@ -223,41 +223,47 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
     df_meta_raw = df_meta_raw.dropna(subset=["Verzeichnis"])
 
     db_filename = os.path.join("data", "datasette", "Geschwindigkeitsmonitoring.db")
-    table_name_direction = "Kennzahlen_pro_Richtung"
+    table_name_location = "Kennzahlen_pro_Standort"
     table_name = "Einzelmessungen"
     # Columns to index
-    columns_to_index_direction = ["Messung-ID", "Richtung ID", "Messbeginn", "Messende", "Zone", "Ort", "Strasse"]
+    columns_to_index_location = ["Messung-ID", "Messbeginn", "Messende", "Zone", "Ort", "Strasse", "messbeginn_jahr", "link_zu_einzelmessungen"]
     columns_to_index = ["Timestamp", "Richtung ID", "Messung-ID", "Datum", "Geschwindigkeit"]
     logging.info(f"Creating SQLite connection for {db_filename}...")
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
-    logging.info(f"Creating table {table_name_direction} with proper schema...")
+    cursor.execute("PRAGMA foreign_keys = ON")
+    logging.info(f"Creating table {table_name_location} with proper schema (per Standort)...")
     cursor.execute(f"""
-    CREATE TABLE IF NOT EXISTS {table_name_direction} (
-        "Messung-ID" INTEGER,
-        "Richtung ID" INTEGER,
-        "Richtung" TEXT,
-        "Fzg" INTEGER,
-        "V50" INTEGER,
-        "V85" INTEGER,
-        "Ue_Quote" REAL,
-        "geometry" TEXT,
+    CREATE TABLE IF NOT EXISTS {table_name_location} (
+        "ID" INTEGER PRIMARY KEY,
         "Strasse" TEXT,
         "Strasse_Nr" TEXT,
         "Ort" TEXT,
         "Zone" INTEGER,
+        "Richtung_1" TEXT,
+        "Fzg_1" INTEGER,
+        "V50_1" INTEGER,
+        "V85_1" INTEGER,
+        "Ue_Quote_1" REAL,
+        "Richtung_2" TEXT,
+        "Fzg_2" INTEGER,
+        "V50_2" INTEGER,
+        "V85_2" INTEGER,
+        "Ue_Quote_2" REAL,
+        "geometry" TEXT,
         "Messbeginn" TEXT,
-        "Messende" TEXT
+        "Messende" TEXT,
+        "messbeginn_jahr" INTEGER,
+        "link_zu_einzelmessungen" TEXT
     )
     """)
-    cursor.execute(f"DELETE FROM {table_name_direction}")
+    cursor.execute(f"DELETE FROM {table_name_location}")
     conn.commit()
-
     # Append data, dropping geometry if Spatialite isn't used
-    df_metadata_per_direction.drop(columns=["the_geom"], errors="ignore").to_sql(
-        name=table_name_direction, con=conn, if_exists="append", index=False
+    df_metadata_per_location.drop(columns=["the_geom"], errors="ignore").to_sql(
+        name=table_name_location, con=conn, if_exists="append", index=False
     )
-    common.create_indices(conn, table_name_direction, columns_to_index_direction)
+    common.create_indices(conn, table_name_location, columns_to_index_location)
 
     logging.info(f"Creating table {table_name} with proper schema...")
     cursor.execute(f"""
@@ -269,11 +275,14 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction):
         Fahrzeuglänge REAL,
         "Messung-ID" INTEGER,
         Datum_Zeit TEXT,
-        Timestamp TEXT
+        Timestamp TEXT,
+        FOREIGN KEY("Messung-ID") REFERENCES {table_name_location}("Messung-ID")
+            ON UPDATE CASCADE ON DELETE CASCADE
     )
     """)
     cursor.execute(f"DELETE FROM {table_name}")
     conn.commit()
+
     # Drop geometry column since it is not needed anymore
     df_metadata_per_direction = df_metadata_per_direction.drop(columns=["geometry"])
 
