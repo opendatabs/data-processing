@@ -276,7 +276,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata_p
         "Messung-ID" INTEGER,
         Datum_Zeit TEXT,
         Timestamp TEXT,
-        FOREIGN KEY("Messung-ID") REFERENCES {table_name_location}("Messung-ID")
+        FOREIGN KEY("Messung-ID") REFERENCES {table_name_location}("ID")
             ON UPDATE CASCADE ON DELETE CASCADE
     )
     """)
