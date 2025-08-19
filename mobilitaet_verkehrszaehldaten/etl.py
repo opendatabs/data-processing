@@ -2,7 +2,6 @@ import logging
 import os
 import platform
 import sqlite3
-import sys
 from shutil import copy2
 
 import common
@@ -16,6 +15,7 @@ load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_09")
 FTP_PASS = os.getenv("FTP_PASS_09")
+
 
 def _table_row_count(db_path, table):
     conn = sqlite3.connect(db_path)
@@ -361,12 +361,12 @@ def main():
     create_databases()
 
     # Determine if any target tables are empty (force initial load if so)
-    miv_db   = os.path.join("data", "datasette", "MIV.db")
-    vf_db    = os.path.join("data", "datasette", "Velo_Fuss.db")
+    miv_db = os.path.join("data", "datasette", "MIV.db")
+    vf_db = os.path.join("data", "datasette", "Velo_Fuss.db")
     speed_db = os.path.join("data", "datasette", "MIV_Geschwindigkeitsklassen.db")
 
-    miv_empty   = _table_row_count(miv_db, "MIV") == 0
-    vf_empty    = _table_row_count(vf_db, "Velo_Fuss") == 0
+    miv_empty = _table_row_count(miv_db, "MIV") == 0
+    vf_empty = _table_row_count(vf_db, "Velo_Fuss") == 0
     speed_empty = _table_row_count(speed_db, "MIV_Geschwindigkeitsklassen") == 0
 
     filename_orig = [
@@ -383,11 +383,17 @@ def main():
     for datafile in filename_orig:
         datafile_with_path = os.path.join("data_orig", datafile)
 
-        targets_miv = ("MIV_Class" in datafile) or ("MIV_Speed" in datafile) or ("LSA" in datafile) or ("MIV6" in datafile)
-        targets_vf  = ("Velo_Fuss_Count" in datafile) or ("LSA" in datafile) or ("Velo" in datafile) or ("FG" in datafile)
-        targets_speed = ("MIV_Speed" in datafile)
+        targets_miv = (
+            ("MIV_Class" in datafile) or ("MIV_Speed" in datafile) or ("LSA" in datafile) or ("MIV6" in datafile)
+        )
+        targets_vf = (
+            ("Velo_Fuss_Count" in datafile) or ("LSA" in datafile) or ("Velo" in datafile) or ("FG" in datafile)
+        )
+        targets_speed = "MIV_Speed" in datafile
 
-        initial_load_required = (targets_miv and miv_empty) or (targets_vf and vf_empty) or (targets_speed and speed_empty)
+        initial_load_required = (
+            (targets_miv and miv_empty) or (targets_vf and vf_empty) or (targets_speed and speed_empty)
+        )
 
         if initial_load_required or ct.has_changed(datafile_with_path):
             file_names = parse_truncate("data_orig", datafile)
