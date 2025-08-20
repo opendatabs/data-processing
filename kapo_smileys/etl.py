@@ -319,8 +319,12 @@ def parse_einsatzplaene():
 
 def df_to_sqlite(df):
     # Extract the two tables from the DataFrame
+    df["ID"] = df.apply(
+        lambda x: f"{x['Zyklus']}-{x['id_standort']}", axis=1
+    )
     df_einsatzplan = df[
         [
+            "ID",
             "id_standort",
             "Zyklus",
             "Strassenname",
@@ -343,6 +347,7 @@ def df_to_sqlite(df):
     df_einsatzplan.drop(columns=["geo_point_2d"], inplace=True)
     df_einzelmessungen = df[
         [
+            "ID",
             "id_standort",
             "Zyklus",
             "Phase",
@@ -365,6 +370,7 @@ def df_to_sqlite(df):
     logging.info("Creating table Einsatzplan...")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Einsatzplan (
+        ID TEXT PRIMARY KEY,
         id_standort INTEGER,
         Zyklus INTEGER,
         Strassenname TEXT,
@@ -376,8 +382,7 @@ def df_to_sqlite(df):
         Ende TEXT,
         Messung_Jahr INTEGER,
         Ort TEXT,
-        geometry TEXT,
-        PRIMARY KEY (id_standort, Zyklus)
+        geometry TEXT
     )
     """)
     cursor.execute("DELETE FROM Einsatzplan")
@@ -387,6 +392,7 @@ def df_to_sqlite(df):
     logging.info("Creating table Einzelmessungen...")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Einzelmessungen (
+        ID TEXT,
         id_standort INTEGER,
         Zyklus INTEGER,
         Phase TEXT,
@@ -396,7 +402,7 @@ def df_to_sqlite(df):
         V_Ausfahrt INTEGER,
         Messung_Timestamp TEXT,
         V_Delta INTEGER,
-        FOREIGN KEY (id_standort, Zyklus) REFERENCES Einsatzplan (id_standort, Zyklus)
+        FOREIGN KEY (ID) REFERENCES Einsatzplan (ID) ON DELETE CASCADE
     )
     """)
     cursor.execute("DELETE FROM Einzelmessungen")
@@ -415,7 +421,7 @@ def df_to_sqlite(df):
     ]
     common.create_indices(conn, "Einsatzplan", columns_to_index_einsatzplan)
 
-    columns_to_index_einzelmessungen = ["id_standort", "Zyklus", "Phase", "Messung_Datum", "Messung_Timestamp"]
+    columns_to_index_einzelmessungen = ["ID", "id_standort", "Zyklus", "Phase", "Messung_Datum", "Messung_Timestamp"]
     common.create_indices(conn, "Einzelmessungen", columns_to_index_einzelmessungen)
 
     logging.info("Removing views...")
