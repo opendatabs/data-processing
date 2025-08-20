@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "ods-utils-py>=0.1.22",
+    "ods-utils-py>=0.2.2",
     "pandas>=2.2.3",
     "python-dateutil>=2.9.0.post0",
     "requests>=2.32.3",
