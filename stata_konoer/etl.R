@@ -14,8 +14,25 @@ get_dataset <- function(url, pw_file = NULL, output_file = "100120.csv") {
   # Define the path for the downloaded file
   csv_path <- file.path(data_path, output_file)
 
+  # Initialize proxy configuration
+  config <- list()
+
+  # Read proxy credentials if pw_file is provided
+  if (!is.null(pw_file) && file.exists(pw_file)) {
+    creds <- readLines(pw_file)
+    proxy_url <- sub("proxy_url=", "", creds[grep("proxy_url=", creds)])
+    username <- sub("username=", "", creds[grep("username=", creds)])
+    password <- sub("password=", "", creds[grep("password=", creds)])
+
+    if (length(proxy_url) > 0 && length(username) > 0 && length(password) > 0) {
+      config <- use_proxy(url = proxy_url, username = username, password = password)
+    } else {
+      stop("Proxy credentials in pw.txt are incomplete.")
+    }
+  }
+
   # Download the file using httr::GET
-  response <- GET(url, write_disk(csv_path, overwrite = TRUE))
+  response <- GET(url, config, write_disk(csv_path, overwrite = TRUE))
 
   # Check if the request was successful
   if (http_type(response) != "text/csv" && status_code(response) != 200) {
