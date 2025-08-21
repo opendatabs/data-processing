@@ -12,12 +12,12 @@ knitr::purl("gasverbrauch/Productive/OL_Gasverbrauch.Rmd", output = "OL_Gasverbr
 fread("pw.txt") -> pw
 
 x <- httr::GET("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_previous.csv",
-          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))
+          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy.bs.ch"), 3128))
 bin <- content(x, "raw")
 writeBin(bin, "data/nbcn-daily_BAS_previous.csv")
 
 x <- httr::GET("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-tageswerte/nbcn-daily_BAS_current.csv",
-          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))
+          use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy.bs.ch"), 3128))
 bin <- content(x, "raw")
 writeBin(bin, "data/nbcn-daily_BAS_current.csv")
 
@@ -28,7 +28,7 @@ modified_script <- gsub("https://data.geo.admin.ch/ch.meteoschweiz.klima/nbcn-ta
                         original_script, fixed = TRUE)
 
 old_line <- 'Europe%2FBerlin")'
-new_line <- 'Europe%2FBerlin", use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy1.bs.ch"), 3128))'
+new_line <- 'Europe%2FBerlin", use_proxy(paste0(pw[system=="internet", login], ":", pw[system=="internet", password], "@proxy.bs.ch"), 3128))'
 
 modified_script <- gsub(old_line, new_line, modified_script, fixed = TRUE)
 
