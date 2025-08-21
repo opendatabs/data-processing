@@ -318,6 +318,10 @@ def parse_einsatzplaene():
 
 
 def df_to_sqlite(df):
+    # Convert Zyklus and id_standort to int
+    df["Zyklus"] = df["Zyklus"].astype(int)
+    df["id_standort"] = df["id_standort"].astype(int)
+
     # Extract the two tables from the DataFrame
     df["ID"] = df.apply(
         lambda x: f"{x['Zyklus']}-{x['id_standort']}", axis=1
