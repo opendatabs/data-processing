@@ -412,7 +412,6 @@ def main():
             "url_audioprotokoll_tag1" TEXT,
             "url_audioprotokoll_tag2" TEXT,
             "url_audioprotokoll_tag3" TEXT,
-            FOREIGN KEY ("tagesordnung_idnr") REFERENCES "Tagesordnungen"("tagesordnung_idnr") ON DELETE CASCADE
         )
     """)
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
