@@ -323,9 +323,7 @@ def df_to_sqlite(df):
     df["id_standort"] = df["id_standort"].astype(int)
 
     # Extract the two tables from the DataFrame
-    df["ID"] = df.apply(
-        lambda x: f"{x['Zyklus']}-{x['id_standort']}", axis=1
-    )
+    df["ID"] = df.apply(lambda x: f"{x['Zyklus']}-{x['id_standort']}", axis=1)
     df_einsatzplan = df[
         [
             "ID",
