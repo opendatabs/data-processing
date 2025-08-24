@@ -1,0 +1,13 @@
+[project]
+name = "dcc-anonymize-areas"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "geopandas>=1.1.1",
+    "networkx>=3.5",
+    "numpy>=2.3.2",
+    "requests>=2.32.5",
+    "scipy>=1.16.1",
+]
