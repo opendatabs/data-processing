@@ -1,29 +1,40 @@
-import io, logging, requests
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os, io, logging, requests
 import geopandas as gpd
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
 from shapely.validation import make_valid
 from shapely.geometry import Point
 from shapely.ops import unary_union
 
 THRESHOLD_M = 100         # polygon-to-polygon distance threshold (m)
-GROUP_MIN = 50            # minimum people per group
+GROUP_MIN   = 50          # minimum people per group
+YEAR_FILTER = "2024"      # dataset year filter
+TARGET_CRS  = "EPSG:2056" # Swiss meters
 
+# -------------------------------
+# Data access & CRS utilities
+# -------------------------------
 
 def get_dataset(dataset_id: str) -> gpd.GeoDataFrame:
     url = f"https://data.bs.ch/explore/dataset/{dataset_id}/download/"
-    params = {"format": "geojson", "refine.jahr": "2024"}
+    params = {"format": "geojson", "refine.jahr": YEAR_FILTER}
     r = requests.get(url, params=params); r.raise_for_status()
     gdf = gpd.read_file(io.BytesIO(r.content))
     logging.info(f"Dataset {dataset_id}: {len(gdf)} rows, {len(gdf.columns)} cols.")
     return gdf
 
-
-def to_metric_crs(gdf: gpd.GeoDataFrame, target="EPSG:2056") -> gpd.GeoDataFrame:
+def to_metric_crs(gdf: gpd.GeoDataFrame, target=TARGET_CRS) -> gpd.GeoDataFrame:
     if gdf.crs is None:
         raise ValueError("GeoDataFrame has no CRS.")
     return gdf.to_crs(target) if gdf.crs.is_geographic or str(gdf.crs).endswith("4326") else gdf
 
+# -------------------------------
+# Geometry resilience
+# -------------------------------
 
 def _valid(geom):
     try:
@@ -35,6 +46,9 @@ def _valid(geom):
             c = geom.centroid
             return Point(c.x, c.y).buffer(0.01)
 
+# -------------------------------
+# Group graph construction
+# -------------------------------
 
 def _build_group_graph(groups_gdf: gpd.GeoDataFrame, G: nx.Graph) -> nx.Graph:
     # Map block -> group_id
@@ -61,12 +75,11 @@ def _build_group_graph(groups_gdf: gpd.GeoDataFrame, G: nx.Graph) -> nx.Graph:
             GG.add_edge(gu, gv, weight=w)
     return GG
 
-
 def enforce_minimum(groups_gdf: gpd.GeoDataFrame, G: nx.Graph, min_sum: int) -> gpd.GeoDataFrame:
     # Work in metric CRS
     groups_gdf = groups_gdf.copy()
     if groups_gdf.crs is None or "4326" in str(groups_gdf.crs):
-        groups_gdf = groups_gdf.to_crs("EPSG:2056")
+        groups_gdf = groups_gdf.to_crs(TARGET_CRS)
 
     GG = _build_group_graph(groups_gdf, G)
 
@@ -99,7 +112,7 @@ def enforce_minimum(groups_gdf: gpd.GeoDataFrame, G: nx.Graph, min_sum: int) -> 
         # Process the smallest first (helps terminate quickly)
         g = min(smalls, key=lambda x: attrs[x]["sum"])
 
-        nbrs = list(GG.neighbors(g))
+        nbrs = list(GG.neighbors(g)) if GG.has_node(g) else []
         if nbrs:
             # Prefer same bez_id, then wov_id, then shortest edge; tie-break by larger absorber
             nbrs.sort(key=lambda h: (tier(g, h), GG[g][h]["weight"], -attrs[h]["sum"]))
@@ -150,12 +163,14 @@ def enforce_minimum(groups_gdf: gpd.GeoDataFrame, G: nx.Graph, min_sum: int) -> 
     out = gpd.GeoDataFrame(records, geometry="geometry", crs=groups_gdf.crs)
     return out
 
+# -------------------------------
+# Graph building (blocks)
+# -------------------------------
 
 def build_graph(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
     """
     Build a graph where nodes are blocks and edges connect blocks whose
-    polygon distance ≤ THRESHOLD_M (meters). Uses GeoPandas sindex for
-    robust cross-version spatial querying.
+    polygon distance ≤ THRESHOLD_M (meters). Uses GeoPandas sindex.
     """
     cols_needed = {"block","bez_id","wov_id","gesbev_f","geometry"}
     missing = cols_needed - set(gdf.columns)
@@ -167,8 +182,7 @@ def build_graph(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
     gdf["geometry"] = gdf["geometry"].apply(_valid)
     gdf = to_metric_crs(gdf)
     gdf["centroid"] = gdf.geometry.centroid
-    # Ensure positional index 0..n-1 so sindex outputs are position-safe
-    gdf = gdf.reset_index(drop=True)
+    gdf = gdf.reset_index(drop=True)  # 0..n-1 for sindex safety
 
     n = len(gdf)
     G = nx.Graph()
@@ -184,7 +198,7 @@ def build_graph(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
         logging.info("≤1 geometry; returning nodes-only graph.")
         return G, gdf
 
-    # Spatial index (rtree/pygeos/shapely-backed)
+    # Spatial index
     sindex = gdf.sindex
     if sindex is None:
         logging.warning("No spatial index available; falling back to O(n^2) pairing.")
@@ -193,7 +207,6 @@ def build_graph(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
         # Coarse candidate pairs: buffer each polygon by THRESHOLD_M and query bbox intersects
         buffers = gdf.geometry.buffer(THRESHOLD_M)
         candidate_pairs = set()
-        # Try query_bulk with predicate if available; else per-feature query fallback
         try:
             src_idx, tgt_idx = sindex.query_bulk(buffers, predicate="intersects")
             for i, j in zip(src_idx.tolist(), tgt_idx.tolist()):
@@ -204,12 +217,10 @@ def build_graph(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
                 try:
                     hits = sindex.query(buf, predicate="intersects")
                 except Exception:
-                    hits = sindex.query(buf)  # very old GeoPandas
-                # hits is array-like of positional indices because we reset_index(drop=True)
+                    hits = sindex.query(buf)
                 for j in np.asarray(hits, dtype=int).tolist():
                     if j > i:
                         candidate_pairs.add((i, j))
-
         candidate_pairs = list(candidate_pairs)
 
     # Prepare arrays for centroid distance
@@ -236,6 +247,9 @@ def build_graph(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
     logging.info(f"Graph built: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges (added {edges_added}).")
     return G, gdf
 
+# -------------------------------
+# Greedy contiguous grouping
+# -------------------------------
 
 def group_blocks(G: nx.Graph, gdf: gpd.GeoDataFrame, min_sum:int=GROUP_MIN):
     """
@@ -354,19 +368,114 @@ def group_blocks(G: nx.Graph, gdf: gpd.GeoDataFrame, min_sum:int=GROUP_MIN):
     groups_gdf = gpd.GeoDataFrame(records, geometry="geometry", crs=gdf.crs)
     return groups_gdf
 
+# -------------------------------
+# Visualization helpers
+# -------------------------------
+
+def _ensure_dirs(*paths):
+    for p in paths:
+        os.makedirs(p, exist_ok=True)
+
+def _categorical_colors(n: int):
+    """
+    Build a reproducible list of distinct-ish colors using matplotlib's tab20,
+    repeated if needed.
+    """
+    base = plt.get_cmap("tab20").colors
+    reps = int(np.ceil(n / len(base)))
+    palette = list(base) * reps
+    return palette[:n]
+
+def plot_before_after(blocks_gdf: gpd.GeoDataFrame,
+                      grouped_initial: gpd.GeoDataFrame,
+                      grouped_final: gpd.GeoDataFrame,
+                      outdir="figs",
+                      prefix="basel"):
+    _ensure_dirs(outdir)
+
+    # Common extent (in metric CRS)
+    blocks_gdf = to_metric_crs(blocks_gdf)
+    grouped_initial = to_metric_crs(grouped_initial)
+    grouped_final = to_metric_crs(grouped_final)
+
+    xmin, ymin, xmax, ymax = blocks_gdf.total_bounds
+    pad = 0.02 * max(xmax - xmin, ymax - ymin)
+    extent = (xmin - pad, xmax + pad, ymin - pad, ymax + pad)
+
+    # 1) Raw blocks (thin outlines), population shading optional
+    fig, ax = plt.subplots(figsize=(10, 10))
+    blocks_gdf.plot(ax=ax, edgecolor="black", facecolor="none", linewidth=0.3)
+    ax.set_title("Baseline: Block outlines")
+    ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
+    ax.set_axis_off()
+    fig.tight_layout()
+    fig.savefig(os.path.join(outdir, f"{prefix}_0_blocks.png"), dpi=200)
+    plt.close(fig)
+
+    # 2) Initial groups (after greedy grouping)
+    fig, ax = plt.subplots(figsize=(10, 10))
+    colors = _categorical_colors(len(grouped_initial))
+    grouped_initial.sort_values("group_id").plot(ax=ax,
+        color=colors, edgecolor="white", linewidth=0.5)
+    blocks_gdf.boundary.plot(ax=ax, color="black", linewidth=0.2, alpha=0.4)
+    ax.set_title(f"Initial groups (after greedy) — n={len(grouped_initial)}")
+    ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
+    ax.set_axis_off()
+    fig.tight_layout()
+    fig.savefig(os.path.join(outdir, f"{prefix}_1_initial_groups.png"), dpi=200)
+    plt.close(fig)
+
+    # 3) Final groups (after enforce_minimum)
+    fig, ax = plt.subplots(figsize=(10, 10))
+    colors = _categorical_colors(len(grouped_final))
+    grouped_final.sort_values("group_id").plot(ax=ax,
+        color=colors, edgecolor="white", linewidth=0.5)
+    blocks_gdf.boundary.plot(ax=ax, color="black", linewidth=0.2, alpha=0.4)
+    n_ge50 = int((grouped_final["sum_gesbev_f"] >= GROUP_MIN).sum())
+    ax.set_title(f"Final groups (all ≥ {GROUP_MIN}) — n={len(grouped_final)}, eligible={n_ge50}")
+    ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
+    ax.set_axis_off()
+    fig.tight_layout()
+    fig.savefig(os.path.join(outdir, f"{prefix}_2_final_groups.png"), dpi=200)
+    plt.close(fig)
+
+# -------------------------------
+# Orchestration
+# -------------------------------
+
 def main():
     logging.basicConfig(level=logging.INFO)
+    _ensure_dirs("data", "figs")
+
+    # 1) Load
     gdf = get_dataset("100062")
     keep = ["block","bez_id","wov_id","gesbev_f","geometry"]
     gdf = gdf[keep].copy()
 
+    # 2) Graph build
     G, gdf_m = build_graph(gdf)
-    grouped = group_blocks(G, gdf_m, min_sum=GROUP_MIN)
-    grouped = enforce_minimum(grouped, G, min_sum=GROUP_MIN)
 
-    n_ge50 = int((grouped["sum_gesbev_f"] >= GROUP_MIN).sum())
-    logging.info(f"Final: {len(grouped)} areas; {n_ge50} meet ≥{GROUP_MIN}.")
-    grouped.to_file("data/basel_anonymized_areas.geojson", driver="GeoJSON")
+    # 3) Initial greedy grouping
+    grouped_initial = group_blocks(G, gdf_m, min_sum=GROUP_MIN)
+
+    # 4) Enforce minimum via merges
+    grouped_final = enforce_minimum(grouped_initial, G, min_sum=GROUP_MIN)
+
+    # 5) Log + write outputs
+    n_ge50 = int((grouped_final["sum_gesbev_f"] >= GROUP_MIN).sum())
+    logging.info(f"Final: {len(grouped_final)} areas; {n_ge50} meet ≥{GROUP_MIN}.")
+
+    grouped_final.to_file("data/basel_anonymized_areas.geojson", driver="GeoJSON")
+    grouped_initial.to_file("data/basel_initial_groups.geojson", driver="GeoJSON")
+
+    # 6) Static before/after maps
+    plot_before_after(
+        blocks_gdf=gdf_m,
+        grouped_initial=grouped_initial,
+        grouped_final=grouped_final,
+        outdir="figs",
+        prefix="basel"
+    )
 
 if __name__ == "__main__":
     main()
