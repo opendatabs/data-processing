@@ -75,7 +75,6 @@ def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx
         return idxs[:k_neighbors]
 
     # Wire edges (keep lightest if duplicate)
-    by_block = gdf.set_index("block")
     edges_added = 0
     for i in range(n):
         ui_block = gdf.at[i, "block"]
