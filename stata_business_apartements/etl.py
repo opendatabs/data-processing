@@ -198,14 +198,127 @@ def scrape_domicile():
     return records
 
 
+# === Apartmenthaus setup ===
+BASE_URL_APARTMENTHAUS = "https://www.apartmenthaus.ch/"
+
+# re-usable cleaners (you can reuse ones you added for Glandon)
+def _ah_clean(s: str) -> str:
+    if not s:
+        return ""
+    return (" ".join(
+        s.replace("\u00a0", " ")
+         .replace("\u202f", " ")
+         .replace("’", "'")
+         .split()
+    ))
+
+def _ah_to_int(txt: str) -> int:
+    # 3'000.- /mtl.  -> 3000
+    return int(re.sub(r"[^0-9]", "", txt))
+
+def _ah_to_float(txt: str) -> float:
+    # 72.5 / 72,5 -> float
+    return float(txt.replace("'", "").replace(" ", "").replace(",", "."))
+
+def parse_apartmenthaus_list_locations():
+    """Return list of dicts with name (acts as address label) and detail url."""
+    soup = fetch_soup(BASE_URL_APARTMENTHAUS)
+    grid = soup.select_one('.th-portfolio-row')
+    if not grid:
+        print("[Apartmenthaus] No grid found on homepage.")
+        return []
+
+    items = grid.select('.th-portfolio-item .th-port-card a.th-port-card-link')
+    out = []
+    for a in items:
+        try:
+            name_tag = a.select_one(".th-port-title")
+            name = _ah_clean(name_tag.get_text(strip=True)) if name_tag else None
+            url = a["href"]
+            out.append({"name": name, "url": url})
+        except Exception as e:
+            print(f"  Skipping grid item: {e}")
+    print(f"[Apartmenthaus] Found {len(out)} locations")
+    return out
+
+ROOM_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:Zimmer)(?:\s*Wohnung)?", re.I)
+SQM_RE  = re.compile(r"ca\.?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:m2|m²)", re.I)
+PRICE_RE = re.compile(r"CHF\s*([0-9’'.,\s]+)")
+
+def parse_apartmenthaus_detail(detail_url: str, base_name: str):
+    """Return list of offers (one per h4 block) for a location detail page."""
+    soup = fetch_soup(detail_url)
+
+    # All the room headings live in h4.elementor-heading-title
+    h4s = soup.select("h4.elementor-heading-title")
+    if not h4s:
+        print(f"[Apartmenthaus] No room headers on {detail_url}")
+        return []
+
+    offers = []
+    for h in h4s:
+        text = _ah_clean(h.get_text(" ", strip=True))
+        if not text:
+            continue
+
+        # Extract numbers
+        rooms = None
+        sqm = None
+        price_min = None
+
+        m_room = ROOM_RE.search(text)
+        if m_room:
+            rooms = _ah_to_float(m_room.group(1))
+
+        m_sqm = SQM_RE.search(text)
+        if m_sqm:
+            sqm = _ah_to_float(m_sqm.group(1))
+
+        m_price = PRICE_RE.search(text)
+        if m_price:
+            price_min = _ah_to_int(m_price.group(1))
+
+        # Keep also a human label (e.g., "Hofseite", "Stadtseite", "Dachgeschoss"…)
+        label = text
+
+        # Require at least rooms or price; skip decorative headings
+        if rooms is None and price_min is None:
+            continue
+
+        offers.append({
+            "name": base_name,               # e.g., "Schweizergasse, Basel"
+            "address": base_name,            # homepage doesn't show street/number -> use name as address label
+            "price_min": price_min,
+            "price_max": None,
+            "rooms": rooms,
+            "rooms_min": rooms,              # consistent with your range pattern
+            "rooms_max": rooms,
+            "sqm": sqm,
+            "url": detail_url,
+            "variant": label,                # full heading text for traceability
+            "source": "apartmenthaus",
+        })
+    return offers
+
+def scrape_apartmenthaus():
+    locations = parse_apartmenthaus_list_locations()
+    records = []
+    for loc in locations:
+        try:
+            records.extend(parse_apartmenthaus_detail(loc["url"], loc["name"]))
+        except Exception as e:
+            print(f"  Skipping location {loc.get('name')}: {e}")
+    return records
+
+
 # === Main ===
 def main():
     wow = scrape_wow_living()
     glandon = scrape_glandon()
     domicile = scrape_domicile()
-    print(glandon)
+    apartmenthaus = scrape_apartmenthaus()
 
-    df = pd.DataFrame(wow + glandon + domicile)
+    df = pd.DataFrame(wow + glandon + domicile + apartmenthaus)
     df = df[df["address"].str.contains("Basel|Riehen|Bettingen", na=False)]
     df.to_csv("data/apartments_combined.csv", index=False)
 
