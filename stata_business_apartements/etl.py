@@ -201,34 +201,33 @@ def scrape_domicile():
 # === Apartmenthaus setup ===
 BASE_URL_APARTMENTHAUS = "https://www.apartmenthaus.ch/"
 
+
 # re-usable cleaners (you can reuse ones you added for Glandon)
 def _ah_clean(s: str) -> str:
     if not s:
         return ""
-    return (" ".join(
-        s.replace("\u00a0", " ")
-         .replace("\u202f", " ")
-         .replace("’", "'")
-         .split()
-    ))
+    return " ".join(s.replace("\u00a0", " ").replace("\u202f", " ").replace("’", "'").split())
+
 
 def _ah_to_int(txt: str) -> int:
     # 3'000.- /mtl.  -> 3000
     return int(re.sub(r"[^0-9]", "", txt))
 
+
 def _ah_to_float(txt: str) -> float:
     # 72.5 / 72,5 -> float
     return float(txt.replace("'", "").replace(" ", "").replace(",", "."))
 
+
 def parse_apartmenthaus_list_locations():
     """Return list of dicts with name (acts as address label) and detail url."""
     soup = fetch_soup(BASE_URL_APARTMENTHAUS)
-    grid = soup.select_one('.th-portfolio-row')
+    grid = soup.select_one(".th-portfolio-row")
     if not grid:
         print("[Apartmenthaus] No grid found on homepage.")
         return []
 
-    items = grid.select('.th-portfolio-item .th-port-card a.th-port-card-link')
+    items = grid.select(".th-portfolio-item .th-port-card a.th-port-card-link")
     out = []
     for a in items:
         try:
@@ -241,9 +240,11 @@ def parse_apartmenthaus_list_locations():
     print(f"[Apartmenthaus] Found {len(out)} locations")
     return out
 
+
 ROOM_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:Zimmer)(?:\s*Wohnung)?", re.I)
-SQM_RE  = re.compile(r"ca\.?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:m2|m²)", re.I)
+SQM_RE = re.compile(r"ca\.?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:m2|m²)", re.I)
 PRICE_RE = re.compile(r"CHF\s*([0-9’'.,\s]+)")
+
 
 def parse_apartmenthaus_detail(detail_url: str, base_name: str):
     """Return list of offers (one per h4 block) for a location detail page."""
@@ -285,20 +286,23 @@ def parse_apartmenthaus_detail(detail_url: str, base_name: str):
         if rooms is None and price_min is None:
             continue
 
-        offers.append({
-            "name": base_name,               # e.g., "Schweizergasse, Basel"
-            "address": base_name,            # homepage doesn't show street/number -> use name as address label
-            "price_min": price_min,
-            "price_max": None,
-            "rooms": rooms,
-            "rooms_min": rooms,              # consistent with your range pattern
-            "rooms_max": rooms,
-            "sqm": sqm,
-            "url": detail_url,
-            "variant": label,                # full heading text for traceability
-            "source": "apartmenthaus",
-        })
+        offers.append(
+            {
+                "name": base_name,  # e.g., "Schweizergasse, Basel"
+                "address": base_name,  # homepage doesn't show street/number -> use name as address label
+                "price_min": price_min,
+                "price_max": None,
+                "rooms": rooms,
+                "rooms_min": rooms,  # consistent with your range pattern
+                "rooms_max": rooms,
+                "sqm": sqm,
+                "url": detail_url,
+                "variant": label,  # full heading text for traceability
+                "source": "apartmenthaus",
+            }
+        )
     return offers
+
 
 def scrape_apartmenthaus():
     locations = parse_apartmenthaus_list_locations()
