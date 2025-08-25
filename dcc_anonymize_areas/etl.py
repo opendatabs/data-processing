@@ -58,7 +58,7 @@ def enforce_minimum(groups_gdf: gpd.GeoDataFrame, G_blocks: nx.Graph, min_sum: i
     for _, r in groups_gdf.iterrows():
         gid = int(r["group_id"])
         attrs[gid] = {"blocks":list(r["blocks"]), "sum":int(r["sum_gesbev_f"]), "n_blocks":int(r["n_blocks"]),
-                      "bez":set(r["bez_ids"]), "wov":set(r["wov_ids"]), "geom":r.geometry}
+                      "bez":set(r["bez_names"]), "wov":set(r["wov_names"]), "geom":r.geometry}
 
     def default_tier(a,b):
         if attrs[a]["bez"] & attrs[b]["bez"]: return 0
@@ -100,7 +100,7 @@ def enforce_minimum(groups_gdf: gpd.GeoDataFrame, G_blocks: nx.Graph, min_sum: i
     recs = []
     for new_gid, (_, a) in enumerate(attrs.items(), start=1):
         recs.append({"group_id":new_gid, "n_blocks":a["n_blocks"], "sum_gesbev_f":int(a["sum"]),
-                     "bez_ids":sorted(a["bez"]), "wov_ids":sorted(a["wov"]),
+                     "bez_names":sorted(a["bez"]), "wov_names":sorted(a["wov"]),
                      "blocks":a["blocks"], "geometry":a["geom"]})
     return gpd.GeoDataFrame(recs, geometry="geometry", crs=groups_gdf.crs)
 
@@ -108,8 +108,8 @@ def enforce_minimum(groups_gdf: gpd.GeoDataFrame, G_blocks: nx.Graph, min_sum: i
 def group_blocks(G: nx.Graph, gdf: gpd.GeoDataFrame, min_sum: int,
                  edge_weight_key: str = "weight"):
     weight = {n: G.nodes[n]["weight"] for n in G.nodes}
-    bez    = {n: G.nodes[n]["bez_id"] for n in G.nodes}
-    wov    = {n: G.nodes[n]["wov_id"] for n in G.nodes}
+    bez    = {n: G.nodes[n]["bez_name"] for n in G.nodes}
+    wov    = {n: G.nodes[n]["wov_name"] for n in G.nodes}
 
     unassigned = set(G.nodes)
     order = sorted(unassigned, key=lambda n: weight[n], reverse=True)
@@ -172,8 +172,8 @@ def group_blocks(G: nx.Graph, gdf: gpd.GeoDataFrame, min_sum: int,
             "group_id": gid,
             "n_blocks": len(members),
             "sum_gesbev_f": int(sub["gesbev_f"].sum()),
-            "bez_ids": list(sub["bez_id"].unique()),
-            "wov_ids": list(sub["wov_id"].unique()),
+            "bez_names": list(sub["bez_name"].unique()),
+            "wov_names": list(sub["wov_name"].unique()),
             "blocks": members,
             "geometry": unary_union(list(sub.geometry))
         })

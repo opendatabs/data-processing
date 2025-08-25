@@ -11,7 +11,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     ensure_dirs("data","figs")
 
-    gdf = get_dataset(DATASET)[["block","bez_id","wov_id","gesbev_f","geometry"]].copy()
+    gdf = get_dataset(DATASET)[["block","bez_name","wov_name","gesbev_f","geometry"]].copy()
     G, gdf_m = build_graph_strtree(gdf, k_neighbors=K_NEIGHBORS)
 
     grouped_initial = group_blocks(G, gdf_m, min_sum=GROUP_MIN, edge_weight_key="weight")  # centroid distance

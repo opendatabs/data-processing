@@ -1,12 +1,12 @@
-# builders.py (append this)
 import logging, numpy as np, networkx as nx
 import geopandas as gpd
 from shapely.geometry import Point
 from shapely.strtree import STRtree
 from etl import to_metric_crs, valid_geom
+from shapely.ops import triangulate, MultiPoint
 
 def _prep_blocks(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    cols = {"block","bez_id","wov_id","gesbev_f","geometry"}
+    cols = {"block","bez_name","wov_name","gesbev_f","geometry"}
     missing = cols - set(gdf.columns)
     if missing:
         raise ValueError(f"Missing: {missing}")
@@ -28,7 +28,7 @@ def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx
 
     G = nx.Graph()
     for _, r in gdf.iterrows():
-        G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_id=r["bez_id"], wov_id=r["wov_id"])
+        G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_name=r["bez_name"], wov_name=r["wov_name"])
     if n <= 1:
         logging.info("≤1 geometry; returning nodes-only graph.")
         return G, gdf
@@ -99,7 +99,7 @@ def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx
 
 
 def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx.Graph, gpd.GeoDataFrame]:
-    cols = {"block","bez_id","wov_id","gesbev_f","geometry"}
+    cols = {"block","bez_name","wov_name","gesbev_f","geometry"}
     if cols - set(gdf.columns): raise ValueError(f"Missing: {cols - set(gdf.columns)}")
     gdf = gdf.loc[gdf.geometry.notna(), list(cols)].copy()
     gdf["gesbev_f"] = gdf["gesbev_f"].fillna(0).astype(int)
@@ -110,7 +110,7 @@ def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx
 
     G = nx.Graph()
     for _, r in gdf.iterrows():
-        G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_id=r["bez_id"], wov_id=r["wov_id"])
+        G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_name=r["bez_name"], wov_name=r["wov_name"])
     if len(gdf) <= 1: return G, gdf
 
     sindex = gdf.sindex
@@ -147,7 +147,7 @@ def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx
 def _q(pt, ndigits=6): return (round(pt.x, ndigits), round(pt.y, ndigits))
 
 def build_graph_delaunay(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
-    cols = {"block","bez_id","wov_id","gesbev_f","geometry"}
+    cols = {"block","bez_name","wov_name","gesbev_f","geometry"}
     if cols - set(gdf.columns): raise ValueError(f"Missing: {cols - set(gdf.columns)}")
     gdf = gdf.loc[gdf.geometry.notna(), list(cols)].copy()
     gdf["gesbev_f"] = gdf["gesbev_f"].fillna(0).astype(int)
@@ -158,7 +158,7 @@ def build_graph_delaunay(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFr
 
     G = nx.Graph()
     for _, r in gdf.iterrows():
-        G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_id=r["bez_id"], wov_id=r["wov_id"])
+        G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_name=r["bez_name"], wov_name=r["wov_name"])
     if len(gdf) <= 1: return G, gdf
 
     coord2blocks = {}
