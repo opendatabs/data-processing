@@ -1,12 +1,16 @@
-import logging, numpy as np, networkx as nx
+import logging
+
 import geopandas as gpd
-from shapely.geometry import Point
-from shapely.strtree import STRtree
+import networkx as nx
+import numpy as np
 from etl import to_metric_crs, valid_geom
-from shapely.ops import triangulate, MultiPoint
+from shapely.geometry import Point
+from shapely.ops import MultiPoint, triangulate
+from shapely.strtree import STRtree
+
 
 def _prep_blocks(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    cols = {"block","bez_name","wov_name","gesbev_f","geometry"}
+    cols = {"block", "bez_name", "wov_name", "gesbev_f", "geometry"}
     missing = cols - set(gdf.columns)
     if missing:
         raise ValueError(f"Missing: {missing}")
@@ -18,9 +22,11 @@ def _prep_blocks(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     gdf = gdf.reset_index(drop=True)
     return gdf
 
+
 def _bbox_diag(gdf: gpd.GeoDataFrame) -> float:
     xmin, ymin, xmax, ymax = gdf.total_bounds
     return float(np.hypot(xmax - xmin, ymax - ymin))
+
 
 def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx.Graph, gpd.GeoDataFrame]:
     gdf = _prep_blocks(gdf)
@@ -61,9 +67,9 @@ def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx
         idxs = []
         for _ in range(12):  # expand radius until we get enough
             try:
-                candidates = tree.query(p.buffer(r))          # Shapely 2.x geometries
+                candidates = tree.query(p.buffer(r))  # Shapely 2.x geometries
             except TypeError:
-                minx, miny, maxx, maxy = p.buffer(r).bounds   # Shapely 1.8 indices
+                minx, miny, maxx, maxy = p.buffer(r).bounds  # Shapely 1.8 indices
                 candidates = tree.query((minx, miny, maxx, maxy))
             idxs = [to_index(c) for c in candidates if to_index(c) != i]
             if len(idxs) >= k_neighbors:
@@ -71,7 +77,7 @@ def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx
             r *= 2.0
         # sort by centroid distance; keep k
         px, py = p.x, p.y
-        idxs = sorted(set(idxs), key=lambda j: (centroids[j].x - px)**2 + (centroids[j].y - py)**2)
+        idxs = sorted(set(idxs), key=lambda j: (centroids[j].x - px) ** 2 + (centroids[j].y - py) ** 2)
         return idxs[:k_neighbors]
 
     # Wire edges (keep lightest if duplicate)
@@ -93,13 +99,16 @@ def build_graph_strtree(gdf: gpd.GeoDataFrame, k_neighbors: int = 6) -> tuple[nx
                 G.add_edge(u, v, weight=d_cent, centroid_w=d_cent, poly_w=d_poly)
                 edges_added += 1
 
-    logging.info(f"STRtree kNN graph (k={k_neighbors}): {G.number_of_nodes()} nodes, {G.number_of_edges()} edges (added {edges_added}).")
+    logging.info(
+        f"STRtree kNN graph (k={k_neighbors}): {G.number_of_nodes()} nodes, {G.number_of_edges()} edges (added {edges_added})."
+    )
     return G, gdf
 
 
 def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx.Graph, gpd.GeoDataFrame]:
-    cols = {"block","bez_name","wov_name","gesbev_f","geometry"}
-    if cols - set(gdf.columns): raise ValueError(f"Missing: {cols - set(gdf.columns)}")
+    cols = {"block", "bez_name", "wov_name", "gesbev_f", "geometry"}
+    if cols - set(gdf.columns):
+        raise ValueError(f"Missing: {cols - set(gdf.columns)}")
     gdf = gdf.loc[gdf.geometry.notna(), list(cols)].copy()
     gdf["gesbev_f"] = gdf["gesbev_f"].fillna(0).astype(int)
     gdf["geometry"] = gdf["geometry"].apply(valid_geom)
@@ -110,7 +119,8 @@ def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx
     G = nx.Graph()
     for _, r in gdf.iterrows():
         G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_name=r["bez_name"], wov_name=r["wov_name"])
-    if len(gdf) <= 1: return G, gdf
+    if len(gdf) <= 1:
+        return G, gdf
 
     sindex = gdf.sindex
     buffers = gdf.geometry.buffer(threshold_m)
@@ -119,14 +129,16 @@ def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx
         try:
             i, j = sindex.query_bulk(buffers, predicate="intersects")
             for a, b in zip(i.tolist(), j.tolist()):
-                if b > a: pairs.add((int(a), int(b)))
+                if b > a:
+                    pairs.add((int(a), int(b)))
         except Exception:
             for a, buf in enumerate(buffers):
                 hits = sindex.query(buf)  # fallback
                 for b in map(int, hits):
-                    if b > a: pairs.add((a, b))
+                    if b > a:
+                        pairs.add((a, b))
     else:
-        pairs = {(i,j) for i in range(len(gdf)) for j in range(i+1,len(gdf))}
+        pairs = {(i, j) for i in range(len(gdf)) for j in range(i + 1, len(gdf))}
 
     cx, cy = gdf["centroid"].x.to_numpy(), gdf["centroid"].y.to_numpy()
     blocks = gdf["block"].to_numpy()
@@ -134,7 +146,7 @@ def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx
         gi, gj = gdf.geometry.iloc[i], gdf.geometry.iloc[j]
         d_poly = float(gi.distance(gj))
         if d_poly <= threshold_m:
-            dx, dy = cx[i]-cx[j], cy[i]-cy[j]
+            dx, dy = cx[i] - cx[j], cy[i] - cy[j]
             d_cent = float(np.hypot(dx, dy))
             u, v = blocks[i], blocks[j]
             prev = G.get_edge_data(u, v)
@@ -143,11 +155,15 @@ def build_graph_threshold(gdf: gpd.GeoDataFrame, threshold_m: float) -> tuple[nx
     logging.info(f"Threshold graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges.")
     return G, gdf
 
-def _q(pt, ndigits=6): return (round(pt.x, ndigits), round(pt.y, ndigits))
+
+def _q(pt, ndigits=6):
+    return (round(pt.x, ndigits), round(pt.y, ndigits))
+
 
 def build_graph_delaunay(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFrame]:
-    cols = {"block","bez_name","wov_name","gesbev_f","geometry"}
-    if cols - set(gdf.columns): raise ValueError(f"Missing: {cols - set(gdf.columns)}")
+    cols = {"block", "bez_name", "wov_name", "gesbev_f", "geometry"}
+    if cols - set(gdf.columns):
+        raise ValueError(f"Missing: {cols - set(gdf.columns)}")
     gdf = gdf.loc[gdf.geometry.notna(), list(cols)].copy()
     gdf["gesbev_f"] = gdf["gesbev_f"].fillna(0).astype(int)
     gdf["geometry"] = gdf["geometry"].apply(valid_geom)
@@ -158,35 +174,41 @@ def build_graph_delaunay(gdf: gpd.GeoDataFrame) -> tuple[nx.Graph, gpd.GeoDataFr
     G = nx.Graph()
     for _, r in gdf.iterrows():
         G.add_node(r["block"], weight=int(r["gesbev_f"]), bez_name=r["bez_name"], wov_name=r["wov_name"])
-    if len(gdf) <= 1: return G, gdf
+    if len(gdf) <= 1:
+        return G, gdf
 
     coord2blocks = {}
-    for _, r in gdf.iterrows(): coord2blocks.setdefault(_q(r["centroid"]), []).append(r["block"])
+    for _, r in gdf.iterrows():
+        coord2blocks.setdefault(_q(r["centroid"]), []).append(r["block"])
     mp = MultiPoint([Point(x, y) for (x, y) in coord2blocks.keys()])
     tris = triangulate(mp)
 
     coord_edges = set()
     for tri in tris:
         xs, ys = tri.exterior.coords.xy
-        verts = [(xs[i], ys[i]) for i in range(len(xs)-1)]
+        verts = [(xs[i], ys[i]) for i in range(len(xs) - 1)]
         for k in range(3):
-            a = _q(Point(verts[k])); b = _q(Point(verts[(k+1)%3]))
-            if a == b: continue
+            a = _q(Point(verts[k]))
+            b = _q(Point(verts[(k + 1) % 3]))
+            if a == b:
+                continue
             u, v = (a, b) if a < b else (b, a)
             coord_edges.add((u, v))
 
     by_block = gdf.set_index("block")
-    cent_lookup = { _q(c): c for c in gdf["centroid"] }
+    cent_lookup = {_q(c): c for c in gdf["centroid"]}
 
     for ca, cb in coord_edges:
         ba, bb = coord2blocks.get(ca, []), coord2blocks.get(cb, [])
-        if not ba or not bb: continue
+        if not ba or not bb:
+            continue
         pa, pb = cent_lookup[ca], cent_lookup[cb]
         dx, dy = pa.x - pb.x, pa.y - pb.y
         d_cent = float(np.hypot(dx, dy))
         for u in ba:
             for v in bb:
-                if u == v: continue
+                if u == v:
+                    continue
                 gi, gj = by_block.loc[u, "geometry"], by_block.loc[v, "geometry"]
                 d_poly = float(gi.distance(gj))
                 a, b = (u, v) if u < v else (v, u)

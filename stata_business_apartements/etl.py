@@ -64,25 +64,26 @@ def scrape_wow_living():
 BASE_URL_GLANDON = "https://www.glandon-apartments.ch/basel/"
 
 _WS = r"\u00A0\u202F\u2007\u2009"  # nbsp, thin space, figure space, hair space
-DASH = r"\u2012\u2013\u2014\u2212" # figure/en/em/minus
+DASH = r"\u2012\u2013\u2014\u2212"  # figure/en/em/minus
 NUM = r"\d+[’']?\d*(?:[.,]\d+)?"
+
 
 def _clean(s: str) -> str:
     if not s:
         return ""
     # normalize apostrophes and spaces
-    s = (s.replace("\u2019", "'")
-           .replace("’", "'")
-           .replace("\xa0", " ")
-           .replace("\u202f", " "))
+    s = s.replace("\u2019", "'").replace("’", "'").replace("\xa0", " ").replace("\u202f", " ")
     return " ".join(s.split())
+
 
 def _to_int(txt):
     return int(txt.replace("'", "").replace(",", "").replace(".", ""))
 
+
 def _to_float(txt):
     return float(txt.replace("'", "").replace("’", "").replace(" ", "").replace(",", "."))
-    
+
+
 def parse_glandon_listing(card):
     # URL
     link = card.select_one("a.link")
@@ -115,13 +116,14 @@ def parse_glandon_listing(card):
         "address": address,
         "price_min": price_min,
         "price_max": price_max,
-        "rooms": room_min,          # keep your existing schema
-        "rooms_min": room_min,      # optional: new fields if you want ranges
+        "rooms": room_min,  # keep your existing schema
+        "rooms_min": room_min,  # optional: new fields if you want ranges
         "rooms_max": room_max,
         "sqm": None,
         "url": url,
         "source": "glandon",
     }
+
 
 def scrape_glandon():
     soup = fetch_soup(BASE_URL_GLANDON)
