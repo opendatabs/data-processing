@@ -47,7 +47,7 @@ def scrape_wow_living():
     for page in PAGES_WOW_LIVING:
         soup = fetch_soup(BASE_URL_WOW_LIVING, params={"page": page})
         cards = soup.select("a.apartment")
-        print(f"[WowLiving] Page {page}: {len(cards)} listings")
+        logging.info(f"[WowLiving] Page {page}: {len(cards)} listings")
 
         for card in cards:
             try:
@@ -56,60 +56,90 @@ def scrape_wow_living():
                 record["url"] = card["href"]
                 records.append(record)
             except Exception as e:
-                print(f"  Skipping a card on page {page}: {e}")
+                logging.info(f"  Skipping a card on page {page}: {e}")
     return records
 
 
 # === Glandon setup ===
-BASE_URL_GLANDON = "https://www.glandon-apartments.ch/basel"
+BASE_URL_GLANDON = "https://www.glandon-apartments.ch/basel/"
 
+_WS = r"\u00A0\u202F\u2007\u2009"  # nbsp, thin space, figure space, hair space
+DASH = r"\u2012\u2013\u2014\u2212" # figure/en/em/minus
+NUM = r"\d+[’']?\d*(?:[.,]\d+)?"
 
+def _clean(s: str) -> str:
+    if not s:
+        return ""
+    # normalize apostrophes and spaces
+    s = (s.replace("\u2019", "'")
+           .replace("’", "'")
+           .replace("\xa0", " ")
+           .replace("\u202f", " "))
+    return " ".join(s.split())
+
+def _to_int(txt):
+    return int(txt.replace("'", "").replace(",", "").replace(".", ""))
+
+def _to_float(txt):
+    return float(txt.replace("'", "").replace("’", "").replace(" ", "").replace(",", "."))
+    
 def parse_glandon_listing(card):
-    name = card.select_one("strong").get_text(strip=True)
+    # URL
+    link = card.select_one("a.link")
+    url = link["href"] if link and link.has_attr("href") else None
 
-    tds = card.select("table td")
-    if len(tds) < 2:
-        raise ValueError("Missing table cells")
+    # Name
+    name_tag = card.select_one("h2.h3")
+    name = _clean(name_tag.get_text(strip=True)) if name_tag else None
 
-    street = tds[0].get_text(strip=True)
-    price_text = tds[1].get_text(strip=True)
+    # Address
+    addr_tag = card.select_one(".location-address, .location.location-detail.location-address")
+    address = _clean(addr_tag.get_text(strip=True)) if addr_tag else None
 
-    zip_city = tds[2].get_text(strip=True)
-    address = f"{street}, {zip_city}"
+    # Price range e.g. "CHF 1'550 – 2'350"
+    price_tag = card.select_one(".location-price, .location.location-detail.location-price")
+    price_text = _clean(price_tag.get_text(strip=True)) if price_tag else ""
+    prices = re.findall(NUM, price_text)
+    price_min = _to_int(prices[0]) if prices else None
+    price_max = _to_int(prices[1]) if len(prices) > 1 else price_min
 
-    prices = re.findall(r"\d+'?\d*", price_text)
-    price_min = int(prices[0].replace("'", "")) if prices else None
-    price_max = int(prices[1].replace("'", "")) if len(prices) > 1 else price_min
-
-    link_tag = card.select_one(".bottomLine a")
-    url = "https://www.glandon-apartments.ch" + link_tag["href"] if link_tag else None
+    # Rooms e.g. "1,5 – 2,5 Zimmer" or "1 Zimmer"
+    rooms_tag = card.select_one(".location-rooms, .location.location-detail.location-rooms")
+    rooms_text = _clean(rooms_tag.get_text(strip=True)) if rooms_tag else ""
+    room_nums = re.findall(NUM, rooms_text)
+    room_min = _to_float(room_nums[0]) if room_nums else None
+    room_max = _to_float(room_nums[1]) if len(room_nums) > 1 else room_min
 
     return {
+        "name": name,
         "address": address,
         "price_min": price_min,
         "price_max": price_max,
-        "rooms": None,
+        "rooms": room_min,          # keep your existing schema
+        "rooms_min": room_min,      # optional: new fields if you want ranges
+        "rooms_max": room_max,
         "sqm": None,
         "url": url,
         "source": "glandon",
-        "name": name,
     }
-
 
 def scrape_glandon():
     soup = fetch_soup(BASE_URL_GLANDON)
-    cards = soup.select(".house-item")
-    print(f"[Glandon] Found {len(cards)} listings")
+    # Narrow to the correct component in case the page has multiple ULs
+    scope = soup.select_one('flynt-component[name="GridPostsLocationsDetail"]') or soup
+    cards = scope.select("ul.grid > li.post")
+    if not cards:
+        # help debug what you actually fetched
+        snippet = soup.get_text(" ", strip=True)[:400]
+        print("[Glandon] No cards found. First 400 chars of page:\n", snippet)
+    else:
+        print(f"[Glandon] Found {len(cards)} listings")
     records = []
     for card in cards:
         try:
-            record = parse_glandon_listing(card)
-            records.append(record)
+            records.append(parse_glandon_listing(card))
         except Exception as e:
             print(f"  Skipping Glandon card: {e}")
-    # Replace \t\t\t\t\t\t\ with ", " in address
-    for record in records:
-        record["address"] = re.sub(r"\s{2,}", ", ", record["address"]).strip()
     return records
 
 
@@ -120,7 +150,7 @@ def scrape_domicile():
     ep = 1
 
     while True:
-        print(f"[Domicile] Fetching page {ep}")
+        logging.info(f"[Domicile] Fetching page {ep}")
         soup = fetch_soup(base_url, params={"ep": ep, "nrs": 8, "aa": "purchorrentall", "o": "dateCreated-desc"})
 
         cards = soup.select(".HgListingPreviewGallery_card_NrDZZ")
@@ -159,7 +189,7 @@ def scrape_domicile():
                 )
 
             except Exception as e:
-                print(f"  Skipping Domicile card on page {ep}: {e}")
+                logging.info(f"  Skipping Domicile card on page {ep}: {e}")
 
         ep += 1
 
@@ -171,11 +201,11 @@ def main():
     wow = scrape_wow_living()
     glandon = scrape_glandon()
     domicile = scrape_domicile()
+    print(glandon)
 
     df = pd.DataFrame(wow + glandon + domicile)
-    df = df[df["address"].str.endswith(("Basel", "Riehen", "Bettingen"), na=False)]
+    df = df[df["address"].str.contains("Basel|Riehen|Bettingen", na=False)]
     df.to_csv("data/apartments_combined.csv", index=False)
-    print(df[["address", "price_min", "price_max", "rooms", "sqm", "source"]])
 
 
 if __name__ == "__main__":
