@@ -1,9 +1,12 @@
-import logging, time, json, os
-import pandas as pd
-from tqdm import tqdm
+import logging
+import os
+import time
+
 import ods_utils_py as ods_utils
+import pandas as pd
 from ods_utils_py._config import get_base_url
 from ods_utils_py.get_uid_by_id import get_uid_by_id
+from tqdm import tqdm
 
 EXCEL_PATH = "rights_to_licenses.xlsx"
 OUT_DIR = "out_metadata"
@@ -16,6 +19,7 @@ RIGHTS_TO_LICENSE = {
     "NonCommercialAllowed-CommercialWithPermission-ReferenceNotRequired": "terms_ask",
     "NonCommercialAllowed-CommercialWithPermission-ReferenceRequired": "terms_by_ask",
 }
+
 
 def get_template_metadata(template_name, dataset_id=None, dataset_uid=None):
     """
@@ -102,8 +106,8 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
     ids = ods_utils.get_all_dataset_ids()
-    # Testlauf: nur bestimmte IDs 
-    #ids = ['100366']
+    # Testlauf: nur bestimmte IDs
+    # ids = ['100366']
     logging.info(f"{len(ids)} IDs geladen.")
 
     rows = []  # Excel: id | Rechte | License
@@ -112,7 +116,7 @@ def main():
 
         # 1) komplettes Template laden
         try:
-            template= get_template_metadata(TEMPLATE_NAME, dataset_id=ds_id)
+            template = get_template_metadata(TEMPLATE_NAME, dataset_id=ds_id)
         except Exception as e:
             logging.warning(f"{ds_id}: Template konnte nicht geladen werden: {e}")
             rows.append({"id": ds_id, "Rechte": None, "License": None})
@@ -130,7 +134,6 @@ def main():
         license_value = RIGHTS_TO_LICENSE.get(rights_val) if rights_val else None
 
         if license_value:
-
             # 4) Nur das license-Feld im Template anfassen; Rest unverändert lassen
             license_obj = template.get("license")
             if not isinstance(license_obj, dict):
@@ -155,6 +158,7 @@ def main():
     # 7) Excel-Report schreiben
     pd.DataFrame(rows, columns=["id", "Rechte", "License"]).to_excel(EXCEL_PATH, index=False)
     logging.info(f"Fertig. Excel: {EXCEL_PATH}")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
