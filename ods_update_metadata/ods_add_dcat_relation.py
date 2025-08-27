@@ -6,6 +6,11 @@ from tqdm import tqdm
 
 EXCEL_PATH = "reference_to_relation.xlsx"
 
+def clean(s):
+    if isinstance(s, str) and s.strip():
+        return s.strip()
+    else:
+        return None
 
 def pick_visible(field_obj):
     """Ermittelt den sichtbaren Wert aus einem Feldobjekt (override > remote_value > value)."""
@@ -14,7 +19,6 @@ def pick_visible(field_obj):
     orv = field_obj.get("override_remote_value", False)
     val = field_obj.get("value")
     rem = field_obj.get("remote_value")
-    clean = lambda s: s.strip() if isinstance(s, str) and s.strip() else None
     return clean(val) if orv else (clean(rem) or clean(val))
 
 
