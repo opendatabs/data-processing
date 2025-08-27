@@ -1,16 +1,18 @@
-import ods_utils_py as ods_utils
-import json
-import pandas as pd
 import logging
-from tqdm import tqdm   
+
+import ods_utils_py as ods_utils
+import pandas as pd
+from tqdm import tqdm
 
 EXCEL_PATH = "reference_to_relation.xlsx"
+
 
 def clean(s):
     if isinstance(s, str) and s.strip():
         return s.strip()
     else:
         return None
+
 
 def pick_visible(field_obj):
     """Ermittelt den sichtbaren Wert aus einem Feldobjekt (override > remote_value > value)."""
@@ -44,13 +46,12 @@ def hide_field(field):
     if not isinstance(field, dict):
         raise ValueError("field must be a dict")
 
-    if  not field.get("remote_value"):
+    if not field.get("remote_value"):
         field["remote_value"] = ""
-        
+
     field["value"] = ""
     field["override_remote_value"] = True
     return field
-
 
 
 def main():
@@ -63,8 +64,11 @@ def main():
         logging.info(f"Verarbeite {ds_id}...")
 
         try:
-            references = ods_utils.get_template_metadata(template_name="default", field_name="references",
-                                                   dataset_id=ds_id,)
+            references = ods_utils.get_template_metadata(
+                template_name="default",
+                field_name="references",
+                dataset_id=ds_id,
+            )
         except Exception as e:
             logging.warning(f"{ds_id}: references konnte nicht geladen werden: {e}")
             rows.append({"id": ds_id, "Reference": None, "Relation": None})
@@ -76,8 +80,9 @@ def main():
         if relation_value:
             payload = {"value": relation_value, "override_remote_value": True}
             try:
-                ods_utils.set_template_metadata(template_name="dcat", field_name="relation", payload=payload,
-                                                dataset_id=ds_id, publish=True)
+                ods_utils.set_template_metadata(
+                    template_name="dcat", field_name="relation", payload=payload, dataset_id=ds_id, publish=True
+                )
             except Exception as e:
                 logging.info(f"[{ds_id}] Fehler beim Speichern relation: {e}")
         else:
@@ -86,8 +91,9 @@ def main():
         # references unsichtbar machen
         references = hide_field(references)
         try:
-            ods_utils.set_template_metadata(template_name="default", field_name="references", payload=references,
-                dataset_id=ds_id, publish=True)
+            ods_utils.set_template_metadata(
+                template_name="default", field_name="references", payload=references, dataset_id=ds_id, publish=True
+            )
         except Exception as e:
             logging.info(f"[{ds_id}] Fehler beim Verstecken references: {e}")
 
