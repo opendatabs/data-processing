@@ -76,8 +76,6 @@ def set_template_metadata(template_name, template_payload, dataset_id=None, data
     if publish:
         ods_utils.set_dataset_public(dataset_uid=dataset_uid)
 
-    return r.json()
-
 
 def pick_visible_rights(dcat_ap_ch):
     """
@@ -145,11 +143,7 @@ def main():
 
             # 5) Template zurückschreiben
             try:
-                resp = set_template_metadata(TEMPLATE_NAME, template_payload=template, dataset_id=ds_id, publish=True)
-
-                # snapshot: lokales JSON nach Änderung ablegen (zur Kontrolle)
-                # with open(os.path.join(OUT_DIR, f"{TEMPLATE_NAME}_after_{ds_id}.json"), "w", encoding="utf-8") as f:
-                #     json.dump(resp, f, ensure_ascii=False, indent=2)
+                set_template_metadata(TEMPLATE_NAME, template_payload=template, dataset_id=ds_id, publish=True)
             except Exception as e:
                 logging.info(f"[{ds_id}] Fehler beim Speichern des Templates: {e}")
         else:
