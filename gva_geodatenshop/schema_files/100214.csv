@@ -13,4 +13,4 @@ email;Email;Email der Kontaktperson
 pdf;PDF;Dateiname des PDFs
 rueckbau;Rückbau;ist das Werk zurückgebaut
 foto_downloadlink;Foto-Downloadlink;Downloadlink
-Map Links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App
+map_links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App

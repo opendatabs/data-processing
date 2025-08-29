@@ -12,4 +12,4 @@ fahrplan;Fahrplan;Link zum Fahrplan
 nachtlin;Nachtlinien;Nachtlinien, welche eine Teilhaltestelle bedienen
 tramzugang;Tramzugang;"Zugangsmöglichkeit für Elektrorollstühle bei Tramhaltestellen; ja = hohe Kante (27 cm)"
 buszugang;Buszugang;"Zugangsmöglichkeit für Elektrorollstühle bei Bushaltestellen; ja = hohe Kante (22 cm)"
-Map Links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App
+map_links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App
