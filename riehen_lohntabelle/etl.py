@@ -148,6 +148,10 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
 
                 sub["Prozent"] = sub.get("%", pd.NA)
                 if "%" in sub.columns: sub = sub.drop(columns=["%"])
+                # Remove the % sign if present
+                if sub["Prozent"].dtype == object:
+                    sub["Prozent"] = sub["Prozent"].map(lambda x: str(x).replace("%","").strip() if pd.notna(x) else x)
+                    sub["Prozent"] = pd.to_numeric(sub["Prozent"].map(clean_num), errors="coerce")
 
                 # --- Attach metadata---
                 meta_rec = {
