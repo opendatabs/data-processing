@@ -151,15 +151,12 @@ def get_columns_of_interest(df):
 
     logging.info("The following columns are in both lists:")
     logging.info(set.intersection(set(df.columns), set(columns_of_interest)))
-    logging.info()
 
     logging.info("The following columns are in the df but not in columns_of_interest:")
     logging.info(set(df.columns) - set(columns_of_interest))
-    logging.info()
 
     logging.info("IMPORTANT: The following columns are in columns_of_interest but missing in the df:")
     logging.info(set(columns_of_interest) - set(df.columns))
-    logging.info()
 
     missing_columns = [col for col in columns_of_interest if col not in df.columns]
     for col in missing_columns:
