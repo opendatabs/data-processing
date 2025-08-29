@@ -13,6 +13,7 @@ logging.getLogger("pdfplumber").setLevel(logging.WARNING)
 
 YEAR_RE = re.compile(r"(19|20)\d{2}")
 
+
 def _pdfs_with_year(folder: Path):
     """Yield (year:int, pdf_path:Path) for all PDFs in folder (non-recursive)."""
     for p in sorted(folder.glob("*.pdf")):
@@ -39,7 +40,8 @@ def _extract_tables_verwaltung(pdf_path: Path) -> list[pd.DataFrame]:
 
             df = pd.DataFrame(table[1:], columns=table[0]).copy()
             if df.empty or df.columns.size == 0:
-                dfs.append(pd.DataFrame()); continue
+                dfs.append(pd.DataFrame())
+                continue
 
             # --- normalize header names ---
             cols = [str(c).strip().replace("\u00a0", " ") for c in df.columns]
@@ -48,24 +50,14 @@ def _extract_tables_verwaltung(pdf_path: Path) -> list[pd.DataFrame]:
             # First column -> AN
             first_col = df.columns[0]
             df = df.rename(columns={first_col: "AN"})
-            df["AN"] = (
-                df["AN"].astype(str)
-                .str.replace(r"^AN\s*", "", regex=True)
-                .str.strip()
-            )
+            df["AN"] = df["AN"].astype(str).str.replace(r"^AN\s*", "", regex=True).str.strip()
 
             # numeric cleanup for all non-AN columns
             def to_num(s):
                 if pd.isna(s):
                     return np.nan
                 t = str(s)
-                t = (
-                    t.replace("’", "")
-                     .replace("'", "")
-                     .replace("\u2009", "")
-                     .replace("\u00a0", "")
-                     .replace(" ", "")
-                )
+                t = t.replace("’", "").replace("'", "").replace("\u2009", "").replace("\u00a0", "").replace(" ", "")
                 t = t.replace(",", ".")
                 return pd.to_numeric(t, errors="coerce")
 
@@ -88,9 +80,7 @@ def _extract_tables_verwaltung(pdf_path: Path) -> list[pd.DataFrame]:
 
             # Clean AN and Stufe
             long["AN"] = pd.to_numeric(long["AN"], errors="coerce").astype("Int64")
-            long["Stufe"] = (
-                long["Stufe"].astype(str).str.extract(r"(\d+)")[0].astype("Int64")
-            )
+            long["Stufe"] = long["Stufe"].astype(str).str.extract(r"(\d+)")[0].astype("Int64")
 
             # Drop empty Lohnverlauf rows
             long = long.dropna(subset=["Lohnverlauf"]).sort_values(["AN", "Stufe"])
@@ -118,13 +108,15 @@ def _extract_tables_verwaltung(pdf_path: Path) -> list[pd.DataFrame]:
             dfs.append(long.reset_index(drop=True))
     return dfs
 
+
 def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
     dfs: list[pd.DataFrame] = []
     with pdfplumber.open(str(pdf_path)) as pdf:
         for page in pdf.pages:
             table = page.extract_table()
             if not table:
-                dfs.append(pd.DataFrame()); continue
+                dfs.append(pd.DataFrame())
+                continue
 
             df = pd.DataFrame(table[1:], columns=table[0])
 
@@ -133,11 +125,14 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
                 if pd.isna(x):
                     return ""
                 return str(x).replace("\u00a0", " ").strip()
+
             stripped = df.applymap(norm)
             df = df.loc[:, (stripped != "").any(axis=0)].reset_index(drop=True)
 
             # --- Find the true header row (max # of "Stufe") ---
-            def row_list(i): return [norm(x) for x in df.iloc[i].tolist()]
+            def row_list(i):
+                return [norm(x) for x in df.iloc[i].tolist()]
+
             header_idx, best = None, -1
             for i in range(len(df)):
                 r = row_list(i)
@@ -145,26 +140,30 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
                 if c > best:
                     best, header_idx = c, i
             if header_idx is None or best <= 0:
-                dfs.append(pd.DataFrame()); continue
+                dfs.append(pd.DataFrame())
+                continue
 
             header_row = row_list(header_idx)
 
             # --- Block starts (tolerant) ---
-            wanted = ["Stufe","Lohnverlauf","CHF","Faktor","%"]
+            wanted = ["Stufe", "Lohnverlauf", "CHF", "Faktor", "%"]
             starts = []
             j = 0
             while j < len(header_row):
                 if header_row[j] == "Stufe":
-                    nxt = header_row[j:j+5]
+                    nxt = header_row[j : j + 5]
                     if sum(a == b for a, b in zip(nxt, wanted)) >= 3:
-                        starts.append(j); j += 5; continue
+                        starts.append(j)
+                        j += 5
+                        continue
                 j += 1
             if not starts:
-                dfs.append(pd.DataFrame()); continue
+                dfs.append(pd.DataFrame())
+                continue
 
             # --- Map metadata rows by label anywhere before header ---
-            meta_labels = ["Typ","Zielfunktion","AN","spez. Lohnkurve"]
-            meta_row_idx: dict[str,int] = {}
+            meta_labels = ["Typ", "Zielfunktion", "AN", "spez. Lohnkurve"]
+            meta_row_idx: dict[str, int] = {}
             for i in range(header_idx):
                 r = row_list(i)
                 for lab in meta_labels:
@@ -173,9 +172,11 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
 
             # Prefer value to the right of the label; ignore the label token itself
             label_tokens = set(meta_labels + ["spez_Lohnkurve"])
+
             def pick_meta(label: str, lo: int, hi: int) -> str | None:
                 mi = meta_row_idx.get(label)
-                if mi is None: return None
+                if mi is None:
+                    return None
 
                 # First try inside the block slice
                 row_slice = [norm(x) for x in df.iloc[mi, slice(lo, hi)].tolist()]
@@ -187,7 +188,7 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
                 full = [norm(x) for x in df.iloc[mi].tolist()]
                 try:
                     pos = full.index(label)
-                    for v in full[pos+1:]:
+                    for v in full[pos + 1 :]:
                         if v and v not in label_tokens:
                             return v
                 except ValueError:
@@ -200,63 +201,76 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
                 return None
 
             # --- Data region ---
-            data = df.iloc[header_idx+1:].copy()
+            data = df.iloc[header_idx + 1 :].copy()
             stripped_data = data.applymap(norm)
             data = data.loc[(stripped_data != "").any(axis=1)]
             if data.empty:
-                dfs.append(pd.DataFrame()); continue
+                dfs.append(pd.DataFrame())
+                continue
 
             # --- Build blocks ---
             parts = []
             for start in starts:
-                lo, hi = start, min(start+5, df.shape[1])
+                lo, hi = start, min(start + 5, df.shape[1])
                 sub = data.iloc[:, slice(lo, hi)].copy()
                 if sub.shape[1] < 3:  # too noisy
                     continue
 
                 # Rename columns to canonical names
-                cols = ["Stufe","Lohnverlauf","CHF","Faktor","%"][:sub.shape[1]]
+                cols = ["Stufe", "Lohnverlauf", "CHF", "Faktor", "%"][: sub.shape[1]]
                 sub.columns = cols
 
                 # Numeric cleanup
                 def clean_num(s):
-                    if pd.isna(s): return s
-                    t = str(s).replace("’","").replace("'","").replace("\u2009","")
-                    t = t.replace("\u00a0","").replace(" ", "").replace(",", ".")
+                    if pd.isna(s):
+                        return s
+                    t = str(s).replace("’", "").replace("'", "").replace("\u2009", "")
+                    t = t.replace("\u00a0", "").replace(" ", "").replace(",", ".")
                     return t
-                for c in ("Stufe","Lohnverlauf","CHF","Faktor"):
+
+                for c in ("Stufe", "Lohnverlauf", "CHF", "Faktor"):
                     if c in sub.columns:
                         sub[c] = pd.to_numeric(sub[c].map(clean_num), errors="coerce")
                         if c == "Stufe":
                             sub[c] = sub[c].astype("Int64")
 
                 sub["Prozent"] = sub.get("%", pd.NA)
-                if "%" in sub.columns: sub = sub.drop(columns=["%"])
+                if "%" in sub.columns:
+                    sub = sub.drop(columns=["%"])
                 # Remove the % sign if present
                 if sub["Prozent"].dtype == object:
-                    sub["Prozent"] = sub["Prozent"].map(lambda x: str(x).replace("%","").strip() if pd.notna(x) else x)
+                    sub["Prozent"] = sub["Prozent"].map(lambda x: str(x).replace("%", "").strip() if pd.notna(x) else x)
                     sub["Prozent"] = pd.to_numeric(sub["Prozent"].map(clean_num), errors="coerce")
 
                 # --- Attach metadata---
                 meta_rec = {
-                    "Typ":            pick_meta("Typ", lo, hi),
-                    "Zielfunktion":   pick_meta("Zielfunktion", lo, hi),
-                    "AN":             pick_meta("AN", lo, hi),
+                    "Typ": pick_meta("Typ", lo, hi),
+                    "Zielfunktion": pick_meta("Zielfunktion", lo, hi),
+                    "AN": pick_meta("AN", lo, hi),
                     "spez_Lohnkurve": pick_meta("spez. Lohnkurve", lo, hi) or pick_meta("spez_Lohnkurve", lo, hi),
                 }
                 for k, v in meta_rec.items():
                     sub[k] = v
 
                 # Reorder
-                want = ["Typ","Zielfunktion","AN","spez_Lohnkurve",
-                        "Stufe","Lohnverlauf","CHF","Faktor","Prozent"]
+                want = [
+                    "Typ",
+                    "Zielfunktion",
+                    "AN",
+                    "spez_Lohnkurve",
+                    "Stufe",
+                    "Lohnverlauf",
+                    "CHF",
+                    "Faktor",
+                    "Prozent",
+                ]
                 for w in want:
-                    if w not in sub.columns: sub[w] = pd.NA
+                    if w not in sub.columns:
+                        sub[w] = pd.NA
                 parts.append(sub[want])
 
             dfs.append(pd.concat(parts, ignore_index=True) if parts else pd.DataFrame())
     return dfs
-
 
 
 def _process_folder(folder: Path) -> pd.DataFrame:
@@ -264,7 +278,11 @@ def _process_folder(folder: Path) -> pd.DataFrame:
     all_parts: list[pd.DataFrame] = []
     for jahr, pdf_path in _pdfs_with_year(folder):
         try:
-            tables = _extract_tables_verwaltung(pdf_path) if folder.name == "verwaltung" else _extract_tables_lehrpersonen(pdf_path)
+            tables = (
+                _extract_tables_verwaltung(pdf_path)
+                if folder.name == "verwaltung"
+                else _extract_tables_lehrpersonen(pdf_path)
+            )
             if not tables:
                 logging.warning("No tables found in %s", pdf_path.name)
                 continue
@@ -280,6 +298,7 @@ def _process_folder(folder: Path) -> pd.DataFrame:
     out = pd.concat(all_parts, ignore_index=True, sort=False)
     return out
 
+
 def get_lohntabellen(folders: list[str]) -> dict[str, pd.DataFrame]:
     data_orig = Path("data_orig")
     results: dict[str, pd.DataFrame] = {}
@@ -293,15 +312,16 @@ def get_lohntabellen(folders: list[str]) -> dict[str, pd.DataFrame]:
         results[name] = _process_folder(folder)
     return results
 
+
 def main():
     # Adjust the two folder names here as needed:
-    folders = ["verwaltung", "lehrpersonen"] 
+    folders = ["verwaltung", "lehrpersonen"]
     ods_ids = ["100451", "100452"]
     results = get_lohntabellen(folders)
 
     for name, df in results.items():
         ods_id = ods_ids[folders.index(name)]
-        out_path =  f"data/{ods_id}_lohntabelle_{name}.csv"
+        out_path = f"data/{ods_id}_lohntabelle_{name}.csv"
         if df.empty:
             logging.warning("No data extracted for '%s'; skipping save.", name)
             continue
