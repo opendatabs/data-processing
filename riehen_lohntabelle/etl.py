@@ -2,6 +2,7 @@ import logging
 import re
 from pathlib import Path
 
+import common
 import numpy as np
 import pandas as pd
 import pdfplumber
@@ -23,15 +24,98 @@ def _pdfs_with_year(folder: Path):
 
 
 def _extract_tables_verwaltung(pdf_path: Path) -> list[pd.DataFrame]:
-    """Extract all tables from all pages of a PDF as DataFrames."""
+    """
+    Parse Verwaltung tables and return long format:
+    AN, Stufe, Lohnverlauf, CHF, Faktor, Prozent
+    (Jahr is added later in _process_folder)
+    """
     dfs: list[pd.DataFrame] = []
     with pdfplumber.open(str(pdf_path)) as pdf:
-        for i, page in enumerate(pdf.pages, start=1):
-            # Try with line-based detection first; fall back to default.
+        for page in pdf.pages:
             table = page.extract_table()
-            df = pd.DataFrame(table[1:], columns=table[0]) if table else pd.DataFrame()
-            df = df.dropna(how="any").reset_index(drop=True)
-            dfs.append(df)
+            if not table:
+                dfs.append(pd.DataFrame())
+                continue
+
+            df = pd.DataFrame(table[1:], columns=table[0]).copy()
+            if df.empty or df.columns.size == 0:
+                dfs.append(pd.DataFrame()); continue
+
+            # --- normalize header names ---
+            cols = [str(c).strip().replace("\u00a0", " ") for c in df.columns]
+            df.columns = cols
+
+            # First column -> AN
+            first_col = df.columns[0]
+            df = df.rename(columns={first_col: "AN"})
+            df["AN"] = (
+                df["AN"].astype(str)
+                .str.replace(r"^AN\s*", "", regex=True)
+                .str.strip()
+            )
+
+            # numeric cleanup for all non-AN columns
+            def to_num(s):
+                if pd.isna(s):
+                    return np.nan
+                t = str(s)
+                t = (
+                    t.replace("’", "")
+                     .replace("'", "")
+                     .replace("\u2009", "")
+                     .replace("\u00a0", "")
+                     .replace(" ", "")
+                )
+                t = t.replace(",", ".")
+                return pd.to_numeric(t, errors="coerce")
+
+            for col in df.columns[1:]:
+                df[col] = df[col].map(to_num)
+
+            # Identify "Erfa" columns; ignore "Jahr"
+            erfa_cols = [c for c in df.columns if re.match(r"^\s*\d+\s*Erfa\s*$", str(c))]
+            if not erfa_cols:
+                # Sometimes headers are like "1Erfa" (no space)
+                erfa_cols = [c for c in df.columns if re.match(r"^\s*\d+\s*Erfa", str(c))]
+
+            # Melt to long
+            long = df.melt(
+                id_vars=["AN"],
+                value_vars=erfa_cols,
+                var_name="Stufe",
+                value_name="Lohnverlauf",
+            )
+
+            # Clean AN and Stufe
+            long["AN"] = pd.to_numeric(long["AN"], errors="coerce").astype("Int64")
+            long["Stufe"] = (
+                long["Stufe"].astype(str).str.extract(r"(\d+)")[0].astype("Int64")
+            )
+
+            # Drop empty Lohnverlauf rows
+            long = long.dropna(subset=["Lohnverlauf"]).sort_values(["AN", "Stufe"])
+
+            # Compute CHF (step delta), Faktor (vs first), Prozent (delta factor in %)
+            def add_calcs(g: pd.DataFrame) -> pd.DataFrame:
+                g = g.sort_values("Stufe").copy()
+                base = g["Lohnverlauf"].iloc[0]
+                g["CHF"] = g["Lohnverlauf"].diff()
+                g.loc[g.index[0], "CHF"] = np.nan  # first step has no delta
+                g["Faktor"] = g["Lohnverlauf"] / base
+                g["Prozent"] = g["Faktor"].diff() * 100.0  # delta vs previous step
+                g.loc[g.index[0], "Prozent"] = np.nan
+                return g
+
+            long = long.groupby("AN", group_keys=False).apply(add_calcs)
+
+            # Order & types
+            long = long[["AN", "Stufe", "Lohnverlauf", "CHF", "Faktor", "Prozent"]]
+            long["Lohnverlauf"] = long["Lohnverlauf"].astype(float)
+            long["CHF"] = long["CHF"].astype(float)
+            long["Faktor"] = long["Faktor"].astype(float)
+            long["Prozent"] = long["Prozent"].astype(float)
+
+            dfs.append(long.reset_index(drop=True))
     return dfs
 
 def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
@@ -210,21 +294,22 @@ def get_lohntabellen(folders: list[str]) -> dict[str, pd.DataFrame]:
     return results
 
 def main():
-    data_dir = Path("data")
-    data_dir.mkdir(parents=True, exist_ok=True)
-
     # Adjust the two folder names here as needed:
     folders = ["verwaltung", "lehrpersonen"] 
+    ods_ids = ["100451", "100452"]
     results = get_lohntabellen(folders)
 
     for name, df in results.items():
-        out_path = data_dir / f"{name}.csv"
+        ods_id = ods_ids[folders.index(name)]
+        out_path =  f"data/{ods_id}_lohntabelle_{name}.csv"
         if df.empty:
             logging.warning("No data extracted for '%s'; skipping save.", name)
             continue
 
         df.to_csv(out_path, index=False)
         logging.info("Saved %s (%d rows, %d cols)", out_path, len(df), df.shape[1])
+        common.update_ftp_and_odsp(out_path, "riehen/lohntabelle", ods_id)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
