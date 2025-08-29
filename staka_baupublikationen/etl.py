@@ -111,11 +111,11 @@ def get_columns_of_interest(df):
     df.columns = df.columns.str.replace("_legalEntity_multi_companies_", "_")
     df.columns = df.columns.str.replace("_multi_companies_", "_")
     columns_of_interest = [
-        "localization_municipalityId_term_de",
         "publicationArea_selectType",
         "buildingContractor_legalEntity_selectType",
         "buildingContractor_noUID",
         "buildingContractor_company_name",
+        "buildingContractor_company_uid",
         "buildingContractor_company_legalForm",
         "buildingContractor_company_customAddress",
         "buildingContractor_company_country_name_de",
@@ -123,6 +123,7 @@ def get_columns_of_interest(df):
         "delegation_buildingContractor_legalEntity_selectType",
         "delegation_buildingContractor_noUID",
         "delegation_buildingContractor_company_name",
+        "delegation_buildingContractor_company_uid",
         "delegation_buildingContractor_company_legalForm",
         "delegation_buildingContractor_company_customAddress",
         "delegation_buildingContractor_company_country_name_de",
@@ -130,6 +131,7 @@ def get_columns_of_interest(df):
         "projectFramer_legalEntity_selectType",
         "projectFramer_noUID",
         "projectFramer_company_name",
+        "projectFramer_company_uid",
         "projectFramer_company_legalForm",
         "projectFramer_company_customAddress",
         "projectFramer_company_country_name_de",
@@ -146,6 +148,24 @@ def get_columns_of_interest(df):
         "id",
         "url_kantonsblatt_ods",
     ]
+
+    logging.info("The following columns are in both lists:")
+    logging.info(set.intersection(set(df.columns), set(columns_of_interest)))
+    logging.info()
+
+    logging.info("The following columns are in the df but not in columns_of_interest:")
+    logging.info(set(df.columns) - set(columns_of_interest))
+    logging.info()
+
+    logging.info("IMPORTANT: The following columns are in columns_of_interest but missing in the df:")
+    logging.info(set(columns_of_interest) - set(df.columns))
+    logging.info()
+
+    missing_columns = [col for col in columns_of_interest if col not in df.columns]
+    for col in missing_columns:
+        logging.info(f"Filling empty value for missing column: {col}")
+        df[col] = ""
+
     return df[columns_of_interest]
 
 
@@ -157,6 +177,7 @@ def legal_form_code_to_name(df):
     code_to_german_name = {entry["code"]: entry["name"]["de"] for entry in legal_forms}
     df["projectFramer_company_legalForm"] = df["projectFramer_company_legalForm"].map(code_to_german_name)
     df["buildingContractor_company_legalForm"] = df["buildingContractor_company_legalForm"].map(code_to_german_name)
+    df["delegation_buildingContractor_company_legalForm"] = df["delegation_buildingContractor_company_legalForm"].map(code_to_german_name)
     return df
 
 
