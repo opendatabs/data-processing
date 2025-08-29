@@ -7,3 +7,4 @@ ort;Ort;Gemeinde
 kanton;Kanton;Name des Kanton
 telefon;Telefon;Telefonnummer
 link_hp;Link Homepage;Adresse der Website
+Map Links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App

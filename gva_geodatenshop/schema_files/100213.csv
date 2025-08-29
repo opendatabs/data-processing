@@ -7,3 +7,4 @@ plz;Postleitzahl;Postleitzahl
 pumpe;Pumpentyp;Kategorien unterschiedlicher Pumpentypen
 link;Link;Webseite
 verfuegbar;Verfügbarkeit;Kategorien unterschiedlicher Verfügbarkeit. Der Wert „7/24“ in den Daten entspricht im Modell dem wert „jederzeit“.
+Map Links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App

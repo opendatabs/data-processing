@@ -6,3 +6,4 @@ hausnr;Hausnummer;Hausnummer des Schulhauses
 plz;PLZ;Postleitzahl des Schulhauses
 ort;Ortschaft;Ortschaftsname des Schulhauses
 link;Link;Internetadresse des Schulhauses
+Map Links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App

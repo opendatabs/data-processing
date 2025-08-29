@@ -10,3 +10,4 @@ kt;Gebiet;Gebiet. Wertebereich: Aargau (AG), Basel-Landschaft (BL), Basel-Stadt 
 hoehe;Höhe;Höhe in m ü. M. (Angabe nach BAV)
 hstart;Haltestellenart;Art der Haltestelle
 art;Haltestellentyp;Typ der Haltestelle
+Map Links;Zum Objekt navigieren;URL zur Navigation des Standorts in einer Karten-App
