@@ -45,7 +45,10 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
             df = pd.DataFrame(table[1:], columns=table[0])
 
             # --- Clean empty cols/rows (no .str on DataFrame) ---
-            norm = lambda x: "" if pd.isna(x) else str(x).replace("\u00a0"," ").strip()
+            def norm(x):
+                if pd.isna(x):
+                    return ""
+                return str(x).replace("\u00a0", " ").strip()
             stripped = df.applymap(norm)
             df = df.loc[:, (stripped != "").any(axis=0)].reset_index(drop=True)
 
@@ -146,7 +149,7 @@ def _extract_tables_lehrpersonen(pdf_path: Path) -> list[pd.DataFrame]:
                 sub["Prozent"] = sub.get("%", pd.NA)
                 if "%" in sub.columns: sub = sub.drop(columns=["%"])
 
-                # --- Attach metadata (now correctly picking the VALUES) ---
+                # --- Attach metadata---
                 meta_rec = {
                     "Typ":            pick_meta("Typ", lo, hi),
                     "Zielfunktion":   pick_meta("Zielfunktion", lo, hi),
