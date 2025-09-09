@@ -1,8 +1,9 @@
+import logging
+from pathlib import Path
+
 import ods_utils_py as ods_utils
 import pandas as pd
-import logging
 from tqdm import tqdm
-from pathlib import Path
 
 
 def load_ids_from_excel(path, col="ods_id"):
@@ -45,7 +46,8 @@ def main():
                 missing_rows.append({"id": ds_id, "missing_field": key, "note": "Feld fehlt oder Struktur unerwartet"})
 
         try:
-            ods_utils.set_template_metadata(template_name="default",
+            ods_utils.set_template_metadata(
+                template_name="default",
                 payload=default,
                 dataset_id=ds_id,
                 publish=True,
@@ -66,4 +68,3 @@ if __name__ == "__main__":
     logging.info(f"Executing {__file__}...")
     main()
     logging.info("Job completed successfully!")
-

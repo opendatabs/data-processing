@@ -11,7 +11,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-
 # ChromeDriver Setup locally
 # driver_path = os.path.join('data', 'chromedriver.exe')
 # service = Service(driver_path)  # Replace with your ChromeDriver path
@@ -164,7 +163,7 @@ try:
         existing_columns = [col for col in desired_columns if col in df.columns]
         df = df[existing_columns]
         file_name = "100410_geodatenkatalog.csv"
-        file_path = os.path.join('data', file_name)
+        file_path = os.path.join("data", file_name)
         df.to_csv(file_path, index=False, sep=";")
         common.update_ftp_and_odsp(file_path, "/gva/geodatenkatalog", "100410")
         logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
@@ -250,7 +249,7 @@ try:
 
     final_df = grouped_df[["title", "description", "attributions", "modified", "tags", "language"]]
     metadata_file = "gva_metadata.csv"
-    metadata_file_path = os.path.join('data', metadata_file)
+    metadata_file_path = os.path.join("data", metadata_file)
     final_df.to_csv(metadata_file_path, index=False, sep=";")
     logging.info(f"Neue Tabelle wurde erfolgreich gespeichert: {metadata_file}")
 
