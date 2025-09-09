@@ -135,6 +135,15 @@ else:
     logging.info("Proceeding with copying files...")
 
 
+def get_metadata_cat(df, thema):
+
+    filtered_df = df[df["Thema"]==thema]
+    if filtered_df.empty:
+        return None, None
+    row = filtered_df.iloc[0]
+    return row["Aktualisierung"], row["Metadaten"]
+
+
 def remove_empty_string_from_list(string_list):
     return list(filter(None, string_list))
 
@@ -190,6 +199,8 @@ def extract_meta_geocat(geocat_uid):
 # Function for saving FGI geodata for each layer name
 def save_geodata_for_layers(wfs, df_fgi, file_path):
     meta_data = pd.read_excel(os.path.join("data", "Metadata.xlsx"), na_filter=False)
+    path_cat = os.path.join("data", "100410_geodatenkatalog.csv")
+    df_cat = pd.read_csv(path_cat, sep=';')
     metadata_for_ods = []
     logging.info("Iterating over datasets...")
     for index, row in meta_data.iterrows():
@@ -207,7 +218,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 response = wfs.getfeature(typename=shapefile)
                 gdf = gpd.read_file(io.BytesIO(response.read()))
                 gdf_result = pd.concat([gdf_result, gdf])
-
+                        
             # creat a maps_urls
             if row["create_map_urls"]:
                 logging.info(f"Create Map urls for {row['titel_nice']}")
@@ -241,7 +252,9 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             ftp_remote_dir = "harvesters/GVA/data"
             common.upload_ftp(geopackage_file, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
-            geocat_uid = row["geocat"].rsplit("/", 1)[-1].replace("\t", "")
+            aktualisierung, geocat = get_metadata_cat(df_cat, titel)
+            geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
+            geocat_uid = geocat_url.rsplit("/", 1)[-1].replace("\t", "")
             (
                 publizierende_organisation,
                 herausgeber,
@@ -279,7 +292,8 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "attributions": "Geodaten Kanton Basel-Stadt",
                     "publisher": herausgeber,
                     "dcat.issued": row["dcat.issued"],
-                    #'modified': modified,
+                    "dcat.relation" : "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
+                    "modified": aktualisierung if aktualisierung != "" else "",
                     "language": "de",
                     "publizierende-organisation": publizierende_organisation,
                     # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
