@@ -136,8 +136,7 @@ else:
 
 
 def get_metadata_cat(df, thema):
-
-    filtered_df = df[df["Thema"]==thema]
+    filtered_df = df[df["Thema"] == thema]
     if filtered_df.empty:
         return None, None
     row = filtered_df.iloc[0]
@@ -200,7 +199,7 @@ def extract_meta_geocat(geocat_uid):
 def save_geodata_for_layers(wfs, df_fgi, file_path):
     meta_data = pd.read_excel(os.path.join("data", "Metadata.xlsx"), na_filter=False)
     path_cat = os.path.join("data", "100410_geodatenkatalog.csv")
-    df_cat = pd.read_csv(path_cat, sep=';')
+    df_cat = pd.read_csv(path_cat, sep=";")
     metadata_for_ods = []
     logging.info("Iterating over datasets...")
     for index, row in meta_data.iterrows():
@@ -218,7 +217,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 response = wfs.getfeature(typename=shapefile)
                 gdf = gpd.read_file(io.BytesIO(response.read()))
                 gdf_result = pd.concat([gdf_result, gdf])
-                        
+
             # creat a maps_urls
             if row["create_map_urls"]:
                 logging.info(f"Create Map urls for {row['titel_nice']}")
@@ -292,7 +291,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "attributions": "Geodaten Kanton Basel-Stadt",
                     "publisher": herausgeber,
                     "dcat.issued": row["dcat.issued"],
-                    "dcat.relation" : "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
+                    "dcat.relation": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
                     "modified": aktualisierung if aktualisierung != "" else "",
                     "language": "de",
                     "publizierende-organisation": publizierende_organisation,
