@@ -5,7 +5,7 @@ import shutil
 import sys
 import urllib.parse
 import xml.etree.ElementTree as ET
-
+from datetime import datetime
 import common
 import geopandas as gpd
 import pandas as pd
@@ -31,6 +31,14 @@ def extract_second_hier_name(row, df2):
         hier_name = matching_row["Hier_Name"].values[0]
         hier_parts = hier_name.split("/")
         return hier_parts[1] if len(hier_parts) > 1 else None
+
+def to_iso_date(wert: str) -> str:
+    for fmt in ("%d.%m.%Y", "%Y/%m/%d", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(wert, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    raise ValueError(f"Unknown date format: {wert}")
 
 
 # Function for retrieving and parsing WMS GetCapabilities
@@ -252,6 +260,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             common.upload_ftp(geopackage_file, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
             aktualisierung, geocat = get_metadata_cat(df_cat, titel)
+            aktualisierung = to_iso_date(aktualisierung) if aktualisierung != "" else ""
             geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
             geocat_uid = geocat_url.rsplit("/", 1)[-1].replace("\t", "")
             (
@@ -292,7 +301,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "publisher": herausgeber,
                     "dcat.issued": row["dcat.issued"],
                     "dcat.relation": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
-                    "modified": aktualisierung if aktualisierung != "" else "",
+                    "modified": aktualisierung,
                     "language": "de",
                     "publizierende-organisation": publizierende_organisation,
                     # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
