@@ -103,11 +103,33 @@ wheels = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+source = { git = "https://github.com/opendatabs/common?rev=b628bce8b2f85cfc593799a8e4b6c2eed24aa064#b628bce8b2f85cfc593799a8e4b6c2eed24aa064" }
+dependencies = [
+    { name = "filehash" },
+    { name = "more-itertools" },
+    { name = "pandas" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+]
+
+[[package]]
+name = "filehash"
+version = "0.2.dev1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c6/8a/6b3962ea24a401a18dee2dbd35ac8dc492a50293111a569b15d5b3db84f0/filehash-0.2.dev1.tar.gz", hash = "sha256:936e5693ea044cd30642f4697f785dc69a1d9cc7301dedfcb096cf3dbd999016", size = 8286, upload-time = "2021-10-11T06:35:20.512Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/85/bcef52891917a7b2986ec6774e11e28511367613b39d574d3ce2252fd126/filehash-0.2.dev1-py3-none-any.whl", hash = "sha256:47e1bf688511cfeae145e29616f188c550ef6a516ef8d116535d87ddaa21ea11", size = 9038, upload-time = "2021-10-11T06:35:18.942Z" },
+]
+
+[[package]]
 name = "gva-metadata"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bs4" },
+    { name = "common" },
     { name = "pandas" },
     { name = "selenium" },
     { name = "webdriver-manager" },
@@ -116,6 +138,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "bs4", specifier = ">=0.0.2" },
+    { name = "common", git = "https://github.com/opendatabs/common?rev=b628bce8b2f85cfc593799a8e4b6c2eed24aa064" },
     { name = "pandas", specifier = ">=2.3.2" },
     { name = "selenium", specifier = ">=4.35.0" },
     { name = "webdriver-manager", specifier = ">=4.0.2" },
@@ -137,6 +160,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7590aa73f1f1d3fa9a380e654b86af429e0934a32f7d/idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9", size = 190490, upload-time = "2024-09-15T18:07:39.745Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442, upload-time = "2024-09-15T18:07:37.964Z" },
+]
+
+[[package]]
+name = "more-itertools"
+version = "10.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/5d/38b681d3fce7a266dd9ab73c66959406d565b3e85f21d5e66e1181d93721/more_itertools-10.8.0.tar.gz", hash = "sha256:f638ddf8a1a0d134181275fb5d58b086ead7c6a72429ad725c67503f13ba30bd", size = 137431, upload-time = "2025-09-02T15:23:11.018Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/8e/469e5a4a2f5855992e425f3cb33804cc07bf18d48f2db061aec61ce50270/more_itertools-10.8.0-py3-none-any.whl", hash = "sha256:52d4362373dcf7c52546bc4af9a86ee7c4579df9a8dc268be0a2f949d376cc9b", size = 69667, upload-time = "2025-09-02T15:23:09.635Z" },
 ]
 
 [[package]]
