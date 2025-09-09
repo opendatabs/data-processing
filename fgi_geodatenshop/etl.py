@@ -260,7 +260,10 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             common.upload_ftp(geopackage_file, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
             aktualisierung, geocat = get_metadata_cat(df_cat, titel)
-            aktualisierung = to_iso_date(aktualisierung) if aktualisierung != "" else ""
+            if pd.isna(aktualisierung) or str(aktualisierung).strip() == "":
+                aktualisierung = ""
+            else:
+                aktualisierung = to_iso_date(str(aktualisierung).strip())
             geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
             geocat_uid = geocat_url.rsplit("/", 1)[-1].replace("\t", "")
             (
