@@ -210,6 +210,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
     df_cat = pd.read_csv(path_cat, sep=";")
     metadata_for_ods = []
     logging.info("Iterating over datasets...")
+    failed = []
     for index, row in meta_data.iterrows():
         if row["import"]:
             # Which shapes need to be imported to ods?
@@ -221,10 +222,15 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 shapes_to_load = df_fgi.iloc[ind_list]["Name"].values[0]
             gdf_result = gpd.GeoDataFrame()
             for shapefile in shapes_to_load:
-                # Retrieve and save the geodata for each layer name in shapes_to_load
-                response = wfs.getfeature(typename=shapefile)
-                gdf = gpd.read_file(io.BytesIO(response.read()))
-                gdf_result = pd.concat([gdf_result, gdf])
+                try:
+                    # Retrieve and save the geodata for each layer name in shapes_to_load
+                    response = wfs.getfeature(typename=shapefile)
+                    gdf = gpd.read_file(io.BytesIO(response.read()))
+                    gdf_result = pd.concat([gdf_result, gdf])
+                except Exception as e:
+                    logging.error(f"Error loading layer '{shapefile}': {e}")
+                    failed.append({"Layer": shapefile, "Error": str(e)})
+                    continue
 
             # creat a maps_urls
             if row["create_map_urls"]:
@@ -315,6 +321,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 }
             )
 
+    pd.DataFrame(failed).to_excel("data/wfs_failed_layers.xlsx", index=False)
     # Save harvester file
     if len(metadata_for_ods) > 0:
         ods_metadata = pd.concat(
