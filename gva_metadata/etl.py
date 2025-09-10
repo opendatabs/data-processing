@@ -182,7 +182,9 @@ try:
         df = df[existing_columns]
         file_name = "100410_geodatenkatalog.csv"
         file_path = os.path.join("data", file_name)
+        export_path = os.path.join("export", file_name)
         df.to_csv(file_path, index=False, sep=";")
+        df.to_csv(export_path, index=False, sep=";")
         common.update_ftp_and_odsp(file_path, "/gva/geodatenkatalog", "100410")
         logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
 
