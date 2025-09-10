@@ -7,9 +7,10 @@ import common
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# from webdriver_manager.chrome import ChromeDriverManager
 
 # ChromeDriver Setup locally
 # driver_path = os.path.join('data', 'chromedriver.exe')
@@ -19,9 +20,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 # driver = webdriver.Chrome(service=service, options=options)
 
 options = Options()
-options.add_argument("--headless")
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=options)
+options.add_argument("--headless") 
+options.add_argument("--no-sandbox")
+# service = Service(ChromeDriverManager().install())
+# driver = webdriver.Chrome(service=service, options=options)
+driver = webdriver.Firefox(options=options)
 # URL of the Website
 url = "https://shop.geo.bs.ch/geodaten-katalog/"
 driver.get(url)
