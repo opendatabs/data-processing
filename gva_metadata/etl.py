@@ -70,6 +70,21 @@ try:
                 # Extract Update Date
                 date_div = sub_theme.find("div", class_="aktualisierung")
                 update_date = date_div.get_text(strip=True).replace("Stand der Geodaten: ", "") if date_div else None
+                # Fallback (Fall 2): Struktur mit "ebenen_dates_title" -> "Letzte Aktualisierung" + folgendes <div>
+                if not update_date:
+                    # Auf die Container-Ebene einschränken, damit wir nur innerhalb dieses Themas suchen
+                    date_container = sub_theme.select_one("div.ebenen_date_container")
+                    if date_container:
+                        title_node = date_container.find(
+                            "div",
+                            class_="ebenen_dates_title",
+                            string=lambda s: s and s.strip() == "Letzte Aktualisierung",
+                        )
+                        if title_node:
+                            val_node = title_node.find_next_sibling("div")
+                            if val_node:
+                                update_date = val_node.get_text(strip=True)
+
 
                 # Extract Links
                 links_container = sub_theme.find("div", class_="themaLinksContainer")
