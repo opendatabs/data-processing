@@ -3,7 +3,7 @@ import logging
 import os
 import pathlib
 import re
-from datetime import datetime
+from datetime import datetime, date, time
 from itertools import combinations
 from zoneinfo import ZoneInfo
 
@@ -32,37 +32,58 @@ def find_in_sheet(sheet, text_to_find):
     return [(i, text.index(text_to_find)) for i, text in enumerate(sheet) if text_to_find in text]
 
 
+def _to_zh_dt(value, is_end=False):
+    """Coerce iCal DTSTART/DTEND to tz-aware Europe/Zurich datetimes.
+    - date → start: 00:00, end: 23:59:59 (inclusive for all-day)
+    - naive datetime → assume Europe/Zurich
+    - aware datetime → convert to Europe/Zurich
+    """
+    tz = ZoneInfo("Europe/Zurich")
+    if isinstance(value, datetime):
+        dt = value if value.tzinfo else value.replace(tzinfo=tz)
+        return dt.astimezone(tz)
+    if isinstance(value, date):
+        # iCal all-day DTEND is exclusive; using 23:59:59 keeps intuitive inclusivity
+        t = time(23, 59, 59) if is_end else time(0, 0, 0)
+        return datetime.combine(value, t).replace(tzinfo=tz)
+    raise TypeError(f"Unsupported DTSTART/DTEND type: {type(value)}")
+
+
 def is_session_now(ical_file_path, hours_before_start, hours_after_end):
-    now_in_switzerland = datetime.now(ZoneInfo("Europe/Zurich"))
+    now_zh = datetime.now(ZoneInfo("Europe/Zurich"))
     with open(ical_file_path, "rb") as f:
         calendar = icalendar.Calendar.from_ical(f.read())
-    # handle case where session takes longer than defined in calendar event
+
     current_entries = []
     for event in calendar.walk("VEVENT"):
-        start = event["DTSTART"].dt
-        end = event["DTEND"].dt
+        # DTSTART is required by spec; DTEND may be absent (then duration or start is used)
+        start_raw = event.get("DTSTART")
+        if not start_raw:
+            continue
+        start = start_raw.dt
 
-        # ensure start and end are timezone-aware in Europe/Zurich
-        if start.tzinfo is None:
-            start = start.replace(tzinfo=ZoneInfo("Europe/Zurich"))
+        end_prop = event.get("DTEND")
+        if end_prop is not None:
+            end = end_prop.dt
         else:
-            start = start.astimezone(ZoneInfo("Europe/Zurich"))
+            # Fall back: use DTSTART as end if no DTEND/DURATION
+            # (Optionally handle event.get('DURATION') here if you use durations)
+            end = start
 
-        if end.tzinfo is None:
-            end = end.replace(tzinfo=ZoneInfo("Europe/Zurich"))
-        else:
-            end = end.astimezone(ZoneInfo("Europe/Zurich"))
+        start_zh = _to_zh_dt(start, is_end=False)
+        end_zh = _to_zh_dt(end, is_end=True)
 
-        if (
-            (start - pd.Timedelta(hours=hours_before_start))
-            <= now_in_switzerland
-            <= (end + pd.Timedelta(hours=hours_after_end))
-        ):
+        in_window = (
+            (start_zh - pd.Timedelta(hours=hours_before_start))
+            <= now_zh
+            <= (end_zh + pd.Timedelta(hours=hours_after_end))
+        )
+        if in_window:
             current_entries.append(
                 {
-                    "summary": event["SUMMARY"],
-                    "dtstart": start,
-                    "dtend": end,
+                    "summary": str(event.get("SUMMARY", "")),
+                    "dtstart": start_zh,
+                    "dtend": end_zh,
                 }
             )
 
