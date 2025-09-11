@@ -119,8 +119,10 @@ def calculate_details(data_file_names):
             print("Filtering out Wahllokale...")
             if abst_date < "2023-06-18":
                 valid_wahllokale = valid_wahllokale
-            else:
+            elif abst_date < "2025-09-01":
                 valid_wahllokale = valid_wahllokale_ab_20230618
+            else:
+                valid_wahllokale = valid_wahllokale_ab_20250901
             df = df[df["Wahllokale"].isin(valid_wahllokale)]
 
             print("Renaming columns...")
