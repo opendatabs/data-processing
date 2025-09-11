@@ -199,6 +199,8 @@ def get_session_calendar(cutoff):
     else:
         logging.info(f"Reading session calendar from pickle {pickle_file_name}")
         df_cal = pd.read_pickle(pickle_file_name)
+        df_cal["dtstart"] = pd.to_datetime(df_cal["dtstart"], utc=True, errors="coerce")
+        df_cal["dtend"]   = pd.to_datetime(df_cal["dtend"],   utc=True, errors="coerce")
     return ical_file_path, df_cal
 
 def get_unique_session_dates(df_cal):
@@ -839,7 +841,7 @@ def main():
     # UNCOMMENT to process older poll data
     # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
-    if utilities.is_session_now(ical_file_path, hours_before_start=4, hours_after_end=48):
+    if utilities.is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
         poll_dfs.append(
             (
                 handle_polls_json(
