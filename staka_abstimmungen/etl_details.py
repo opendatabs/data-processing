@@ -62,10 +62,26 @@ def calculate_details(data_file_names):
             "Brieflich Stimmende AS",
         ]
 
+        # from 2023-06-18 onwards "Basel brieflich Stimmende" becomes "Basel briefl. & elektr. Stimmende (Total)"
         valid_wahllokale_ab_20230618 = [
             "Bahnhof SBB",
             "Rathaus",
             "Polizeiwache Clara",
+            "Basel briefl. & elektr. Stimmende (Total)",
+            "Riehen Gemeindehaus",
+            "Riehen briefl. & elektr. Stimmende (Total)",
+            "Bettingen Gemeindehaus",
+            "Bettingen briefl. & elektr. Stimmende (Total)",
+            "Persönlich an der Urne Stimmende AS",
+            "Brieflich Stimmende AS",
+            "Elektronisch Stimmende AS",
+        ]
+
+        # from 2025-09-01 onwards Kleinbasel as separate Wahllokal
+        valid_wahllokale_ab_20250901 = [
+            "Bahnhof SBB",
+            "Rathaus",
+            "Kleinbasel",
             "Basel briefl. & elektr. Stimmende (Total)",
             "Riehen Gemeindehaus",
             "Riehen briefl. & elektr. Stimmende (Total)",
