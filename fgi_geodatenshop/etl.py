@@ -6,6 +6,7 @@ import sys
 import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime
+
 import common
 import geopandas as gpd
 import pandas as pd
@@ -31,6 +32,7 @@ def extract_second_hier_name(row, df2):
         hier_name = matching_row["Hier_Name"].values[0]
         hier_parts = hier_name.split("/")
         return hier_parts[1] if len(hier_parts) > 1 else None
+
 
 def to_iso_date(wert: str) -> str:
     for fmt in ("%d.%m.%Y", "%Y/%m/%d", "%Y-%m-%d"):

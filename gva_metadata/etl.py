@@ -7,9 +7,10 @@ import common
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
+
 # from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.chrome.service import Service
+
 # from webdriver_manager.chrome import ChromeDriverManager
 
 # ChromeDriver Setup locally
@@ -20,7 +21,7 @@ from selenium.webdriver.chrome.service import Service
 # driver = webdriver.Chrome(service=service, options=options)
 
 options = Options()
-options.add_argument("--headless") 
+options.add_argument("--headless")
 options.add_argument("--no-sandbox")
 # service = Service(ChromeDriverManager().install())
 # driver = webdriver.Chrome(service=service, options=options)
@@ -84,7 +85,6 @@ try:
                             val_node = title_node.find_next_sibling("div")
                             if val_node:
                                 update_date = val_node.get_text(strip=True)
-
 
                 # Extract Links
                 links_container = sub_theme.find("div", class_="themaLinksContainer")

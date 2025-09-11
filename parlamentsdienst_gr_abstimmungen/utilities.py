@@ -3,7 +3,7 @@ import logging
 import os
 import pathlib
 import re
-from datetime import datetime, date, time
+from datetime import date, datetime, time
 from itertools import combinations
 from zoneinfo import ZoneInfo
 
@@ -72,7 +72,7 @@ def is_session_now(ical_file_path, hours_before_start, hours_after_end):
 
         start_zh = _to_zh_dt(start, is_end=False)
         end_zh = _to_zh_dt(end, is_end=True)
-        
+
         in_window = (
             (start_zh - pd.Timedelta(hours=hours_before_start))
             <= now_zh
