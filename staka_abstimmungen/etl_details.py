@@ -123,7 +123,10 @@ def calculate_details(data_file_names):
                 valid_wahllokale = valid_wahllokale_ab_20230618
             else:
                 valid_wahllokale = valid_wahllokale_ab_20250901
+            print("Valid Wahllokale are:", valid_wahllokale)
+            print(df["Wahllokale"].unique())
             df = df[df["Wahllokale"].isin(valid_wahllokale)]
+            print(df["Wahllokale"].unique())
 
             print("Renaming columns...")
             df.rename(
