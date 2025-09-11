@@ -13,6 +13,10 @@ git pull
 cd /code/rsync
 git pull
 cd /code/R-data-processing/tourismusdashboard
+git pull
 cd /code/R-data-processing/stata_konoer
+git pull
 cd /code/R-data-processing/stata_erwarteter_stromverbrauch
+git pull
 cd /code/R-data-processing/stata_erwarteter_gasverbrauch
+git pull
