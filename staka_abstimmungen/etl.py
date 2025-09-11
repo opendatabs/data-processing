@@ -47,7 +47,7 @@ def main():
             data_files_changed = have_data_files_changed(active_files)
             logging.info(f"Have the data files changed? {data_files_changed}. ")
             logging.info(f"Is it time to make live datasets public? {make_live_public}. ")
-            if True or data_files_changed or make_live_public:
+            if data_files_changed or make_live_public:
                 df_details, details_changed, df_kennz, kennz_changed = calculate_and_upload(active_files)
                 common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_TEST)
                 common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_TEST)
