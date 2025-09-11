@@ -839,7 +839,7 @@ def main():
     # UNCOMMENT to process older poll data
     # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
 
-    if utilities.is_session_now(ical_file_path, hours_before_start=48, hours_after_end=10):
+    if utilities.is_session_now(ical_file_path, hours_before_start=4, hours_after_end=48):
         poll_dfs.append(
             (
                 handle_polls_json(
