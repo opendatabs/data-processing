@@ -200,8 +200,9 @@ def get_session_calendar(cutoff):
         logging.info(f"Reading session calendar from pickle {pickle_file_name}")
         df_cal = pd.read_pickle(pickle_file_name)
         df_cal["dtstart"] = pd.to_datetime(df_cal["dtstart"], utc=True, errors="coerce")
-        df_cal["dtend"]   = pd.to_datetime(df_cal["dtend"],   utc=True, errors="coerce")
+        df_cal["dtend"] = pd.to_datetime(df_cal["dtend"], utc=True, errors="coerce")
     return ical_file_path, df_cal
+
 
 def get_unique_session_dates(df_cal):
     logging.info("Calculating unique session dates used to filter out test polls...")
@@ -211,12 +212,12 @@ def get_unique_session_dates(df_cal):
     df_cal["dtstart"] = pd.to_datetime(df_cal["dtstart"], utc=True, errors="coerce")
 
     # Convert to local time for date extraction
-    df_cal["session_date"] = (
-        df_cal["dtstart"].dt.tz_convert("Europe/Zurich").dt.strftime("%Y%m%d")
-    )
+    df_cal["session_date"] = df_cal["dtstart"].dt.tz_convert("Europe/Zurich").dt.strftime("%Y%m%d")
 
     # Drop rows that couldn't be parsed
-    df_unique_cal_dates = df_cal.dropna(subset=["session_date"]).drop_duplicates(subset=["session_date"])[["session_date"]]
+    df_unique_cal_dates = df_cal.dropna(subset=["session_date"]).drop_duplicates(subset=["session_date"])[
+        ["session_date"]
+    ]
     return df_unique_cal_dates
 
 
