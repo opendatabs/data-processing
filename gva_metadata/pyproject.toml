@@ -1,0 +1,16 @@
+[project]
+name = "gva-metadata"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "bs4>=0.0.2",
+    "common",
+    "pandas>=2.3.2",
+    "selenium>=4.35.0",
+    "webdriver-manager>=4.0.2",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "b628bce8b2f85cfc593799a8e4b6c2eed24aa064" }

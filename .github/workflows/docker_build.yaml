@@ -89,6 +89,9 @@ jobs:
             gva_geodatenshop:
               - 'Dockerfile'
               - 'gva_geodatenshop/**'
+            gva_metadata:
+              - 'Dockerfile'
+              - 'gva_metadata/**'
             ibs_parkhaus_bewegungen:
               - 'Dockerfile'
               - 'ibs_parkhaus_bewegungen/**'

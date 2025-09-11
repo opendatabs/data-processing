@@ -5,7 +5,7 @@ import shutil
 import sys
 import urllib.parse
 import xml.etree.ElementTree as ET
-
+from datetime import datetime
 import common
 import geopandas as gpd
 import pandas as pd
@@ -31,6 +31,14 @@ def extract_second_hier_name(row, df2):
         hier_name = matching_row["Hier_Name"].values[0]
         hier_parts = hier_name.split("/")
         return hier_parts[1] if len(hier_parts) > 1 else None
+
+def to_iso_date(wert: str) -> str:
+    for fmt in ("%d.%m.%Y", "%Y/%m/%d", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(wert, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    raise ValueError(f"Unknown date format: {wert}")
 
 
 # Function for retrieving and parsing WMS GetCapabilities
@@ -135,6 +143,14 @@ else:
     logging.info("Proceeding with copying files...")
 
 
+def get_metadata_cat(df, thema):
+    filtered_df = df[df["Thema"] == thema]
+    if filtered_df.empty:
+        return None, None
+    row = filtered_df.iloc[0]
+    return row["Aktualisierung"], row["Metadaten"]
+
+
 def remove_empty_string_from_list(string_list):
     return list(filter(None, string_list))
 
@@ -190,8 +206,11 @@ def extract_meta_geocat(geocat_uid):
 # Function for saving FGI geodata for each layer name
 def save_geodata_for_layers(wfs, df_fgi, file_path):
     meta_data = pd.read_excel(os.path.join("data", "Metadata.xlsx"), na_filter=False)
+    path_cat = os.path.join("data", "100410_geodatenkatalog.csv")
+    df_cat = pd.read_csv(path_cat, sep=";")
     metadata_for_ods = []
     logging.info("Iterating over datasets...")
+    failed = []
     for index, row in meta_data.iterrows():
         if row["import"]:
             # Which shapes need to be imported to ods?
@@ -203,10 +222,15 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 shapes_to_load = df_fgi.iloc[ind_list]["Name"].values[0]
             gdf_result = gpd.GeoDataFrame()
             for shapefile in shapes_to_load:
-                # Retrieve and save the geodata for each layer name in shapes_to_load
-                response = wfs.getfeature(typename=shapefile)
-                gdf = gpd.read_file(io.BytesIO(response.read()))
-                gdf_result = pd.concat([gdf_result, gdf])
+                try:
+                    # Retrieve and save the geodata for each layer name in shapes_to_load
+                    response = wfs.getfeature(typename=shapefile)
+                    gdf = gpd.read_file(io.BytesIO(response.read()))
+                    gdf_result = pd.concat([gdf_result, gdf])
+                except Exception as e:
+                    logging.error(f"Error loading layer '{shapefile}': {e}")
+                    failed.append({"Layer": shapefile, "Error": str(e)})
+                    continue
 
             # creat a maps_urls
             if row["create_map_urls"]:
@@ -241,7 +265,13 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             ftp_remote_dir = "harvesters/GVA/data"
             common.upload_ftp(geopackage_file, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
-            geocat_uid = row["geocat"].rsplit("/", 1)[-1].replace("\t", "")
+            aktualisierung, geocat = get_metadata_cat(df_cat, titel)
+            if pd.isna(aktualisierung) or str(aktualisierung).strip() == "":
+                aktualisierung = ""
+            else:
+                aktualisierung = to_iso_date(str(aktualisierung).strip())
+            geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
+            geocat_uid = geocat_url.rsplit("/", 1)[-1].replace("\t", "")
             (
                 publizierende_organisation,
                 herausgeber,
@@ -279,7 +309,8 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "attributions": "Geodaten Kanton Basel-Stadt",
                     "publisher": herausgeber,
                     "dcat.issued": row["dcat.issued"],
-                    #'modified': modified,
+                    "dcat.relation": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
+                    "modified": aktualisierung,
                     "language": "de",
                     "publizierende-organisation": publizierende_organisation,
                     # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
@@ -290,6 +321,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                 }
             )
 
+    pd.DataFrame(failed).to_excel("data/wfs_failed_layers.xlsx", index=False)
     # Save harvester file
     if len(metadata_for_ods) > 0:
         ods_metadata = pd.concat(

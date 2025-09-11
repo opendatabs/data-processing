@@ -7,23 +7,24 @@ import common
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# from webdriver_manager.chrome import ChromeDriverManager
 
-from gva_metadata import credentials
-
-# ChromeDriver Setup
-# driver_path = os.path.join(credentials.data_path, 'chromedriver.exe')
+# ChromeDriver Setup locally
+# driver_path = os.path.join('data', 'chromedriver.exe')
 # service = Service(driver_path)  # Replace with your ChromeDriver path
 # options = Options()
 # options.add_argument("--headless")  # Runs without a visible browser
 # driver = webdriver.Chrome(service=service, options=options)
 
 options = Options()
-options.add_argument("--headless")
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=options)
+options.add_argument("--headless") 
+options.add_argument("--no-sandbox")
+# service = Service(ChromeDriverManager().install())
+# driver = webdriver.Chrome(service=service, options=options)
+driver = webdriver.Firefox(options=options)
 # URL of the Website
 url = "https://shop.geo.bs.ch/geodaten-katalog/"
 driver.get(url)
@@ -69,6 +70,21 @@ try:
                 # Extract Update Date
                 date_div = sub_theme.find("div", class_="aktualisierung")
                 update_date = date_div.get_text(strip=True).replace("Stand der Geodaten: ", "") if date_div else None
+                # Fallback (Fall 2): Struktur mit "ebenen_dates_title" -> "Letzte Aktualisierung" + folgendes <div>
+                if not update_date:
+                    # Auf die Container-Ebene einschränken, damit wir nur innerhalb dieses Themas suchen
+                    date_container = sub_theme.select_one("div.ebenen_date_container")
+                    if date_container:
+                        title_node = date_container.find(
+                            "div",
+                            class_="ebenen_dates_title",
+                            string=lambda s: s and s.strip() == "Letzte Aktualisierung",
+                        )
+                        if title_node:
+                            val_node = title_node.find_next_sibling("div")
+                            if val_node:
+                                update_date = val_node.get_text(strip=True)
+
 
                 # Extract Links
                 links_container = sub_theme.find("div", class_="themaLinksContainer")
@@ -165,8 +181,10 @@ try:
         existing_columns = [col for col in desired_columns if col in df.columns]
         df = df[existing_columns]
         file_name = "100410_geodatenkatalog.csv"
-        file_path = os.path.join(credentials.data_path, file_name)
+        file_path = os.path.join("data", file_name)
+        export_path = os.path.join("export", file_name)
         df.to_csv(file_path, index=False, sep=";")
+        df.to_csv(export_path, index=False, sep=";")
         common.update_ftp_and_odsp(file_path, "/gva/geodatenkatalog", "100410")
         logging.info(f"CSV-Datei wurde erfolgreich gespeichert: {file_name}")
 
@@ -251,7 +269,7 @@ try:
 
     final_df = grouped_df[["title", "description", "attributions", "modified", "tags", "language"]]
     metadata_file = "gva_metadata.csv"
-    metadata_file_path = os.path.join(credentials.data_path, metadata_file)
+    metadata_file_path = os.path.join("data", metadata_file)
     final_df.to_csv(metadata_file_path, index=False, sep=";")
     logging.info(f"Neue Tabelle wurde erfolgreich gespeichert: {metadata_file}")
 

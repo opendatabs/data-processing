@@ -174,7 +174,9 @@ def legal_form_code_to_name(df):
     code_to_german_name = {entry["code"]: entry["name"]["de"] for entry in legal_forms}
     df["projectFramer_company_legalForm"] = df["projectFramer_company_legalForm"].map(code_to_german_name)
     df["buildingContractor_company_legalForm"] = df["buildingContractor_company_legalForm"].map(code_to_german_name)
-    df["delegation_buildingContractor_company_legalForm"] = df["delegation_buildingContractor_company_legalForm"].map(code_to_german_name)
+    df["delegation_buildingContractor_company_legalForm"] = df["delegation_buildingContractor_company_legalForm"].map(
+        code_to_german_name
+    )
     return df
 
 
