@@ -411,7 +411,7 @@ def main():
             "url_vollprotokoll" TEXT,
             "url_audioprotokoll_tag1" TEXT,
             "url_audioprotokoll_tag2" TEXT,
-            "url_audioprotokoll_tag3" TEXT,
+            "url_audioprotokoll_tag3" TEXT
         )
     """)
     df_sessionen_src.to_sql("Sessionen", conn, if_exists="append", index=False)
