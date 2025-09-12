@@ -297,8 +297,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata_p
 
     # On Jan 1, clear the folder that holds per-measurement CSVs for 100097
     if TODAY.month == 1 and TODAY.day == 1:
-        remote_year_folder = "kapo/geschwindigkeitsmonitoring/data_partitioned/100097"
-        # Assumes common.empty_ftp_folder exists; if not, implement there.
+        remote_year_folder = "kapo/geschwindigkeitsmonitoring/data_partitioned"
         common.delete_dir_content_ftp(common.FTP_SERVER, common.FTP_USER, common.FTP_PASSWORD, remote_year_folder)
 
     for index, row in df_meta_raw.iterrows():
