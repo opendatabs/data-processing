@@ -403,7 +403,7 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata_p
 
     logging.info(f"All data processed and saved to {db_filename} and {pkl_filename}...")
     if ct.has_changed(filename=pkl_filename, method="hash"):
-        common.upload_ftp(filename=csv_filename, remote_path="kapo/geschwindigkeitsmonitoring/data")
+        common.upload_ftp(filename=csv_filename, remote_path="kapo/geschwindigkeitsmonitoring/all_data")
         common.publish_ods_dataset_by_id("100097")
         ct.update_hash_file(pkl_filename)
 
