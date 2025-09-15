@@ -66,7 +66,6 @@ def main():
     df_sessionen_src = df_tag_trakt[
         [
             "gr_sitzung_idnr",
-            "tagesordnung_idnr",
             "versand",
             "tag1",
             "text1",
@@ -397,7 +396,6 @@ def main():
     cur.execute("""
         CREATE TABLE "Sessionen" (
             "gr_sitzung_idnr" INTEGER PRIMARY KEY,
-            "tagesordnung_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
             "text1" TEXT,
