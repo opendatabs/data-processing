@@ -66,6 +66,7 @@ def main():
     df_sessionen_src = df_tag_trakt[
         [
             "gr_sitzung_idnr",
+            "tagesordnung_idnr",
             "versand",
             "tag1",
             "text1",
@@ -81,7 +82,7 @@ def main():
             "url_audioprotokoll_tag2",
             "url_audioprotokoll_tag3",
         ]
-    ].drop_duplicates()
+    ].drop_duplicates(subset=["gr_sitzung_idnr"], keep="first")
 
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
