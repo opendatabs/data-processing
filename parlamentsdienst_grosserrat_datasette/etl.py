@@ -43,6 +43,7 @@ def main():
     # ---------- Converters (guarded) ----------
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
+    '''
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -61,7 +62,7 @@ def main():
             Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
             "dok_laufnr",
         )
-
+    '''
     # Tagesordnungen PDFs come from Sessionen (url_vollprotokoll)
     df_sessionen_src = df_tag_trakt[
         [
@@ -82,8 +83,9 @@ def main():
             "url_audioprotokoll_tag2",
             "url_audioprotokoll_tag3",
         ]
-    ].drop_duplicates(subset=["gr_sitzung_idnr"], keep="first")
+    ].drop_duplicates()
 
+    '''
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -102,7 +104,7 @@ def main():
             Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
             "tag1",
         )
-
+    '''
     # --------- Drop in FK-safe order ---------
     for t in [
         "Traktanden",
@@ -397,6 +399,7 @@ def main():
     cur.execute("""
         CREATE TABLE "Sessionen" (
             "gr_sitzung_idnr" INTEGER PRIMARY KEY,
+            "tagesordnung_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
             "text1" TEXT,
@@ -426,7 +429,6 @@ def main():
             "url_geschaeftsverzeichnis" TEXT,
             "url_sammelmappe" TEXT,
             "url_alle_dokumente" TEXT,
-            FOREIGN KEY ("gr_sitzung_idnr") REFERENCES "Sessionen"("gr_sitzung_idnr") ON DELETE CASCADE
         )
     """)
     df_tagesordnung = df_tag_trakt[
