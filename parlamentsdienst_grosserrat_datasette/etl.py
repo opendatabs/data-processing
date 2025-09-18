@@ -398,7 +398,7 @@ def main():
     logging.info("Creating table for Sessionen…")
     cur.execute("""
         CREATE TABLE "Sessionen" (
-            "gr_sitzung_idnr" INTEGER PRIMARY KEY,
+            "gr_sitzung_idnr" INTEGER,
             "tagesordnung_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
