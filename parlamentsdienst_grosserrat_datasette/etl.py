@@ -428,7 +428,7 @@ def main():
             "url_tagesordnung_dok" TEXT,
             "url_geschaeftsverzeichnis" TEXT,
             "url_sammelmappe" TEXT,
-            "url_alle_dokumente" TEXT,
+            "url_alle_dokumente" TEXT
         )
     """)
     df_tagesordnung = df_tag_trakt[
