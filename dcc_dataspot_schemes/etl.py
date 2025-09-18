@@ -22,7 +22,7 @@ S_id = pd.Series(data=ods_id)
 
 def download_datennutzungskatalog_excel():
     auth = DataspotAuth()
-    url = auth.get_base_url() + "/api/prod/schemes/Datenprodukte/download?format=xlsx&language=de"
+    url = "https://datenkatalog.bs.ch/api/prod/schemes/Datenprodukte/download?format=xlsx&language=de"
     headers = auth.get_headers()
     response = common.requests_get(url=url, headers=headers)
     return response.content
