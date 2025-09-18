@@ -83,7 +83,7 @@ def main():
             "url_audioprotokoll_tag2",
             "url_audioprotokoll_tag3",
         ]
-    ].drop_duplicates()
+    ].drop_duplicates(subset=["gr_sitzung_idnr"], keep="first")
 
     '''
     for method in ["pdfplumber", "pymupdf"]:
@@ -398,7 +398,7 @@ def main():
     logging.info("Creating table for Sessionen…")
     cur.execute("""
         CREATE TABLE "Sessionen" (
-            "gr_sitzung_idnr" INTEGER,
+            "gr_sitzung_idnr" INTEGER PRIMARY KEY,
             "tagesordnung_idnr" INTEGER,
             "versand" TEXT,
             "tag1" TEXT,
@@ -428,7 +428,8 @@ def main():
             "url_tagesordnung_dok" TEXT,
             "url_geschaeftsverzeichnis" TEXT,
             "url_sammelmappe" TEXT,
-            "url_alle_dokumente" TEXT
+            "url_alle_dokumente" TEXT,
+            FOREIGN KEY ("gr_sitzung_idnr") REFERENCES "Sessionen"("gr_sitzung_idnr") ON DELETE CASCADE
         )
     """)
     df_tagesordnung = df_tag_trakt[
