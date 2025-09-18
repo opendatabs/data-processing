@@ -65,7 +65,6 @@ class DataspotAuth:
             return self.token
 
         except requests.exceptions.RequestException as e:
-            error_msg = str(e).lower()
             if hasattr(e, 'response') and e.response.status_code == 401:
                 logging.error("\n" + "!" * 80)
                 logging.error("AUTHENTICATION FAILED: Your DATASPOT_CLIENT_SECRET has likely expired!")
