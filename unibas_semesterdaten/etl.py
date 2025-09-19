@@ -111,7 +111,6 @@ def main():
     logging.info(f"CSV-Datei wurde erfolgreich gespeichert: 100469_unibas_semesterdaten.csv")
 
 
-
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
