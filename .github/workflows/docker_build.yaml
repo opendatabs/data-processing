@@ -242,6 +242,9 @@ jobs:
             tba_wiese:
               - 'Dockerfile'
               - 'tba_wiese/**'
+            unibas_semesterdaten:
+              - 'Dockerfile'
+              - 'unibas_semesterdaten/**'
             zefix_handelsregister:
               - 'Dockerfile'
               - 'zefix_handelsregister/**'
