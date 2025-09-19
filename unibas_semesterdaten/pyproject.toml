@@ -1,0 +1,18 @@
+[project]
+name = "unibas-semesterdaten"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "bs4>=0.0.2",
+    "common",
+    "datetime>=5.5",
+    "logging>=0.4.9.6",
+    "pandas>=2.3.2",
+    "requests>=2.32.5",
+    "uuid>=1.30",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common" }
