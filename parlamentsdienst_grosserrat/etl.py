@@ -841,12 +841,13 @@ def create_traktanden_csv(
                 }
                 transformed_df = pd.concat([transformed_df, pd.DataFrame([new_row])], ignore_index=True)
     # Replace 0 in gruppentitel_next_pos with a big number
-    transformed_df["gruppentitel_next_pos"] = (
-        transformed_df["gruppentitel_next_pos"]
-        .replace("0", np.nan)                # last group or missing next
-    )
+    transformed_df["gruppentitel_next_pos"] = transformed_df["gruppentitel_next_pos"].replace(
+        "0", np.nan
+    )  # last group or missing next
     transformed_df["gruppentitel_pos"] = pd.to_numeric(transformed_df["gruppentitel_pos"], errors="coerce")
-    transformed_df["gruppentitel_next_pos"] = pd.to_numeric(transformed_df["gruppentitel_next_pos"], errors="coerce").fillna(999999)
+    transformed_df["gruppentitel_next_pos"] = pd.to_numeric(
+        transformed_df["gruppentitel_next_pos"], errors="coerce"
+    ).fillna(999999)
 
     df = pd.merge(transformed_df, df_gr_sitzung, left_on="gr_sitzung_idnr", right_on="idnr")
     df = df.drop(columns=["idnr_y"]).rename(columns={"idnr_x": "idnr"})
@@ -856,9 +857,7 @@ def create_traktanden_csv(
 
     # laufnr must be greater than or equal to gruppentitel_pos and
     # less than gruppentitel_next_pos,
-    condition = (
-        df_merge1["laufnr"].astype(int) >= df_merge1["gruppentitel_pos"].astype(int)
-    ) & (
+    condition = (df_merge1["laufnr"].astype(int) >= df_merge1["gruppentitel_pos"].astype(int)) & (
         df_merge1["laufnr"].astype(int) < df_merge1["gruppentitel_next_pos"].astype(int)
     )
     df_merge1 = df_merge1[condition].reset_index(drop=True)

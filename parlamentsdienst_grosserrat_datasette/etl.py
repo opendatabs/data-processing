@@ -493,7 +493,7 @@ def main():
     # ---------- Converters (guarded) ----------
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
-    
+
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -512,7 +512,7 @@ def main():
             Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
             "dok_laufnr",
         )
-    
+
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
