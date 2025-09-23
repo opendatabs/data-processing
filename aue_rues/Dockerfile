@@ -7,8 +7,3 @@ RUN uv sync --frozen
 COPY . /code/
 
 CMD ["uv", "run", "-m", "etl"]
-
-
-# Commands to run the container with the published image locally:
-# docker pull ghcr.io/opendatabs/data-processing/aue_rues:latest
-# docker run -it --rm -v /data/dev/workspace/data-processing/aue_rues/data_orig:/code/data_orig --name aue_rues ghcr.io/opendatabs/data-processing/aue_rues:latest

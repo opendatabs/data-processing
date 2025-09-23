@@ -36,6 +36,7 @@ __pycache__/
 **/*.xlsx
 **/*.xml
 **/*.zip
+**/*.geojson
 
 # Shapefiles and related GIS data
 **/*.cpg

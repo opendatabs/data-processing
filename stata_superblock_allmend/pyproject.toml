@@ -1,0 +1,14 @@
+[project]
+name = "stata-superblock-allmend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "geopandas>=1.1.1",
+    "shapely>=2.1.1",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "b628bce8b2f85cfc593799a8e4b6c2eed24aa064" }
