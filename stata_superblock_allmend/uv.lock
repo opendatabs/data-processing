@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -56,11 +56,12 @@ wheels = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = { git = "https://github.com/opendatabs/common?rev=b628bce8b2f85cfc593799a8e4b6c2eed24aa064#b628bce8b2f85cfc593799a8e4b6c2eed24aa064" }
+source = { git = "https://github.com/opendatabs/common?rev=dfd6ec3541e8506a906b8a0e51f6cf8ac717077e#dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" }
 dependencies = [
     { name = "filehash" },
     { name = "more-itertools" },
     { name = "pandas" },
+    { name = "pyproj" },
     { name = "python-dotenv" },
     { name = "requests" },
 ]
@@ -397,7 +398,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "common", git = "https://github.com/opendatabs/common?rev=b628bce8b2f85cfc593799a8e4b6c2eed24aa064" },
+    { name = "common", git = "https://github.com/opendatabs/common?rev=dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" },
     { name = "geopandas", specifier = ">=1.1.1" },
     { name = "shapely", specifier = ">=2.1.1" },
 ]
