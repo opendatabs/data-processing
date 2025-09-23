@@ -1,37 +1,40 @@
+import logging
 import os
 import uuid
-import logging
-import pandas as pd
 from datetime import datetime, timedelta, timezone
-import common
 
+import common
+import pandas as pd
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
 
 def to_yyyymmdd(date_str: str) -> str:
     # Expect "YYYY-MM-DD" → return "YYYYMMDD"
     return datetime.strptime(date_str.strip(), "%Y-%m-%d").strftime("%Y%m%d")
+
 
 def add_one_day_yyyymmdd(yyyymmdd: str) -> str:
     # Add one day because DTEND is exclusive in iCalendar
     d = datetime.strptime(yyyymmdd, "%Y%m%d") + timedelta(days=1)
     return d.strftime("%Y%m%d")
 
+
 def deterministic_uid(event_str: str) -> str:
     # UUID v5 with SHA-1, stable for identical input
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, event_str))
+
 
 def main():
     input_csv = "data/100469_unibas_semesterdaten.csv"
     output_ics = "data/100469_unibas_semesterdaten.ics"
 
     calname = "Semesterdaten Universität Basel"
-    caldesc = ("Offizielle Semesterdaten und vorlesungsfreie Zeiten der Universität Basel, "
-               "basierend auf den veröffentlichten Terminen der Universität Basel.")
+    caldesc = (
+        "Offizielle Semesterdaten und vorlesungsfreie Zeiten der Universität Basel, "
+        "basierend auf den veröffentlichten Terminen der Universität Basel."
+    )
     tzid = "Europe/Zurich"
 
     # Calendar header
@@ -92,8 +95,10 @@ def main():
 
             # Event title: Name – Semester – Year (if present)
             parts = [name]
-            if semester: parts.append(semester)
-            if jahr: parts.append(jahr)
+            if semester:
+                parts.append(semester)
+            if jahr:
+                parts.append(jahr)
             summary = " – ".join(parts)
 
             uid = deterministic_uid(f"{semester}_{jahr}_{name}_{dtstart}_{dtend_inclusive}")
@@ -121,13 +126,14 @@ def main():
 
         logging.info(f"ICS file created: {os.path.abspath(output_ics)}")
         logging.info(f"Number of events: {event_count}")
-        
-        # Upload to FTP 
-        common.upload_ftp(filename=output_ics,remote_path="hochschulen")
+
+        # Upload to FTP
+        common.upload_ftp(filename=output_ics, remote_path="hochschulen")
 
     except Exception as e:
         logging.exception(f"Error while generating ICS: {e}")
         return None
+
 
 if __name__ == "__main__":
     main()

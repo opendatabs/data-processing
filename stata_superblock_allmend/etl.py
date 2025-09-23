@@ -1,9 +1,10 @@
 import json
 import logging
 from pathlib import Path
+
+import common
 import geopandas as gpd
 import pandas as pd
-import common
 
 CRS = "EPSG:4326"
 
@@ -16,6 +17,7 @@ def _make_hashable(v):
         return tuple(sorted((k, _make_hashable(v[k])) for k in v))
     try:
         from shapely.geometry.base import BaseGeometry
+
         if isinstance(v, BaseGeometry):
             return v.wkt
     except Exception:
@@ -43,14 +45,21 @@ def log_intra_group_differences(df: pd.DataFrame, group_col: str, cols: list[str
                         seen.add(hv)
                         uniq.append(v)
                 sample = uniq[:max_values]
-                logging.warning("BelegungID %s: column '%s' has %d distinct values. Sample: %s",
-                                gid, c, len(uniq), [repr(x) for x in sample])
-                rows.append({
-                    "BelegungID": gid,
-                    "column": c,
-                    "num_distinct": len(uniq),
-                    "distinct_values_sample": "; ".join(repr(x) for x in sample)
-                })
+                logging.warning(
+                    "BelegungID %s: column '%s' has %d distinct values. Sample: %s",
+                    gid,
+                    c,
+                    len(uniq),
+                    [repr(x) for x in sample],
+                )
+                rows.append(
+                    {
+                        "BelegungID": gid,
+                        "column": c,
+                        "num_distinct": len(uniq),
+                        "distinct_values_sample": "; ".join(repr(x) for x in sample),
+                    }
+                )
     if rows:
         Path("data").mkdir(exist_ok=True)
         pd.DataFrame(rows).to_csv("data/inconsistent_attributes.csv", index=False)
@@ -58,20 +67,22 @@ def log_intra_group_differences(df: pd.DataFrame, group_col: str, cols: list[str
 
 
 def get_allmendbewilligungen() -> gpd.GeoDataFrame:
-    import json
 
     url = "https://data.bs.ch/explore/dataset/100018/download/"
-    r = common.requests_get(url, params={
-        "format": "geojson",
-        "refine.belgartid": 7,
-    })
+    r = common.requests_get(
+        url,
+        params={
+            "format": "geojson",
+            "refine.belgartid": 7,
+        },
+    )
     r.raise_for_status()
     gj = r.json()
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
     gdf["geometry"] = gdf["geometry"].buffer(0)
 
     # rename technical → title
-    with open("data_orig/allmend_fields.json", "r",  encoding="utf-8") as f:
+    with open("data_orig/allmend_fields.json", "r", encoding="utf-8") as f:
         colmap = json.load(f)
     gdf = gdf.rename(columns=colmap)
 
@@ -87,15 +98,11 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
     bad = nunq[(nunq > 1).any(axis=1)]
 
     if not bad.empty:
-        logging.warning(
-            "Some attributes differ within BelegungID(s): %s",
-            ", ".join(map(str, bad.index.tolist()))
-        )
+        logging.warning("Some attributes differ within BelegungID(s): %s", ", ".join(map(str, bad.index.tolist())))
         # Build report frame WITHOUT duplicate 'BelegungID'
         report_cols = ["BelegungID"] + meta_cols
         report_df = gdf.loc[:, report_cols]
         log_intra_group_differences(report_df, "BelegungID", meta_cols)
-
 
     # Aggregate: first for meta, unary_union for geometry
     agg_dict = {c: "first" for c in meta_cols}
@@ -105,9 +112,11 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
 
     # Optional: keep list of IDUnique values per BelegungID
     if "IDUnique" in gdf.columns:
-        idu = (gdf.groupby("BelegungID")["IDUnique"]
-                  .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-                  .rename("IDUnique_list"))
+        idu = (
+            gdf.groupby("BelegungID")["IDUnique"]
+            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
+            .rename("IDUnique_list")
+        )
         grouped = grouped.merge(idu, on="BelegungID", how="left")
 
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
@@ -136,8 +145,11 @@ def build_intersections(perim: gpd.GeoDataFrame, alm: gpd.GeoDataFrame) -> gpd.G
     perim_for_join = perim.rename(columns={"geometry": "perim_geom"}).set_geometry("perim_geom")
 
     # Spatial join (alm × perimeter/puffer)
-    joined = gpd.sjoin(alm, perim_for_join, how="inner", predicate="intersects") \
-               .rename_geometry("allmend_geom").reset_index(drop=True)
+    joined = (
+        gpd.sjoin(alm, perim_for_join, how="inner", predicate="intersects")
+        .rename_geometry("allmend_geom")
+        .reset_index(drop=True)
+    )
 
     # Parse area ("StJohann"/"Matthaeus") and kind ("Perimeter"/"Puffer")
     def _parse_area_kind(name: str):
@@ -154,11 +166,11 @@ def build_intersections(perim: gpd.GeoDataFrame, alm: gpd.GeoDataFrame) -> gpd.G
 
     # Prefer Perimeter over Puffer within (BelegungID, area)
     joined["kind_priority"] = joined["kind"].map({"Perimeter": 0, "Puffer": 1}).fillna(1)
-    joined = (joined
-              .sort_values(["BelegungID", "area", "kind_priority"])
-              .drop_duplicates(subset=["BelegungID", "area"], keep="first")
-              .drop(columns=["kind_priority"])
-             )
+    joined = (
+        joined.sort_values(["BelegungID", "area", "kind_priority"])
+        .drop_duplicates(subset=["BelegungID", "area"], keep="first")
+        .drop(columns=["kind_priority"])
+    )
 
     # Intersections
     perim_lookup = perim.set_index("perimeter_name")["geometry"]
