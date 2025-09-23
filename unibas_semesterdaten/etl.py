@@ -1,16 +1,19 @@
-import re
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
-from datetime import datetime
 import logging
+import re
+from datetime import datetime
+
 import common
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
 URL = "https://www.unibas.ch/de/Studium/Vor-dem-Studium/Termine-Fristen/Semesterdaten.html"
+
 
 def clean(s: str) -> str:
     """Normalize whitespace in a string."""
     return re.sub(r"\s+", " ", (s or "").strip())
+
 
 def parse_date(datestr: str) -> str:
     """Convert '23.12.2025' -> '2025-12-23'. If parsing fails, return empty string."""
@@ -22,6 +25,7 @@ def parse_date(datestr: str) -> str:
     except Exception:
         logging.warning(f"Could not parse date: '{datestr}'")
         return ""
+
 
 def split_dates(text: str):
     """
@@ -37,6 +41,7 @@ def split_dates(text: str):
         return ("", "")
     return parse_date(parts[0]), parse_date(parts[1])
 
+
 def split_semester(sem_text: str):
     """
     Split semester text like 'Frühjahrsemester 2025' -> ('Frühjahrsemester', '2025').
@@ -46,6 +51,7 @@ def split_semester(sem_text: str):
     if len(parts) >= 2 and parts[-1].isdigit():
         return " ".join(parts[:-1]), parts[-1]
     return sem_text, ""
+
 
 def parse_page(html: str) -> pd.DataFrame:
     """Parse Uni Basel semester tables and extract all rows with date ranges."""
@@ -77,15 +83,18 @@ def parse_page(html: str) -> pd.DataFrame:
             if not (start or end):
                 continue  # skip rows without valid date ranges
 
-            rows.append({
-                "semester": sem_name,
-                "jahr": sem_year,
-                "startdatum": start,
-                "enddatum": end,
-                "name": name,
-            })
+            rows.append(
+                {
+                    "semester": sem_name,
+                    "jahr": sem_year,
+                    "startdatum": start,
+                    "enddatum": end,
+                    "name": name,
+                }
+            )
 
     return pd.DataFrame(rows, columns=["semester", "jahr", "startdatum", "enddatum", "name"])
+
 
 def main():
     out_csv = "data/100469_unibas_semesterdaten.csv"
@@ -106,17 +115,15 @@ def main():
     df.to_csv(out_csv, index=False, encoding="utf-8", sep=";")
     logging.info(f"Saved results to {out_csv}")
 
-    # Upload to FTP 
-    common.update_ftp_and_odsp(path_export=out_csv, folder_name="hochschulen", dataset_id= "100469")
-    logging.info(f"CSV-Datei wurde erfolgreich gespeichert: 100469_unibas_semesterdaten.csv")
+    # Upload to FTP
+    common.update_ftp_and_odsp(path_export=out_csv, folder_name="hochschulen", dataset_id="100469")
+    logging.info("CSV-Datei wurde erfolgreich gespeichert: 100469_unibas_semesterdaten.csv")
 
 
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.StreamHandler()]
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
     )
     main()
 
