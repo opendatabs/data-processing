@@ -1,6 +1,6 @@
 import locale
-from datetime import datetime
 import logging
+from datetime import datetime
 
 import geopandas as gpd
 import pandas as pd
@@ -19,8 +19,9 @@ import pandas as pd
 # Windows:
 locale.setlocale(
     category=locale.LC_ALL,
-    locale="German"  # Note: do not use "de_DE" as it doesn't work
+    locale="German",  # Note: do not use "de_DE" as it doesn't work
 )
+
 
 def main():
     columns = [
@@ -37,15 +38,18 @@ def main():
 
     df = pd.DataFrame(columns=columns)
 
-
     for year in range(2010, 2024):
         logging.info(f"Processing data for year {year}")
         year = str(year)
         path = f"data_orig/fangstatistik_{year}.csv"
         df_year = pd.read_csv(path, encoding="utf-8", keep_default_na=False)
         df_year["Jahr"] = year
-        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace("0", "")
-        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace(0, "")
+        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace(
+            "0", ""
+        )
+        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace(
+            0, ""
+        )
 
         # make month column complete/in same format and add day column
         if (df_year["Monat"] == "").all():
@@ -122,7 +126,6 @@ def main():
     condition = ~((df["Fischart"] == "") & (df["Grundel Total"] == 0))
     df = df[condition]
 
-
     # Correct spelling fish names
     df["Fischart"] = df["Fischart"].replace("Bach/Flussforelle", "Bach-/Flussforelle")
     df["Fischart"] = df["Fischart"].replace("Bach-/ Flussforelle", "Bach-/Flussforelle")
@@ -160,7 +163,6 @@ def main():
 
     df["Fischereikarte"] = df["Fischereikarte"].replace(dict_karten)
 
-
     # deal with case where Gewässer is 'unbekannt':
     # if Fischereikarte Wiese: 'Wiese - Pachtstrecke Riehen'
     # if Galgenkarte/Fischereikarte Rhein: 'Rhein - Basel-Stadt'
@@ -176,7 +178,6 @@ def main():
         ((df["Gewässer"] == "unbekannt") & (df["Fischereikarte"] == "Fischereikarte Rhein")),
         "Gewässer",
     ] = "Rhein - Basel-Stadt"
-
 
     # Add index column to keep identical rows in OpenDataSoft
     df = df.sort_values(by=["Jahr", "Monat"])
@@ -198,7 +199,7 @@ def main():
         ]
     ]
 
-    df.to_csv(f"data/fangstatistik.csv", index=False)
+    df.to_csv("data/fangstatistik.csv", index=False)
 
     # Add geometry
     df_geom = gpd.read_file("data/gewaesser_adapted.geojson")
@@ -206,7 +207,7 @@ def main():
     gdf = df_geom.merge(df, on="Gewässer")
 
     # export geojson file
-    gdf.to_file(f"data/fangstatistik.geojson", index=False)
+    gdf.to_file("data/fangstatistik.geojson", index=False)
 
 
 if __name__ == "__main__":
