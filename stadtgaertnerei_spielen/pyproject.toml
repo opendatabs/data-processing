@@ -1,0 +1,16 @@
+[project]
+name = "stadtgaertnerei-spielen"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "geopandas>=1.1.1",
+    "pandas>=2.3.2",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.5",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" }

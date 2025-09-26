@@ -185,6 +185,9 @@ jobs:
             stadtreinigung_wildedeponien:
               - 'Dockerfile'
               - 'stadtreinigung_wildedeponien/**'
+            stadtgaertnerei_spielen:
+              - 'Dockerfile'
+              - 'stadtgaertnerei_spielen/**'
             staka_abstimmungen:
               - 'Dockerfile'
               - 'staka_abstimmungen/**'
