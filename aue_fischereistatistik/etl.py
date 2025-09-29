@@ -15,13 +15,13 @@ import pandas as pd
 # 6. Upload fangstatistik.geojson to dataportal
 
 # datetime in German
-# MAC:
-# locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
+# MAC and Linux:
+locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
 # Windows:
-locale.setlocale(
-    category=locale.LC_ALL,
-    locale="German"  # Note: do not use "de_DE" as it doesn't work
-)
+# locale.setlocale(
+#     category=locale.LC_ALL,
+#     locale="German"  # Note: do not use "de_DE" as it doesn't work
+# )
 
 def main():
     columns = [
