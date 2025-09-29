@@ -207,7 +207,7 @@ def main():
     gdf = df_geom.merge(df, on="Gewässer")
 
     # export geojson file
-    path_export = "data/fangstatistik.geojson"
+    path_export = "data/100193_fangstatistik.geojson"
     gdf.to_file(path_export, driver="GeoJSON", encoding="utf-8")
     common.update_ftp_and_odsp(path_export, "aue/fischereistatistik", "100193")
 
