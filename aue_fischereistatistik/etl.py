@@ -2,6 +2,7 @@ import locale
 from datetime import datetime
 import logging
 
+import common
 import geopandas as gpd
 import pandas as pd
 
@@ -206,7 +207,9 @@ def main():
     gdf = df_geom.merge(df, on="Gewässer")
 
     # export geojson file
-    gdf.to_file(f"data/fangstatistik.geojson", index=False)
+    path_export = "data/fangstatistik.geojson"
+    gdf.to_file(path_export, driver="GeoJSON", encoding="utf-8")
+    common.update_ftp_and_odsp(path_export, "aue/fischereistatistik", "100193")
 
 
 if __name__ == "__main__":

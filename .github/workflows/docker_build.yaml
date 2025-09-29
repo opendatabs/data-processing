@@ -35,6 +35,9 @@ jobs:
           filters: |
             base:
               - 'Dockerfile'
+            aue_fischereistatistik:
+              - 'Dockerfile'
+              - 'aue_fischereistatistik/**'
             aue_grundwasser:
               - 'Dockerfile'
               - 'aue_grundwasser/**'
