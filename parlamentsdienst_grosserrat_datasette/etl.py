@@ -503,7 +503,7 @@ def main():
             Path("data/text") / f"gr_dokumente_text_{method}.zip",
             "dok_laufnr",
         )
-    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
         safe_converter(
             pdf_converter.create_markdown_from_column,
             df_dok_copy,
@@ -522,7 +522,7 @@ def main():
             Path("data/text") / f"gr_vollprotokoll_text_{method}.zip",
             "tag1",
         )
-    for method in ["docling", "pymupdf", "pymupdf4llm"]:
+    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
         safe_converter(
             pdf_converter.create_markdown_from_column,
             df_sessionen_src,
