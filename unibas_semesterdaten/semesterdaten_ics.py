@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 tzid = "Europe/Zurich"
 BASE_CSV = "data/100469_unibas_semesterdaten.csv"
-BASE_OUT = "data/100469_unibas_semesterdaten"
+BASE_OUT = "data/unibas_semesterdaten"
 
 
 def categorize(name: str) -> str:
