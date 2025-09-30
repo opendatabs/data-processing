@@ -116,7 +116,7 @@ def main():
     logging.info(f"Saved results to {out_csv}")
 
     # Upload to FTP
-    common.update_ftp_and_odsp(path_export=out_csv, folder_name="hochschulen", dataset_id="100469")
+    common.update_ftp_and_odsp(path_export=out_csv, folder_name="ed/hochschulen", dataset_id="100469")
     logging.info("CSV-Datei wurde erfolgreich gespeichert: 100469_unibas_semesterdaten.csv")
 
 

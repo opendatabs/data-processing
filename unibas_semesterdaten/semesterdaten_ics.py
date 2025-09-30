@@ -74,7 +74,7 @@ def write_ics_from_df(df_subset: pd.DataFrame, output_ics: str, calname: str, ca
 
     logging.info(f"ICS erstellt: {os.path.abspath(output_ics)} mit {count} Events")
     # FTP-Upload 
-    common.upload_ftp(filename=output_ics, remote_path="hochschulen")
+    common.upload_ftp(filename=output_ics, remote_path="ed/hochschulen")
 
 def main():
     df = pd.read_csv(BASE_CSV, sep=";")
