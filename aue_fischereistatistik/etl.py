@@ -14,14 +14,11 @@ import pandas as pd
 # 5. Check spelling of Fish and Fischereikarte
 # 6. Upload fangstatistik.geojson to dataportal
 
-# datetime in German
-# MAC and Linux:
-locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
-# Windows:
-# locale.setlocale(
-#     category=locale.LC_ALL,
-#     locale="German"  # Note: do not use "de_DE" as it doesn't work
-# )
+GERMAN_MONTHS = {
+    "januar": "01", "februar": "02", "märz": "03", "april": "04",
+    "mai": "05", "juni": "06", "juli": "07", "august": "08",
+    "september": "09", "oktober": "10", "november": "11", "dezember": "12",
+}
 
 def main():
     columns = [
@@ -68,8 +65,11 @@ def main():
             df_year["Monat"] = df_year["Monat"].replace("3", "März")
             df_year["Monat"] = df_year["Monat"].replace("juö", "Juli")
             # change month names to zero-padded decimal numbers
-            df_year["Monat"] = df_year["Monat"].apply(
-                lambda x: datetime.strptime(x, "%B") if isinstance(x, str) and x != "" else pd.NaT
+            df_year["Monat"] = (
+                df_year["Monat"]
+                .astype(str).str.strip().str.lower()
+                .replace({"juö": "juli", "ap": "april", "3": "märz"})  # your fixes
+                .map(GERMAN_MONTHS)
             )
             df_year["Monat"] = df_year["Monat"].dt.strftime("%m")
             # add day column
