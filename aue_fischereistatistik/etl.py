@@ -1,5 +1,3 @@
-import locale
-from datetime import datetime
 import logging
 
 import common
@@ -15,10 +13,20 @@ import pandas as pd
 # 6. Upload fangstatistik.geojson to dataportal
 
 GERMAN_MONTHS = {
-    "januar": "01", "februar": "02", "märz": "03", "april": "04",
-    "mai": "05", "juni": "06", "juli": "07", "august": "08",
-    "september": "09", "oktober": "10", "november": "11", "dezember": "12",
+    "januar": "01",
+    "februar": "02",
+    "märz": "03",
+    "april": "04",
+    "mai": "05",
+    "juni": "06",
+    "juli": "07",
+    "august": "08",
+    "september": "09",
+    "oktober": "10",
+    "november": "11",
+    "dezember": "12",
 }
+
 
 def main():
     columns = [
@@ -35,15 +43,18 @@ def main():
 
     df = pd.DataFrame(columns=columns)
 
-
     for year in range(2010, 2024):
         logging.info(f"Processing data for year {year}")
         year = str(year)
         path = f"data_orig/fangstatistik_{year}.csv"
         df_year = pd.read_csv(path, encoding="utf-8", keep_default_na=False)
         df_year["Jahr"] = year
-        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace("0", "")
-        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace(0, "")
+        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace(
+            "0", ""
+        )
+        df_year[["Datum", "Monat", "Fischart", "Länge"]] = df_year[["Datum", "Monat", "Fischart", "Länge"]].replace(
+            0, ""
+        )
 
         # make month column complete/in same format and add day column
         if (df_year["Monat"] == "").all():
@@ -67,7 +78,9 @@ def main():
             # change month names to zero-padded decimal numbers
             df_year["Monat"] = (
                 df_year["Monat"]
-                .astype(str).str.strip().str.lower()
+                .astype(str)
+                .str.strip()
+                .str.lower()
                 .replace({"juö": "juli", "ap": "april", "3": "märz"})  # your fixes
                 .map(GERMAN_MONTHS)
             )
@@ -123,7 +136,6 @@ def main():
     condition = ~((df["Fischart"] == "") & (df["Grundel Total"] == 0))
     df = df[condition]
 
-
     # Correct spelling fish names
     df["Fischart"] = df["Fischart"].replace("Bach/Flussforelle", "Bach-/Flussforelle")
     df["Fischart"] = df["Fischart"].replace("Bach-/ Flussforelle", "Bach-/Flussforelle")
@@ -161,7 +173,6 @@ def main():
 
     df["Fischereikarte"] = df["Fischereikarte"].replace(dict_karten)
 
-
     # deal with case where Gewässer is 'unbekannt':
     # if Fischereikarte Wiese: 'Wiese - Pachtstrecke Riehen'
     # if Galgenkarte/Fischereikarte Rhein: 'Rhein - Basel-Stadt'
@@ -177,7 +188,6 @@ def main():
         ((df["Gewässer"] == "unbekannt") & (df["Fischereikarte"] == "Fischereikarte Rhein")),
         "Gewässer",
     ] = "Rhein - Basel-Stadt"
-
 
     # Add index column to keep identical rows in OpenDataSoft
     df = df.sort_values(by=["Jahr", "Monat"])
@@ -199,7 +209,7 @@ def main():
         ]
     ]
 
-    df.to_csv(f"data/fangstatistik.csv", index=False)
+    df.to_csv("data/fangstatistik.csv", index=False)
 
     # Add geometry
     df_geom = gpd.read_file("data/gewaesser_adapted.geojson")

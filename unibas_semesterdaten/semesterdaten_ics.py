@@ -1,10 +1,10 @@
+import logging
 import os
 import uuid
-import logging
-import pandas as pd
 from datetime import datetime, timezone
-import common  
 
+import common
+import pandas as pd
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -20,6 +20,7 @@ def categorize(name: str) -> str:
     if name == "Akademisches Semester":
         return "akademisches_semester"
     return "freizeit_feiertage"
+
 
 def ics_header(calname: str, caldesc: str) -> str:
     # Calendar header
@@ -41,6 +42,7 @@ def make_uid(row) -> str:
     base = f"{row['semester']}-{row['jahr']}-{row['name']}-{row['startdatum']}-{row['enddatum']}"
     return f"{uuid.uuid5(uuid.NAMESPACE_URL, base)}@unibas"
 
+
 def write_ics_from_df(df_subset: pd.DataFrame, output_ics: str, calname: str, caldesc: str) -> None:
     # Current UTC timestamp for DTSTAMP
     dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -54,7 +56,11 @@ def write_ics_from_df(df_subset: pd.DataFrame, output_ics: str, calname: str, ca
             dtstart = row["startdatum"]
             dtend_excl = row["enddatum"]
 
-            summary = f"{row['name']} ({row['semester']} {row['jahr']})" if row["name"] != "Vorlesungen" else f"Vorlesungen ({row['semester']} {row['jahr']})"
+            summary = (
+                f"{row['name']} ({row['semester']} {row['jahr']})"
+                if row["name"] != "Vorlesungen"
+                else f"Vorlesungen ({row['semester']} {row['jahr']})"
+            )
             uid = make_uid(row)
 
             event_lines = [
@@ -73,16 +79,16 @@ def write_ics_from_df(df_subset: pd.DataFrame, output_ics: str, calname: str, ca
         out.write("END:VCALENDAR\r\n".encode("utf-8"))
 
     logging.info(f"ICS erstellt: {os.path.abspath(output_ics)} mit {count} Events")
-    # FTP-Upload 
+    # FTP-Upload
     common.upload_ftp(filename=output_ics, remote_path="ed/hochschulen")
+
 
 def main():
     df = pd.read_csv(BASE_CSV, sep=";")
     logging.info(f"CSV geladen: {len(df)} Zeilen")
     df["kategorie"] = df["name"].apply(categorize)
     df["startdatum"] = pd.to_datetime(df["startdatum"], format="%Y-%m-%d").dt.strftime("%Y%m%d")
-    df["enddatum"]   = (pd.to_datetime(df["enddatum"], format="%Y-%m-%d") + pd.Timedelta(days=1)).dt.strftime("%Y%m%d")
-
+    df["enddatum"] = (pd.to_datetime(df["enddatum"], format="%Y-%m-%d") + pd.Timedelta(days=1)).dt.strftime("%Y%m%d")
 
     # 4 Kalender
     calendars = [
@@ -121,6 +127,7 @@ def main():
             logging.warning(f"Übersprungen (leer): {out_path}")
             continue
         write_ics_from_df(subset, out_path, name, desc)
+
 
 if __name__ == "__main__":
     main()

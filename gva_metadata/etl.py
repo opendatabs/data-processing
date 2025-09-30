@@ -3,19 +3,17 @@ import os
 import re
 import time
 from contextlib import contextmanager
-from typing import Dict, List, Tuple, Optional
-
-import pandas as pd
-from bs4 import BeautifulSoup
-
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.remote.remote_connection import LOGGER as SEL_LOGGER
+from typing import Dict, List, Optional, Tuple
 
 import common
+import pandas as pd
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.remote.remote_connection import LOGGER as SEL_LOGGER
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # ---------------------------
 # Logging setup
@@ -43,6 +41,7 @@ CSV_EXPORT_PATH = os.path.join(EXPORT_DIR, CSV_NAME)
 META_NAME = "gva_metadata.csv"
 META_PATH = os.path.join(DATA_DIR, META_NAME)
 
+
 # ---------------------------
 # Helpers
 # ---------------------------
@@ -69,8 +68,8 @@ def setup_driver() -> webdriver.Firefox:
     options.add_argument("--no-sandbox")
     driver = webdriver.Firefox(options=options)
     # Hard timeouts to avoid “hang forever”
-    driver.set_page_load_timeout(45)   # page load
-    driver.set_script_timeout(30)      # async scripts
+    driver.set_page_load_timeout(45)  # page load
+    driver.set_script_timeout(30)  # async scripts
     logger.debug("Firefox WebDriver initialized with headless options.")
     return driver
 
@@ -78,13 +77,9 @@ def setup_driver() -> webdriver.Firefox:
 def wait_for_catalog_loaded(driver: webdriver.Firefox, timeout: int = 30):
     # Wait until core elements are present
     logger.debug("Waiting for catalog headers to be present...")
-    WebDriverWait(driver, timeout).until(
-        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.headerText"))
-    )
+    WebDriverWait(driver, timeout).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.headerText")))
     # Optional: wait for sub-topic container(s)
-    WebDriverWait(driver, timeout).until(
-        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.SubGliedContext"))
-    )
+    WebDriverWait(driver, timeout).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.SubGliedContext")))
     logger.debug("Catalog content appears to be loaded.")
 
 
@@ -119,12 +114,20 @@ def parse_catalog(page_source: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
             logger.debug(f"[Header {i}] main topic: {main_theme}")
 
             header_container = header.find_parent("div", class_="header")
-            sub_container = header_container.find_next_sibling("div", class_="SubGliedContext") if header_container else None
+            sub_container = (
+                header_container.find_next_sibling("div", class_="SubGliedContext") if header_container else None
+            )
             if not sub_container:
                 logger.warning(f"No sub-container for main topic '{main_theme}'. Adding empty row.")
                 data.append(
-                    {"Kategorie": main_theme, "Thema": None, "Abkuerzung": None, "Beschreibung": None,
-                     "Aktualisierung": None, "Ebenen": None}
+                    {
+                        "Kategorie": main_theme,
+                        "Thema": None,
+                        "Abkuerzung": None,
+                        "Beschreibung": None,
+                        "Aktualisierung": None,
+                        "Ebenen": None,
+                    }
                 )
                 continue
 
@@ -308,7 +311,7 @@ def build_metadata(df: pd.DataFrame, df_ebenen: pd.DataFrame) -> pd.DataFrame:
 
             # Kategorie (linked)
             parts.append("<h3>Kategorie</h3><ul>")
-            cats = (row.get("Kategorie") or "")
+            cats = row.get("Kategorie") or ""
             for category in [c.strip() for c in cats.split(";") if c and c.strip()]:
                 url = f"https://data.bs.ch/explore/?q=tags%3D{category.replace(' ', '%20')}"
                 parts.append(f"<li><a href='{url}' target='_blank'>{category}</a></li>")
