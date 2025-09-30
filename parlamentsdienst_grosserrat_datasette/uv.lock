@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "sys_platform == 'darwin'",
@@ -1115,13 +1115,13 @@ dependencies = [
 requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=4c7f2470e04775f6053e71596b0edb934326b43f" },
+    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=273a8a5df3cc6494c62993ddba27e016cfd8b3a4" },
 ]
 
 [[package]]
 name = "pdf-converter"
-version = "0.1.4"
-source = { git = "https://github.com/opendatabs/pdf_converter?rev=4c7f2470e04775f6053e71596b0edb934326b43f#4c7f2470e04775f6053e71596b0edb934326b43f" }
+version = "0.1.3"
+source = { git = "https://github.com/opendatabs/pdf_converter?rev=273a8a5df3cc6494c62993ddba27e016cfd8b3a4#273a8a5df3cc6494c62993ddba27e016cfd8b3a4" }
 dependencies = [
     { name = "docling" },
     { name = "markdown" },
