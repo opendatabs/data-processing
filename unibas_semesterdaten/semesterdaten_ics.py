@@ -1,139 +1,127 @@
-import logging
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
-
-import common
+import logging
 import pandas as pd
+from datetime import datetime, timezone
+import common  
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-
-def to_yyyymmdd(date_str: str) -> str:
-    # Expect "YYYY-MM-DD" → return "YYYYMMDD"
-    return datetime.strptime(date_str.strip(), "%Y-%m-%d").strftime("%Y%m%d")
-
-
-def add_one_day_yyyymmdd(yyyymmdd: str) -> str:
-    # Add one day because DTEND is exclusive in iCalendar
-    d = datetime.strptime(yyyymmdd, "%Y%m%d") + timedelta(days=1)
-    return d.strftime("%Y%m%d")
+tzid = "Europe/Zurich"
+BASE_CSV = "data/100469_unibas_semesterdaten.csv"
+BASE_OUT = "data/100469_unibas_semesterdaten"
 
 
-def deterministic_uid(event_str: str) -> str:
-    # UUID v5 with SHA-1, stable for identical input
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, event_str))
+def categorize(name: str) -> str:
+    if name == "Vorlesungen":
+        return "vorlesungen"
+    if name == "Akademisches Semester":
+        return "akademisches_semester"
+    return "freizeit_feiertage"
 
-
-def main():
-    input_csv = "data/100469_unibas_semesterdaten.csv"
-    output_ics = "data/100469_unibas_semesterdaten.ics"
-
-    calname = "Semesterdaten Universität Basel"
-    caldesc = (
-        "Offizielle Semesterdaten und vorlesungsfreie Zeiten der Universität Basel, "
-        "basierend auf den veröffentlichten Terminen der Universität Basel."
-    )
-    tzid = "Europe/Zurich"
-
+def ics_header(calname: str, caldesc: str) -> str:
     # Calendar header
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Open Data Basel-Stadt//semesterdaten-export//DE",
+        "PRODID:-// Universität Basel//DE",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         f"X-WR-CALNAME:{calname}",
         f"X-WR-TIMEZONE:{tzid}",
         f"X-WR-CALDESC:{caldesc}",
     ]
+    return "\r\n".join(lines) + "\r\n"
 
+
+def make_uid(row) -> str:
+    # create UID based on unique combination of fields
+    base = f"{row['semester']}-{row['jahr']}-{row['name']}-{row['startdatum']}-{row['enddatum']}"
+    return f"{uuid.uuid5(uuid.NAMESPACE_URL, base)}@unibas"
+
+def write_ics_from_df(df_subset: pd.DataFrame, output_ics: str, calname: str, caldesc: str) -> None:
     # Current UTC timestamp for DTSTAMP
     dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    count = 0
 
-    try:
-        if not os.path.exists(input_csv):
-            logging.error(f"CSV file not found: {os.path.abspath(input_csv)}")
-            return None
+    with open(output_ics, "wb") as out:
+        out.write(ics_header(calname, caldesc).encode("utf-8"))
 
-        logging.info(f"Reading CSV file: {os.path.abspath(input_csv)}")
-        df = pd.read_csv(input_csv, sep=";", encoding="utf-8")
-        raw_rows = len(df)
-        logging.info(f"Total rows in CSV: {raw_rows}")
+        for _, row in df_subset.iterrows():
+            # All-day events: DTEND exclusive, therefore +1 day
+            dtstart = row["startdatum"]
+            dtend_excl = row["enddatum"]
 
-        # Check required columns (lowercase)
-        need_cols = {"name", "startdatum", "enddatum"}
-        missing = need_cols - set(df.columns)
-        if missing:
-            logging.error(f"Missing required columns: {', '.join(sorted(missing))}")
-            return None
+            summary = f"{row['name']} ({row['semester']} {row['jahr']})" if row["name"] != "Vorlesungen" else f"Vorlesungen ({row['semester']} {row['jahr']})"
+            uid = make_uid(row)
 
-        # Drop invalid rows and sort by start date
-        before = len(df)
-        df = df.dropna(subset=["name", "startdatum", "enddatum"]).sort_values("startdatum", kind="stable")
-        after = len(df)
-        logging.info(f"Valid rows: {after} (dropped: {before - after})")
-
-        # Build events
-        event_count = 0
-        for _, row in df.iterrows():
-            semester = str(row.get("semester", "")).strip()
-            jahr = str(row.get("jahr", "")).strip()
-            name = str(row["name"]).strip()
-            start_raw = str(row["startdatum"]).strip()
-            end_raw = str(row["enddatum"]).strip()
-
-            try:
-                dtstart = to_yyyymmdd(start_raw)
-                dtend_inclusive = to_yyyymmdd(end_raw)
-            except ValueError as e:
-                logging.warning(f"Skipping row due to invalid date [{name}, {start_raw}, {end_raw}]: {e}")
-                continue
-
-            dtend_exclusive = add_one_day_yyyymmdd(dtend_inclusive)
-
-            # Event title: Name – Semester – Year (if present)
-            parts = [name]
-            if semester:
-                parts.append(semester)
-            if jahr:
-                parts.append(jahr)
-            summary = " – ".join(parts)
-
-            uid = deterministic_uid(f"{semester}_{jahr}_{name}_{dtstart}_{dtend_inclusive}")
-
-            event = [
+            event_lines = [
                 "BEGIN:VEVENT",
-                f"DTSTAMP:{dtstamp}",
-                f"DTSTART:{dtstart}",
-                f"DTEND:{dtend_exclusive}",
-                f"SUMMARY:{summary}",
                 f"UID:{uid}",
+                f"DTSTAMP:{dtstamp}",
+                f"DTSTART;VALUE=DATE:{dtstart}",
+                f"DTEND;VALUE=DATE:{dtend_excl}",
+                f"SUMMARY:{summary}",
                 "TRANSP:TRANSPARENT",
-                "STATUS:CONFIRMED",
                 "END:VEVENT",
             ]
-            lines.extend(event)
-            event_count += 1
+            out.write(("\r\n".join(event_lines) + "\r\n").encode("utf-8"))
+            count += 1
 
-        lines.append("END:VCALENDAR")
+        out.write("END:VCALENDAR\r\n".encode("utf-8"))
 
-        # Write final ICS file
-        os.makedirs(os.path.dirname(output_ics) or ".", exist_ok=True)
-        with open(output_ics, "wb") as out:
-            out.write(("\r\n".join(lines) + "\r\n").encode("utf-8"))
+    logging.info(f"ICS erstellt: {os.path.abspath(output_ics)} mit {count} Events")
+    # FTP-Upload 
+    common.upload_ftp(filename=output_ics, remote_path="hochschulen")
 
-        logging.info(f"ICS file created: {os.path.abspath(output_ics)}")
-        logging.info(f"Number of events: {event_count}")
+def main():
+    df = pd.read_csv(BASE_CSV, sep=";")
+    logging.info(f"CSV geladen: {len(df)} Zeilen")
+    df["kategorie"] = df["name"].apply(categorize)
+    df["startdatum"] = pd.to_datetime(df["startdatum"], format="%Y-%m-%d").dt.strftime("%Y%m%d")
+    df["enddatum"]   = (pd.to_datetime(df["enddatum"], format="%Y-%m-%d") + pd.Timedelta(days=1)).dt.strftime("%Y%m%d")
 
-        # Upload to FTP
-        common.upload_ftp(filename=output_ics, remote_path="hochschulen")
 
-    except Exception as e:
-        logging.exception(f"Error while generating ICS: {e}")
-        return None
+    # 4 Kalender
+    calendars = [
+        # Alle zusammen
+        (
+            df,
+            f"{BASE_OUT}.ics",
+            "Semesterdaten Universität Basel — Alle",
+            "Vorlesungen, Akademisches Semester, Feiertage und vorlesungsfreie Zeiten",
+        ),
+        # Vorlesungen
+        (
+            df[df["kategorie"] == "vorlesungen"],
+            f"{BASE_OUT}_vorlesungen.ics",
+            "Semesterdaten Universität Basel — Vorlesungen",
+            "Vorlesungszeiträume",
+        ),
+        # Akademisches Semester
+        (
+            df[df["kategorie"] == "akademisches_semester"],
+            f"{BASE_OUT}_akademisches_semester.ics",
+            "Semesterdaten Universität Basel — Akademisches Semester",
+            "Akademische Semesterzeiträume",
+        ),
+        # Feiertage und vorlesungsfreie Zeiten
+        (
+            df[df["kategorie"] == "freizeit_feiertage"],
+            f"{BASE_OUT}_freizeit_feiertage.ics",
+            "Semesterdaten Universität Basel — Feiertage und vorlesungsfreie Zeiten",
+            "Feiertage und vorlesungsfreie Zeiten (z. B. Weihnachten, Fasnacht, Ostern)",
+        ),
+    ]
 
+    for subset, out_path, name, desc in calendars:
+        if subset.empty:
+            logging.warning(f"Übersprungen (leer): {out_path}")
+            continue
+        write_ics_from_df(subset, out_path, name, desc)
 
 if __name__ == "__main__":
     main()
+    logging.info("Alle Kalender verarbeitet")
