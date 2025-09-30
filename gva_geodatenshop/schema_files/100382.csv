@@ -1,6 +1,7 @@
 name;label;description
-idgebaeude;ID Gebäude;Identifikator des Gebäudes (einzigartig für diesen Datensatz)
+idgebaeude;ID Dachfläche;Identifikator der Dachfläche (einzigartig für diesen Datensatz)
 gebaeudenr;EGID;EGID des Gebäudes
+gebnr;Gebäudenummer;Gebäudenummer
 pv_best_ei;Photovoltaik Beste Eignung;Dachfläche mit bester Eignung für Photovoltaik in m2 (> 1100 kWh/m2a und 10m2 Mindestfläche)
 pv_gute_ei;Photovoltaik Gute Eignung;Dachfläche mit guter Eignung für Photovoltaik in m2 (800 bis 1100 kWh/m2a und 10m2 Mindestfläche)
 f_gute_ei;Fassade Gute Eignung;Fassadenfläche mit guter Eignung für Photovoltaik in m2 (>600kWh/m2a)
