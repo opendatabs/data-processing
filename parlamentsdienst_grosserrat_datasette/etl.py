@@ -494,6 +494,15 @@ def main():
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
 
+    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
+        safe_converter(
+            pdf_converter.create_markdown_from_column,
+            df_dok_copy,
+            "url_dok",
+            method,
+            Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
+            "dok_laufnr",
+        )
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -506,13 +515,12 @@ def main():
     for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
         safe_converter(
             pdf_converter.create_markdown_from_column,
-            df_dok_copy,
-            "url_dok",
+            df_sessionen_src,
+            "url_vollprotokoll",
             method,
-            Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
-            "dok_laufnr",
+            Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
+            "tag1",
         )
-
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -520,15 +528,6 @@ def main():
             "url_vollprotokoll",
             method,
             Path("data/text") / f"gr_vollprotokoll_text_{method}.zip",
-            "tag1",
-        )
-    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
-        safe_converter(
-            pdf_converter.create_markdown_from_column,
-            df_sessionen_src,
-            "url_vollprotokoll",
-            method,
-            Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
             "tag1",
         )
 
