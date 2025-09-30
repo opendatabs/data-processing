@@ -67,7 +67,6 @@ def log_intra_group_differences(df: pd.DataFrame, group_col: str, cols: list[str
 
 
 def get_allmendbewilligungen() -> gpd.GeoDataFrame:
-
     url = "https://data.bs.ch/explore/dataset/100018/download/"
     r = common.requests_get(
         url,

@@ -1,16 +1,18 @@
-import geopandas as gpd
-import pandas as pd
-from shapely.geometry import LineString, MultiLineString, Point
-from shapely.ops import linemerge, nearest_points, split
 import logging
-import common
-from dotenv import load_dotenv
 import os
 
+import common
+import geopandas as gpd
+import pandas as pd
+from dotenv import load_dotenv
+from shapely.geometry import LineString, MultiLineString, Point
+from shapely.ops import linemerge, nearest_points, split
+
 load_dotenv()
-ODS_API_KEY = os.getenv('ODS_API_KEY')
+ODS_API_KEY = os.getenv("ODS_API_KEY")
 
 CRS = "EPSG:4326"
+
 
 # function to split line at point closest to a given point
 def split_line_at_point(line, point):
@@ -24,11 +26,16 @@ def split_line_at_point(line, point):
     line2 = splitted_line.geoms[1]
     return line1, line2
 
+
 def get_gewaesser():
     url = "https://data.bs.ch/explore/dataset/100261/download/"
-    r = common.requests_get(url,headers={'Authorization': f'apikey {ODS_API_KEY}'}, params={
-        "format": "geojson",
-    })
+    r = common.requests_get(
+        url,
+        headers={"Authorization": f"apikey {ODS_API_KEY}"},
+        params={
+            "format": "geojson",
+        },
+    )
     r.raise_for_status()
     gj = r.json()
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
@@ -72,7 +79,6 @@ def main():
     multi_line = MultiLineString([Wiese_Basel, riehenteich_to_Wiese_Basel, part_Wiese_Basel, Wildschutzkanal])
     Wiese_Basel = linemerge(multi_line)
 
-
     # Construct gdf_gewaesser
     geo_gewaesser = gpd.GeoSeries(
         [
@@ -87,6 +93,7 @@ def main():
     gdf_gewaesser = gpd.GeoDataFrame(df_gewaesser, geometry=geo_gewaesser)
 
     gdf_gewaesser.to_file("data/gewaesser_adapted.geojson")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
