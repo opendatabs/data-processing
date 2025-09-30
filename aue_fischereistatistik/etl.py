@@ -84,7 +84,6 @@ def main():
                 .replace({"juö": "juli", "ap": "april", "3": "märz"})  # your fixes
                 .map(GERMAN_MONTHS)
             )
-            df_year["Monat"] = df_year["Monat"].dt.strftime("%m")
             # add day column
             if year == "2012":
                 df_year["Tag"] = pd.to_datetime(df_year["Datum"], format="%d.%m.", errors="coerce").dt.strftime("%d")
