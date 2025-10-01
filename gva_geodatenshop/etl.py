@@ -278,18 +278,12 @@ for index, row in joined_data.iterrows():
                         "name": geocat_uid + ":" + shpfilename_noext,
                         "title": title,
                         "description": description if len(description) > 0 else geocat_description,
-                        # Only add nonempty strings as references
-                        "references": "; ".join(
-                            filter(
-                                None,
-                                [row["mapbs_link"], row["geocat"], row["referenz"]],
-                            )
-                        ),
                         # str(row['mapbs_link']) + '; ' + str(row['geocat']) + '; ' + str(row['referenz']) + '; ',
                         "theme": str(row["theme"]),
                         "keyword": str(row["keyword"]),
                         "dcat_ap_ch.domain": dcat_ap_ch_domain,
                         "dcat_ap_ch.rights": "NonCommercialAllowed-CommercialAllowed-ReferenceRequired",
+                        "dcat_ap_ch.license": "terms_by",
                         "dcat.contact_name": "Open Data Basel-Stadt",
                         "dcat.contact_email": "opendata@bs.ch",
                         # 'dcat.contact_name': geocat_value(row['geocat_contact_firstname']) + ' ' + geocat_value(row['geocat_contact_lastname']),
@@ -327,6 +321,7 @@ for index, row in joined_data.iterrows():
                         # else metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"]["gmd:descriptiveKeywords"][0]["gmd:MD_Keywords"]["gmd:keyword"]["gco:CharacterString"]["#text"],
                         "publisher": row["herausgeber"],
                         "dcat.issued": row["dcat.issued"],
+                        "dcat.relation": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
                         # todo: give time in UTC
                         "modified": modified,
                         "language": "de",
