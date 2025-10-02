@@ -301,7 +301,7 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "keyword": str(row["keyword"]),
                     "dcat_ap_ch.domain": dcat_ap_ch_domain,
                     "dcat_ap_ch.rights": "NonCommercialAllowed-CommercialAllowed-ReferenceRequired",
-                     "dcat_ap_ch.license": "terms_by",
+                    "dcat_ap_ch.license": "terms_by",
                     "dcat.contact_name": "Open Data Basel-Stadt",
                     "dcat.contact_email": "opendata@bs.ch",
                     "dcat.created": dcat_created,
