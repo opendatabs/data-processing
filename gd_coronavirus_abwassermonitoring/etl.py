@@ -1,12 +1,3 @@
-"""
-sources:
-- population 2020 for normalisation:
-    https://www.bfs.admin.ch/bfs/de/home/statistiken/bevoelkerung/stand-entwicklung/raeumliche-verteilung.assetdetail.18344310.html
-- COVID data BS: https://data.bs.ch/
-- COVID data BL: credentials.path_BL
-- Abwasserdaten: credentials.path_proben
-"""
-
 import locale
 import logging
 import os
