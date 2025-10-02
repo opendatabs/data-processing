@@ -74,7 +74,7 @@ def make_dataframe_abwasserdaten():
     df_abwasser = pd.read_excel(
         path,
         sheet_name="Proben",
-        usecols="A, B, N, O, AD, AE, AK, AL",
+        usecols="A:B, N:O, AD:AE, AK:AL, AV:BA",
         skiprows=range(6),
     )
     # rename date column and change format
