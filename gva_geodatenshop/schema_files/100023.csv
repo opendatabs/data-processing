@@ -1,7 +1,0 @@
-name;label;description
-id;ID;Eindeutiger Identifikator
-einschraen;Einschränkung;Beschreibung der Einschränkung
-einschrnr;Einschränkungsnummer;Identifikator der Art der Einschränkung
-datumvon;Datum von;Startdatum der Einschränkung
-datumbis;Datum bis;Enddatum der Einschränkung
-bemerkung;Bemerkung;Bemerkung zur Fläche 
