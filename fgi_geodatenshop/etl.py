@@ -297,12 +297,11 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "name": geocat_uid + ":" + row["Dateiname"],
                     "title": row["titel_nice"],
                     "description": description if len(description) > 0 else geocat_description,
-                    # Only add nonempty strings as references
-                    "references": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
                     "theme": str(row["theme"]),
                     "keyword": str(row["keyword"]),
                     "dcat_ap_ch.domain": dcat_ap_ch_domain,
                     "dcat_ap_ch.rights": "NonCommercialAllowed-CommercialAllowed-ReferenceRequired",
+                     "dcat_ap_ch.license": "terms_by",
                     "dcat.contact_name": "Open Data Basel-Stadt",
                     "dcat.contact_email": "opendata@bs.ch",
                     "dcat.created": dcat_created,
