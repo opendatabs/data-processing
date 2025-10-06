@@ -1166,13 +1166,13 @@ dependencies = [
 requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=9aed9070f2c009d7c738fc5c6ad7f09f547e8e55" },
+    { name = "pdf-converter", git = "https://github.com/opendatabs/pdf_converter?rev=a4106241e62f2fb9dc882b6bea52d3d89f326eee" },
 ]
 
 [[package]]
 name = "pdf-converter"
 version = "0.1.4"
-source = { git = "https://github.com/opendatabs/pdf_converter?rev=9aed9070f2c009d7c738fc5c6ad7f09f547e8e55#9aed9070f2c009d7c738fc5c6ad7f09f547e8e55" }
+source = { git = "https://github.com/opendatabs/pdf_converter?rev=a4106241e62f2fb9dc882b6bea52d3d89f326eee#a4106241e62f2fb9dc882b6bea52d3d89f326eee" }
 dependencies = [
     { name = "docling" },
     { name = "httpx" },
