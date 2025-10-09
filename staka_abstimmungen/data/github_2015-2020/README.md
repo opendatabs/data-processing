@@ -1,0 +1,1 @@
+Die Daten die hier verarbeitet wurden mithilfe von `etl_archiv.py` kommen von [https://github.com/StakaBS/OGD](https://github.com/StakaBS/OGD)
