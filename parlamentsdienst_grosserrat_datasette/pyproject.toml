@@ -8,8 +8,9 @@ dependencies = [
     "common",
     "pandas>=2.2.3",
     "pdf-converter",
+    "truststore>=0.10.4",
 ]
 
 [tool.uv.sources]
 common = { git = "https://github.com/opendatabs/common", rev = "dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" }
-pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "597cc46e5e71cf2be7bee3fe4946b40590c609cf" }
+pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "cb62db2fb6d7d117673a487850c60172f4a48524" }
