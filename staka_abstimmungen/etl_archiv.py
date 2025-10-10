@@ -45,10 +45,10 @@ def clean_num(x):
     s = s.replace("'", "").replace("\u2009", "").replace(",", "")
     try:
         return int(s)
-    except Exception:
+    except ValueError:
         try:
             return int(float(s))
-        except Exception:
+        except ValueError:
             return pd.NA
 
 def clean_numeric(s):
@@ -61,11 +61,11 @@ def clean_numeric(s):
         try:
             v = float(t)
             return v/100.0
-        except:
+        except ValueError:
             return pd.NA
     try:
         return float(t)
-    except:
+    except ValueError:
         return pd.NA
 
 def format_title(core, has_geg):
