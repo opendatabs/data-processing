@@ -6,10 +6,8 @@ import common
 import pandas as pd
 import pdf_converter
 
-"""
 import truststore
 truststore.inject_into_ssl()
-"""
 
 
 def safe_converter(func, *args, **kwargs):
