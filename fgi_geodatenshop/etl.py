@@ -150,7 +150,8 @@ def get_metadata_cat(df, thema):
     if filtered_df.empty:
         return None, None
     row = filtered_df.iloc[0]
-    return row["Aktualisierung"], row["Metadaten"]
+    # return row["Aktualisierung"], row["Metadaten"]  
+    return row["Aktualisierung"]  # temporary change 
 
 
 def remove_empty_string_from_list(string_list):
@@ -267,12 +268,14 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
             ftp_remote_dir = "harvesters/GVA/data"
             common.upload_ftp(geopackage_file, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
             # In some geocat URLs there's a tab character, remove it.
-            aktualisierung, geocat = get_metadata_cat(df_cat, titel)
+            #aktualisierung, geocat = get_metadata_cat(df_cat, titel)
+            aktualisierung = get_metadata_cat(df_cat, titel) # temporary change
             if pd.isna(aktualisierung) or str(aktualisierung).strip() == "":
                 aktualisierung = ""
             else:
                 aktualisierung = to_iso_date(str(aktualisierung).strip())
-            geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
+            #geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
+            geocat_url = row["geocat"] # temporary change
             geocat_uid = geocat_url.rsplit("/", 1)[-1].replace("\t", "")
             (
                 publizierende_organisation,
