@@ -37,11 +37,13 @@ def get_spielgeraete():
 
 def main():
     df_spielplaetze = get_spielplaetze()
+    df_spielplaetze["spielgeraete_url"] = "https://data.bs.ch/explore/dataset/100463/refine.spielplatz_id=" + df_spielplaetze["id"].astype(str)
     path_spielplaetze = "data/100462_spielplaetze.csv"
     df_spielplaetze.to_csv(path_spielplaetze, index=False)
     common.update_ftp_and_odsp(path_spielplaetze, "stadtgaertnerei/spielen", "100462")
 
     df_spielgeraete = get_spielgeraete()
+    df_spielgeraete["spielplatz_url"] = "https://data.bs.ch/explore/dataset/100462/refine.id=" + df_spielgeraete["spielplatz_id"].astype(str)
     path_spielgeraete = "data/100463_spielgeraete.csv"
     df_spielgeraete.to_csv(path_spielgeraete, index=False)
     common.update_ftp_and_odsp(path_spielgeraete, "stadtgaertnerei/spielen", "100463")
