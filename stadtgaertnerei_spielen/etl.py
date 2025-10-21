@@ -4,9 +4,9 @@ from io import StringIO
 
 import common
 import pandas as pd
+from common import geo_utils
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
-from common import geo_utils
 
 load_dotenv()
 
@@ -43,9 +43,7 @@ def main():
         + df_spielplaetze.loc[df_spielplaetze["id"].notna(), "id"].astype(int).astype(str)
     )
     df_spielplaetze["map_links"] = df_spielplaetze.apply(
-        lambda row: geo_utils.create_navi_link(
-            wkt=row["geometry"]
-        ),
+        lambda row: geo_utils.create_navi_link(wkt=row["geometry"]),
         axis=1,
     )
     path_spielplaetze = "data/100462_spielplaetze.csv"
@@ -58,9 +56,7 @@ def main():
         + df_spielgeraete.loc[df_spielgeraete["spielplatz_id"].notna(), "spielplatz_id"].astype(int).astype(str)
     )
     df_spielgeraete["map_links"] = df_spielgeraete.apply(
-        lambda row: geo_utils.create_navi_link(
-            wkt=row["geometry"]
-        ),
+        lambda row: geo_utils.create_navi_link(wkt=row["geometry"]),
         axis=1,
     )
     path_spielgeraete = "data/100463_spielgeraete.csv"
