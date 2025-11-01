@@ -67,6 +67,7 @@ def parse_truncate(path, filename):
         data["Zst_id"] = data["SiteCode"]
         miv_data = data[data["TrafficType"] == "MIV"]
         velo_data = data[(data["TrafficType"] != "MIV") & (data["TrafficType"].notna())]
+        velo_data["TrafficType"] = "Velo"
         miv_filename = "MIV_" + filename
         velo_filename = "Velo_" + filename
         miv_data.to_csv(os.path.join("data", miv_filename), sep=";", encoding="utf-8", index=False)
@@ -114,6 +115,11 @@ def parse_truncate(path, filename):
     else:
         logging.info("Retrieving Zst_id as the first word in SiteName...")
         data["Zst_id"] = data["SiteName"].str.split().str[0]
+        # Set TrafficType based on filename
+        if "Velo_Fuss_Count" in filename:
+            # Convert VV to Velo annd FV to Fussgänger
+            logging.info("Updating TrafficType for Velo_Fuss_Count data...")
+            data["TrafficType"] = data["TrafficType"].replace({"VV": "Velo", "FV": "Fussgänger"})
         logging.info(f"Creating files for dashboard for the following data: {filename}...")
         dashboard_calc.create_files_for_dashboard(data, filename)
         generated_filenames = generate_files(data, filename)
