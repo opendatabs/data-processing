@@ -1,6 +1,7 @@
 import locale
 import logging
 import os
+import re
 from datetime import datetime
 
 import common
@@ -132,32 +133,80 @@ def make_df_infl_bs_bl():
     df_infl = calculate_columns(df_infl)
     return df_infl
 
+KW_PATTERN = re.compile(r"^\s*(\d{4})\s*[-_ ]?\s*K?W?\s*(\d{1,2})\s*$", re.IGNORECASE)
+
+def _normalize_kw(kw: str) -> str:
+    """
+    Parse various forms like '2024-KW35', '2024_35', '2024 KW 5', '2024-5' -> '2024_05'
+    """
+    m = KW_PATTERN.match(str(kw))
+    if not m:
+        raise ValueError(f"Unrecognized KW format: {kw!r}")
+    year, week = int(m.group(1)), int(m.group(2))
+    return f"{year}_{week:02d}"
 
 def make_dataframe_rsv():
+    # --- fortlaufend: count cases per KW ---
     path_fortlaufend = os.path.join("data", "Falldaten-BS", "RSV_Nachweise_USB-fortlaufend ab 2024.csv")
-    df_fortlaufend = pd.read_csv(path_fortlaufend, sep=";")
-    df_fortlaufend = df_fortlaufend.rename(columns={"DATUM_RSV_NACHWEIS_KALENDERWOCHE": "KW"})["KW"]
-    # Group by "KW" and save the count into "Anz_pos_RSV_USB"
-    df_fortlaufend = df_fortlaufend.value_counts().reset_index()
-    df_fortlaufend = df_fortlaufend.rename(columns={"count": "KW_Anz_pos_RSV_USB"})
-    df_fortlaufend["KW"] = df_fortlaufend["KW"].str.replace("-KW", "_")
+    df_fort = pd.read_csv(path_fortlaufend, sep=";")
+    df_fort = df_fort.rename(columns={"DATUM_RSV_NACHWEIS_KALENDERWOCHE": "KW"})["KW"].astype(str)
+    df_fort = df_fort.to_frame()
+    df_fort["KW_norm"] = df_fort["KW"].apply(_normalize_kw)
+    df_fort = df_fort["KW_norm"].value_counts().rename_axis("KW_norm").reset_index(name="KW_Anz_pos_RSV_USB")
+
+    # --- retrospektiv: already weekly counts; normalize KW too ---
     path_retro = os.path.join("data", "Falldaten-BS", "2021-2023 Retrospektive Daten_RSV_Nachweise_USB.xlsx")
     df_retro = pd.read_excel(path_retro)
-    df_retro = df_retro.rename(columns={"RSV positiv (Anzahl)": "KW_Anz_pos_RSV_USB"})
-    df_rsv = pd.concat([df_retro, df_fortlaufend]).reset_index(drop=True)
-    # Extend df to have every value exist 7 times and create a column with the values 1 to 7
-    df_rsv = df_rsv.loc[df_rsv.index.repeat(7)].reset_index(drop=True)
-    df_rsv["weekday"] = df_rsv.groupby("KW").cumcount()
-    df_rsv["Datum"] = pd.to_datetime(
-        df_rsv["KW"].astype(str) + "_" + df_rsv["weekday"].astype(str),
-        format="%Y_%W_%w",
-    )
-    df_rsv["KW"] = df_rsv["KW"].str.split("_").str[1]
-    # Calculate mean by dividing by 7
-    df_rsv["7t_mean_RSV"] = df_rsv["KW_Anz_pos_RSV_USB"] / 7
-    df_rsv = df_rsv.drop(columns=["weekday"])
-    return df_rsv
+    # Expect a KW-like column; try common variants
+    kw_col = next(c for c in df_retro.columns if c.strip().lower().startswith("kw"))
+    df_retro = df_retro.rename(columns={"RSV positiv (Anzahl)": "KW_Anz_pos_RSV_USB", kw_col: "KW"})
+    df_retro["KW_norm"] = df_retro["KW"].astype(str).apply(_normalize_kw)
+    df_retro = df_retro[["KW_norm", "KW_Anz_pos_RSV_USB"]]
 
+    # --- combine and sum any overlaps ---
+    df_weekly = (
+        pd.concat([df_retro, df_fort], ignore_index=True)
+        .groupby("KW_norm", as_index=False)["KW_Anz_pos_RSV_USB"].sum()
+    )
+
+    # --- build full KW span and fill gaps with zeros ---
+    # Derive Monday dates for each KW via ISO calendar (weekday=1..7)
+    iso = df_weekly["KW_norm"].str.split("_", expand=True).astype(int)
+    iso.columns = ["iso_year", "iso_week"]
+    # Create a weekly (Monday) anchor date from ISO year/week
+    anchor = pd.to_datetime(iso["iso_year"].astype(str) + "-W" + iso["iso_week"].astype(str).str.zfill(2) + "-1",
+                            format="%G-W%V-%u")
+    # Generate full Monday range and map back to KW_norm
+    monday_full = pd.date_range(anchor.min(), anchor.max(), freq="W-MON")
+    kz = pd.DataFrame({
+        "KW_norm": (monday_full.isocalendar().year.astype(str) + "_" +
+                    monday_full.isocalendar().week.astype(str).str.zfill(2)).values
+    }).drop_duplicates()
+
+    # Left-join to complete all KWs, fill missing with 0
+    df_weekly_full = kz.merge(df_weekly, on="KW_norm", how="left").fillna({"KW_Anz_pos_RSV_USB": 0})
+    df_weekly_full["KW_Anz_pos_RSV_USB"] = df_weekly_full["KW_Anz_pos_RSV_USB"].astype(int)
+
+    # --- expand to 7 days per KW and compute dates using ISO strings ---
+    df_rsv = df_weekly_full.loc[df_weekly_full.index.repeat(7)].reset_index(drop=True)
+    df_rsv["weekday"] = df_rsv.groupby("KW_norm").cumcount() + 1  # ISO weekday: 1..7
+    # Build ISO date string 'YYYY-WW-d' and parse
+    y = df_rsv["KW_norm"].str.split("_", expand=True)[0]
+    w = df_rsv["KW_norm"].str.split("_", expand=True)[1]
+    df_rsv["Datum"] = pd.to_datetime(y + "-W" + w + "-" + df_rsv["weekday"].astype(str), format="%G-W%V-%u")
+
+    # Keep a simple 'KW' column with week number
+    df_rsv["KW"] = w
+
+    # 7-day mean
+    df_rsv["7t_mean_RSV"] = df_rsv["KW_Anz_pos_RSV_USB"] / 7.0
+
+    # Cleanup
+    df_rsv = df_rsv.drop(columns=["weekday"])
+    # Final column order (KW/week number retained for compatibility)
+    df_rsv = df_rsv[["KW", "Datum", "KW_Anz_pos_RSV_USB", "7t_mean_RSV"]]
+
+    return df_rsv
 
 def merge_dataframes():
     df_infl = make_df_infl_bs_bl()
