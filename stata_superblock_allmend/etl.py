@@ -27,6 +27,51 @@ def _make_hashable(v):
     return v
 
 
+# ---- replacements for former lambdas ----
+
+def _union_all(s):
+    """Union all geometries in a Series into one geometry."""
+    return gpd.GeoSeries(s, crs=CRS).union_all()
+
+
+def _cent_sig_from_point(p):
+    """Return rounded (x, y) tuple or None from a point-like geometry."""
+    if p is None or getattr(p, "is_empty", False):
+        return None
+    return (round(p.x, 2), round(p.y, 2))
+
+
+def _tuple_to_csv_or_none(t):
+    """Stringify (x, y) tuple as 'x,y', else None."""
+    if t is None:
+        return None
+    return f"{t[0]},{t[1]}"
+
+
+def _unique_sorted_non_null(s):
+    """Return sorted unique non-null values from a Series."""
+    return sorted({x for x in s if pd.notna(x)})
+
+
+def _list_merge(s):
+    """Merge lists/values across a Series into a sorted unique flat list."""
+    out = set()
+    for v in s.dropna():
+        if isinstance(v, (list, tuple)):
+            out.update(v)
+        else:
+            out.add(v)
+    return sorted(out)
+
+
+def _pick_first(x):
+    return x[0]
+
+
+def _pick_second(x):
+    return x[1]
+
+
 def log_intra_group_differences(
     df: pd.DataFrame,
     group_keys: str | list[str],
@@ -116,6 +161,7 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
     def _to_date(s):
         x = pd.to_datetime(s, errors="coerce", utc=True)
         return x.dt.tz_localize(None).dt.date  # naive date
+
     if "Datum_von" in gdf.columns:
         gdf["Datum_von"] = _to_date(gdf["Datum_von"])
     if "Datum_bis" in gdf.columns:
@@ -126,10 +172,10 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
 
     # Validate sameness of non-geometry attributes within each business group
     meta_cols = [c for c in gdf.columns if c not in (
-        "IDUnique", 
-        "LokalitätID", 
-        "BelegungID", 
-        "BelegungsartID", 
+        "IDUnique",
+        "LokalitätID",
+        "BelegungID",
+        "BelegungsartID",
         "Belegungsart-Bezeichnung",
         "BelegungsstatusID",
         "Belegungsstatus-Bezeichnung",
@@ -141,7 +187,7 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
         "Belegungseinheit-Bezeichnung",
         "StrassenID",
         "MerkmalID",
-        "Geo Point", 
+        "Geo Point",
         "geometry"
         ) + tuple(group_keys)]
 
@@ -158,7 +204,7 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
 
     # --- Aggregate: first for meta, unary_union for geometry ---
     agg_dict = {c: "first" for c in meta_cols}
-    agg_dict["geometry"] = lambda s: gpd.GeoSeries(s, crs=CRS).union_all()
+    agg_dict["geometry"] = _union_all
     grouped = gdf.groupby(group_keys, as_index=False).agg(agg_dict)
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
 
@@ -184,54 +230,61 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
     # cent_sig: tuple/None -> plain object Series
     geos = gpd.GeoSeries(grouped.geometry, crs=CRS)
     centroids_lv95 = geos.to_crs(2056).centroid
-    cent_sig = centroids_lv95.apply(
-        lambda p: None if (p is None or p.is_empty) else (round(p.x, 2), round(p.y, 2))
-    ).astype("object")
+    cent_sig = centroids_lv95.apply(_cent_sig_from_point).astype("object")
 
     # build shape_sig as a plain pandas Series, then assign back
     shape_sig = pd.Series(geom_sig, index=grouped.index, dtype="object")
     mask = shape_sig.isna()
     # stringify tuple to be hashable/serializable
-    shape_sig[mask] = cent_sig[mask].apply(lambda t: None if t is None else f"{t[0]},{t[1]}")
+    shape_sig[mask] = cent_sig[mask].apply(_tuple_to_csv_or_none)
     grouped["geom_sig"] = geom_sig
     grouped["cent_sig"] = cent_sig
     grouped["shape_sig"] = shape_sig
 
     # keep ID lists for audit BEFORE dedup-by-shape
-    bid = (gdf.groupby(group_keys)["BelegungID"]
-            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-            .rename("BelegungID_list"))
+    bid = (
+        gdf.groupby(group_keys)["BelegungID"]
+        .agg(_unique_sorted_non_null)
+        .rename("BelegungID_list")
+    )
     grouped = grouped.merge(bid, on=group_keys, how="left")
 
-    idu = (gdf.groupby(group_keys)["IDUnique"]
-            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-            .rename("IDUnique_list"))
+    idu = (
+        gdf.groupby(group_keys)["IDUnique"]
+        .agg(_unique_sorted_non_null)
+        .rename("IDUnique_list")
+    )
     grouped = grouped.merge(idu, on=group_keys, how="left")
 
-    locu = (gdf.groupby(group_keys)["LokalitätID"]
-            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-            .rename("LokalitätID_list"))
+    locu = (
+        gdf.groupby(group_keys)["LokalitätID"]
+        .agg(_unique_sorted_non_null)
+        .rename("LokalitätID_list")
+    )
     grouped = grouped.merge(locu, on=group_keys, how="left")
 
-    strid = (gdf.groupby(group_keys)["StrassenID"]
-            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-            .rename("StrassenID_list"))
+    strid = (
+        gdf.groupby(group_keys)["StrassenID"]
+        .agg(_unique_sorted_non_null)
+        .rename("StrassenID_list")
+    )
     grouped = grouped.merge(strid, on=group_keys, how="left")
 
-    art = (gdf.groupby(group_keys)["Belegungsart-Bezeichnung"]
-            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-            .rename("Belegungsart-Bezeichnung_list"))
+    art = (
+        gdf.groupby(group_keys)["Belegungsart-Bezeichnung"]
+        .agg(_unique_sorted_non_null)
+        .rename("Belegungsart-Bezeichnung_list")
+    )
     grouped = grouped.merge(art, on=group_keys, how="left")
 
-    status = (gdf.groupby(group_keys)["Belegungsstatus-Bezeichnung"]
-            .agg(lambda s: sorted({x for x in s if pd.notna(x)}))
-            .rename("Belegungsstatus-Bezeichnung_list"))
+    status = (
+        gdf.groupby(group_keys)["Belegungsstatus-Bezeichnung"]
+        .agg(_unique_sorted_non_null)
+        .rename("Belegungsstatus-Bezeichnung_list")
+    )
     grouped = grouped.merge(status, on=group_keys, how="left")
 
     # second-stage aggregation over identical shapes inside same event
-    list_merge = lambda s: sorted({x for v in s.dropna()
-                                for x in (v if isinstance(v, (list, tuple)) else [v])})
-
     def _concat_unique_texts(s: pd.Series, sep=" | "):
         ignore = {"<unbekannt>", None}
         out, seen = [], set()
@@ -239,7 +292,8 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
             if not v or v in ignore:
                 continue
             if v not in seen:
-                seen.add(v); out.append(v)
+                seen.add(v)
+                out.append(v)
         return sep.join(out)
 
     multi_text_cols = [
@@ -255,26 +309,27 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
             gdf.groupby(group_keys)[present_text]
             .agg({c: _concat_unique_texts for c in present_text})
             .reset_index()
-    )
-    grouped = grouped.merge(text_agg, on=group_keys, how="left")
+        )
+        grouped = grouped.merge(text_agg, on=group_keys, how="left")
+
     agg2 = {c: "first" for c in meta_cols}
-    agg2["geometry"] = lambda s: gpd.GeoSeries(s, crs=CRS).union_all()
-    agg2["BelegungID_list"] = list_merge
-    agg2["IDUnique_list"] = list_merge
+    agg2["geometry"] = _union_all
+    agg2["BelegungID_list"] = _list_merge
+    agg2["IDUnique_list"] = _list_merge
     if "LokalitätID_list" in grouped.columns:
-        agg2["LokalitätID_list"] = list_merge
+        agg2["LokalitätID_list"] = _list_merge
     for c in multi_text_cols:
         if c in grouped.columns:
             agg2[c] = _concat_unique_texts
 
     grouped = (
         grouped.groupby(["event_key", "shape_sig"], as_index=False)
-            .agg(agg2)
+        .agg(agg2)
     )
     parts = grouped["event_key"].str.split("||", n=2, expand=True)
     grouped["Bezeichnung"] = parts[0].astype(str).str.strip()
-    grouped["Datum_von"]   = pd.to_datetime(parts[1], errors="coerce").dt.date
-    grouped["Datum_bis"]   = pd.to_datetime(parts[2], errors="coerce").dt.date
+    grouped["Datum_von"] = pd.to_datetime(parts[1], errors="coerce").dt.date
+    grouped["Datum_bis"] = pd.to_datetime(parts[2], errors="coerce").dt.date
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
     return grouped
 
@@ -317,8 +372,8 @@ def build_intersections(perim: gpd.GeoDataFrame, alm: gpd.GeoDataFrame) -> gpd.G
         return base, "Perimeter"
 
     parsed = joined["perimeter_name"].apply(_parse_area_kind)
-    joined["area"] = parsed.apply(lambda x: x[0])
-    joined["kind"] = parsed.apply(lambda x: x[1])
+    joined["area"] = parsed.apply(_pick_first)
+    joined["kind"] = parsed.apply(_pick_second)
 
     # Prefer Perimeter over Puffer within (BelegungID, area)
     joined["kind_priority"] = joined["kind"].map({"Perimeter": 0, "Puffer": 1}).fillna(1)
