@@ -5,7 +5,6 @@ from pathlib import Path
 import common
 import geopandas as gpd
 import pandas as pd
-
 from shapely.wkb import dumps as wkb_dumps
 
 CRS = "EPSG:4326"
@@ -28,6 +27,7 @@ def _make_hashable(v):
 
 
 # ---- replacements for former lambdas ----
+
 
 def _union_all(s):
     """Union all geometries in a Series into one geometry."""
@@ -171,25 +171,31 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
     group_keys = ["BegehrenID", "Bezeichnung", "Datum_von", "Datum_bis"]
 
     # Validate sameness of non-geometry attributes within each business group
-    meta_cols = [c for c in gdf.columns if c not in (
-        "IDUnique",
-        "LokalitätID",
-        "BelegungID",
-        "BelegungsartID",
-        "Belegungsart-Bezeichnung",
-        "BelegungsstatusID",
-        "Belegungsstatus-Bezeichnung",
-        "BelastungsartID",
-        "Belastungsart-Bezeichnung",
-        "Geschäftsmerkmal-Bezeichnung",
-        "MerkmalWert",
-        "EinheitID",
-        "Belegungseinheit-Bezeichnung",
-        "StrassenID",
-        "MerkmalID",
-        "Geo Point",
-        "geometry"
-        ) + tuple(group_keys)]
+    meta_cols = [
+        c
+        for c in gdf.columns
+        if c
+        not in (
+            "IDUnique",
+            "LokalitätID",
+            "BelegungID",
+            "BelegungsartID",
+            "Belegungsart-Bezeichnung",
+            "BelegungsstatusID",
+            "Belegungsstatus-Bezeichnung",
+            "BelastungsartID",
+            "Belastungsart-Bezeichnung",
+            "Geschäftsmerkmal-Bezeichnung",
+            "MerkmalWert",
+            "EinheitID",
+            "Belegungseinheit-Bezeichnung",
+            "StrassenID",
+            "MerkmalID",
+            "Geo Point",
+            "geometry",
+        )
+        + tuple(group_keys)
+    ]
 
     # Hashable view only for nunique()
     hashable_view = gdf[meta_cols].map(_make_hashable)
@@ -210,9 +216,11 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
 
     # event_key used later in build_intersections()
     grouped["event_key"] = (
-        grouped["Bezeichnung"].astype(str).str.strip() + "||" +
-        grouped["Datum_von"].astype(str) + "||" +
-        grouped["Datum_bis"].astype(str)
+        grouped["Bezeichnung"].astype(str).str.strip()
+        + "||"
+        + grouped["Datum_von"].astype(str)
+        + "||"
+        + grouped["Datum_bis"].astype(str)
     )
 
     # --- signatures (force object dtype, avoid GeoSeries ops) ---
@@ -242,32 +250,16 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
     grouped["shape_sig"] = shape_sig
 
     # keep ID lists for audit BEFORE dedup-by-shape
-    bid = (
-        gdf.groupby(group_keys)["BelegungID"]
-        .agg(_unique_sorted_non_null)
-        .rename("BelegungID_list")
-    )
+    bid = gdf.groupby(group_keys)["BelegungID"].agg(_unique_sorted_non_null).rename("BelegungID_list")
     grouped = grouped.merge(bid, on=group_keys, how="left")
 
-    idu = (
-        gdf.groupby(group_keys)["IDUnique"]
-        .agg(_unique_sorted_non_null)
-        .rename("IDUnique_list")
-    )
+    idu = gdf.groupby(group_keys)["IDUnique"].agg(_unique_sorted_non_null).rename("IDUnique_list")
     grouped = grouped.merge(idu, on=group_keys, how="left")
 
-    locu = (
-        gdf.groupby(group_keys)["LokalitätID"]
-        .agg(_unique_sorted_non_null)
-        .rename("LokalitätID_list")
-    )
+    locu = gdf.groupby(group_keys)["LokalitätID"].agg(_unique_sorted_non_null).rename("LokalitätID_list")
     grouped = grouped.merge(locu, on=group_keys, how="left")
 
-    strid = (
-        gdf.groupby(group_keys)["StrassenID"]
-        .agg(_unique_sorted_non_null)
-        .rename("StrassenID_list")
-    )
+    strid = gdf.groupby(group_keys)["StrassenID"].agg(_unique_sorted_non_null).rename("StrassenID_list")
     grouped = grouped.merge(strid, on=group_keys, how="left")
 
     art = (
@@ -306,9 +298,7 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
 
     if present_text:
         text_agg = (
-            gdf.groupby(group_keys)[present_text]
-            .agg({c: _concat_unique_texts for c in present_text})
-            .reset_index()
+            gdf.groupby(group_keys)[present_text].agg({c: _concat_unique_texts for c in present_text}).reset_index()
         )
         grouped = grouped.merge(text_agg, on=group_keys, how="left")
 
@@ -322,10 +312,7 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
         if c in grouped.columns:
             agg2[c] = _concat_unique_texts
 
-    grouped = (
-        grouped.groupby(["event_key", "shape_sig"], as_index=False)
-        .agg(agg2)
-    )
+    grouped = grouped.groupby(["event_key", "shape_sig"], as_index=False).agg(agg2)
     parts = grouped["event_key"].str.split("||", n=2, expand=True)
     grouped["Bezeichnung"] = parts[0].astype(str).str.strip()
     grouped["Datum_von"] = pd.to_datetime(parts[1], errors="coerce").dt.date

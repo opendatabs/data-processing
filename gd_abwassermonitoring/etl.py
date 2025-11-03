@@ -133,7 +133,9 @@ def make_df_infl_bs_bl():
     df_infl = calculate_columns(df_infl)
     return df_infl
 
+
 KW_PATTERN = re.compile(r"^\s*(\d{4})\s*[-_ ]?\s*K?W?\s*(\d{1,2})\s*$", re.IGNORECASE)
+
 
 def _normalize_kw(kw: str) -> str:
     """
@@ -144,6 +146,7 @@ def _normalize_kw(kw: str) -> str:
         raise ValueError(f"Unrecognized KW format: {kw!r}")
     year, week = int(m.group(1)), int(m.group(2))
     return f"{year}_{week:02d}"
+
 
 def make_dataframe_rsv():
     # --- fortlaufend: count cases per KW ---
@@ -165,8 +168,7 @@ def make_dataframe_rsv():
 
     # --- combine and sum any overlaps ---
     df_weekly = (
-        pd.concat([df_retro, df_fort], ignore_index=True)
-        .groupby("KW_norm", as_index=False)["KW_Anz_pos_RSV_USB"].sum()
+        pd.concat([df_retro, df_fort], ignore_index=True).groupby("KW_norm", as_index=False)["KW_Anz_pos_RSV_USB"].sum()
     )
 
     # --- build full KW span and fill gaps with zeros ---
@@ -174,14 +176,20 @@ def make_dataframe_rsv():
     iso = df_weekly["KW_norm"].str.split("_", expand=True).astype(int)
     iso.columns = ["iso_year", "iso_week"]
     # Create a weekly (Monday) anchor date from ISO year/week
-    anchor = pd.to_datetime(iso["iso_year"].astype(str) + "-W" + iso["iso_week"].astype(str).str.zfill(2) + "-1",
-                            format="%G-W%V-%u")
+    anchor = pd.to_datetime(
+        iso["iso_year"].astype(str) + "-W" + iso["iso_week"].astype(str).str.zfill(2) + "-1", format="%G-W%V-%u"
+    )
     # Generate full Monday range and map back to KW_norm
     monday_full = pd.date_range(anchor.min(), anchor.max(), freq="W-MON")
-    kz = pd.DataFrame({
-        "KW_norm": (monday_full.isocalendar().year.astype(str) + "_" +
-                    monday_full.isocalendar().week.astype(str).str.zfill(2)).values
-    }).drop_duplicates()
+    kz = pd.DataFrame(
+        {
+            "KW_norm": (
+                monday_full.isocalendar().year.astype(str)
+                + "_"
+                + monday_full.isocalendar().week.astype(str).str.zfill(2)
+            ).values
+        }
+    ).drop_duplicates()
 
     # Left-join to complete all KWs, fill missing with 0
     df_weekly_full = kz.merge(df_weekly, on="KW_norm", how="left").fillna({"KW_Anz_pos_RSV_USB": 0})
@@ -207,6 +215,7 @@ def make_dataframe_rsv():
     df_rsv = df_rsv[["KW", "Datum", "KW_Anz_pos_RSV_USB", "7t_mean_RSV"]]
 
     return df_rsv
+
 
 def merge_dataframes():
     df_infl = make_df_infl_bs_bl()
