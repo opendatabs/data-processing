@@ -15,7 +15,6 @@ ods_id = {
     "Verantwortungen": 100437,
     "Zusatzinformationen": 100438,
     "Bereitstellungen": 100439,
-    "Literals": 100440,
 }
 S_id = pd.Series(data=ods_id)
 
@@ -51,8 +50,6 @@ def main():
             df.reset_index(drop=True)
         # Allte Tabellen speichern (Ausser Datensätze und Betandteil)
         if sheet_name not in ["Datensätze", "Bestandteile"]:
-            if sheet_name == "__literals__":
-                sheet_name = "Literals"
             save_path = os.path.join("data", f"{S_id[sheet_name]}_{sheet_name}.csv")
             df.to_csv(save_path, sep=";", index=False)
             # In FTP Server speichern
