@@ -148,8 +148,8 @@ else:
 def get_metadata_cat(df, thema):
     filtered_df = df[df["Thema"] == thema]
     if filtered_df.empty:
-        #return None, None 
-        return None # temporary change
+        # return None, None
+        return None  # temporary change
 
     row = filtered_df.iloc[0]
     # return row["Aktualisierung"], row["Metadaten"]
