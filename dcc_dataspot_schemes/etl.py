@@ -43,7 +43,6 @@ def main():
     print("Folgende Sheets wurden geladen:", list(dataframes.keys()))
     # Ausgabe der ersten Zeilen jedes Sheets
     for sheet_name, df in dataframes.items():
-
         if sheet_name == "__literals__":
             continue  # ignorieren
         df.columns = df.iloc[0]  # Setze die erste Zeile als Header
