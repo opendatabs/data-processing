@@ -65,6 +65,8 @@ def convert_to_sqlite(data_file, var_file, export_folder, export_file, ftp_folde
 
         # Create indices for every column except weight and year
         columns_to_index = [col for col in data.columns if col not in ["weight", "Jahr", "ID"]]
+        logging.info("Print columns to index:")
+        logging.info(columns_to_index)
         common.create_indices(conn, "Antworten", columns_to_index)
 
         # Upload to ftp
