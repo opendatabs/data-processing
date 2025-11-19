@@ -13,8 +13,8 @@ from charset_normalizer import from_path
 def main():
     datasets = [
         {
-            "data_file": os.path.join("data_orig", "55plus/2011-2023/datensatz_55plus_2011_2023_OGD_TEXT.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2011-2023/Variablen_55plus_2011_2023_OGD.csv"),
+            "data_file": os.path.join("data_orig", "55plus/2011-2023/Daten_Befragung_55_plus_alle_jahre.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2011-2023/Variablen_Befragung_55_plus_alle Jahre.csv"),
             "export_folder": "55plus",
             "export_file": "Befragung_55_plus_alle_jahre.csv",
             "ftp_folder": "55plus",
@@ -31,8 +31,8 @@ def main():
             "ods_id": "100412",
         },
         {
-            "data_file": os.path.join("data_orig", "55plus/2019/DATENSATZ2019_OGD_TEXT.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2019/VARIABLEN_2019.csv"),
+            "data_file": os.path.join("data_orig", "55plus/2011/Daten_Befragung_55_plus_2019.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2011/Variablen_Befragung_55_plus_2019.csv"),
             "export_folder": "55plus/2019",
             "export_file": "Befragung_55_plus_2019.csv",
             "ftp_folder": "55plus",
@@ -40,8 +40,8 @@ def main():
             "ods_id": "100203",
         },
         {
-            "data_file": os.path.join("data_orig", "55plus/2015/DATENSATZ_2015_TEXT.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2015/VARIABLEN_2015.csv"),
+            "data_file": os.path.join("data_orig", "55plus/2011/Daten_Befragung_55_plus_2015.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2011/Variablen_Befragung_55_plus_2015.csv"),
             "export_folder": "55plus/2015",
             "export_file": "Befragung_55_plus_2015.csv",
             "ftp_folder": "55plus",
@@ -49,8 +49,8 @@ def main():
             "ods_id": "100204",
         },
         {
-            "data_file": os.path.join("data_orig", "55plus/2011/WORK_DATENSATZ_2011_TEXT.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2011/VARIABLEN_2011.csv"),
+            "data_file": os.path.join("data_orig", "55plus/2011/Daten_Befragung_55_plus_2011.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2011/Variablen_Befragung_55_plus_2011.csv"),
             "export_folder": "55plus/2011",
             "export_file": "Befragung_55_plus_2011.csv",
             "ftp_folder": "55plus",
