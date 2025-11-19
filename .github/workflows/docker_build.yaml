@@ -200,6 +200,9 @@ jobs:
             staka_briefliche_stimmabgaben:
               - 'Dockerfile'
               - 'staka_briefliche_stimmabgaben/**'
+            staka_gutachten:
+              - 'Dockerfile'
+              - 'staka_gutachten/**'
             staka_kandidaturen:
               - 'Dockerfile'
               - 'staka_kandidaturen/**'
