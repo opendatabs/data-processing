@@ -31,8 +31,8 @@ def main():
             "ods_id": "100412",
         },
         {
-            "data_file": os.path.join("data_orig", "55plus/2011/Daten_Befragung_55_plus_2019.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2011/Variablen_Befragung_55_plus_2019.csv"),
+            "data_file": os.path.join("data_orig", "55plus/2019/Daten_Befragung_55_plus_2019.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2019/Variablen_Befragung_55_plus_2019.csv"),
             "export_folder": "55plus/2019",
             "export_file": "Befragung_55_plus_2019.csv",
             "ftp_folder": "55plus",
@@ -40,8 +40,8 @@ def main():
             "ods_id": "100203",
         },
         {
-            "data_file": os.path.join("data_orig", "55plus/2011/Daten_Befragung_55_plus_2015.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2011/Variablen_Befragung_55_plus_2015.csv"),
+            "data_file": os.path.join("data_orig", "55plus/2015/Daten_Befragung_55_plus_2015.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2015/Variablen_Befragung_55_plus_2015.csv"),
             "export_folder": "55plus/2015",
             "export_file": "Befragung_55_plus_2015.csv",
             "ftp_folder": "55plus",
