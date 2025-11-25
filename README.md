@@ -17,8 +17,8 @@ Usually, data is published from data-producing governmental entities on internal
 1. Data Processing Server (internal)
     - There are Linux mount points below the folder "/mnt" that serve the data received from other government entities.
     - It runs [Docker](https://en.wikipedia.org/wiki/Docker_(software)) daemon which hosts docker containers that each contain their own isolated data transformation job.
-    - ETL jobs programmed in [Python](https://en.wikipedia.org/wiki/Python_(programming_language)). Source code of these jobs are in subfolders of the present repository, see e.g. [aue-umweltlabor](https://github.com/opendatabs/data-processing/tree/master/aue_umweltlabor).
-    - ETL jobs containerized in Docker images, so that each job has its own containerized environment to run in. The environment is configured using the Dockerfile, see e.g. [here](https://github.com/opendatabs/data-processing/blob/master/aue_umweltlabor/Dockerfile).  
+    - ETL jobs programmed in [Python](https://en.wikipedia.org/wiki/Python_(programming_language)). Source code of these jobs are in subfolders of the present repository, see e.g. [aue-umweltlabor](https://github.com/opendatabs/data-processing/tree/main/aue_umweltlabor).
+    - ETL jobs containerized in Docker images, so that each job has its own containerized environment to run in. The environment is configured using the Dockerfile, see e.g. [here](https://github.com/opendatabs/data-processing/blob/main/aue_umweltlabor/Dockerfile).  
     - [AirFlow](https://en.wikipedia.org/wiki/Apache_Airflow) workflow scheduler. Runs as a docker container, see [configuration](https://github.com/opendatabs/docker-airflow).  
     - Every ETL job to run has its own Apache Airflow [Directed Acyclical Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) file. It is written in Python and defines when a containerized ETL job is run, and how to proceed if the job fails. DAG files are stored in the [AirFlow repo](https://github.com/opendatabs/docker-airflow/tree/master/dags), see e.g. [this one](https://github.com/opendatabs/docker-airflow/blob/master/dags/aue-umweltlabor.py).
     - AirFlow DAG jobs can be found on the server in the folder '/data/dev/workspace/docker-airflow/dags', ETL jobs in '/data/dev/workspace/data-processing'.
@@ -54,7 +54,7 @@ Usually, data is published from data-producing governmental entities on internal
     1. OGD datasets by Statistisches Amt Basel-Stadt
         - Metadata of datasets to be harvested by the data portal are saved onto the web server in folder "/public_html/opendatasoft/harvesters/stata/ftp-csv/" by the (closed source) publishing process run by members of the Statistisches Amt. 
     1. Open Datasets by Grundbuch- und Vermessungsamt Basel-Stadt
-        - Data and metadata of datasets to be harvested by the data platform are daily created by the data processing job [gva_geodatenshop](https://github.com/opendatabs/data-processing/blob/master/gva_geodatenshop/etl.py) and uploaded to the web server into  folder "/public_html/opendatasoft/harvesters/GVA/". 
+        - Data and metadata of datasets to be harvested by the data platform are daily created by the data processing job [gva_geodatenshop](https://github.com/opendatabs/data-processing/blob/main/gva_geodatenshop/etl.py) and uploaded to the web server into  folder "/public_html/opendatasoft/harvesters/GVA/". 
  
  #### Out of the Data Platform
  The data platform can be harvested by other data platforms e.g. via the [DCAT-AP for Switzerland API](https://www.ech.ch/de/standards/39919) by using an URL in the form of [https://data.bs.ch/api/v2/catalog/exports/dcat_ap_ch](https://data.bs.ch/api/v2/catalog/exports/dcat_ap_ch) (see [here](https://help.opendatasoft.com/apis/ods-search-v2/#exporting-datasets) for further technical information).  
