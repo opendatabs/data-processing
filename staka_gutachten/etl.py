@@ -1,7 +1,6 @@
-import os
 import logging
+import os
 import shutil
-
 
 import common
 import pandas as pd
@@ -10,12 +9,17 @@ DATA_ORIG_PATH = "data_orig"
 
 
 def sanitize_filename(name: str) -> str:
-    transl_table = str.maketrans({
-        "ä": "ae", "Ä": "Ae",
-        "ö": "oe", "Ö": "Oe",
-        "ü": "ue", "Ü": "Ue",
-        "ß": "ss",
-    })
+    transl_table = str.maketrans(
+        {
+            "ä": "ae",
+            "Ä": "Ae",
+            "ö": "oe",
+            "Ö": "Oe",
+            "ü": "ue",
+            "Ü": "Ue",
+            "ß": "ss",
+        }
+    )
     name = name.translate(transl_table)
     name = name.replace(" ", "_")
     allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
@@ -27,9 +31,7 @@ def process_excel_file():
     excel_filename = "Liste_Gutachten.xlsx"
     excel_file_path = os.path.join(DATA_ORIG_PATH, excel_filename)
     if not os.path.exists(excel_file_path):
-        raise FileNotFoundError(
-            f"The file '{excel_filename}' does not exist in the directory '{DATA_ORIG_PATH}'."
-        )
+        raise FileNotFoundError(f"The file '{excel_filename}' does not exist in the directory '{DATA_ORIG_PATH}'.")
 
     df = pd.read_excel(excel_file_path)
     df["Dateiname"] = df["Dateiname"].astype(str)
@@ -41,11 +43,9 @@ def process_excel_file():
     # Check: existieren alle lokalen Dateien mit Originalnamen?
     files_in_data_orig = set(os.listdir(DATA_ORIG_PATH))
     listed_files = set(df["Dateiname"])
-    unlisted_files = files_in_data_orig - listed_files - {'.gitkeep', 'Liste_Gutachten.xlsx'}
+    unlisted_files = files_in_data_orig - listed_files - {".gitkeep", "Liste_Gutachten.xlsx"}
     if unlisted_files:
-        raise ValueError(
-            f"The following files are in 'data_orig' but not in 'Liste_Gutachten': {unlisted_files}"
-        )
+        raise ValueError(f"The following files are in 'data_orig' but not in 'Liste_Gutachten': {unlisted_files}")
     missing_files = listed_files - files_in_data_orig
     if missing_files:
         raise ValueError(
