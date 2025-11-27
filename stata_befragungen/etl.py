@@ -71,11 +71,17 @@ def main():
         )
         dir_to_zip = os.path.join("data", ds["export_folder"])
         # exclude the main export_file from the zip
-        publish_zip_from_folder(
-            dir_to_zip=dir_to_zip,
-            ftp_folder=ds["ftp_folder"],
-            exclude_files=[ds["export_file"]],
-        )
+        if ds["jahr"] is None:
+            publish_zip_from_folder(
+                dir_to_zip=dir_to_zip,
+                ftp_folder=ds["ftp_folder"],
+                exclude_files=[f"{year}.zip" for year in [2011, 2015, 2019, 2023]])
+        else:
+            publish_zip_from_folder(
+                dir_to_zip=dir_to_zip,
+                ftp_folder=ds["ftp_folder"],
+                exclude_files=[ds["export_file"]],
+            )
 
 
 def publish_zip_from_folder(dir_to_zip, ftp_folder, exclude_files=None):
