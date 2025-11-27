@@ -10,6 +10,7 @@ dependencies = [
     "pandas>=2.2.3",
     "python-dotenv>=1.0.1",
     "requests>=2.32.3",
+    "unidecode>=1.4.0",
 ]
 
 [tool.uv.sources]
