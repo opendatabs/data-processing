@@ -120,7 +120,7 @@ def save_datenprodukte(dataframes, model):
         if sheet == "__literals__":
             continue  # ignorieren
         if sheet == "Sammlungen":
-            if Sammlungen_seen == True:
+            if Sammlungen_seen:
                 continue # ignorieren
             Sammlungen_seen = True
         df.columns = df.iloc[0]  # Setze die erste Zeile als Header
