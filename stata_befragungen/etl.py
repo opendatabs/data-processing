@@ -1,7 +1,7 @@
 import io
 import logging
 import os
-import shutil
+import zipfile
 import unicodedata
 
 import common
@@ -69,13 +69,37 @@ def main():
             ods_id=ds["ods_id"],
             jahr=ds["jahr"],
         )
-        publish_zip_from_folder(os.path.join("data", ds["export_folder"]), ds["ftp_folder"])
+        dir_to_zip = os.path.join("data", ds["export_folder"])
+        # exclude the main export_file from the zip
+        publish_zip_from_folder(
+            dir_to_zip=dir_to_zip,
+            ftp_folder=ds["ftp_folder"],
+            exclude_files=[ds["export_file"]],
+        )
 
 
-def publish_zip_from_folder(dir_to_zip, ftp_folder):
+def publish_zip_from_folder(dir_to_zip, ftp_folder, exclude_files=None):
     logging.info(f'Creating zip archive of data in folder "{dir_to_zip}" for the web...')
     zip_name = f"{dir_to_zip}.zip"
-    shutil.make_archive(dir_to_zip, "zip", dir_to_zip)
+
+    # Normalize excluded file paths to absolute paths
+    exclude_files = exclude_files or []
+    exclude_abs = {
+        os.path.abspath(os.path.join(dir_to_zip, f)) for f in exclude_files
+    }
+
+    # Build the zip manually so we can skip specific files
+    with zipfile.ZipFile(zip_name, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(dir_to_zip):
+            for file in files:
+                full_path = os.path.abspath(os.path.join(root, file))
+                if full_path in exclude_abs:
+                    logging.debug(f"Excluding from zip: {full_path}")
+                    continue
+                # store paths relative to dir_to_zip (as shutil.make_archive would)
+                arcname = os.path.relpath(full_path, start=dir_to_zip)
+                zf.write(full_path, arcname=arcname)
+
     if ct.has_changed(zip_name):
         common.upload_ftp(zip_name, remote_path=f"befragungen/{ftp_folder}")
         ct.update_hash_file(zip_name)
