@@ -1,8 +1,8 @@
 import io
 import logging
 import os
-import zipfile
 import unicodedata
+import zipfile
 
 import common
 import common.change_tracking as ct
@@ -75,7 +75,8 @@ def main():
             publish_zip_from_folder(
                 dir_to_zip=dir_to_zip,
                 ftp_folder=ds["ftp_folder"],
-                exclude_files=[f"{year}" for year in [2011, 2015, 2019, 2023]] + [ds["export_file"]],)
+                exclude_files=[f"{year}" for year in [2011, 2015, 2019, 2023]] + [ds["export_file"]],
+            )
         else:
             publish_zip_from_folder(
                 dir_to_zip=dir_to_zip,
@@ -90,9 +91,7 @@ def publish_zip_from_folder(dir_to_zip, ftp_folder, exclude_files=None):
 
     # Normalize excluded file paths to absolute paths
     exclude_files = exclude_files or []
-    exclude_abs = {
-        os.path.abspath(os.path.join(dir_to_zip, f)) for f in exclude_files
-    }
+    exclude_abs = {os.path.abspath(os.path.join(dir_to_zip, f)) for f in exclude_files}
 
     # Build the zip manually so we can skip specific files and folders
     with zipfile.ZipFile(zip_name, "w", compression=zipfile.ZIP_DEFLATED) as zf:
