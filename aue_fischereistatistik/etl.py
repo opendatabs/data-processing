@@ -43,7 +43,7 @@ def main():
 
     df = pd.DataFrame(columns=columns)
 
-    for year in range(2010, 2024):
+    for year in range(2010, 2025):
         logging.info(f"Processing data for year {year}")
         year = str(year)
         path = f"data_orig/fangstatistik_{year}.csv"
