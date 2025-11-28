@@ -14,7 +14,7 @@ def main():
     datasets = [
         {
             "data_file": os.path.join("data_orig", "55plus/2011-2023/Daten_Befragung_55_plus_alle_jahre.csv"),
-            "var_file": os.path.join("data_orig", "55plus/2011-2023/Variablen_Befragung_55_plus_alle Jahre.csv"),
+            "var_file": os.path.join("data_orig", "55plus/2011-2023/Variablen_Befragung_55_plus_alle_jahre.csv"),
             "export_folder": "55plus",
             "export_file": "Befragung_55_plus_alle_jahre.csv",
             "ftp_folder": "55plus",
@@ -75,7 +75,7 @@ def main():
             publish_zip_from_folder(
                 dir_to_zip=dir_to_zip,
                 ftp_folder=ds["ftp_folder"],
-                exclude_files=[f"{year}.zip" for year in [2011, 2015, 2019, 2023]])
+                exclude_files=[f"{year}.zip" for year in [2011, 2015, 2019, 2023]] + [ds["export_file"]],)
         else:
             publish_zip_from_folder(
                 dir_to_zip=dir_to_zip,
