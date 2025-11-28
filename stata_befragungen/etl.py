@@ -75,7 +75,7 @@ def main():
             publish_zip_from_folder(
                 dir_to_zip=dir_to_zip,
                 ftp_folder=ds["ftp_folder"],
-                exclude_files=[f"{year}.zip" for year in [2011, 2015, 2019, 2023]] + [ds["export_file"]],)
+                exclude_files=[f"{year}" for year in [2011, 2015, 2019, 2023]] + [ds["export_file"]],)
         else:
             publish_zip_from_folder(
                 dir_to_zip=dir_to_zip,
@@ -94,9 +94,12 @@ def publish_zip_from_folder(dir_to_zip, ftp_folder, exclude_files=None):
         os.path.abspath(os.path.join(dir_to_zip, f)) for f in exclude_files
     }
 
-    # Build the zip manually so we can skip specific files
+    # Build the zip manually so we can skip specific files and folders
     with zipfile.ZipFile(zip_name, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for root, _, files in os.walk(dir_to_zip):
+        for root, dirs, files in os.walk(dir_to_zip):
+            # Exclude directories
+            dirs[:] = [d for d in dirs if os.path.abspath(os.path.join(root, d)) not in exclude_abs]
+
             for file in files:
                 full_path = os.path.abspath(os.path.join(root, file))
                 if full_path in exclude_abs:
