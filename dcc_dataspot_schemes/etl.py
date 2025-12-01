@@ -7,10 +7,8 @@ import common
 import pandas as pd
 from dataspot_auth import DataspotAuth
 
-# models = ['Datenprodukte', 'Fachdaten', 'Referenzdaten', 'Systeme', 'Datenbankobjekte','Kennzahlen', 'Datentypen (technisch)','Datentypen (fachlich)' ]
-models = ["Datenprodukte", "Datentypen (fachlich)"]
+models = ['Datenprodukte', 'Fachdaten', 'Referenzdaten', 'Systeme', 'Datenbankobjekte','Kennzahlen', 'Datentypen (technisch)','Datentypen (fachlich)' ]
 
-# gelöscht {    "Zusatzinformationen": 100438,}
 ods_id = {
     "Fachdaten_Attribute": 100490,
     "Fachdaten_Beziehungen": 100491,
@@ -36,6 +34,8 @@ ods_id = {
     "Datenprodukte_Distributionen": 100436,
     "Datenprodukte_Verantwortungen": 100437,
     "Datenprodukte_Bereitstellungen": 100439,
+    "Datenprodukte_Zusatzinformationen": 100438,
+  
 }
 
 S_id = pd.Series(data=ods_id)
@@ -97,7 +97,7 @@ def prepare_and_merge_datasets(df_data, df_bestand):
 def save_datenprodukte(dataframes, model):
     global Sammlungen_seen
     # Ausgabe der Namen der Sheets
-    logging.info("Folgende Sheets wurden geladen:", list(dataframes.keys()))
+    logging.info("Folgende Sheets wurden geladen: %s", list(dataframes.keys()))
     for sheet, df in dataframes.items():
         sheet = normalize_name(sheet)
         model = normalize_name(model)
