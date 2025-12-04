@@ -88,12 +88,12 @@ class DataspotAuth:
         test_url = "https://datenkatalog.bs.ch/rest/prod/tenants/Mandant"
         r = requests.get(url=test_url, headers=self.get_headers())
 
-        if r.status_code == 500:
+        if r.status_code == 401:
             logging.error("\n" + "!" * 80)
-            logging.error("AUTHENTICATION FAILED: Your DATASPOT_SERVICE_USER_ACCESS_KEY may have expired!")
-            logging.error(
-                "Please create a new access key for the service user in dataspot and update the environment variable."
-            )
+            logging.error("AUTHENTICATION FAILED: Your DATASPOT_SERVICE_USER_ACCESS_KEY has likely expired!")
+            logging.error("Please create a new access key for the service user in dataspot:")
+            logging.error("Dataspot > Mandant > Service User > Your service user > Access Keys verwalten > Add")
+            logging.error("Then update the DATASPOT_SERVICE_USER_ACCESS_KEY environment variable with the new value.")
             logging.error("!" * 80 + "\n")
             raise Exception("DATASPOT_SERVICE_USER_ACCESS_KEY validation failed - the key may have expired")
 
