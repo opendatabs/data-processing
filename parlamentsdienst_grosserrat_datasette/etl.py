@@ -172,8 +172,7 @@ def main():
             "intr-bind" TEXT,
             "funktion" TEXT,
             "text" TEXT,
-            "uni_nr" INTEGER,
-            FOREIGN KEY ("uni_nr") REFERENCES "Personen"("uni_nr") ON DELETE CASCADE
+            "uni_nr" INTEGER
         )
     """)
     df_int = df_int[["rubrik", "intr-bind", "funktion", "text", "uni_nr"]]
