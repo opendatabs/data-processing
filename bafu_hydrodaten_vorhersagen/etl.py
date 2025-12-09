@@ -92,13 +92,14 @@ def main():
         df_export.to_csv(export_filename, index=False, sep=";")
         common.update_ftp_and_odsp(export_filename, "hydrodata.ch/data/vorhersagen", DICT_ID[river])
 
-
 def get_date_time(line):
-    match = re.search(r"\d{1,2}.\d{1,2}.\d{4}, \d{2}.\d{2}", line)
-    date_time = datetime.strptime(match.group(), "%d.%m.%Y, %H.%M")
-    date_time = date_time.replace(tzinfo=timezone("Europe/Zurich"))
-    date_time = correct_dst_timezone(date_time)
-    return date_time
+    match = re.search(r"\d{1,2}\.\d{1,2}\.\d{4}, \d{2}\.\d{2}", line)
+    if not match:
+        return None
+
+    dt = datetime.strptime(match.group(), "%d.%m.%Y, %H.%M")
+    dt = dt.replace(tzinfo=timezone("Europe/Zurich"))
+    return correct_dst_timezone(dt)
 
 
 def correct_dst_timezone(timestamp):
