@@ -29,8 +29,12 @@ def future_abfuhrtermine():
             "Wochentag": "wochentag",
         }
     )
+    
+    df = df[df["Feiertage"].isna() | (df["Feiertage"] == "")]
+    df = df.drop(columns=["Feiertage"])
     df["wochentag"] = df["wochentag"].str.capitalize()
-    df["termin"] = pd.to_datetime(df["termin"], format="%Y%m%d")
+    df["termin"] = df["termin"].str.strip()
+    df["termin"] = pd.to_datetime(df["termin"], format="%d.%m.%Y")
     # Read the max year from the column 'termin'
     max_year = df["termin"].dt.year.max()
     # Filter the data for the max year
