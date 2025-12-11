@@ -66,16 +66,24 @@ def parse_truncate(path, filename):
         logging.info("Creating separate files for MIV and Velo...")
         data["Zst_id"] = data["SiteCode"]
         miv_data = data[data["TrafficType"] == "MIV"]
-        velo_data = data[(data["TrafficType"] != "MIV") & (data["TrafficType"].notna())]
+        velo_data = data[(data["TrafficType"] == "VV") | (data["TrafficType"] == "Velo")]
+        fuss_data = data[(data["TrafficType"] == "FV") | (data["TrafficType"] == "Fussgänger")]
+        miv_data["TrafficType"] = "MIV"
         velo_data["TrafficType"] = "Velo"
+        fuss_data["TrafficType"] = "Fussgänger"
         miv_filename = "MIV_" + filename
         velo_filename = "Velo_" + filename
+        fuss_filename = "Fussgaenger_" + filename
         miv_data.to_csv(os.path.join("data", miv_filename), sep=";", encoding="utf-8", index=False)
         velo_data.to_csv(os.path.join("data", velo_filename), sep=";", encoding="utf-8", index=False)
-        dashboard_calc.create_files_for_dashboard(velo_data, filename)
+        fuss_data.to_csv(os.path.join("data", fuss_filename), sep=";", encoding="utf-8", index=False)
+        logging.info("Creating files for dashboard for MIV and Velo data...")
         dashboard_calc.create_files_for_dashboard(miv_data, filename)
+        dashboard_calc.create_files_for_dashboard(velo_data, filename)
+        dashboard_calc.create_files_for_dashboard(fuss_data, filename)
         generated_filenames = generate_files(miv_data, miv_filename)
         generated_filenames += generate_files(velo_data, velo_filename)
+        generated_filenames += generate_files(fuss_data, fuss_filename)
         # Add data to databases
         logging.info("Adding data to database MIV")
         conn = sqlite3.connect(os.path.join("data", "datasette", "MIV.db"))
@@ -85,6 +93,7 @@ def parse_truncate(path, filename):
         logging.info("Adding data to database Velo_Fuss")
         conn = sqlite3.connect(os.path.join("data", "datasette", "Velo_Fuss.db"))
         velo_data.to_sql("Velo_Fuss", conn, if_exists="append", index=False)
+        fuss_data.to_sql("Velo_Fuss", conn, if_exists="append", index=False)
         conn.commit()
         conn.close()
     # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
