@@ -29,7 +29,7 @@ def future_abfuhrtermine():
             "Wochentag": "wochentag",
         }
     )
-    
+
     df = df[df["Feiertage"].isna() | (df["Feiertage"] == "")]
     df = df.drop(columns=["Feiertage"])
     df["wochentag"] = df["wochentag"].str.capitalize()
