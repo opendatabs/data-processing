@@ -18,7 +18,7 @@ def main():
 
 
 def future_abfuhrtermine():
-    file = os.path.join("data_orig", "AF", "Abfuhrtermine", "Abfuhrtermine.csv")
+    file = os.path.join("data_orig", "Abfuhrtermine.csv")
     logging.info(f"Processing file {file}...")
     df = pd.read_csv(file, sep=";", encoding="cp1252", index_col=False)
     df = df.rename(
@@ -41,7 +41,8 @@ def future_abfuhrtermine():
     df = df[df["termin"].dt.year == max_year]
     df["dayofweek"] = df["termin"].dt.dayofweek
     df["termin"] = df["termin"].dt.strftime("%d.%m.%Y")
-    df = df.merge(download_abfuhrzonen(), on="zone", how="left")
+    zones = download_abfuhrzonen().rename(columns={"af_zone": "zone"})
+    df = df.merge(zones, on="zone", how="left")
     path_export = os.path.join("data", f"Abfuhrtermine_{max_year}.csv")
     df.to_csv(path_export, index=False, sep=";", encoding="utf-8")
     if ct.has_changed(path_export):
@@ -105,7 +106,7 @@ def append_columns(df):
 def download_abfuhrzonen():
     url_to_shp = "https://data.bs.ch/explore/dataset/100095/download/?format=csv&timezone=Europe/Zurich&lang=de"
     r = common.requests_get(url_to_shp)
-    return pd.read_csv(io.StringIO(r.content.decode("utf-8")), sep=";")[["zone", "geo_shape", "geo_point_2d"]]
+    return pd.read_csv(io.StringIO(r.content.decode("utf-8")), sep=";")[["af_zone", "geo_shape", "geo_point_2d"]]
 
 
 if __name__ == "__main__":
