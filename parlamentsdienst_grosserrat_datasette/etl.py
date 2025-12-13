@@ -165,6 +165,7 @@ def main():
     )
 
     # --------- Interessensbindungen (IBI) ---------
+    # TODO: Add foreign key to Personen again
     logging.info("Creating table for Interessensbindungen…")
     cur.execute("""
         CREATE TABLE "Interessensbindungen" (

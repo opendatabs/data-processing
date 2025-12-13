@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "common",
     "filehash>=0.2.dev1",
+    "geopandas>=1.1.1",
     "more-itertools>=10.6.0",
+    "owslib>=0.35.0",
     "pandas>=2.2.3",
     "python-dotenv>=1.1.0",
     "requests>=2.32.3",

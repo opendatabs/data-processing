@@ -69,6 +69,24 @@ def main():
     common.update_ftp_and_odsp(path_anreiseempf, "kapo/eventverkehr_st.jakob", "100429")
     common.update_ftp_and_odsp(path_zeitraum_info, "kapo/eventverkehr_st.jakob", "100464")
 
+    # Upload PNG images to FTP
+    png_dir = os.path.join("data_orig", "PNG_Anfahrtsempfehlungen")
+    remote_png_dir = "kapo/eventverkehr_st.jakob/png_anfahrtsempfehlungen"
+
+    if os.path.isdir(png_dir):
+        for fname in os.listdir(png_dir):
+            if not fname.lower().endswith(".png"):
+                continue
+            local_path = os.path.join(png_dir, fname)
+            try:
+                # Assumes common has a helper for FTP uploads (see below).
+                common.upload_file_to_ftp(local_path, remote_png_dir)
+                logging.info("Uploaded PNG %s to FTP folder %s", fname, remote_png_dir)
+            except Exception as e:
+                logging.exception("Failed to upload %s: %s", local_path, e)
+    else:
+        logging.warning("PNG directory does not exist: %s", png_dir)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
