@@ -184,7 +184,6 @@ def aggregate_hourly(site_data, categories, subfolder, site, filename):
             columns="HourFrom",
             aggfunc="sum",
         ).reset_index()
-
         # Create the complete date range for each direction and lane combination
         directions_lanes = df_agg["Direction_LaneName"].unique()
         complete_dates = pd.MultiIndex.from_product(
@@ -216,14 +215,14 @@ def aggregate_daily(site_data, categories, subfolder, site, filename):
     - filename (str): Name of the file being processed.
     """
     # Calculate the daily counts per weekday for each date, direction, and lane
-    df_to_group = site_data[["Date", "Direction_LaneName"] + categories[filename]].copy()
+    df_to_group = site_data[["Date", "Direction_LaneName"] + categories[filename] + ["ValuesApproved", "ValuesEdited"]].copy()
 
     # Determine the date range
     min_date = pd.to_datetime(site_data["Date"]).min()
     max_date = pd.to_datetime(site_data["Date"]).max()
     date_range = pd.DataFrame({"Date": pd.date_range(start=min_date, end=max_date).strftime("%Y-%m-%d")})
 
-    df_agg = df_to_group.groupby(["Date", "Direction_LaneName"])[categories[filename]].sum().reset_index()
+    df_agg = df_to_group.groupby(["Date", "Direction_LaneName"])[categories[filename] + ["ValuesApproved", "ValuesEdited"]].sum().reset_index()
     df_agg = df_agg[df_agg["Total"] > 0]
     df_agg["Weekday"] = pd.to_datetime(df_agg["Date"]).dt.weekday
     df_agg["Week"] = pd.to_datetime(df_agg["Date"]).dt.isocalendar().week
@@ -259,10 +258,10 @@ def aggregate_monthly(site_data, categories, subfolder, site, filename):
     - filename (str): Name of the file being processed.
     """
     group_cols = ["Year", "Month", "Direction_LaneName"]
-    df_to_group = site_data[group_cols + ["DateTimeFrom"] + categories[filename]].copy()
+    df_to_group = site_data[group_cols + ["DateTimeFrom"] + categories[filename] + ["ValuesApproved", "ValuesEdited"]].copy()
 
     # Aggregate data by month
-    df_agg = df_to_group.groupby(group_cols)[categories[filename]].sum().reset_index()
+    df_agg = df_to_group.groupby(group_cols)[categories[filename] + ["ValuesApproved", "ValuesEdited"]].sum().reset_index()
     df_agg = df_agg[df_agg["Total"] > 0]
 
     # Count the number of measures
@@ -295,10 +294,10 @@ def aggregate_yearly(site_data, categories, subfolder, site, filename):
     - filename (str): Name of the file being processed.
     """
     group_cols = ["Year", "Direction_LaneName"]
-    df_to_group = site_data[group_cols + ["DateTimeFrom"] + categories[filename]].copy()
+    df_to_group = site_data[group_cols + ["DateTimeFrom"] + categories[filename] + ["ValuesApproved", "ValuesEdited"]].copy()
 
     # Aggregate data by year
-    df_agg = df_to_group.groupby(group_cols)[categories[filename]].sum().reset_index()
+    df_agg = df_to_group.groupby(group_cols)[categories[filename] + ["ValuesApproved", "ValuesEdited"]].sum().reset_index()
     df_agg = df_agg[df_agg["Total"] > 0]
 
     # Count the number of measures
