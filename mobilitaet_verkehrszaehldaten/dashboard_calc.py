@@ -184,6 +184,11 @@ def aggregate_hourly(site_data, categories, subfolder, site, filename):
             columns="HourFrom",
             aggfunc="sum",
         ).reset_index()
+        
+        # Aggregate ValuesApproved and ValuesEdited by Date and Direction_LaneName
+        df_agg_approved_edited = site_data.groupby(["Date", "Direction_LaneName"])[["ValuesApproved", "ValuesEdited"]].sum().reset_index()
+        df_agg = df_agg.merge(df_agg_approved_edited, on=["Date", "Direction_LaneName"], how="left")
+        
         # Create the complete date range for each direction and lane combination
         directions_lanes = df_agg["Direction_LaneName"].unique()
         complete_dates = pd.MultiIndex.from_product(
