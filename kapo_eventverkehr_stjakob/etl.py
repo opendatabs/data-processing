@@ -79,8 +79,7 @@ def main():
                 continue
             local_path = os.path.join(png_dir, fname)
             try:
-                # Assumes common has a helper for FTP uploads (see below).
-                common.upload_file_to_ftp(local_path, remote_png_dir)
+                common.upload_ftp(local_path, remote_path=remote_png_dir)
                 logging.info("Uploaded PNG %s to FTP folder %s", fname, remote_png_dir)
             except Exception as e:
                 logging.exception("Failed to upload %s: %s", local_path, e)
