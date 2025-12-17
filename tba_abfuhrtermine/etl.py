@@ -20,7 +20,7 @@ def main():
 def future_abfuhrtermine():
     file = os.path.join("data_orig", "Abfuhrtermine.csv")
     logging.info(f"Processing file {file}...")
-    df = pd.read_csv(file, sep=";", encoding="cp1252", index_col=False)
+    df = pd.read_csv(file, sep=";", index_col=False)
     df = df.rename(
         columns={
             "Art": "art",
