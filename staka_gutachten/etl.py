@@ -63,7 +63,7 @@ def process_excel_file():
     # Check: existieren alle lokalen Dateien mit Originalnamen?
     files_in_data_orig = set(os.listdir(DATA_ORIG_PATH))
     listed_files = set(df["Dateiname"])
-    unlisted_files = files_in_data_orig - listed_files - {".gitkeep", "Liste_Gutachten.xlsx"}
+    unlisted_files = files_in_data_orig - listed_files - {".gitkeep", "Liste_Gutachten.xlsx", "DESKTOP.INI"}
     if unlisted_files:
         raise ValueError(f"The following files are in 'data_orig' but not in 'Liste_Gutachten': {unlisted_files}")
     missing_files = listed_files - files_in_data_orig
