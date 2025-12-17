@@ -58,8 +58,9 @@ def process_excel_file():
     # Neue Spalte: Dateiname wie er auf dem FTP erscheinen soll
     df["Dateiname_ftp"] = df["Dateiname"].apply(sanitize_filename)
     base_url = "https://data-bs.ch/stata/staka/gutachten/"
-    df["URL_Datei"] = base_url + df["Dateiname_ftp"]
-
+    gate_url = base_url + "index.html?file="
+    df["URL_Datei"] = gate_url + df["Dateiname_ftp"]
+    
     # Check: existieren alle lokalen Dateien mit Originalnamen?
     files_in_data_orig = set(os.listdir(DATA_ORIG_PATH))
     listed_files = set(df["Dateiname"])
