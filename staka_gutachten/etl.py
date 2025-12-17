@@ -4,9 +4,8 @@ import shutil
 from pathlib import Path
 
 import common
-import pandas as pd
-
 import fitz
+import pandas as pd
 
 DATA_ORIG_PATH = "data_orig"
 
@@ -60,7 +59,7 @@ def process_excel_file():
     base_url = "https://data-bs.ch/stata/staka/gutachten/"
     gate_url = base_url + "index.html?file="
     df["URL_Datei"] = gate_url + df["Dateiname_ftp"]
-    
+
     # Check: existieren alle lokalen Dateien mit Originalnamen?
     files_in_data_orig = set(os.listdir(DATA_ORIG_PATH))
     listed_files = set(df["Dateiname"])
