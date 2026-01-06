@@ -6,8 +6,6 @@ from pathlib import Path
 import common
 import pandas as pd
 
-import fitz
-
 DATA_ORIG_PATH = "data_orig"
 
 
@@ -16,35 +14,6 @@ def sanitize_filename(name: str) -> str:
     name = name.translate(transl_table).replace(" ", "_")
     allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
     return "".join(c for c in name if c in allowed)
-
-
-def flatten_pdf_to_image_pdf(src_pdf: str, dst_pdf: str, dpi: int = 200) -> None:
-    """
-    Creates a new PDF where each page is a rasterized image of the original page.
-    Result: text is no longer selectable/copyable (but OCR is still possible).
-    """
-    src = fitz.open(src_pdf)
-    out = fitz.open()
-
-    zoom = dpi / 72.0
-    mat = fitz.Matrix(zoom, zoom)
-
-    for i, page in enumerate(src, start=1):
-        pix = page.get_pixmap(matrix=mat, alpha=False)
-        rect = page.rect
-
-        out_page = out.new_page(width=rect.width, height=rect.height)
-
-        img_rect = fitz.Rect(0, 0, rect.width, rect.height)
-        out_page.insert_image(img_rect, pixmap=pix)
-
-        if i % 10 == 0:
-            logging.info(f"Flattening {os.path.basename(src_pdf)}: page {i}/{src.page_count}")
-
-    Path(dst_pdf).parent.mkdir(parents=True, exist_ok=True)
-    out.save(dst_pdf, deflate=True)
-    out.close()
-    src.close()
 
 
 def process_excel_file():
@@ -57,10 +26,21 @@ def process_excel_file():
     df["Dateiname"] = df["Dateiname"].astype(str)
     # Neue Spalte: Dateiname wie er auf dem FTP erscheinen soll
     df["Dateiname_ftp"] = df["Dateiname"].apply(sanitize_filename)
+
+    # Ensure PDFs keep / get the .pdf suffix in the FTP name
+    def ensure_pdf_suffix(orig_name: str, ftp_name: str) -> str:
+        if Path(orig_name).suffix.lower() == ".pdf" and Path(ftp_name).suffix.lower() != ".pdf":
+            return str(Path(ftp_name).with_suffix(".pdf"))
+        return ftp_name
+
+    df["Dateiname_ftp"] = [
+        ensure_pdf_suffix(o, f) for o, f in zip(df["Dateiname"], df["Dateiname_ftp"])
+    ]
+
+    # Direct link to the file (no viewer / gate page)
     base_url = "https://data-bs.ch/stata/staka/gutachten/"
-    gate_url = base_url + "index.html?file="
-    df["URL_Datei"] = gate_url + df["Dateiname_ftp"]
-    
+    df["URL_Datei"] = base_url + df["Dateiname_ftp"]
+
     # Check: existieren alle lokalen Dateien mit Originalnamen?
     files_in_data_orig = set(os.listdir(DATA_ORIG_PATH))
     listed_files = set(df["Dateiname"])
@@ -85,18 +65,7 @@ def upload_files_to_ftp(df: pd.DataFrame):
         src_path = os.path.join(DATA_ORIG_PATH, orig_name)
         dst_path = os.path.join("data", ftp_name)
 
-        ext = Path(orig_name).suffix.lower()
-
-        if ext == ".pdf":
-            # Ensure the output name ends with .pdf
-            if Path(dst_path).suffix.lower() != ".pdf":
-                dst_path = str(Path(dst_path).with_suffix(".pdf"))
-                ftp_name = str(Path(ftp_name).with_suffix(".pdf"))
-
-            flatten_pdf_to_image_pdf(src_path, dst_path, dpi=200)
-            logging.info(f"Flattened PDF {orig_name} -> {ftp_name}")
-        else:
-            shutil.copy2(src_path, dst_path)
+        shutil.copy2(src_path, dst_path)
 
         common.upload_ftp(dst_path, remote_path=remote_dir)
         logging.info(f"Uploaded {orig_name} as {ftp_name} to FTP at {remote_dir}")
