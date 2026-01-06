@@ -37,9 +37,9 @@ def process_excel_file():
         ensure_pdf_suffix(o, f) for o, f in zip(df["Dateiname"], df["Dateiname_ftp"])
     ]
 
-    # Direct link to the file (no viewer / gate page)
     base_url = "https://data-bs.ch/stata/staka/gutachten/"
-    df["URL_Datei"] = base_url + df["Dateiname_ftp"]
+    gate_url = base_url + "index.html?file="
+    df["URL_Datei"] = gate_url + df["Dateiname_ftp"]
 
     # Check: existieren alle lokalen Dateien mit Originalnamen?
     files_in_data_orig = set(os.listdir(DATA_ORIG_PATH))
