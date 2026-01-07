@@ -34,7 +34,6 @@
       background: #fff;
     }
 
-    /* Center everything */
     .page{
       min-height: calc(100vh - 60px);
       display: flex;
@@ -42,7 +41,6 @@
       align-items: center;
     }
 
-    /* Title */
     h1{
       font-size: 36px;
       line-height: 40px;
@@ -54,22 +52,12 @@
     }
 
     p{ margin: 15px 0; }
-    ul{
-      margin: 15px 0 0 18px;
-      padding-left: 0;
-      list-style: disc;
-    }
+    ul{ margin: 15px 0 0 18px; }
+    li{ padding-bottom: 12px; }
 
-    li{
-      margin-left: 0;
-      padding-left: 4px;
-      padding-bottom: 12px;
-    }
-
-    a{ color: var(--blue-900); text-decoration: underline; }
+    a{ color: var(--blue-900); }
     a:hover{ color: var(--blue-700); }
 
-    /* box component */
     .box{
       position: relative;
       margin: 30px 0;
@@ -82,86 +70,57 @@
 
     .box__header{
       display:flex;
-      flex-wrap:wrap;
       align-items:baseline;
-      margin-right:60px; /* leave room for icon */
-      gap: 6px;
+      margin-right:60px;
     }
 
     .box__title{
       font-size: 20px;
-      line-height: 28px;
       font-weight: 700;
       color: var(--primary-600);
     }
 
-    .box__addon{
-      font-size:16px;
-      line-height:22px;
-      font-weight:500;
-      color: var(--gray-900);
-    }
-
     .box__content{
       margin-top: 15px;
-      hyphens: auto;
       font-size:16px;
       line-height:22px;
     }
 
-    /* Round “logo” icon */
     .box__icon{
       position: absolute;
       right: 15px;
       top: 15px;
       width: 50px;
       height: 50px;
-      border-radius: 9999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
-    .box__icon img{
-      width: 50px;
-      height: 50px;
-      max-width: 50px;
-      max-height: 50px;
-      object-fit: contain;
-      display: block;
-    }
-    /* warning variant */
+
     .box--warning{
       background: var(--red-50);
     }
+
     .box--warning .box__title{
       color: var(--red-800);
     }
 
-    /* button.is-action */
     .button{
       border: 1px solid var(--blue-900);
       background: var(--gray-20);
       color: var(--blue-900);
-      transition: all 250ms ease-in-out;
       cursor: pointer;
+      transition: all 250ms ease-in-out;
     }
+
     .button.is-action{
       border-radius: 20px;
-      font-size: 14px;
-      line-height: 20px;
       padding: 10px 20px;
     }
+
     .button.is-action:hover{
       background: var(--blue-700);
       border-color: var(--blue-700);
       color: #fff;
     }
-    .button.is-action:focus{
-      outline: none;
-      background: var(--blue-700);
-      border-color: var(--blue-700);
-      color: #fff;
-    }
+
     .button:disabled{
       background: #E3E3E3;
       border-color: #E3E3E3;
@@ -170,40 +129,28 @@
     }
 
     .row{
-      display:flex;
-      gap: 15px;
-      align-items:center;
-      flex-wrap:wrap;
       margin-top: 15px;
-    }
-
-    code{
-      background: var(--gray-20);
-      padding: .1rem .3rem;
-      border-radius: 6px;
     }
 
     .muted{
       font-size: 12px;
       color:#666;
     }
-
-    /* hide title after accept */
-    .is-hidden{ display:none !important; }
   </style>
 </head>
 
 <body>
   <div class="page">
 
-    <h1 id="pageTitle">Vom Kanton in Auftrag gegebene Gutachten</h1>
+    <h1>Vom Kanton in Auftrag gegebene Gutachten</h1>
 
     <div class="box box--warning" id="gate">
-      <div class="box__icon" aria-hidden="true" title="Hinweis">
-        <img src="warning.svg" alt="" />
+      <div class="box__icon" aria-hidden="true">
+        <img src="warning.svg" alt="" width="50" height="50" />
       </div>
+
       <div class="box__header">
-        <div class="box__title">Wichtiger Hinweis - Bedingungen für den Zugriff</div>
+        <div class="box__title">Wichtiger Hinweis – Bedingungen für den Zugriff</div>
       </div>
 
       <div class="box__content">
@@ -225,13 +172,11 @@
 
 <script>
   const params = new URLSearchParams(location.search);
-  const file = params.get("file"); // e.g. "foo.pdf"
+  const file = params.get("file");
   const isSafe = file && /^[a-zA-Z0-9._-]+\.pdf$/i.test(file);
 
-  const titleEl = document.getElementById("pageTitle");
   const btn = document.getElementById("open");
   const fileHint = document.getElementById("fileHint");
-  const gate = document.getElementById("gate");
 
   if (!isSafe) {
     fileHint.innerHTML = 'Kein gültiges PDF angegeben. Erwartet: <code>?file=NAME.pdf</code>';
@@ -240,26 +185,9 @@
     fileHint.textContent = "Datei: " + file;
   }
 
-  const key = "gutachten_accept_v1:" + (file || "unknown");
-
-  function redirectToPdf() {
-    // Optional: hide gate quickly (mostly cosmetic; redirect happens immediately)
-    titleEl.classList.add("is-hidden");
-    gate.style.display = "none";
-
-    // Redirect to the actual PDF (relative to this directory)
-    window.location.href = file;
-  }
-
-  // already accepted?
-  if (isSafe && localStorage.getItem(key) === "yes") {
-    redirectToPdf();
-  }
-
   btn.addEventListener("click", () => {
     if (!isSafe) return;
-    localStorage.setItem(key, "yes");
-    redirectToPdf();
+    window.location.href = file;
   });
 </script>
 
