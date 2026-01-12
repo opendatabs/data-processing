@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
 
 [[package]]
@@ -393,6 +393,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "common" },
     { name = "geopandas" },
+    { name = "numpy" },
     { name = "shapely" },
 ]
 
@@ -400,6 +401,7 @@ dependencies = [
 requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" },
     { name = "geopandas", specifier = ">=1.1.1" },
+    { name = "numpy", specifier = ">=2.3.2" },
     { name = "shapely", specifier = ">=2.1.1" },
 ]
 

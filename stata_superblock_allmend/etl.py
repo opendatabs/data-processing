@@ -4,6 +4,7 @@ from pathlib import Path
 
 import common
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from shapely.wkb import dumps as wkb_dumps
 
@@ -302,7 +303,8 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
         )
         grouped = grouped.merge(text_agg, on=group_keys, how="left")
 
-    agg2 = {c: "first" for c in meta_cols}
+    keep_cols = ["BegehrenID", "Bezeichnung", "Datum_von", "Datum_bis"]
+    agg2 = {c: "first" for c in (meta_cols + [c for c in keep_cols if c in grouped.columns])}
     agg2["geometry"] = _union_all
     agg2["BelegungID_list"] = _list_merge
     agg2["IDUnique_list"] = _list_merge
@@ -313,10 +315,6 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
             agg2[c] = _concat_unique_texts
 
     grouped = grouped.groupby(["event_key", "shape_sig"], as_index=False).agg(agg2)
-    parts = grouped["event_key"].str.split("||", n=2, expand=True)
-    grouped["Bezeichnung"] = parts[0].astype(str).str.strip()
-    grouped["Datum_von"] = pd.to_datetime(parts[1], errors="coerce").dt.date
-    grouped["Datum_bis"] = pd.to_datetime(parts[2], errors="coerce").dt.date
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
     return grouped
 
