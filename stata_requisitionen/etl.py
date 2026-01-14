@@ -8,7 +8,7 @@ import pandas as pd
 
 def main():
     path_to_requisitionen = Path("data_orig/Requisitionen.csv")
-    if ct.has_changed(path_to_requisitionen):
+    if ct.has_changed(str(path_to_requisitionen)):
         df = pd.read_csv(path_to_requisitionen)
 
         shp_path = Path("data_orig/hexagonalraster/hexaraster_kanton_100.shp")
@@ -52,7 +52,7 @@ def main():
         out_csv = out.copy()
         out_csv["geometry"] = out_csv.geometry.to_wkt()
         out_csv.to_csv(Path("data/100517_requisitionen.csv"), index=False)
-        ct.update_hash_file(path_to_requisitionen)
+        ct.update_hash_file(str(path_to_requisitionen))
 
 
 if __name__ == "__main__":
