@@ -3,13 +3,15 @@ import logging
 from pathlib import Path
 
 import common
+import common.change_tracking as ct
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 from shapely.wkb import dumps as wkb_dumps
 
 CRS = "EPSG:4326"
-
+ALLMEND_URL = "https://data.bs.ch/explore/dataset/100018/download/"
+ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson")
+PERIM_PATH = Path("data_orig/SBT_Perimeter_und_Puffer.json")
 
 def _make_hashable(v):
     """Recursively turn lists/dicts into hashables for nunique checks."""
@@ -132,23 +134,50 @@ def log_intra_group_differences(
         pd.DataFrame(rows).to_csv(report_path, index=False)
         logging.warning("Wrote inconsistency report to %s", report_path)
 
+def _write_if_bytes_changed(path: Path, new_bytes: bytes) -> bool:
+    """
+    Write bytes to path only if content differs.
+    Returns True if file content changed (written), else False.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        old = path.read_bytes()
+        if old == new_bytes:
+            return False
+    path.write_bytes(new_bytes)
+    return True
 
-def get_allmendbewilligungen() -> gpd.GeoDataFrame:
-    url = "https://data.bs.ch/explore/dataset/100018/download/"
-    r = common.requests_get(
-        url,
-        params={
-            "format": "geojson",
-        },
-    )
+def fetch_allmend_to_cache(cache_path: Path = ALLMEND_CACHE) -> tuple[Path, bool]:
+    """
+    Download Allmendbewilligungen GeoJSON, store to cache_path if bytes changed.
+    Returns (cache_path, cache_bytes_changed).
+    """
+    r = common.requests_get(ALLMEND_URL, params={"format": "geojson"})
     r.raise_for_status()
-    gj = r.json()
+
+    # Use raw bytes for stable change detection (independent of JSON key order parsing).
+    content_bytes = r.content
+    bytes_changed = _write_if_bytes_changed(cache_path, content_bytes)
+    return cache_path, bytes_changed
+
+def get_allmendbewilligungen(*, cache_path: Path = ALLMEND_CACHE) -> tuple[gpd.GeoDataFrame, bool]:
+    """
+    Returns (gdf, changed) where changed is True if the cached Allmend payload changed since last run.
+    """
+    cache_path, cache_bytes_changed = fetch_allmend_to_cache(cache_path)
+
+    # Change tracking uses the cache file as the tracked artifact.
+    changed_vs_last_run = ct.has_changed(cache_path)
+    if changed_vs_last_run:
+        # Only update hash file when we *intend* to treat it as a new input version.
+        ct.update_hash_file(cache_path)
+
+    # Now load from cache (not from the network again)
+    gj = json.loads(cache_path.read_text(encoding="utf-8"))
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
     gdf["geometry"] = gdf["geometry"].buffer(0)
-    # Filter by belgartbez equal to Veranstaltung or Aktivität or Festivität
     gdf = gdf[gdf["belgartbez"].isin(["Veranstaltung", "Aktivität", "Festivität"])].copy()
 
-    # rename technical → title
     with open("data_orig/allmend_fields.json", "r", encoding="utf-8") as f:
         colmap = json.load(f)
     gdf = gdf.rename(columns=colmap)
@@ -318,8 +347,16 @@ def get_allmendbewilligungen() -> gpd.GeoDataFrame:
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
     return grouped
 
+def get_perimeter_and_puffer(
+    path: Path = PERIM_PATH,
+) -> tuple[gpd.GeoDataFrame, bool]:
+    """
+    Returns (perim_gdf, changed) where changed is True if perimeter file changed since last run.
+    """
+    changed = ct.has_changed(path)
+    if changed:
+        ct.update_hash_file(path)
 
-def get_perimeter_and_puffer(path: str = "data_orig/SBT_Perimeter_und_Puffer.json") -> gpd.GeoDataFrame:
     logging.info("Loading perimeter data from %s", path)
     perim = gpd.read_file(path)
     if perim.crs is None:
@@ -330,10 +367,11 @@ def get_perimeter_and_puffer(path: str = "data_orig/SBT_Perimeter_und_Puffer.jso
 
     if "SBT_Perimeter" not in perim.columns:
         raise ValueError("Expected 'SBT_Perimeter' property in perimeter data.")
+
     perim = perim.reset_index(drop=True)
     perim["perimeter_name"] = perim["SBT_Perimeter"]
     perim["geometry"] = perim["geometry"].buffer(0)
-    return perim[["perimeter_name", "geometry"]]
+    return perim[["perimeter_name", "geometry"]], changed
 
 
 def build_intersections(perim: gpd.GeoDataFrame, alm: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -446,17 +484,28 @@ def write_outputs(centroids_gdf: gpd.GeoDataFrame, data_dir: str = "data") -> No
 
 
 def main():
-    logging.info("Loading datasets…")
-    allmend = get_allmendbewilligungen()
-    perimeters = get_perimeter_and_puffer()
+    logging.info("Checking inputs…")
 
-    if len(perimeters) != 4:
-        logging.warning("Expected 4 perimeter polygons; found %s.", len(perimeters))
+    # Load + detect changes
+    allmend_gdf, allmend_changed = get_allmendbewilligungen()
+    perim_gdf, perim_changed = get_perimeter_and_puffer()
+
+    if not allmend_changed and not perim_changed:
+        logging.info("No changes detected in allmendbewilligungen or perimeter. Skipping processing.")
+        return
+
+    logging.info(
+        "Changes detected: allmend=%s, perimeter=%s. Proceeding.",
+        allmend_changed,
+        perim_changed,
+    )
+
+    if len(perim_gdf) != 4:
+        logging.warning("Expected 4 perimeter polygons; found %s.", len(perim_gdf))
 
     logging.info("Computing intersections and centroids…")
-    result = build_intersections(perimeters, allmend)
+    result = build_intersections(perim_gdf, allmend_gdf)
 
-    # Build centroid-only geometry output (others as WKT)
     centroids_gdf = make_centroid_output(result)
     write_outputs(centroids_gdf, data_dir="data")
 
