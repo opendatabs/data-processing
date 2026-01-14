@@ -8,9 +8,12 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 import requests
+from os import PathLike
+from pathlib import Path
 from shapely.geometry import Point
 from shapely.ops import unary_union
 from shapely.validation import make_valid
+from typing import Union
 
 TARGET_CRS = "EPSG:2056"
 YEAR_FILTER = "2024"
@@ -32,10 +35,9 @@ def to_metric_crs(gdf: gpd.GeoDataFrame, target: str = TARGET_CRS) -> gpd.GeoDat
     return gdf.to_crs(target) if gdf.crs.is_geographic or str(gdf.crs).endswith("4326") else gdf
 
 
-# ---------- Hexagon population calculation ----------
 def calculate_hexagon_population(
-    hexagons: gpd.GeoDataFrame | str,
-    population_blocks: gpd.GeoDataFrame | str | None = None,
+    hexagons: Union[gpd.GeoDataFrame, str, PathLike],
+    population_blocks: Union[gpd.GeoDataFrame, str, PathLike, None] = None,
     dataset_id: str = "100062",
     year: str = YEAR_FILTER,
     population_column: str = "gesbev_f",
@@ -66,62 +68,57 @@ def calculate_hexagon_population(
     GeoDataFrame
         Hexagons with added 'population' column containing total population.
     """
-    # Load hexagons
-    if isinstance(hexagons, str):
+    if isinstance(hexagons, (str, PathLike, Path)):
         hex_gdf = gpd.read_file(hexagons)
         logging.info(f"Loaded hexagons from {hexagons}: {len(hex_gdf)} hexagons")
     else:
         hex_gdf = hexagons.copy()
-    
-    # Ensure CRS
+
     if hex_gdf.crs is None:
         hex_gdf = hex_gdf.set_crs(TARGET_CRS)
     else:
         hex_gdf = hex_gdf.to_crs(TARGET_CRS)
     
-    # Load population blocks
     if population_blocks is None:
         blocks_gdf = get_dataset(dataset_id, year=year)
         if population_column not in blocks_gdf.columns:
             raise ValueError(f"Population column '{population_column}' not found in dataset")
-    elif isinstance(population_blocks, str):
+    elif isinstance(population_blocks, (str, PathLike, Path)):
         blocks_gdf = gpd.read_file(population_blocks)
         logging.info(f"Loaded population blocks from {population_blocks}: {len(blocks_gdf)} blocks")
     else:
         blocks_gdf = population_blocks.copy()
     
-    # Ensure population blocks have required columns
     if "geometry" not in blocks_gdf.columns:
         raise ValueError("Population blocks must have a 'geometry' column")
     if population_column not in blocks_gdf.columns:
         raise ValueError(f"Population column '{population_column}' not found in population blocks")
     
-    # Ensure CRS for blocks
     if blocks_gdf.crs is None:
         blocks_gdf = blocks_gdf.set_crs(TARGET_CRS)
     else:
         blocks_gdf = blocks_gdf.to_crs(TARGET_CRS)
     
-    # Ensure valid geometries
+    before = len(blocks_gdf)
     blocks_gdf = blocks_gdf.copy()
     blocks_gdf["geometry"] = blocks_gdf["geometry"].apply(valid_geom)
-    hex_gdf = hex_gdf.copy()
+    blocks_gdf = blocks_gdf[blocks_gdf.geometry.notna()].copy()
+    blocks_gdf = blocks_gdf[~blocks_gdf.geometry.is_empty].copy()
+    after = len(blocks_gdf)
+    logging.info(f"Dropped {before-after} population blocks with missing/empty geometry")
     hex_gdf["geometry"] = hex_gdf["geometry"].apply(valid_geom)
+    hex_gdf = hex_gdf[hex_gdf.geometry.notna()].copy()
+    hex_gdf = hex_gdf[~hex_gdf.geometry.is_empty].copy()
     
-    # Calculate population per hexagon
-    # Work with reset indices for easier position-based access
     hex_gdf_work = hex_gdf.reset_index(drop=True).copy()
     hex_gdf_work["population"] = 0.0
     
     if use_area_weighting:
-        # Area-weighted approach: for each hexagon-block intersection,
-        # add (intersection_area / block_area) * block_population
         blocks_gdf = blocks_gdf.copy()
         blocks_gdf["block_area"] = blocks_gdf.geometry.area
         blocks_gdf["block_pop"] = blocks_gdf[population_column].fillna(0).astype(float)
         blocks_gdf_work = blocks_gdf.reset_index(drop=True)
         
-        # Perform spatial join to find intersections
         joined = gpd.sjoin(
             hex_gdf_work[["geometry"]], 
             blocks_gdf_work[["geometry", "block_area", "block_pop"]], 
@@ -129,7 +126,6 @@ def calculate_hexagon_population(
             predicate="intersects"
         )
         
-        # Calculate intersection areas and weighted population
         pop_dict = {}
         for hex_pos, row in joined.iterrows():
             if pd.isna(row["index_right"]):
@@ -156,37 +152,24 @@ def calculate_hexagon_population(
                 logging.warning(f"Error calculating intersection for hexagon {hex_pos}, block {block_pos}: {e}")
                 continue
         
-        # Assign population to hexagons
         for hex_pos, pop in pop_dict.items():
             hex_gdf_work.iloc[hex_pos, hex_gdf_work.columns.get_loc("population")] = pop
         
-        # Round to integers
         hex_gdf_work["population"] = hex_gdf_work["population"].round().astype(int)
-        
-        # Copy population back to original hex_gdf (preserving original index)
         hex_gdf["population"] = hex_gdf_work["population"].values
     else:
-        # Simple approach: assign full population if block centroid is within hexagon
-        blocks_gdf["centroid"] = blocks_gdf.geometry.centroid
-        blocks_centroids = gpd.GeoDataFrame(
-            blocks_gdf[[population_column]], 
-            geometry=blocks_gdf["centroid"],
-            crs=blocks_gdf.crs
-        )
-        
+        blocks_gdf_work = blocks_gdf.reset_index(drop=True).copy()
         joined = gpd.sjoin(
             hex_gdf_work[["geometry"]],
-            blocks_centroids,
+            blocks_gdf_work[[population_column, "geometry"]],
             how="left",
-            predicate="contains"
+            predicate="intersects"
         )
         
-        # Sum population by hexagon
         if "index_right" in joined.columns and len(joined) > 0:
             pop_by_hex = joined.groupby(joined.index)[population_column].sum()
             hex_gdf_work.loc[pop_by_hex.index, "population"] = pop_by_hex.values
         
-        # Copy population back to original hex_gdf (preserving original index)
         hex_gdf["population"] = hex_gdf_work["population"].values
     
     hex_gdf["population"] = hex_gdf["population"].fillna(0).astype(int)
@@ -199,15 +182,38 @@ def calculate_hexagon_population(
 
 # ---------- Geometry resilience ----------
 def valid_geom(geom):
-    try:
-        return make_valid(geom)
-    except Exception:
-        try:
-            return geom.buffer(0)
-        except Exception:
-            c = geom.centroid
-            return Point(c.x, c.y).buffer(0.01)
+    # Handle missing geometry
+    if geom is None:
+        return None
 
+    # Handle empty geometry
+    try:
+        if geom.is_empty:
+            return None
+    except Exception:
+        # If geom isn't a proper geometry object
+        return None
+
+    # Try repair strategies
+    try:
+        g = make_valid(geom)
+        return None if g is None or g.is_empty else g
+    except Exception:
+        pass
+
+    try:
+        g = geom.buffer(0)
+        return None if g is None or g.is_empty else g
+    except Exception:
+        pass
+
+    # Last resort: tiny buffer around centroid (if centroid works)
+    try:
+        c = geom.centroid
+        return Point(c.x, c.y).buffer(0.01)
+    except Exception:
+        logging.warning("Could not repair geometry; dropping it.")
+        return None
 
 # ---------- Group graph from block-graph ----------
 def build_group_graph(groups_gdf: gpd.GeoDataFrame, G_blocks: nx.Graph, weight_key: str = "weight") -> nx.Graph:

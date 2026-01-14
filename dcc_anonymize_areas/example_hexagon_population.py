@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 def main():
     # Example 1: Load hexagons from file and calculate population from dataset
-    hexagon_file = Path("data_orig/hexagonalraster/hexaraster_kanton_50.shp")
+    hexagon_file = Path("data_orig/hexagonalraster/hexaraster_kanton_100.shp")
     
     if hexagon_file.exists():
         hexagons_with_pop = calculate_hexagon_population(
@@ -21,7 +21,7 @@ def main():
             population_blocks=None,  # Will load from dataset 100062
             dataset_id="100062",
             year="2024",
-            use_area_weighting=True,  # Use area-weighted approach for accuracy
+            use_area_weighting=False,  # Use area-weighted approach for accuracy
         )
         
         # Save result
