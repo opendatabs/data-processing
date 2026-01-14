@@ -241,7 +241,7 @@ jobs:
               - 'stata_pull_changes/**'
             stata_requisitionen:
               - 'Dockerfile'
-              - 'stata_requisitionen'
+              - 'stata_requisitionen/**'
             stata_superblock_allmend:
               - 'Dockerfile'
               - 'stata_superblock_allmend/**'
