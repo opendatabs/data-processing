@@ -348,7 +348,7 @@ def get_allmendbewilligungen(*, cache_path: Path = ALLMEND_CACHE) -> tuple[gpd.G
 
     grouped = grouped.groupby(["event_key", "shape_sig"], as_index=False).agg(agg2)
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
-    return grouped
+    return gdf, changed_vs_last_run
 
 
 def get_perimeter_and_puffer(
