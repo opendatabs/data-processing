@@ -13,6 +13,7 @@ ALLMEND_URL = "https://data.bs.ch/explore/dataset/100018/download/"
 ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson")
 PERIM_PATH = Path("data_orig/SBT_Perimeter_und_Puffer.json")
 
+
 def _make_hashable(v):
     """Recursively turn lists/dicts into hashables for nunique checks."""
     if isinstance(v, list):
@@ -134,6 +135,7 @@ def log_intra_group_differences(
         pd.DataFrame(rows).to_csv(report_path, index=False)
         logging.warning("Wrote inconsistency report to %s", report_path)
 
+
 def _write_if_bytes_changed(path: Path, new_bytes: bytes) -> bool:
     """
     Write bytes to path only if content differs.
@@ -147,6 +149,7 @@ def _write_if_bytes_changed(path: Path, new_bytes: bytes) -> bool:
     path.write_bytes(new_bytes)
     return True
 
+
 def fetch_allmend_to_cache(cache_path: Path = ALLMEND_CACHE) -> tuple[Path, bool]:
     """
     Download Allmendbewilligungen GeoJSON, store to cache_path if bytes changed.
@@ -159,6 +162,7 @@ def fetch_allmend_to_cache(cache_path: Path = ALLMEND_CACHE) -> tuple[Path, bool
     content_bytes = r.content
     bytes_changed = _write_if_bytes_changed(cache_path, content_bytes)
     return cache_path, bytes_changed
+
 
 def get_allmendbewilligungen(*, cache_path: Path = ALLMEND_CACHE) -> tuple[gpd.GeoDataFrame, bool]:
     """
@@ -346,6 +350,7 @@ def get_allmendbewilligungen(*, cache_path: Path = ALLMEND_CACHE) -> tuple[gpd.G
     grouped = grouped.groupby(["event_key", "shape_sig"], as_index=False).agg(agg2)
     grouped = gpd.GeoDataFrame(grouped, geometry="geometry", crs=CRS)
     return grouped
+
 
 def get_perimeter_and_puffer(
     path: Path = PERIM_PATH,

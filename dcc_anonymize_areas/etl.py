@@ -2,18 +2,18 @@
 import io
 import logging
 import os
+from os import PathLike
+from pathlib import Path
+from typing import Union
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 import requests
-from os import PathLike
-from pathlib import Path
 from shapely.geometry import Point
 from shapely.ops import unary_union
 from shapely.validation import make_valid
-from typing import Union
 
 TARGET_CRS = "EPSG:2056"
 YEAR_FILTER = "2024"
@@ -45,7 +45,7 @@ def calculate_hexagon_population(
 ) -> gpd.GeoDataFrame:
     """
     Calculate population for each hexagon by intersecting with population blocks.
-    
+
     Parameters:
     -----------
     hexagons : GeoDataFrame or str
@@ -62,7 +62,7 @@ def calculate_hexagon_population(
     use_area_weighting : bool
         If True, uses area-weighted population for partial overlaps.
         If False, assigns full population to hexagon if block centroid is within.
-    
+
     Returns:
     --------
     GeoDataFrame
@@ -78,7 +78,7 @@ def calculate_hexagon_population(
         hex_gdf = hex_gdf.set_crs(TARGET_CRS)
     else:
         hex_gdf = hex_gdf.to_crs(TARGET_CRS)
-    
+
     if population_blocks is None:
         blocks_gdf = get_dataset(dataset_id, year=year)
         if population_column not in blocks_gdf.columns:
@@ -88,73 +88,73 @@ def calculate_hexagon_population(
         logging.info(f"Loaded population blocks from {population_blocks}: {len(blocks_gdf)} blocks")
     else:
         blocks_gdf = population_blocks.copy()
-    
+
     if "geometry" not in blocks_gdf.columns:
         raise ValueError("Population blocks must have a 'geometry' column")
     if population_column not in blocks_gdf.columns:
         raise ValueError(f"Population column '{population_column}' not found in population blocks")
-    
+
     if blocks_gdf.crs is None:
         blocks_gdf = blocks_gdf.set_crs(TARGET_CRS)
     else:
         blocks_gdf = blocks_gdf.to_crs(TARGET_CRS)
-    
+
     before = len(blocks_gdf)
     blocks_gdf = blocks_gdf.copy()
     blocks_gdf["geometry"] = blocks_gdf["geometry"].apply(valid_geom)
     blocks_gdf = blocks_gdf[blocks_gdf.geometry.notna()].copy()
     blocks_gdf = blocks_gdf[~blocks_gdf.geometry.is_empty].copy()
     after = len(blocks_gdf)
-    logging.info(f"Dropped {before-after} population blocks with missing/empty geometry")
+    logging.info(f"Dropped {before - after} population blocks with missing/empty geometry")
     hex_gdf["geometry"] = hex_gdf["geometry"].apply(valid_geom)
     hex_gdf = hex_gdf[hex_gdf.geometry.notna()].copy()
     hex_gdf = hex_gdf[~hex_gdf.geometry.is_empty].copy()
-    
+
     hex_gdf_work = hex_gdf.reset_index(drop=True).copy()
     hex_gdf_work["population"] = 0.0
-    
+
     if use_area_weighting:
         blocks_gdf = blocks_gdf.copy()
         blocks_gdf["block_area"] = blocks_gdf.geometry.area
         blocks_gdf["block_pop"] = blocks_gdf[population_column].fillna(0).astype(float)
         blocks_gdf_work = blocks_gdf.reset_index(drop=True)
-        
+
         joined = gpd.sjoin(
-            hex_gdf_work[["geometry"]], 
-            blocks_gdf_work[["geometry", "block_area", "block_pop"]], 
-            how="left", 
-            predicate="intersects"
+            hex_gdf_work[["geometry"]],
+            blocks_gdf_work[["geometry", "block_area", "block_pop"]],
+            how="left",
+            predicate="intersects",
         )
-        
+
         pop_dict = {}
         for hex_pos, row in joined.iterrows():
             if pd.isna(row["index_right"]):
                 continue
-            
+
             block_pos = int(row["index_right"])
-            
+
             hex_geom = hex_gdf_work.iloc[hex_pos].geometry
             block_geom = blocks_gdf_work.iloc[block_pos].geometry
-            
+
             try:
                 intersection = hex_geom.intersection(block_geom)
                 if intersection.is_empty or intersection.area == 0:
                     continue
-                
+
                 intersection_area = intersection.area
                 block_area = blocks_gdf_work.iloc[block_pos]["block_area"]
                 block_pop = blocks_gdf_work.iloc[block_pos]["block_pop"]
-                
+
                 if block_area > 0:
                     weighted_pop = (intersection_area / block_area) * block_pop
                     pop_dict[hex_pos] = pop_dict.get(hex_pos, 0.0) + weighted_pop
             except Exception as e:
                 logging.warning(f"Error calculating intersection for hexagon {hex_pos}, block {block_pos}: {e}")
                 continue
-        
+
         for hex_pos, pop in pop_dict.items():
             hex_gdf_work.iloc[hex_pos, hex_gdf_work.columns.get_loc("population")] = pop
-        
+
         hex_gdf_work["population"] = hex_gdf_work["population"].round().astype(int)
         hex_gdf["population"] = hex_gdf_work["population"].values
     else:
@@ -163,20 +163,22 @@ def calculate_hexagon_population(
             hex_gdf_work[["geometry"]],
             blocks_gdf_work[[population_column, "geometry"]],
             how="left",
-            predicate="intersects"
+            predicate="intersects",
         )
-        
+
         if "index_right" in joined.columns and len(joined) > 0:
             pop_by_hex = joined.groupby(joined.index)[population_column].sum()
             hex_gdf_work.loc[pop_by_hex.index, "population"] = pop_by_hex.values
-        
+
         hex_gdf["population"] = hex_gdf_work["population"].values
-    
+
     hex_gdf["population"] = hex_gdf["population"].fillna(0).astype(int)
-    logging.info(f"Calculated population for {len(hex_gdf)} hexagons. "
-                 f"Total population: {hex_gdf['population'].sum()}, "
-                 f"Mean per hexagon: {hex_gdf['population'].mean():.1f}")
-    
+    logging.info(
+        f"Calculated population for {len(hex_gdf)} hexagons. "
+        f"Total population: {hex_gdf['population'].sum()}, "
+        f"Mean per hexagon: {hex_gdf['population'].mean():.1f}"
+    )
+
     return hex_gdf
 
 
@@ -214,6 +216,7 @@ def valid_geom(geom):
     except Exception:
         logging.warning("Could not repair geometry; dropping it.")
         return None
+
 
 # ---------- Group graph from block-graph ----------
 def build_group_graph(groups_gdf: gpd.GeoDataFrame, G_blocks: nx.Graph, weight_key: str = "weight") -> nx.Graph:

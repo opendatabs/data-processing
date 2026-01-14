@@ -3,6 +3,7 @@ Example script showing how to use calculate_hexagon_population to add population
 
 This can be used in stata_requisitionen or other projects that work with hexagons.
 """
+
 import logging
 from pathlib import Path
 
@@ -14,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 def main():
     # Example 1: Load hexagons from file and calculate population from dataset
     hexagon_file = Path("data_orig/hexagonalraster/hexaraster_kanton_100.shp")
-    
+
     if hexagon_file.exists():
         hexagons_with_pop = calculate_hexagon_population(
             hexagons=hexagon_file,
@@ -23,15 +24,15 @@ def main():
             year="2024",
             use_area_weighting=False,  # Use area-weighted approach for accuracy
         )
-        
+
         # Save result
         output_path = Path("data/hexagons_with_population.geojson")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         hexagons_with_pop.to_file(output_path, driver="GeoJSON")
         logging.info(f"Saved hexagons with population to {output_path}")
-        
+
         # Print summary
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"  Total hexagons: {len(hexagons_with_pop)}")
         print(f"  Total population: {hexagons_with_pop['population'].sum():,}")
         print(f"  Mean population per hexagon: {hexagons_with_pop['population'].mean():.1f}")

@@ -2,8 +2,8 @@ import logging
 from pathlib import Path
 
 import common.change_tracking as ct
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 
 
 def main():
@@ -40,8 +40,7 @@ def main():
         joined = joined.drop(columns=["index_right"])
         joined = joined.set_geometry("hex_geometry")
         out = (
-            joined
-            .drop(columns=["geometry"])
+            joined.drop(columns=["geometry"])
             .rename(columns={"hex_geometry": "geometry"})
             .set_geometry("geometry")
             .set_crs("EPSG:2056")

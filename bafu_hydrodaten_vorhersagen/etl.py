@@ -92,6 +92,7 @@ def main():
         df_export.to_csv(export_filename, index=False, sep=";")
         common.update_ftp_and_odsp(export_filename, "hydrodata.ch/data/vorhersagen", DICT_ID[river])
 
+
 def get_date_time(line):
     match = re.search(r"\d{1,2}\.\d{1,2}\.\d{4}, \d{2}\.\d{2}", line)
     if not match:

@@ -7,7 +7,16 @@ import common
 import pandas as pd
 from dataspot_auth import DataspotAuth
 
-models = ['Datenprodukte', 'Fachdaten', 'Referenzdaten', 'Systeme', 'Datenbankobjekte','Kennzahlen', 'Datentypen (technisch)','Datentypen (fachlich)' ]
+models = [
+    "Datenprodukte",
+    "Fachdaten",
+    "Referenzdaten",
+    "Systeme",
+    "Datenbankobjekte",
+    "Kennzahlen",
+    "Datentypen (technisch)",
+    "Datentypen (fachlich)",
+]
 
 ods_id = {
     "Fachdaten_Attribute": 100490,
@@ -35,7 +44,6 @@ ods_id = {
     "Datenprodukte_Verantwortungen": 100437,
     "Datenprodukte_Bereitstellungen": 100439,
     "Datenprodukte_Zusatzinformationen": 100438,
-  
 }
 
 S_id = pd.Series(data=ods_id)

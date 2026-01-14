@@ -33,9 +33,7 @@ def process_excel_file():
             return str(Path(ftp_name).with_suffix(".pdf"))
         return ftp_name
 
-    df["Dateiname_ftp"] = [
-        ensure_pdf_suffix(o, f) for o, f in zip(df["Dateiname"], df["Dateiname_ftp"])
-    ]
+    df["Dateiname_ftp"] = [ensure_pdf_suffix(o, f) for o, f in zip(df["Dateiname"], df["Dateiname_ftp"])]
 
     base_url = "https://data-bs.ch/stata/staka/gutachten/"
     gate_url = base_url + "index.html?file="
