@@ -35,18 +35,14 @@ def main():
     datafilename = "OGD-Daten.CSV"
     datafile_with_path = os.path.join("data_orig", datafilename)
     if ct.has_changed(datafile_with_path):
-        incfilename = "OGD-Daten_select.CSV"
-
-        datafile_with_path = os.path.join("data_orig", datafilename)
-        incfile_with_path = os.path.join("data_orig", incfilename)
-
-        if ct.has_changed(datafile_with_path) or ct.has_changed(incfile_with_path):
-            logging.info("Reading and merging OGD base + increment...")
-            data = load_merged_data(
-                datafile_with_path,
-                incfile_with_path,
-                key="Resultatnummer",
-            )
+        logging.info("Reading data file from " + datafile_with_path + "...")
+        data = pd.read_csv(
+            datafile_with_path,
+            sep=";",
+            na_filter=False,
+            encoding="cp1252",
+            dtype=dtypes,
+        )
         logging.info("Reading gew_rhein_rues_wasser data for realtime push...")
         gew_rhein_rues_wasser_last = pd.read_csv(
             os.path.join("data", "gew_rhein_rues_wasser_last.csv"),
@@ -114,45 +110,6 @@ def main():
             )
 
         ct.update_hash_file(datafile_with_path)
-
-
-def load_merged_data(base_path: str, inc_path: str, key: str = "Resultatnummer") -> pd.DataFrame:
-    logging.info("Loading base OGD data...")
-    base = pd.read_csv(
-        base_path,
-        sep=";",
-        na_filter=False,
-        encoding="cp1252",
-        dtype=dtypes,
-    )
-
-    if not os.path.exists(inc_path):
-        logging.info("No incremental file found — using base only.")
-        return base
-
-    logging.info("Loading incremental OGD data...")
-    inc = pd.read_csv(
-        inc_path,
-        sep=";",
-        na_filter=False,
-        encoding="cp1252",
-        dtype=dtypes,
-    )
-
-    # Column safety (order / future schema drift)
-    common_cols = [c for c in base.columns if c in inc.columns]
-
-    merged = pd.concat(
-        [base[common_cols], inc[common_cols]],
-        ignore_index=True,
-    )
-
-    # Stable deduplication
-    if key in merged.columns:
-        merged = merged.drop_duplicates(subset=key, keep="last")
-
-    logging.info(f"Merged rows: {len(base)} + {len(inc)} → {len(merged)}")
-    return merged
 
 
 def split_into_datasets(data):
