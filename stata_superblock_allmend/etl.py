@@ -171,10 +171,9 @@ def get_allmendbewilligungen(*, cache_path: Path = ALLMEND_CACHE) -> tuple[gpd.G
     cache_path, cache_bytes_changed = fetch_allmend_to_cache(cache_path)
 
     # Change tracking uses the cache file as the tracked artifact.
-    changed_vs_last_run = ct.has_changed(cache_path)
+    changed_vs_last_run = ct.has_changed(str(cache_path))
     if changed_vs_last_run:
-        # Only update hash file when we *intend* to treat it as a new input version.
-        ct.update_hash_file(cache_path)
+        ct.update_hash_file(str(cache_path))
 
     # Now load from cache (not from the network again)
     gj = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -358,9 +357,9 @@ def get_perimeter_and_puffer(
     """
     Returns (perim_gdf, changed) where changed is True if perimeter file changed since last run.
     """
-    changed = ct.has_changed(path)
+    changed = ct.has_changed(str(path))
     if changed:
-        ct.update_hash_file(path)
+        ct.update_hash_file(str(path))
 
     logging.info("Loading perimeter data from %s", path)
     perim = gpd.read_file(path)
