@@ -227,18 +227,24 @@ jobs:
             stata_gwr:
               - 'Dockerfile'
               - 'stata_gwr/**'
+            stata_harvester:
+              - 'Dockerfile'
+              - 'stata_harvester/**'
             stata_hunde:
               - 'Dockerfile'
               - 'stata_hunde/**'
             stata_parzellen:
               - 'Dockerfile'
               - 'stata_parzellen/**'
-            stata_harvester:
-              - 'Dockerfile'
-              - 'stata_harvester/**'
             stata_pull_changes:
               - 'Dockerfile'
               - 'stata_pull_changes/**'
+            stata_requisitionen:
+              - 'Dockerfile'
+              - 'stata_requisitionen'
+            stata_superblock_allmend:
+              - 'Dockerfile'
+              - 'stata_superblock_allmend/**'
             tba_abfuhrtermine:
               - 'Dockerfile'
               - 'tba_abfuhrtermine/**'
