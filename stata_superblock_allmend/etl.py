@@ -470,12 +470,10 @@ def make_centroid_output(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 def write_outputs(centroids_gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
     Path(data_dir).mkdir(exist_ok=True)
-    gpkg_path = f"{data_dir}/sbt_allmend_centroids.gpkg"
     geojson_path = f"{data_dir}/sbt_allmend_centroids.geojson"
     csv_path = f"{data_dir}/sbt_allmend_centroids.csv"
 
-    # GPKG & GeoJSON (geometry = centroid only)
-    centroids_gdf.to_file(gpkg_path, layer="centroids", driver="GPKG")
+    # GeoJSON (geometry = centroid only)
     centroids_gdf.to_file(geojson_path, driver="GeoJSON")
 
     # CSV: include centroid lon/lat plus WKT columns
@@ -484,7 +482,7 @@ def write_outputs(centroids_gdf: gpd.GeoDataFrame, data_dir: str = "data") -> No
     df_csv["centroid_y"] = centroids_gdf.geometry.y
     df_csv.to_csv(csv_path, index=False)
 
-    logging.info("Wrote:\n  %s\n  %s\n  %s", gpkg_path, geojson_path, csv_path)
+    logging.info("Wrote:\n  %s\n  %s", geojson_path, csv_path)
 
 
 def main():
