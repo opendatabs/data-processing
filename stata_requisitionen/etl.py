@@ -1,19 +1,14 @@
-import os
 from pathlib import Path
 
 import pandas as pd
 import geopandas as gpd
-import pyodbc
-from dotenv import load_dotenv
 
-load_dotenv()
-PATH_TO_DSN = os.getenv("PATH_TO_DSN")
 
 def main():
-    conn = pyodbc.connect(PATH_TO_DSN, autocommit=True)
-    df = pd.read_sql("SELECT * FROM polizei.FaktEinsaetze", conn)
+    path_to_requisitionen = Path("data_orig/Requisitionen.csv")
+    df = pd.read_csv(path_to_requisitionen)
 
-    shp_path = Path("data_orig/hexagonalraster/hexaraster_kanton_50.shp")
+    shp_path = Path("data_orig/hexagonalraster/hexaraster_kanton_100.shp")
     hex_gdf = gpd.read_file(shp_path)
 
     # Ensure CRS
