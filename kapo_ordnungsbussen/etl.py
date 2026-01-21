@@ -26,9 +26,6 @@ def main():
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
-        df_all = append_coordinates(df_all)
-        df_all["coordinates"] = df_all["coordinates"].astype(str).str.strip("()").str.strip("[]")
-        # df_all = calculate_distances(df_all)
         big_bussen = os.path.join("data", "big_bussen.csv")
         new_plz = os.path.join("data", "new_plz.csv")
         plz = os.path.join("data", "plz.csv")
@@ -53,10 +50,122 @@ def main():
         df_export.to_csv(export_path, index=False)
         common.upload_ftp(export_path, remote_path="kapo/ordnungsbussen")
         common.publish_ods_dataset_by_id("100058")
+
+        df_all = append_coordinates(df_all)
+        df_all["coordinates"] = df_all["coordinates"].astype(str).str.strip("()").str.strip("[]")
+        df_all = calculate_distances(df_all)
+        df_all = add_wohnviertel_columns(df_all, ods_id="100042")
         export_path_all = os.path.join("data", "Ordnungsbussen_OGD_all.csv")
         logging.info(f"Exporting all data to {export_path_all}...")
         df_all.to_csv(export_path_all, index=False)
         ct.update_hash_file(list_path)
+
+
+def _points_from_lonlat(lon, lat):
+    """Vectorized Point creation; returns list of shapely Points or None."""
+    # shapely Point expects (x=lon, y=lat)
+    pts = []
+    for x, y in zip(lon, lat):
+        if pd.isna(x) or pd.isna(y):
+            pts.append(None)
+        else:
+            pts.append(Point(float(x), float(y)))
+    return pts
+
+
+def _parse_latlon_str(series):
+    """
+    Parse df['coordinates'] where values look like '47.55,7.59' (lat,lon).
+    Returns two float Series: lat, lon (NaN on failure).
+    """
+    s = series.astype(str).str.strip()
+    # allow both comma and comma+space variants
+    parts = s.str.split(",", n=1, expand=True)
+    if parts.shape[1] < 2:
+        return pd.Series(np.nan, index=series.index), pd.Series(np.nan, index=series.index)
+
+    lat = pd.to_numeric(parts[0].str.strip(), errors="coerce")
+    lon = pd.to_numeric(parts[1].str.strip(), errors="coerce")
+    return lat, lon
+
+
+def add_wohnviertel_columns(df, ods_id="100473"):
+    """
+    Adds two columns mapping coordinates -> Wohnviertel name (wov_name),
+    but only for rows where Ü-Ort PLZ != -1.
+    """
+    logging.info(f"Downloading Wohnviertel spatial descriptors (ODS {ods_id})...")
+    gdf_wov = download_spatial_descriptors(ods_id)
+
+    # Ensure we have the expected name column
+    if "wov_name" not in gdf_wov.columns:
+        raise ValueError(f"Expected column 'wov_name' not found in ODS {ods_id} shapefile columns: {gdf_wov.columns}")
+
+    # Work only on rows with a real PLZ
+    mask = df["Ü-Ort PLZ"].fillna(-1).astype(int) != -1
+
+    # Initialize columns with NaN
+    df["wohnviertel_from_gps"] = np.nan
+    df["wohnviertel_from_georef"] = np.nan
+
+    # --- 1) From GPS Breite/Länge (assuming WGS84 lat/lon) ---
+    gps_lon = pd.to_numeric(df.loc[mask, "GPS Länge"], errors="coerce")
+    gps_lat = pd.to_numeric(df.loc[mask, "GPS Breite"], errors="coerce")
+
+    gdf_points_gps = gpd.GeoDataFrame(
+        df.loc[mask].copy(),
+        geometry=_points_from_lonlat(gps_lon, gps_lat),
+        crs="EPSG:4326",
+    ).dropna(subset=["geometry"])
+
+    if not gdf_points_gps.empty:
+        gdf_points_gps = gdf_points_gps.to_crs("EPSG:2056")
+        joined_gps = gpd.sjoin(
+            gdf_points_gps,
+            gdf_wov[["wov_name", "geometry"]],
+            how="left",
+            predicate="within",
+        )
+        df.loc[joined_gps.index, "wohnviertel_from_gps"] = joined_gps["wov_name"].values
+
+    # --- 2) From your georeferenced df['coordinates'] (stored as 'lat,lon') ---
+    lat2, lon2 = _parse_latlon_str(df.loc[mask, "coordinates"])
+    gdf_points_geo = gpd.GeoDataFrame(
+        df.loc[mask].copy(),
+        geometry=_points_from_lonlat(lon2, lat2),
+        crs="EPSG:4326",
+    ).dropna(subset=["geometry"])
+
+    if not gdf_points_geo.empty:
+        gdf_points_geo = gdf_points_geo.to_crs("EPSG:2056")
+        joined_geo = gpd.sjoin(
+            gdf_points_geo,
+            gdf_wov[["wov_name", "geometry"]],
+            how="left",
+            predicate="within",
+        )
+        df.loc[joined_geo.index, "wohnviertel_from_georef"] = joined_geo["wov_name"].values
+
+    return df
+
+
+def download_spatial_descriptors(ods_id):
+    """
+    Download and extract a shapefile from data.bs.ch for a given ODS dataset ID.
+    Returns a GeoDataFrame in EPSG:2056.
+    """
+    url_to_shp = f"https://data.bs.ch/explore/dataset/{ods_id}/download/?format=shp"
+    r = common.requests_get(url_to_shp)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    extract_folder = os.path.join("data", ods_id)
+    if not os.path.exists(extract_folder):
+        os.makedirs(extract_folder)
+
+    z.extractall(extract_folder)
+    path_to_shp = os.path.join(extract_folder, f"{ods_id}.shp")
+
+    gdf = gpd.read_file(path_to_shp, encoding="utf-8")
+    return gdf.to_crs("EPSG:2056")
 
 
 def calculate_distances(df):
@@ -313,7 +422,7 @@ def find_closest_streetname(street, street_series):
 
 
 def get_shapes_for_streets(df, gdf_streets):
-    street_names = df["Ü-Ort STR"].unique()  # This is a numpy array
+    street_names = df["Ü-Ort STR"].unique()
     for street_name in street_names:
         # Find closest street name
         closest_street = find_closest_streetname(street_name, gdf_streets["strname"])
