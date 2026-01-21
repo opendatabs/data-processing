@@ -53,7 +53,7 @@ def main():
 
         df_all = append_coordinates(df_all)
         df_all["coordinates"] = df_all["coordinates"].astype(str).str.strip("()").str.strip("[]")
-        df_all = calculate_distances(df_all)
+        # df_all = calculate_distances(df_all)
         df_all = add_wohnviertel_columns(df_all, ods_id="100042")
         export_path_all = os.path.join("data", "Ordnungsbussen_OGD_all.csv")
         logging.info(f"Exporting all data to {export_path_all}...")
