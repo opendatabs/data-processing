@@ -14,7 +14,19 @@ Each ETL job is contained in its own folder at the root of this repository. Each
 
 ## Creating a New ETL Job
 
-When creating a new ETL job, create a new folder with the following structure:
+### Quick Setup (Recommended)
+
+Use the interactive setup script to create a new ETL job:
+
+```bash
+python setup_new_etl.py
+```
+
+The script will ask you a series of questions and automatically create all necessary files and folders with the correct structure.
+
+### Manual Setup
+
+When creating a new ETL job manually, create a new folder with the following structure:
 
 ### Required Files and Folders
 
