@@ -1,0 +1,14 @@
+[project]
+name = "stata-baselvotes"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "common",
+    "openpyxl>=3.1.0",
+    "pandas>=2.3.3",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "b2d26f48a7cc43ce823b2763d87c41201e131b40" }
