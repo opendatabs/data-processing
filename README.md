@@ -1,66 +1,169 @@
-# Open Government Data Processing Basel-Stadt
-Architecture, processes, methods and code used to process Open Government Data (OGD) for Canton Basel-Stadt, Switzerland. 
+# Data Processing Repository
 
-## Overview of Architecture and Processes
-### Involved Servers
-The Open Data infrastructure of Basel-Stadt consists of the following platforms:
-- Data Processing Server (internal)
-- DMZ server
-- Web Server https://data-bs.ch
-- Data Platform  https://data.bs.ch
-- Data Platform for Big Data https://datatools.bs.ch
+This repository contains ETL (Extract, Transform, Load) jobs for processing Open Government Data for Canton Basel-Stadt, Switzerland.
 
-### Outline of the ETL Process
-Usually, data is published from data-producing governmental entities on internal network drives to the [DCC Data Competence Center of the Statistisches Amt Basel-Stadt](https://www.bs.ch/daten/databs/dcc). From there, jobs running on the data processing server read and _extract_, _transform_ and then _load_ ([ETL](https://en.wikipedia.org/wiki/Extract,_transform,_load)) the resulting dataset to the web server via (S)FTP. These datasets are then retrieved and published by the data platform so that they can be consumed by the public. 
+For more information about the OpenDataBS organization and its projects, visit [opendatabs on GitHub](https://github.com/opendatabs).
 
-## Technical Implementation
-### Involved Systems and their purpose
+## Repository Structure
 
-1. Data Processing Server (internal)
-    - There are Linux mount points below the folder "/mnt" that serve the data received from other government entities.
-    - It runs [Docker](https://en.wikipedia.org/wiki/Docker_(software)) daemon which hosts docker containers that each contain their own isolated data transformation job.
-    - ETL jobs programmed in [Python](https://en.wikipedia.org/wiki/Python_(programming_language)). Source code of these jobs are in subfolders of the present repository, see e.g. [aue-umweltlabor](https://github.com/opendatabs/data-processing/tree/main/aue_umweltlabor).
-    - ETL jobs containerized in Docker images, so that each job has its own containerized environment to run in. The environment is configured using the Dockerfile, see e.g. [here](https://github.com/opendatabs/data-processing/blob/main/aue_umweltlabor/Dockerfile).  
-    - [AirFlow](https://en.wikipedia.org/wiki/Apache_Airflow) workflow scheduler. Runs as a docker container.
-    - Every ETL job to run has its own Apache Airflow [Directed Acyclical Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) file. It is written in Python and defines when a containerized ETL job is run, and how to proceed if the job fails. DAG files are stored in the [AirFlow repo](https://github.com/opendatabs/dags-airflow2), see e.g. [this one](https://github.com/opendatabs/dags-airflow2/blob/main/aue_umweltlabor.py).
-    - Deployment of source code is done via git: Push from development environment to github, pull from github to live environment in above mentioned folders.  
-    
-1. Web Server https://data-bs.ch
-    - Linux server that is primarly used to host data ready to be published onto the data portal.
-    - Hosts the [RUES Viz for real-time Rhein data](https://rues.data-bs.ch/onlinedaten/onlinedaten.html), see the [source code](https://github.com/opendatabs/data-bs.ch/tree/master/public_html/rues/onlinedaten). 
-    - All data on this server is public, including data that is being processed on this server before publication.  
+Each ETL job is contained in its own folder at the root of this repository. Each folder represents an independent data processing pipeline that:
 
-1. Data Platform https://data.bs.ch
-    - The data platform is a cloud service that is not hosted on the BS network, but by [Huwise](https://huwise.com).
-    - It presents data to the public in diverse formats (table, file export, Viz, API).
-    - Simple processing steps can be applied also here.
-    - All data on this server is public, including data that is being processed on this server before publication.  
-    - Data is retrieved from the web server via FTP or HTTPS. Exceptions include the following:
-        - Real-time data being pushed into the data platform via [Huwise Real Time API](https://userguide.huwise.com/en/articles/2045122), e.g. [Occupation status of parking lots](https://data.bs.ch/explore/dataset/100088)
-    
- ### Data Harvesting Mechanisms
- #### Into the Data Platform
- 
- 1. Single datasets are sourced via these mechanisms: 
-    - Direct https source, e.g. [Parking Spots](https://data.bs.ch/explore/dataset/100329)
-    - Huwise Real Time API, e.g. [Current occupancy of public car parks in Basel](https://data.bs.ch/explore/dataset/100088)
-    - FTP(S) sourcing of a directory, e.g. [Smart Climate Schallpegelmessungen](https://data.bs.ch/explore/dataset/100087)
- 
-     About using an FTP(S) directory instead of a file as the source for a dataset: "Using a directory is often the prefered solution to automate incremental updates between a customer's information system and the platform. All the files in the directory need to have the same format and schema (e.g. CSV files with the same column titles). In case of automation, whenever the dataset is published, new and updated files are fetched from the remote location and processed and thanks to Huwise's native deduplication strategy". For more technical information how these mechanisms work see the [Huwise documentation](https://userguide.huwise.com/en/articles/2248706).
-    
- 2. Catalogs of datasets are harvested via the [FTP with meta CSV harvester](https://userguide.huwise.com/en/articles/2022722). Currently these include the following: 
-    1. OGD datasets by Statistisches Amt Basel-Stadt
-        - Metadata of datasets to be harvested by the data portal are saved onto the web server in folder "/public_html/opendatasoft/harvesters/stata/ftp-csv/" by the (closed source) publishing process run by members of the Statistisches Amt. 
-    2. Open Datasets by Grundbuch- und Vermessungsamt Basel-Stadt
-        - Data and metadata of datasets to be harvested by the data platform are daily created by the data processing job [gva_geodatenshop](https://github.com/opendatabs/data-processing/blob/main/gva_geodatenshop/etl.py) and uploaded to the web server into  folder "/public_html/opendatasoft/harvesters/GVA/". The geodata here is harvested by a shared folder.
-        - Data and metadata of datasets to be harvested by the data platform are daily created by the data processing job [fgi_geodatenshop](https://github.com/opendatabs/data-processing/blob/main/fgi_geodatenshop/etl.py) and uploaded to the web server into  folder "/public_html/opendatasoft/harvesters/FGI/. The geodata here is harvested via [WFS](https://www.bs.ch/bvd/grundbuch-und-vermessungsamt/geo/geodaten/geodienste#wfsbs).
- 
- #### Out of the Data Platform
- The data platform can be harvested by other data platforms e.g. via the [DCAT-AP for Switzerland API](https://www.ech.ch/de/standards/39919) by using an URL in the form of [https://data.bs.ch/api/v2/catalog/exports/dcat_ap_ch](https://data.bs.ch/api/v2/catalog/exports/dcat_ap_ch) (see [here](https://help.opendatasoft.com/apis/ods-search-v2/#exporting-datasets) for further technical information).  
- 
- To our knowledge, the only direct current consumer/harvester of our data platform metadata is https://opendata.swiss, which in turn is being harvested by the [European Data Portal](https://www.europeandataportal.eu/), and possibly others. 
- 
- As an example, see how this dataset presented by different data portals:
- - In the data portal Basel-Stadt (original): https://data.bs.ch/explore/dataset/100042
- - In opendata.swiss (harvested from the above): https://opendata.swiss/de/dataset/statistische-raumeinheiten-wohnviertel
- - In the European Data portal (harvested from the above): https://www.europeandataportal.eu/data/datasets/100042-statistisches-amt-kanton-basel-stadt
+1. Extracts data from source systems
+2. Transforms the data into a standardized format
+3. Loads the processed data to the web server for publication
+
+## Creating a New ETL Job
+
+When creating a new ETL job, create a new folder with the following structure:
+
+### Required Files and Folders
+
+- **`Dockerfile`** - Container definition that builds the ETL job image
+  - Must use the base image: `FROM ghcr.io/opendatabs/data-processing/base:latest`
+  - Copies `uv.lock` and `pyproject.toml` and runs `uv sync --frozen`
+  - Copies all files to `/code/`
+  - Sets the command to: `CMD ["uv", "run", "-m", "etl"]`
+
+- **`etl.py`** - Main ETL script that contains the data processing logic
+  - Should have a `main()` function that is executed when the module runs
+  - Uses the `common` library (imported from `https://github.com/opendatabs/common`)
+  - Typically reads from `data_orig/` and writes to `data/`
+
+- **`pyproject.toml`** - Python project configuration and dependencies
+  - Defines project name, version, and Python requirements
+  - Must include `common` as a dependency with a git source reference
+  - Example:
+    ```toml
+    [project]
+    name = "project-name"
+    version = "0.1.0"
+    requires-python = ">=3.12"
+    dependencies = [
+        "common",
+        "pandas>=2.2.3",
+        # ... other dependencies
+    ]
+
+    [tool.uv.sources]
+    common = { git = "https://github.com/opendatabs/common", rev = "..." }
+    ```
+
+- **`uv.lock`** - Lock file for dependency versions (generated by `uv`)
+
+- **`data/`** - Folder for processed/transformed data output
+  - Contains `.gitkeep` to ensure the folder is tracked in git
+  - Processed data files are written here by the ETL script
+
+- **`data_orig/`** - Folder for original/source data
+  - Contains `.gitkeep` to ensure the folder is tracked in git
+  - Source data files are typically mounted here at runtime in Docker
+  - Original data files are read from here by the ETL script
+
+- **`change_tracking/`** - Folder for change tracking metadata
+  - Contains `.gitkeep` to ensure the folder is tracked in git
+  - Used by the `common.change_tracking` module to track data changes
+
+### Optional Files
+
+- **`.python-version`** - Python version specification (typically `3.12`)
+- **`README.md`** - Documentation specific to the ETL job
+- **`.gitignore`** - Git ignore rules for the specific job
+- Schema files, configuration files, or other job-specific resources
+
+### Naming Convention
+
+**Folder names** should:
+- Use lowercase letters
+- Use underscores (`_`) to separate words
+- Be descriptive and identify the data source and type
+- Follow the pattern: `{organization}_{dataset}` or `{organization}_{data_type}`
+
+Examples:
+- `aue_umweltlabor` - Umweltlabor data from AUE (Amt für Umwelt und Energie)
+- `gva_geodatenshop` - Geodatenshop data from GVA (Grundbuch- und Vermessungsamt)
+
+**Important for discoverability:**
+- Use clear, descriptive names that indicate the data source
+- Include the organization abbreviation prefix (e.g., `aue_`, `gva_`, `stata_`, `kapo_`)
+
+## Workflows
+
+### Docker Build Workflow
+
+The repository includes a GitHub Actions workflow (`.github/workflows/docker_build.yaml`) that:
+
+1. **Detects changes** - Monitors which folders have been modified
+2. **Builds base image** - If the root `Dockerfile` changes, rebuilds the base image
+3. **Builds job images** - For each modified folder, builds and pushes a Docker image to GitHub Container Registry (GHCR)
+   - Images are tagged with: `ghcr.io/opendatabs/data-processing/{folder_name}:latest`
+   - Images are also tagged with the commit SHA for versioning
+
+**Important:** When adding a new ETL job folder, you must add it to the workflow file (`.github/workflows/docker_build.yaml`) in the `filters` section so that changes to the folder trigger Docker image builds. 
+**Also Important:** After the first push, you must set the Docker image visibility to **Public** on GitHub Container Registry:
+
+1. Go to the repository's "Packages" section on GitHub.
+2. Click on the image (under "Packages") corresponding to your ETL job (e.g., `data-processing/your_job_folder`).
+3. Click the "Package settings" or gear icon.
+4. Under "Package visibility", change it from "Private" to "Public".
+5. Confirm the change.
+
+This allows the image to be pulled and run by anyone with appropriate access.
+
+### Code Quality Workflow
+
+The repository includes a Ruff workflow (`.github/workflows/ruff.yaml`) that:
+- Automatically formats Python code
+- Checks for linting issues
+- Creates pull requests with auto-fixes
+
+## Running ETL Jobs
+
+ETL jobs are designed to run in Docker containers. Each job:
+
+1. Reads source data from `data_orig/` (typically mounted as a volume)
+2. Processes the data using the logic in `etl.py`
+3. Writes processed data to `data/`
+4. May upload data to FTP servers or push to APIs as configured
+
+Jobs are typically scheduled and orchestrated using Apache Airflow, with DAG definitions stored in a separate repository.
+
+## Development
+
+### Local Development
+
+1. Install dependencies using `uv`:
+   ```bash
+   uv sync
+   ```
+
+2. Run the ETL script locally:
+   ```bash
+   uv run -m etl
+   ```
+
+3. Ensure source data is available in `data_orig/` for testing
+
+### Testing Docker Builds
+
+To test Docker builds locally:
+
+```bash
+docker build -t test-job ./your_job_folder
+```
+
+## Dependencies
+
+- **Python 3.12+** - Required Python version
+- **uv** - Fast Python package installer and resolver (used for dependency management)
+- **common** - Shared library from `https://github.com/opendatabs/common` containing utilities for ETL jobs
+- **Docker** - For containerization and deployment
+
+## Base Docker Image
+
+The base Docker image (`ghcr.io/opendatabs/data-processing/base:latest`) provides:
+- Python 3.12 environment
+- Timezone configured to `Europe/Zurich`
+- Locale configured to `de_CH.UTF-8`
+- `uv` package manager pre-installed
+
+All ETL job Dockerfiles extend this base image.
