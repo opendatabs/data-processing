@@ -22,7 +22,7 @@ from tqdm import tqdm
 def main():
     list_path = os.path.join("data_orig", "list_directories.txt")
     directories = common.list_directories("data_orig", list_path, ["Old", "export", "2020_07_27"])
-    if True or ct.has_changed(list_path):
+    if ct.has_changed(list_path):
         df_2017 = process_data_2017()
         df_all = process_data_from_2018(directories, df_2017)
         df_export, df_all = transform_for_export(df_all)
