@@ -179,9 +179,6 @@ jobs:
             parlamentsdienst_grosserrat_datasette:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserrat_datasette/**'
-            smarte_strasse_ladestation:
-              - 'Dockerfile'
-              - 'smarte_strasse_ladestation/**'
             stadtreinigung_sauberkeitsindex:
               - 'Dockerfile'
               - 'stadtreinigung_sauberkeitsindex/**'
