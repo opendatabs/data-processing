@@ -5,7 +5,6 @@ import common
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pyproj import Transformer
 
 
 def main():
@@ -69,11 +68,16 @@ def main():
     out = out.to_crs("EPSG:4326")
 
     columns_of_interest = [
-        "Ereignistyp", "EreignistypKlasse", "EinsatzJahr", "EinsatzMonat",
-        "EinsatzDatum", "Einsatzzeit", "Lichtverhaeltnisse", "geometry"
+        "Ereignistyp",
+        "EreignistypKlasse",
+        "EinsatzJahr",
+        "EinsatzMonat",
+        "EinsatzDatum",
+        "Einsatzzeit",
+        "Lichtverhaeltnisse",
+        "geometry",
     ]
     out = out[columns_of_interest]
-
 
     Path("data").mkdir(parents=True, exist_ok=True)
 

@@ -11,7 +11,6 @@ for a new ETL job, including:
 - Optional README.md
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -40,15 +39,15 @@ def ask_string(question: str, default: str = "") -> str:
 def create_folder_structure(folder_path: Path, include_data_orig: bool, include_change_tracking: bool):
     """Create the folder structure for the ETL job."""
     folder_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Always create data/ folder
     (folder_path / "data").mkdir(exist_ok=True)
     (folder_path / "data" / ".gitkeep").touch()
-    
+
     if include_data_orig:
         (folder_path / "data_orig").mkdir(exist_ok=True)
         (folder_path / "data_orig" / ".gitkeep").touch()
-    
+
     if include_change_tracking:
         (folder_path / "change_tracking").mkdir(exist_ok=True)
         (folder_path / "change_tracking" / ".gitkeep").touch()
@@ -72,18 +71,18 @@ CMD ["uv", "run", "-m", "etl"]
 def create_pyproject_toml(folder_path: Path, project_name: str, include_common: bool, include_pandas: bool):
     """Create the pyproject.toml file with dependencies."""
     dependencies = []
-    
+
     if include_common:
         dependencies.append('    "common",')
-    
+
     if include_pandas:
         dependencies.append('    "pandas>=2.2.3",')
-    
+
     # Add python-dotenv as it's commonly used
     dependencies.append('    "python-dotenv>=1.1.0",')
-    
-    deps_str = "\n".join(dependencies) if dependencies else '    # Add your dependencies here'
-    
+
+    deps_str = "\n".join(dependencies) if dependencies else "    # Add your dependencies here"
+
     # Get the latest common rev from an existing project (we'll use a placeholder)
     # Users should update this with the correct rev
     pyproject_content = f"""[project]
@@ -98,31 +97,31 @@ dependencies = [
 
 [tool.uv.sources]
 """
-    
+
     if include_common:
         pyproject_content += 'common = { git = "https://github.com/opendatabs/common", rev = "dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" }\n'
-    
+
     (folder_path / "pyproject.toml").write_text(pyproject_content)
 
 
 def create_etl_py(folder_path: Path, include_common: bool, include_pandas: bool, include_change_tracking: bool):
     """Create the etl.py file with common setup."""
     imports = ["import logging", "import os"]
-    
+
     if include_common:
         imports.append("import common")
         if include_change_tracking:
             imports.append("import common.change_tracking as ct")
-    
+
     if include_pandas:
         imports.append("import pandas as pd")
-    
+
     imports.append("from dotenv import load_dotenv")
-    
+
     imports_str = "\n".join(imports)
-    
+
     load_dotenv_line = "load_dotenv()"  # Always include dotenv
-    
+
     main_function = """def main():
     \"\"\"Main ETL function.\"\"\"
     # TODO: Implement your ETL logic here
@@ -142,14 +141,14 @@ def create_etl_py(folder_path: Path, include_common: bool, include_pandas: bool,
     
     logging.info("ETL job completed")
 """
-    
+
     main_block = """if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logging.info(f"Executing {__file__}...")
     main()
     logging.info("Job successful.")
 """
-    
+
     etl_content = f"""{imports_str}
 
 {load_dotenv_line}
@@ -160,7 +159,7 @@ def create_etl_py(folder_path: Path, include_common: bool, include_pandas: bool,
 
 {main_block}
 """
-    
+
     (folder_path / "etl.py").write_text(etl_content)
 
 
@@ -196,35 +195,35 @@ def main():
     print("ETL Job Setup Script")
     print("=" * 60)
     print()
-    
+
     # Get repository root (assuming script is run from repo root)
     repo_root = Path.cwd()
     if not (repo_root / ".github").exists():
         print("Error: This script must be run from the repository root directory.")
         sys.exit(1)
-    
+
     # Ask questions
     print("Please answer the following questions to set up your new ETL job:")
     print()
-    
+
     data_owner = ask_string("Data owner (e.g., AUE, GVA, StatA): ")
     dataset_name = ask_string("Dataset name (e.g., umweltlabor, geodatenshop): ")
-    
+
     # Generate folder name
     folder_name = f"{data_owner.lower()}_{dataset_name.lower()}".replace(" ", "_")
     print(f"\nGenerated folder name: {folder_name}")
-    
+
     if not ask_yes_no("Use this folder name?", default=True):
         folder_name = ask_string("Enter folder name: ")
-    
+
     folder_path = repo_root / folder_name
-    
+
     # Check if folder already exists
     if folder_path.exists():
         print(f"\nError: Folder '{folder_name}' already exists!")
         if not ask_yes_no("Continue anyway? (will overwrite existing files)", default=False):
             sys.exit(1)
-    
+
     # Ask about dependencies and structure
     print()
     include_common = ask_yes_no("Include 'common' library?", default=True)
@@ -232,34 +231,34 @@ def main():
     include_data_orig = ask_yes_no("Create 'data_orig/' folder?", default=True)
     include_change_tracking = ask_yes_no("Create 'change_tracking/' folder?", default=True)
     include_readme = ask_yes_no("Create README.md?", default=True)
-    
+
     print()
     print("=" * 60)
     print("Creating ETL job structure...")
     print("=" * 60)
-    
+
     # Create folder structure
     create_folder_structure(folder_path, include_data_orig, include_change_tracking)
     print(f"✓ Created folder structure in {folder_name}/")
-    
+
     # Create files
     create_dockerfile(folder_path)
     print("✓ Created Dockerfile")
-    
+
     project_name = folder_name.replace("_", "-")
     create_pyproject_toml(folder_path, project_name, include_common, include_pandas)
     print("✓ Created pyproject.toml")
-    
+
     create_etl_py(folder_path, include_common, include_pandas, include_change_tracking)
     print("✓ Created etl.py")
-    
+
     create_python_version(folder_path)
     print("✓ Created .python-version")
-    
+
     if include_readme:
         create_readme(folder_path, data_owner, dataset_name)
         print("✓ Created README.md")
-    
+
     print()
     print("=" * 60)
     print("Setup complete!")
@@ -274,7 +273,7 @@ def main():
     print("⚠️  IMPORTANT: Add the new folder to the GitHub workflow!")
     print("   Edit .github/workflows/docker_build.yaml and add:")
     print(f"   {folder_name}:")
-    print(f"     - 'Dockerfile'")
+    print("     - 'Dockerfile'")
     print(f"     - '{folder_name}/**'")
     print()
     print("⚠️  After first push, set Docker image visibility to Public:")
