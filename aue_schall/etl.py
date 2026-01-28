@@ -38,6 +38,8 @@ def main():
             try:
                 logging.info(f"Reading {local_files[(station, date_string)]}...")
                 df = pd.read_csv(local_files[(station, date_string)], sep=";", na_filter=False)
+                # Filter out invalid measurements
+                df = df[df["Value"] != 24.1]
                 logging.info("Calculating ISO8601 time string...")
                 df["timestamp"] = pd.to_datetime(
                     df.LocalDateTime, format="%d.%m.%Y %H:%M", errors="coerce"
