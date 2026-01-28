@@ -238,7 +238,7 @@ def transform_for_export(df_all):
         405: 4052,
         0000: 4051,
         4102: 4053,
-        4132: -1
+        4132: -1,
     }
     df_all["Ü-Ort PLZ"] = df_all["Ü-Ort PLZ"].replace(plz_replacements).astype(int)
 

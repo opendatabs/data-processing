@@ -1,12 +1,11 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Dict
-
-import pandas as pd
-from dotenv import load_dotenv
+from typing import Dict, List
 
 import common
+import pandas as pd
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -82,9 +81,9 @@ def main():
 
     # 2) Clean and upload each file back
     for i, obj in enumerate(files, 1):
-        remote_file = obj["remote_file"]          # filename only
-        local_file = obj["local_file"]            # local path
-        remote_path = obj["remote_path"]          # folder
+        remote_file = obj["remote_file"]  # filename only
+        local_file = obj["local_file"]  # local path
+        remote_path = obj["remote_path"]  # folder
 
         try:
             stats = clean_csv_inplace(local_file)
