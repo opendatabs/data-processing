@@ -212,6 +212,9 @@ jobs:
             staka_staatskalender:
               - 'Dockerfile'
               - 'staka_staatskalender/**'
+            staka_verz_verf_persdat:
+              - 'Dockerfile'
+              - 'staka_verz_verf_persdat/**'
             stata_befragungen:
               - 'Dockerfile'
               - 'stata_befragungen/**'
