@@ -14,8 +14,7 @@ load_dotenv()
 
 BASE_URL = "https://www.bs.ch"
 START_URL = (
-    "https://www.bs.ch/regierungsrat/staatskanzlei/oeffentlichkeitsprinzip/"
-    "verzeichnis-der-verfahren-mit-personendaten"
+    "https://www.bs.ch/regierungsrat/staatskanzlei/oeffentlichkeitsprinzip/verzeichnis-der-verfahren-mit-personendaten"
 )
 
 
@@ -116,8 +115,7 @@ def extract_tables_for_entry(entry: Dict[str, str]) -> List[pd.DataFrame]:
     # the page URL to link directly to the corresponding section/table.
     fragments: List[str] = []
     toc_heading = soup.find(
-        lambda tag: tag.name in {"h2", "h3", "h4", "p", "div"}
-        and tag.get_text(strip=True) == "Auf dieser Seite"
+        lambda tag: tag.name in {"h2", "h3", "h4", "p", "div"} and tag.get_text(strip=True) == "Auf dieser Seite"
     )
     if toc_heading is not None:
         ul = toc_heading.find_next("ul")
@@ -170,7 +168,7 @@ def extract_tables_for_entry(entry: Dict[str, str]) -> List[pd.DataFrame]:
             # Extract and parse multi-valued fields from raw HTML
             # Use | as delimiter for multi-valued entries (Mehrwertig)
             MULTI_VALUE_DELIMITER = "|"
-            
+
             if idx < len(html_tables):
                 html_table = html_tables[idx]
                 # Get all rows, excluding header rows in thead
@@ -185,7 +183,7 @@ def extract_tables_for_entry(entry: Dict[str, str]) -> List[pd.DataFrame]:
                     if thead:
                         header_rows = set(thead.find_all("tr"))
                         rows = [r for r in rows if r not in header_rows]
-                
+
                 # Process Rechtsgrundlage(n) - may contain multiple entries
                 rechtsgrundlage_idx = expected_fields.index("Rechtsgrundlage(n)")
                 if rechtsgrundlage_idx < len(rows):
@@ -220,7 +218,7 @@ def extract_tables_for_entry(entry: Dict[str, str]) -> List[pd.DataFrame]:
                                         entries = lines
                         if entries:
                             values["Rechtsgrundlage(n)"] = MULTI_VALUE_DELIMITER.join(entries)
-                
+
                 # Process Quelle(n) - extract hrefs, may have multiple entries
                 quelle_idx = expected_fields.index("Quelle(n)")
                 if quelle_idx < len(rows):
@@ -245,7 +243,7 @@ def extract_tables_for_entry(entry: Dict[str, str]) -> List[pd.DataFrame]:
                                         hrefs.append(urljoin(url, href))
                             if hrefs:
                                 values["Quelle(n)"] = MULTI_VALUE_DELIMITER.join(hrefs)
-                
+
                 # Process Internetauftritt - extract hrefs
                 internetauftritt_idx = expected_fields.index("Internetauftritt")
                 if internetauftritt_idx < len(rows):
@@ -292,6 +290,7 @@ def extract_tables_for_entry(entry: Dict[str, str]) -> List[pd.DataFrame]:
 
     return enriched
 
+
 def main() -> None:
     """Run the scraping ETL and write the combined table CSV.
 
@@ -323,14 +322,14 @@ def main() -> None:
         dept = str(row["department"]) if pd.notna(row["department"]) else ""
         abt = str(row["abteilung"]) if pd.notna(row["abteilung"]) else ""
         stelle = str(row["Verantwortliche Stelle"]) if pd.notna(row["Verantwortliche Stelle"]) else ""
-        
+
         if dept:
             parts.append(dept)
         if abt:
             parts.append(abt)
         if stelle:
             parts.append(stelle)
-        
+
         return "/".join(parts) if parts else ""
 
     combined["path"] = combined.apply(join_path, axis=1)
