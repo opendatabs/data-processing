@@ -1,0 +1,18 @@
+[project]
+name = "staka-vernehmlassungen"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "pandas>=2.2.3",
+    "python-dotenv>=1.1.0",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "openpyxl>=3.1.0",
+    "lxml>=5.0.0",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "dfd6ec3541e8506a906b8a0e51f6cf8ac717077e" }
