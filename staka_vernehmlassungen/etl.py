@@ -10,9 +10,6 @@ import common
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-
-load_dotenv()
 
 DATA_ORIG_PATH = "data_orig"
 DOKUMENTE_PATH = os.path.join(DATA_ORIG_PATH, "Dokumente")
