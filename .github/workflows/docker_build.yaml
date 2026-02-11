@@ -53,6 +53,9 @@ jobs:
             awa_feiertage:
               - 'Dockerfile'
               - 'awa_feiertage/**'
+            awa_bewilligungen:
+              - 'Dockerfile'
+              - 'awa_bewilligungen/**'
             bafu_hydrodaten:
               - 'Dockerfile'
               - 'bafu_hydrodaten/**'
