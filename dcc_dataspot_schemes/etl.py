@@ -82,9 +82,11 @@ def encode_for_url(text):
 def prepare_and_merge_datasets(df_data, df_bestand):
     # Prüfen, ob "Name" in "Bestandteil von" vorkommt und dann Spalte "Bestandteile" erstellen
     df_data["Bestandteile"] = df_data["Name"].apply(
-        lambda name: "https://data.bs.ch/explore/dataset/100434/table/?refine.bestandteil_von=" + encode_for_url(name)
-        if name in df_bestand["Bestandteil von"].values
-        else ""
+        lambda name: (
+            "https://data.bs.ch/explore/dataset/100434/table/?refine.bestandteil_von=" + encode_for_url(name)
+            if name in df_bestand["Bestandteil von"].values
+            else ""
+        )
     )
     # Ersetze Zeilenumbrüche in der Spalte "Schlüsselwörter" mit Kommas
     df_data["Schlüsselwörter"] = df_data["Schlüsselwörter"].astype(str).str.replace(r"[\n\r]+", ", ", regex=True)
