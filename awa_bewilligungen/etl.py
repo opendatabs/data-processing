@@ -137,12 +137,14 @@ def _read_month_rows(
 
         for col_idx, year in year_columns:
             value = ws.cell(row=row_idx, column=col_idx).value
-            records.append({
-                "Datum": f"{year}-{month_number:02d}",
-                "Jahr": year,
-                "Monat": month_number,
-                "Anzahl": value,
-            })
+            records.append(
+                {
+                    "Datum": f"{year}-{month_number:02d}",
+                    "Jahr": year,
+                    "Monat": month_number,
+                    "Anzahl": value,
+                }
+            )
     return records
 
 
