@@ -1,7 +1,7 @@
 [project]
 name = "awa-bewilligungen"
 version = "0.1.0"
-description = "ETL pipeline for "AWA Arbeitsinspekorat Bewilligungen""
+description = "ETL pipeline for AWA Arbeitsinspekorat Bewilligungen"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
