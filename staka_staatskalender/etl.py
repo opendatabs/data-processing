@@ -78,7 +78,7 @@ def get_full_path(df, index, column_name):
     if pd.isna(df.at[index, "parent"]):
         return df.at[index, column_name]
     else:
-        return get_full_path(df, df.at[index, "parent_id"], column_name) + "/" + df.at[index, column_name]
+        return get_full_path(df, df.at[index, "parent_id"], column_name) + ">" + df.at[index, column_name]
 
 
 def get_children_id(children_url, token):
