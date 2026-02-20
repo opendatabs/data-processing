@@ -8,7 +8,9 @@ import pandas as pd
 from dotenv import load_dotenv
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from rapidfuzz import fuzz, process as fuzz_process, utils as fuzz_utils
+from rapidfuzz import fuzz
+from rapidfuzz import process as fuzz_process
+from rapidfuzz import utils as fuzz_utils
 
 load_dotenv()
 
@@ -174,9 +176,7 @@ def main():
 
     dienststelle_to_sk_id: dict[str, str] = {}
     for dept_abbrev, dienststelle in (
-        df_leistungen[["Departement", "Dienststelle"]]
-        .drop_duplicates()
-        .itertuples(index=False, name=None)
+        df_leistungen[["Departement", "Dienststelle"]].drop_duplicates().itertuples(index=False, name=None)
     ):
         dept_full = DEPT_ABBREVIATIONS.get(dept_abbrev)
 
@@ -189,9 +189,7 @@ def main():
         glob_name, glob_score, glob_id = None, 0.0, None
 
         if dept_full:
-            mask = df_sk["Organisationspfad"].str.startswith(
-                f"Regierung und Verwaltung>{dept_full}"
-            )
+            mask = df_sk["Organisationspfad"].str.startswith(f"Regierung und Verwaltung>{dept_full}")
             dept_candidates = df_sk[mask]
             dept_match = fuzz_process.extractOne(
                 dienststelle,
@@ -223,28 +221,19 @@ def main():
         if best_name:
             dienststelle_to_sk_id[dienststelle] = best_id
             if best_score < 100:
-                logging.info(
-                    f"Fuzzy match: '{dienststelle}' -> '{best_name}' "
-                    f"(score: {best_score:.1f}, ID: {best_id})"
-                )
+                logging.info(f"Fuzzy match: '{dienststelle}' -> '{best_name}' (score: {best_score:.1f}, ID: {best_id})")
         else:
             logging.warning(f"No match found for Dienststelle: '{dienststelle}'")
 
-    df_leistungen["Matched_SK_ID"] = df_leistungen["Dienststelle"].map(
-        dienststelle_to_sk_id
-    )
+    df_leistungen["Matched_SK_ID"] = df_leistungen["Dienststelle"].map(dienststelle_to_sk_id)
 
     # --- Refine match using "Weitere Gliederung OE" sub-unit names ---
     # Try to match each sub-unit to a more specific child org within the
     # already-matched Dienststelle's subtree in the Staatskalender.
     skip_values = {"keine", "Keine", "Alle Abteilungen", "-"}
-    sk_path_by_id = dict(
-        zip(df_sk["ID Organisation"], df_sk["Organisationspfad"])
-    )
+    sk_path_by_id = dict(zip(df_sk["ID Organisation"], df_sk["Organisationspfad"]))
     for dienststelle, sub_unit in (
-        df_leistungen[["Dienststelle", "Weitere Gliederung OE"]]
-        .drop_duplicates()
-        .itertuples(index=False, name=None)
+        df_leistungen[["Dienststelle", "Weitere Gliederung OE"]].drop_duplicates().itertuples(index=False, name=None)
     ):
         if sub_unit in skip_values or pd.isna(sub_unit):
             continue
@@ -252,9 +241,7 @@ def main():
         if not parent_id:
             continue
         parent_path = sk_path_by_id.get(parent_id, "")
-        subtree = df_sk[
-            df_sk["Organisationspfad"].str.startswith(parent_path + ">")
-        ]
+        subtree = df_sk[df_sk["Organisationspfad"].str.startswith(parent_path + ">")]
         if subtree.empty:
             continue
         match = fuzz_process.extractOne(
@@ -267,26 +254,17 @@ def main():
         if match:
             matched_name, score, idx = match
             child_id = subtree.iloc[idx]["ID Organisation"]
-            mask = (
-                (df_leistungen["Dienststelle"] == dienststelle)
-                & (df_leistungen["Weitere Gliederung OE"] == sub_unit)
+            mask = (df_leistungen["Dienststelle"] == dienststelle) & (
+                df_leistungen["Weitere Gliederung OE"] == sub_unit
             )
             df_leistungen.loc[mask, "Matched_SK_ID"] = child_id
             if score < 100:
-                logging.info(
-                    f"Sub-org match: '{sub_unit}' -> '{matched_name}' "
-                    f"(score: {score:.1f}, ID: {child_id})"
-                )
+                logging.info(f"Sub-org match: '{sub_unit}' -> '{matched_name}' (score: {score:.1f}, ID: {child_id})")
 
     unmatched_mask = df_leistungen["Matched_SK_ID"].isna()
     if unmatched_mask.any():
-        unmatched_rows = (
-            df_leistungen.loc[unmatched_mask, ["Dienststelle", "Weitere Gliederung OE"]]
-            .drop_duplicates()
-        )
-        logging.warning(
-            f"Dienststellen ohne Match im Staatskalender:\n{unmatched_rows.to_string(index=False)}"
-        )
+        unmatched_rows = df_leistungen.loc[unmatched_mask, ["Dienststelle", "Weitere Gliederung OE"]].drop_duplicates()
+        logging.warning(f"Dienststellen ohne Match im Staatskalender:\n{unmatched_rows.to_string(index=False)}")
 
     MAX_EBENE = 4
 
@@ -308,22 +286,14 @@ def main():
         right_on="Matched_SK_ID",
         how="left",
     )
-    df["Anzahl_Leistungen_direkt"] = (
-        df["Anzahl_Leistungen_direkt"].fillna(0).astype(int)
-    )
+    df["Anzahl_Leistungen_direkt"] = df["Anzahl_Leistungen_direkt"].fillna(0).astype(int)
     df["Anzahl_Leistungen_inkl_Unterorg"] = compute_subtree_leistungen(df)
-    df["Hat_Leistungen"] = (
-        (df["Anzahl_Leistungen_direkt"] > 0).map({True: "Ja", False: "Nein"})
-    )
+    df["Hat_Leistungen"] = (df["Anzahl_Leistungen_direkt"] > 0).map({True: "Ja", False: "Nein"})
 
     # Keep only Dienststellen (Ebene 3) that appear in the official organigramm,
     # plus any "Departementsleitung …" rows.  Rows at Ebene 1/2 (no Ebene 3)
     # and rows under departments not listed in the whitelist pass through.
-    allowed_pairs = {
-        (dept, name)
-        for dept, names in ORGANIGRAMM_DIENSTSTELLEN.items()
-        for name in names
-    }
+    allowed_pairs = {(dept, name) for dept, names in ORGANIGRAMM_DIENSTSTELLEN.items() for name in names}
     needs_check = df["Ebene 3"].notna() & df["Ebene 2"].isin(ORGANIGRAMM_DIENSTSTELLEN)
     is_allowed = pd.Series(
         [(e2, e3) in allowed_pairs for e2, e3 in zip(df["Ebene 2"], df["Ebene 3"])],
@@ -331,20 +301,13 @@ def main():
     )
     is_dept_lead = df["Ebene 3"].str.startswith("Departementsleitung", na=False)
     organigramm_mask = ~(needs_check & ~is_allowed & ~is_dept_lead)
-    filtered_names = sorted(
-        df.loc[~organigramm_mask, "Organisationsname"].unique()
-    )
+    filtered_names = sorted(df.loc[~organigramm_mask, "Organisationsname"].unique())
     if filtered_names:
-        logging.info(
-            f"Organigramm filter removed {len(filtered_names)} org names: "
-            f"{filtered_names}"
-        )
+        logging.info(f"Organigramm filter removed {len(filtered_names)} org names: {filtered_names}")
     df = df[organigramm_mask]
 
     # Drop entire Ebene-1 branches that carry no Leistungen at all
-    ebene1_with_leistungen = set(
-        df.loc[df["Anzahl_Leistungen_inkl_Unterorg"] > 0, "Ebene 1"].unique()
-    )
+    ebene1_with_leistungen = set(df.loc[df["Anzahl_Leistungen_inkl_Unterorg"] > 0, "Ebene 1"].unique())
     dropped = set(df["Ebene 1"].unique()) - ebene1_with_leistungen
     if dropped:
         logging.info(f"Dropping Ebene-1 branches without Leistungen: {dropped}")
@@ -361,9 +324,7 @@ def main():
     # direct matches but none of its Ebene 4 sub-orgs do, only the Ebene 3
     # row is shown.  Same for Staatsanwaltschaft at Ebene 2.
     expandable_paths: set[str] = set()
-    for path in df.loc[
-        df["Anzahl_Leistungen_inkl_Unterorg"] > 0, "Organisationspfad"
-    ]:
+    for path in df.loc[df["Anzahl_Leistungen_inkl_Unterorg"] > 0, "Organisationspfad"]:
         parts = path.split(">")
         for i in range(1, len(parts)):
             expandable_paths.add(">".join(parts[:i]))
@@ -406,28 +367,22 @@ def main():
         gs_mask = ebene3_rows["Ebene 3"].str.startswith("Generalsekretariat")
         dl_mask = ebene3_rows["Ebene 3"].str.startswith("Departementsleitung")
         dienststellen = ebene3_rows[~gs_mask & ~dl_mask]
-        dept_rows.append({
-            "Departement": dept_name,
-            "Anzahl_Dienststellen": len(dienststellen),
-            "Dienststellen_mit_Leistungen": int(
-                (dienststellen["Anzahl_Leistungen_inkl_Unterorg"] > 0).sum()
-            ),
-            "Dienststellen_ohne_Leistungen": int(
-                (dienststellen["Anzahl_Leistungen_inkl_Unterorg"] == 0).sum()
-            ),
-            "Anzahl_Leistungen_Generalsekretariat": (
-                int(ebene3_rows.loc[gs_mask, "Anzahl_Leistungen_inkl_Unterorg"].sum())
-                if gs_mask.any() else 0
-            ),
-            "Anzahl_Leistungen_Departementsleitung": (
-                int(ebene3_rows.loc[dl_mask, "Anzahl_Leistungen_inkl_Unterorg"].sum())
-                if dl_mask.any() else 0
-            ),
-            "Total_Leistungen": int(dept_data["Anzahl_Leistungen_direkt"].sum()),
-        })
-    dept_summary = pd.DataFrame(dept_rows).sort_values(
-        "Total_Leistungen", ascending=False
-    )
+        dept_rows.append(
+            {
+                "Departement": dept_name,
+                "Anzahl_Dienststellen": len(dienststellen),
+                "Dienststellen_mit_Leistungen": int((dienststellen["Anzahl_Leistungen_inkl_Unterorg"] > 0).sum()),
+                "Dienststellen_ohne_Leistungen": int((dienststellen["Anzahl_Leistungen_inkl_Unterorg"] == 0).sum()),
+                "Anzahl_Leistungen_Generalsekretariat": (
+                    int(ebene3_rows.loc[gs_mask, "Anzahl_Leistungen_inkl_Unterorg"].sum()) if gs_mask.any() else 0
+                ),
+                "Anzahl_Leistungen_Departementsleitung": (
+                    int(ebene3_rows.loc[dl_mask, "Anzahl_Leistungen_inkl_Unterorg"].sum()) if dl_mask.any() else 0
+                ),
+                "Total_Leistungen": int(dept_data["Anzahl_Leistungen_direkt"].sum()),
+            }
+        )
+    dept_summary = pd.DataFrame(dept_rows).sort_values("Total_Leistungen", ascending=False)
 
     # ====== Sheet 3: Zusammenfassung Dienststellen ======
     has_ebene3 = dept_scope[dept_scope["Ebene 3"].notna()]
@@ -440,9 +395,7 @@ def main():
     )
     # Add Ebene-2 entities that have direct Leistungen but no Ebene-3 children
     # (e.g. Staatsanwaltschaft) as their own Dienststelle row.
-    ebene2_direct = dept_scope[
-        (dept_scope["Tiefe"] == 2) & (dept_scope["Anzahl_Leistungen_direkt"] > 0)
-    ]
+    ebene2_direct = dept_scope[(dept_scope["Tiefe"] == 2) & (dept_scope["Anzahl_Leistungen_direkt"] > 0)]
     extra_rows = [
         {
             "Departement": row["Ebene 2"],
@@ -453,9 +406,7 @@ def main():
         if row["Ebene 2"] not in amt_summary["Departement"].values
     ]
     if extra_rows:
-        amt_summary = pd.concat(
-            [amt_summary, pd.DataFrame(extra_rows)], ignore_index=True
-        )
+        amt_summary = pd.concat([amt_summary, pd.DataFrame(extra_rows)], ignore_index=True)
 
     # ====== Write Excel ======
     output_path = os.path.join("data", "leistungen_uebersicht.xlsx")
