@@ -31,6 +31,77 @@ DEPT_ABBREVIATIONS: dict[str, str] = {
     "WSU": "Departement für Wirtschaft, Soziales und Umwelt",
 }
 
+# Dienststellen per department as shown on page 2 of the official organigramm
+# (bs-organigramme-2026.pdf, Stand 1. Januar 2026).
+# Only these Ebene-3 organisations (plus any "Departementsleitung …" rows)
+# are kept in the output; everything else (Kommissionen, historical entries,
+# Baurekurskommission, etc.) is filtered out.
+ORGANIGRAMM_DIENSTSTELLEN: dict[str, set[str]] = {
+    "Präsidialdepartement": {
+        "Generalsekretariat PD",
+        "Fachstelle Klima",
+        "Staatskanzlei",
+        "Aussenbeziehungen und Standortmarketing",
+        "Gleichstellung und Diversität",
+        "Kantons- und Stadtentwicklung",
+        "Abteilung Kultur",
+        "Statistisches Amt",
+    },
+    "Bau- und Verkehrsdepartement": {
+        "Generalsekretariat BVD",
+        "Bau- und Gastgewerbeinspektorat",
+        "Städtebau & Architektur",
+        "Tiefbauamt",
+        "Mobilität",
+        "Grundbuch- und Vermessungsamt",
+        "Stadtgärtnerei",
+    },
+    "Erziehungsdepartement": {
+        "Generalsekretariat",
+        "Volksschulen",
+        "Mittelschulen und Berufsbildung",
+        "Hochschulen",
+        "Jugend, Familie und Sport",
+        "Zentrale Dienste",
+    },
+    "Finanzdepartement": {
+        "Generalsekretariat",
+        "Finanzverwaltung",
+        "Steuerverwaltung",
+        "IT BS",
+        "Human Resources Basel-Stadt",
+        "Immobilien Basel-Stadt",
+    },
+    "Gesundheitsdepartement": {
+        "Generalsekretariat",
+        "Gesundheitsbeteiligungen und Finanzen",
+        "Kommunikation",
+        "Bereich Gesundheitsversorgung",
+        "Institut für Rechtsmedizin",
+        "Kantonales Laboratorium",
+        "Kantonales Veterinäramt",
+        "Medizinische Dienste",
+        "Abteilung Sucht",
+    },
+    "Justiz- und Sicherheitsdepartement": {
+        "Generalsekretariat",
+        "Zentraler Rechtsdienst",
+        "Kantonspolizei",
+        "Rettung",
+        "Bevölkerungsdienste und Migration",
+    },
+    "Departement für Wirtschaft, Soziales und Umwelt": {
+        "Generalsekretariat",
+        "Amt für Sozialbeiträge (ASB)",
+        "Kindes- und Erwachsenenschutzbehörde",
+        "Amt für Beistandschaften und Erwachsenenschutz ABES",
+        "Sozialhilfe",
+        "Amt für Wirtschaft und Arbeit (AWA)",
+        "Amt für Umwelt und Energie (AUE)",
+        "Amt für Wald und Wild beider Basel",
+    },
+}
+
 
 def get_dataset(ods_id: str) -> pd.DataFrame:
     url = f"https://data.bs.ch/explore/dataset/{ods_id}/download/"
@@ -215,26 +286,7 @@ def main():
             f"Dienststellen ohne Match im Staatskalender:\n{unmatched_rows.to_string(index=False)}"
         )
 
-    # --- Roll up matches deeper than Ebene 4 to their Ebene-4 ancestor ---
-    # Annotate the Leistung name with the sub-path so the deeper context is
-    # preserved, e.g. "Geoinformation > Kartografie: Bestellung Planauszüge".
     MAX_EBENE = 4
-    path_to_id = dict(zip(df_sk["Organisationspfad"], df_sk["ID Organisation"]))
-    df_leistungen["Display_Name"] = df_leistungen["Name"]
-
-    for idx in df_leistungen.index[~unmatched_mask]:
-        matched_id = df_leistungen.at[idx, "Matched_SK_ID"]
-        path = sk_path_by_id.get(matched_id, "")
-        parts = path.split(">")
-        if len(parts) > MAX_EBENE:
-            ebene4_path = ">".join(parts[:MAX_EBENE])
-            ebene4_id = path_to_id.get(ebene4_path)
-            if ebene4_id:
-                sub_path = " > ".join(parts[MAX_EBENE - 1 :])
-                df_leistungen.at[idx, "Matched_SK_ID"] = ebene4_id
-                df_leistungen.at[idx, "Display_Name"] = (
-                    f"{sub_path}: {df_leistungen.at[idx, 'Name']}"
-                )
 
     # --- Aggregate Leistungen per matched organisation ---
     leistungen_agg = (
@@ -242,7 +294,7 @@ def main():
         .groupby("Matched_SK_ID")
         .agg(
             Anzahl_Leistungen_direkt=("Leistungs-ID", "count"),
-            Leistungsnamen=("Display_Name", lambda x: "\n".join(sorted(x))),
+            Leistungsnamen=("Name", lambda x: "\n".join(sorted(x))),
         )
         .reset_index()
     )
@@ -262,6 +314,27 @@ def main():
         lambda x: "Ja" if x > 0 else "Nein"
     )
 
+    # Keep only Dienststellen (Ebene 3) that appear in the official organigramm,
+    # plus any "Departementsleitung …" rows.  Rows at Ebene 1/2 (no Ebene 3)
+    # and rows under departments not listed in the whitelist pass through.
+    organigramm_mask = pd.Series(True, index=df.index)
+    for idx, row in df.iterrows():
+        ebene3 = row.get("Ebene 3")
+        ebene2 = row.get("Ebene 2")
+        if pd.notna(ebene3) and ebene2 in ORGANIGRAMM_DIENSTSTELLEN:
+            allowed = ORGANIGRAMM_DIENSTSTELLEN[ebene2]
+            if ebene3 not in allowed and not ebene3.startswith("Departementsleitung"):
+                organigramm_mask.at[idx] = False
+    filtered_names = sorted(
+        df.loc[~organigramm_mask, "Organisationsname"].unique()
+    )
+    if filtered_names:
+        logging.info(
+            f"Organigramm filter removed {len(filtered_names)} org names: "
+            f"{filtered_names}"
+        )
+    df = df[organigramm_mask]
+
     # Drop entire Ebene-1 branches that carry no Leistungen at all
     ebene1_with_leistungen = set(
         df.loc[df["Anzahl_Leistungen_inkl_Unterorg"] > 0, "Ebene 1"].unique()
@@ -271,8 +344,10 @@ def main():
         logging.info(f"Dropping Ebene-1 branches without Leistungen: {dropped}")
     df = df[df["Ebene 1"].isin(ebene1_with_leistungen)]
 
-    # Only show organisations up to Ebene 4
-    df = df[df["Tiefe"] <= MAX_EBENE]
+    # Build "Weitere Ebenen" for orgs deeper than Ebene 4
+    df["Weitere Ebenen"] = df["Organisationspfad"].apply(
+        lambda p: " > ".join(p.split(">")[MAX_EBENE:]) if p.count(">") >= MAX_EBENE else ""
+    )
 
     # Collapse branches whose children carry no Leistungen.  An org is only
     # "expandable" (its children shown) when at least one child has
@@ -300,6 +375,7 @@ def main():
     # ====== Sheet 1: Alle Organisationen (full hierarchy) ======
     display_level_cols = [f"Ebene {i + 1}" for i in range(MAX_EBENE)]
     all_org_cols = display_level_cols + [
+        "Weitere Ebenen",
         "ID Organisation",
         "Organisationsname",
         "Tiefe",
@@ -312,45 +388,63 @@ def main():
 
     # ====== Sheet 2: Zusammenfassung Departemente ======
     regierung = df[df["Ebene 1"] == "Regierung und Verwaltung"]
-    dept_summary = (
-        regierung.groupby("Ebene 2")
-        .agg(
-            Anzahl_Organisationen=("ID Organisation", "count"),
-            Orgs_mit_Leistungen=(
-                "Anzahl_Leistungen_direkt",
-                lambda x: int((x > 0).sum()),
+
+    # Include Staatsanwaltschaft (lives under "Weitere öffentliche Stellen")
+    staatsanwaltschaft = df[df["Ebene 2"] == "Staatsanwaltschaft"]
+    dept_scope = pd.concat([regierung, staatsanwaltschaft]).drop_duplicates()
+
+    dept_rows = []
+    for dept_name in sorted(dept_scope["Ebene 2"].dropna().unique()):
+        dept_data = dept_scope[dept_scope["Ebene 2"] == dept_name]
+        ebene3_rows = dept_data[dept_data["Tiefe"] == 3]
+        gs_mask = ebene3_rows["Ebene 3"].str.startswith("Generalsekretariat")
+        dl_mask = ebene3_rows["Ebene 3"].str.startswith("Departementsleitung")
+        dienststellen = ebene3_rows[~gs_mask & ~dl_mask]
+        dept_rows.append({
+            "Departement": dept_name,
+            "Anzahl_Dienststellen": len(dienststellen),
+            "Dienststellen_mit_Leistungen": int(
+                (dienststellen["Anzahl_Leistungen_inkl_Unterorg"] > 0).sum()
             ),
-            Orgs_ohne_Leistungen=(
-                "Anzahl_Leistungen_direkt",
-                lambda x: int((x == 0).sum()),
+            "Dienststellen_ohne_Leistungen": int(
+                (dienststellen["Anzahl_Leistungen_inkl_Unterorg"] == 0).sum()
             ),
-            Total_Leistungen=("Anzahl_Leistungen_direkt", "sum"),
-        )
-        .reset_index()
-        .rename(columns={"Ebene 2": "Departement"})
-        .sort_values("Total_Leistungen", ascending=False)
+            "Anzahl_Leistungen_Generalsekretariat": (
+                int(ebene3_rows.loc[gs_mask, "Anzahl_Leistungen_inkl_Unterorg"].sum())
+                if gs_mask.any() else 0
+            ),
+            "Anzahl_Leistungen_Departementsleitung": (
+                int(ebene3_rows.loc[dl_mask, "Anzahl_Leistungen_inkl_Unterorg"].sum())
+                if dl_mask.any() else 0
+            ),
+            "Total_Leistungen": int(dept_data["Anzahl_Leistungen_direkt"].sum()),
+        })
+    dept_summary = pd.DataFrame(dept_rows).sort_values(
+        "Total_Leistungen", ascending=False
     )
 
     # ====== Sheet 3: Zusammenfassung Dienststellen ======
-    has_ebene3 = regierung[regierung["Ebene 3"].notna()]
+    has_ebene3 = dept_scope[dept_scope["Ebene 3"].notna()]
     amt_summary = (
         has_ebene3.groupby(["Ebene 2", "Ebene 3"])
-        .agg(
-            Anzahl_Organisationen=("ID Organisation", "count"),
-            Orgs_mit_Leistungen=(
-                "Anzahl_Leistungen_direkt",
-                lambda x: int((x > 0).sum()),
-            ),
-            Orgs_ohne_Leistungen=(
-                "Anzahl_Leistungen_direkt",
-                lambda x: int((x == 0).sum()),
-            ),
-            Total_Leistungen=("Anzahl_Leistungen_direkt", "sum"),
-        )
+        .agg(Total_Leistungen=("Anzahl_Leistungen_direkt", "sum"))
         .reset_index()
         .rename(columns={"Ebene 2": "Departement", "Ebene 3": "Dienststelle"})
         .sort_values(["Departement", "Total_Leistungen"], ascending=[True, False])
     )
+    # Add Ebene-2 entities that have direct Leistungen but no Ebene-3 children
+    # (e.g. Staatsanwaltschaft) as their own Dienststelle row.
+    ebene2_direct = dept_scope[
+        (dept_scope["Tiefe"] == 2) & (dept_scope["Anzahl_Leistungen_direkt"] > 0)
+    ]
+    for _, row in ebene2_direct.iterrows():
+        name = row["Ebene 2"]
+        if name not in amt_summary["Departement"].values:
+            amt_summary = pd.concat([amt_summary, pd.DataFrame([{
+                "Departement": name,
+                "Dienststelle": name,
+                "Total_Leistungen": int(row["Anzahl_Leistungen_direkt"]),
+            }])], ignore_index=True)
 
     # ====== Write Excel ======
     output_path = os.path.join("data", "leistungen_uebersicht.xlsx")
