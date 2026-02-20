@@ -173,8 +173,10 @@ def main():
     all_sk_names = df_sk["Organisationsname"].tolist()
 
     dienststelle_to_sk_id: dict[str, str] = {}
-    for (dept_abbrev, dienststelle), _ in (
-        df_leistungen.groupby(["Departement", "Dienststelle"]).first().iterrows()
+    for dept_abbrev, dienststelle in (
+        df_leistungen[["Departement", "Dienststelle"]]
+        .drop_duplicates()
+        .itertuples(index=False, name=None)
     ):
         dept_full = DEPT_ABBREVIATIONS.get(dept_abbrev)
 
@@ -239,10 +241,10 @@ def main():
     sk_path_by_id = dict(
         zip(df_sk["ID Organisation"], df_sk["Organisationspfad"])
     )
-    for (dienststelle, sub_unit), _ in (
-        df_leistungen.groupby(["Dienststelle", "Weitere Gliederung OE"])
-        .first()
-        .iterrows()
+    for dienststelle, sub_unit in (
+        df_leistungen[["Dienststelle", "Weitere Gliederung OE"]]
+        .drop_duplicates()
+        .itertuples(index=False, name=None)
     ):
         if sub_unit in skip_values or pd.isna(sub_unit):
             continue
@@ -310,21 +312,25 @@ def main():
         df["Anzahl_Leistungen_direkt"].fillna(0).astype(int)
     )
     df["Anzahl_Leistungen_inkl_Unterorg"] = compute_subtree_leistungen(df)
-    df["Hat_Leistungen"] = df["Anzahl_Leistungen_direkt"].apply(
-        lambda x: "Ja" if x > 0 else "Nein"
+    df["Hat_Leistungen"] = (
+        (df["Anzahl_Leistungen_direkt"] > 0).map({True: "Ja", False: "Nein"})
     )
 
     # Keep only Dienststellen (Ebene 3) that appear in the official organigramm,
     # plus any "Departementsleitung …" rows.  Rows at Ebene 1/2 (no Ebene 3)
     # and rows under departments not listed in the whitelist pass through.
-    organigramm_mask = pd.Series(True, index=df.index)
-    for idx, row in df.iterrows():
-        ebene3 = row.get("Ebene 3")
-        ebene2 = row.get("Ebene 2")
-        if pd.notna(ebene3) and ebene2 in ORGANIGRAMM_DIENSTSTELLEN:
-            allowed = ORGANIGRAMM_DIENSTSTELLEN[ebene2]
-            if ebene3 not in allowed and not ebene3.startswith("Departementsleitung"):
-                organigramm_mask.at[idx] = False
+    allowed_pairs = {
+        (dept, name)
+        for dept, names in ORGANIGRAMM_DIENSTSTELLEN.items()
+        for name in names
+    }
+    needs_check = df["Ebene 3"].notna() & df["Ebene 2"].isin(ORGANIGRAMM_DIENSTSTELLEN)
+    is_allowed = pd.Series(
+        [(e2, e3) in allowed_pairs for e2, e3 in zip(df["Ebene 2"], df["Ebene 3"])],
+        index=df.index,
+    )
+    is_dept_lead = df["Ebene 3"].str.startswith("Departementsleitung", na=False)
+    organigramm_mask = ~(needs_check & ~is_allowed & ~is_dept_lead)
     filtered_names = sorted(
         df.loc[~organigramm_mask, "Organisationsname"].unique()
     )
@@ -437,14 +443,19 @@ def main():
     ebene2_direct = dept_scope[
         (dept_scope["Tiefe"] == 2) & (dept_scope["Anzahl_Leistungen_direkt"] > 0)
     ]
-    for _, row in ebene2_direct.iterrows():
-        name = row["Ebene 2"]
-        if name not in amt_summary["Departement"].values:
-            amt_summary = pd.concat([amt_summary, pd.DataFrame([{
-                "Departement": name,
-                "Dienststelle": name,
-                "Total_Leistungen": int(row["Anzahl_Leistungen_direkt"]),
-            }])], ignore_index=True)
+    extra_rows = [
+        {
+            "Departement": row["Ebene 2"],
+            "Dienststelle": row["Ebene 2"],
+            "Total_Leistungen": int(row["Anzahl_Leistungen_direkt"]),
+        }
+        for _, row in ebene2_direct.iterrows()
+        if row["Ebene 2"] not in amt_summary["Departement"].values
+    ]
+    if extra_rows:
+        amt_summary = pd.concat(
+            [amt_summary, pd.DataFrame(extra_rows)], ignore_index=True
+        )
 
     # ====== Write Excel ======
     output_path = os.path.join("data", "leistungen_uebersicht.xlsx")
