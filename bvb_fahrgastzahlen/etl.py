@@ -7,9 +7,30 @@ import pandas as pd
 
 
 def main():
-    df = get_the_new_file(directory="data_orig", sheet_name="Monatswerte")
+    # Load newest file (2024+)
+    df_new = get_the_new_file(directory="data_orig", sheet_name="Monatswerte")
 
-    df = transform_the_file(df)
+    # Load fixed historical file (2020–2023)
+    historical_file = os.path.join(
+        "data_orig",
+        "20260220 Anfrage Amt für Statistik Monatswerte 2020-2023.xlsx",
+    )
+    df_old = pd.read_excel(historical_file, sheet_name="Monatswerte")
+
+    # Transform both
+    df_new = transform_the_file(df_new)
+    df_old = transform_the_file(df_old)
+
+    # Combine
+    df = pd.concat([df_old, df_new], ignore_index=True)
+
+    # Optional but recommended: remove duplicates if overlap ever occurs
+    df = df.drop_duplicates(
+        subset=["Startdatum Kalenderwoche/Monat"], keep="last"
+    )
+
+    df = df.sort_values("Startdatum Kalenderwoche/Monat")
+
     path_export = os.path.join("data", "export", "BVB_monthly.csv")
     save_the_file(df=df, directory=path_export)
     common.update_ftp_and_odsp(path_export, "bvb/fahrgastzahlen", "100075")
