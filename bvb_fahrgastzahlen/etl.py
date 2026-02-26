@@ -58,8 +58,6 @@ def get_the_new_file(directory, sheet_name):
 
 
 def transform_the_file(df):
-    # Zeile 2023 löschen
-    df = df[df["Fahrgäste (Einsteiger*innen)"] > 2023]
     # DataFrame umformen (melt)
     value_vars = df.columns[1:]
     df = df.melt(id_vars="Fahrgäste (Einsteiger*innen)", value_vars=value_vars)
