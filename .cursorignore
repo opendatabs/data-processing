@@ -1,7 +1,0 @@
-**/credentials.py
-**/pw.txt
-**/secrets/*
-**/venv/*
-**/.venv/*
-**/.pytest_cache/*
-**/*.env
