@@ -13,7 +13,7 @@ def main():
     # Load fixed historical file (2020–2023)
     historical_file = os.path.join(
         "data_orig",
-        "20260220 Anfrage Amt für Statistik Monatswerte 2020-2023.xlsx",
+        "260220 Anfrage Amt für Statistik Monatswerte 2020-2023.xlsx",
     )
     df_old = pd.read_excel(historical_file, sheet_name="Monatswerte")
 
