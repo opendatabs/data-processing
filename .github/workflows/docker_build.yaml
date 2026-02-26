@@ -137,6 +137,9 @@ jobs:
             meteoblue_wolf:
               - 'Dockerfile'
               - 'meteoblue_wolf/**'
+            meteoschweiz_station_basel_binningen:
+              - 'Dockerfile'
+              - 'meteoschweiz_station_basel_binningen/**'
             mkb_sammlung_europa:
               - 'Dockerfile'
               - 'mkb_sammlung_europa/**'
