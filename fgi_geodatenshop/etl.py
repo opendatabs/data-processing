@@ -190,6 +190,24 @@ def remove_empty_string_from_list(string_list: list[str]) -> list[str]:
     return [value for value in string_list if value]
 
 
+def get_selected_metadata_rows() -> list[dict[str, Any]]:
+    """Return imported metadata rows, optionally limited by FGI_DATASET_LIMIT."""
+    meta_data = pd.read_excel(Path("data") / "Metadata.xlsx", na_filter=False)
+    selected = [row for _, row in meta_data.iterrows() if bool(row["import"])]
+    dataset_limit_raw = os.getenv("FGI_DATASET_LIMIT")
+    if dataset_limit_raw:
+        try:
+            selected = selected[: int(dataset_limit_raw)]
+        except ValueError:
+            logger.warning("Ignoring invalid FGI_DATASET_LIMIT", value=dataset_limit_raw)
+    return [{"row": row} for row in selected]
+
+
+def get_selected_groups() -> set[str]:
+    """Return selected group names based on imported metadata rows."""
+    return {str(entry["row"]["Gruppe"]) for entry in get_selected_metadata_rows()}
+
+
 def parse_geocat_metadata(xml_data: bytes) -> tuple[str, str, str, str]:
     """Extract selected metadata fields from geocat XML document."""
     root = ET.fromstring(xml_data)
@@ -224,13 +242,14 @@ def parse_geocat_metadata(xml_data: bytes) -> tuple[str, str, str, str]:
 
 def create_wfs_getfeature_url(wfs_base_url: str, layer_name: str) -> str:
     """Build a WFS GetFeature URL for a single layer in GeoJSON format."""
+    typename = layer_name if ":" in layer_name else f"ms:{layer_name}"
     query = urllib.parse.urlencode(
         {
-            "service": "WFS",
-            "version": "2.0.0",
-            "request": "GetFeature",
-            "typeNames": layer_name,
-            "outputFormat": "application/json",
+            "SERVICE": "WFS",
+            "VERSION": "2.0.0",
+            "REQUEST": "GetFeature",
+            "TYPENAME": typename,
+            "outputFormat": "application/json; subtype=geojson",
         }
     )
     return f"{wfs_base_url}?{query}"
@@ -329,24 +348,16 @@ async def save_geodata_for_layers(
     metrics: RuntimeMetrics,
 ) -> None:
     """Fetch datasets, build geopackages, and prepare ODS metadata."""
-    meta_data = pd.read_excel(Path("data") / "Metadata.xlsx", na_filter=False)
     df_cat = pd.read_csv(Path("data") / "100410_geodatenkatalog.csv", sep=";")
 
     group_to_layers = dict(zip(df_fgi["Gruppe"], df_fgi["Name"], strict=False))
     rows_to_process: list[dict[str, Any]] = []
-    for _, row in meta_data.iterrows():
-        if not row["import"]:
-            continue
+    for entry in get_selected_metadata_rows():
+        row = entry["row"]
         layers = remove_empty_string_from_list(str(row["Layers"]).split(";"))
         if not layers:
             layers = group_to_layers.get(row["Gruppe"], [])
         rows_to_process.append({"row": row, "layers": layers})
-    dataset_limit_raw = os.getenv("FGI_DATASET_LIMIT")
-    if dataset_limit_raw:
-        try:
-            rows_to_process = rows_to_process[: int(dataset_limit_raw)]
-        except ValueError:
-            logger.warning("Ignoring invalid FGI_DATASET_LIMIT", value=dataset_limit_raw)
 
     logger.info("Processing datasets", datasets=len(rows_to_process))
     metadata_for_ods: list[dict[str, Any]] = []
@@ -580,6 +591,9 @@ def ods_id_col(df_wfs: pd.DataFrame, df_fgi: pd.DataFrame) -> pd.DataFrame:
 async def async_main(no_file_copy: bool) -> None:
     """Run the full ETL workflow."""
     metrics = RuntimeMetrics()
+    selected_groups = get_selected_groups()
+    generate_schemas = os.getenv("FGI_GENERATE_SCHEMAS", "true").lower() in {"1", "true", "yes"}
+
     with timed(metrics, "wfs_capabilities"):
         wfs = WebFeatureService(url=URL_WFS, version="2.0.0", timeout=120)
     df_wms = process_wms_data(URL_WMS, metrics)
@@ -600,10 +614,15 @@ async def async_main(no_file_copy: bool) -> None:
     if not no_file_copy:
         common.update_ftp_and_odsp(str(path_export), "opendatabs", "100395")
 
-    with timed(metrics, "schema_name_generation"):
-        await get_name_col(df_wfs, metrics)
-    with timed(metrics, "schema_count_generation"):
-        await get_num_col(df_fgi, metrics)
+    if generate_schemas:
+        df_wfs_selected = df_wfs[df_wfs["Gruppe"].isin(selected_groups)].copy()
+        df_fgi_selected = df_fgi[df_fgi["Gruppe"].isin(selected_groups)].copy()
+        with timed(metrics, "schema_name_generation"):
+            await get_name_col(df_wfs_selected, metrics)
+        with timed(metrics, "schema_count_generation"):
+            await get_num_col(df_fgi_selected, metrics)
+    else:
+        logger.info("Skipping schema generation (FGI_GENERATE_SCHEMAS=false)")
 
     await save_geodata_for_layers(df_fgi, str(Path("data") / "export"), no_file_copy, metrics)
     metrics.log_summary()
@@ -619,5 +638,9 @@ def main() -> None:
 
 if __name__ == "__main__":
     os.environ.setdefault("IS_PROD", "false")
+    import logging
+
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     init_logger()
     main()
