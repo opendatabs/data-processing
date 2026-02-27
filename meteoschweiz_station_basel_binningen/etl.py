@@ -2,7 +2,6 @@
 
 import logging
 import os
-from pathlib import Path
 
 import common
 import common.change_tracking as ct
@@ -79,9 +78,7 @@ def merge_sources(raw_files: dict[str, str]) -> pd.DataFrame:
     nime = nime.drop(columns=["station_abbr"])
     obs = obs.drop(columns=["station_abbr"])
 
-    overlap_cols = [
-        c for c in nime.columns if c in smn.columns and c != "reference_timestamp"
-    ]
+    overlap_cols = [c for c in nime.columns if c in smn.columns and c != "reference_timestamp"]
     if overlap_cols:
         logger.info("Dropping overlapping columns from nime: %s", overlap_cols)
         nime = nime.drop(columns=overlap_cols)
@@ -105,9 +102,7 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
     df["date"] = ts.dt.strftime("%Y-%m-%d")
     df["jahr"] = ts.dt.strftime("%Y")
     df = df.drop(columns=["reference_timestamp"])
-    cols = ["station_abbr", "date", "jahr"] + [
-        c for c in df.columns if c not in ["station_abbr", "date", "jahr"]
-    ]
+    cols = ["station_abbr", "date", "jahr"] + [c for c in df.columns if c not in ["station_abbr", "date", "jahr"]]
     return df[cols].sort_values("date").reset_index(drop=True)
 
 
