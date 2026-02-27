@@ -25,9 +25,7 @@ def main():
     df = pd.concat([df_old, df_new], ignore_index=True)
 
     # Optional but recommended: remove duplicates if overlap ever occurs
-    df = df.drop_duplicates(
-        subset=["Startdatum Kalenderwoche/Monat"], keep="last"
-    )
+    df = df.drop_duplicates(subset=["Startdatum Kalenderwoche/Monat"], keep="last")
 
     df = df.sort_values("Startdatum Kalenderwoche/Monat")
 

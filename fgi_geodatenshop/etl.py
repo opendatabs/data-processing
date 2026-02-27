@@ -232,7 +232,9 @@ def parse_geocat_metadata(xml_data: bytes) -> tuple[str, str, str, str]:
         ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:Date",
         GEOCAT_NAMESPACE,
     )
-    date_value = date_node.text if date_node is not None else (date_time_node.text if date_time_node is not None else "")
+    date_value = (
+        date_node.text if date_node is not None else (date_time_node.text if date_time_node is not None else "")
+    )
     return (
         position_name.text if position_name is not None else "",
         first_name.text if first_name is not None else "",
@@ -519,10 +521,7 @@ async def get_name_col(df_wfs: pd.DataFrame, metrics: RuntimeMetrics) -> None:
     """Write schema templates containing all columns per layer."""
     semaphore = asyncio.Semaphore(WFS_CONCURRENCY)
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
-        tasks = [
-            fetch_layer_geodata(client, str(row["Name"]), metrics, semaphore)
-            for _, row in df_wfs.iterrows()
-        ]
+        tasks = [fetch_layer_geodata(client, str(row["Name"]), metrics, semaphore) for _, row in df_wfs.iterrows()]
         results = await asyncio.gather(*tasks)
 
     layer_to_group = dict(zip(df_wfs["Name"], df_wfs["Gruppe"], strict=False))
