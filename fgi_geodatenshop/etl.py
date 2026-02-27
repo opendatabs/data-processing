@@ -31,7 +31,7 @@ URL_WMS = "https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities"
 URL_WFS = "https://wfs.geo.bs.ch/"
 WFS_CONCURRENCY = 8
 HTTP_TIMEOUT = httpx.Timeout(120.0, connect=30.0)
-LOG_WFS_REQUESTS = os.getenv("FGI_LOG_WFS", "false").lower() in {"1", "true", "yes"}
+LOG_WFS_REQUESTS = True
 GEOCAT_NAMESPACE = {
     "che": "http://www.geocat.ch/2008/che",
     "gmd": "http://www.isotc211.org/2005/gmd",
