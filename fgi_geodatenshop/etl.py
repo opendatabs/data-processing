@@ -31,6 +31,7 @@ URL_WMS = "https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities"
 URL_WFS = "https://wfs.geo.bs.ch/"
 WFS_CONCURRENCY = 8
 HTTP_TIMEOUT = httpx.Timeout(120.0, connect=30.0)
+LOG_WFS_REQUESTS = os.getenv("FGI_LOG_WFS", "false").lower() in {"1", "true", "yes"}
 GEOCAT_NAMESPACE = {
     "che": "http://www.geocat.ch/2008/che",
     "gmd": "http://www.isotc211.org/2005/gmd",
@@ -288,6 +289,8 @@ async def fetch_layer_geodata(
     """Fetch and parse one WFS layer to a GeoDataFrame."""
     async with semaphore:
         try:
+            if LOG_WFS_REQUESTS:
+                logger.info("Fetching WFS layer", layer_name=layer_name)
             payload = await fetch_with_retries(
                 client=client,
                 url=create_wfs_getfeature_url(URL_WFS, layer_name),
@@ -298,6 +301,8 @@ async def fetch_layer_geodata(
             gdf = await asyncio.to_thread(gpd.read_file, io.BytesIO(payload))
             metrics.add_timing("geopandas_parse", time.perf_counter() - parse_start)
             metrics.inc("wfs_layers_loaded")
+            if LOG_WFS_REQUESTS:
+                logger.info("Fetched WFS layer", layer_name=layer_name, feature_count=len(gdf.index))
             return layer_name, gdf, None
         except Exception as exc:  # noqa: BLE001
             metrics.inc("wfs_layers_failed")
@@ -640,7 +645,8 @@ if __name__ == "__main__":
     os.environ.setdefault("IS_PROD", "false")
     import logging
 
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.INFO if LOG_WFS_REQUESTS else logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     init_logger()
+    logger.info("WFS logging mode", fgi_log_wfs=LOG_WFS_REQUESTS)
     main()
