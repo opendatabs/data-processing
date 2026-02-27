@@ -1,17 +1,24 @@
+import asyncio
 import io
-import logging
 import os
 import shutil
 import sys
+import time
 import urllib.parse
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import common
 import geopandas as gpd
+import httpx
 import pandas as pd
 import requests
 from common import change_tracking as ct
+from dcc_backend_common.logger import get_logger, init_logger
 from dotenv import load_dotenv
 from owslib.wfs import WebFeatureService
 
@@ -20,40 +27,84 @@ load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_01")
 FTP_PASS = os.getenv("FTP_PASS_01")
+URL_WMS = "https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities"
+URL_WFS = "https://wfs.geo.bs.ch/"
+WFS_CONCURRENCY = 8
+HTTP_TIMEOUT = httpx.Timeout(120.0, connect=30.0)
+GEOCAT_NAMESPACE = {
+    "che": "http://www.geocat.ch/2008/che",
+    "gmd": "http://www.isotc211.org/2005/gmd",
+    "gco": "http://www.isotc211.org/2005/gco",
+}
+WMS_NAMESPACE = {"wms": "http://www.opengis.net/wms"}
+
+logger = get_logger(__name__)
 
 
-# Create new ‘Title’ column in df_wfs (Kanton Basel-Stadt WMS/**Hundesignalisation**/Hundeverbot)
-def extract_second_hier_name(row, df2):
-    # extract from wms the second name in the hierarchy
-    # Search in df2 for the matching name
-    # df2 is the df of wms
-    matching_row = df2[df2["Name"] == row["Name"]]
-    if not matching_row.empty:
-        hier_name = matching_row["Hier_Name"].values[0]
-        hier_parts = hier_name.split("/")
-        return hier_parts[1] if len(hier_parts) > 1 else None
+@dataclass(slots=True)
+class RuntimeMetrics:
+    """Collect runtime durations and counters for ETL hotspots."""
+
+    timings: dict[str, float] = field(default_factory=dict)
+    counters: dict[str, int] = field(default_factory=dict)
+
+    def add_timing(self, key: str, seconds: float) -> None:
+        self.timings[key] = self.timings.get(key, 0.0) + seconds
+
+    def inc(self, key: str, amount: int = 1) -> None:
+        self.counters[key] = self.counters.get(key, 0) + amount
+
+    def log_summary(self) -> None:
+        timing_info = {f"time_{name}_s": round(value, 3) for name, value in sorted(self.timings.items())}
+        logger.info("Runtime metrics summary", **timing_info, **self.counters)
 
 
-def to_iso_date(wert: str) -> str:
+@contextmanager
+def timed(metrics: RuntimeMetrics, key: str) -> Any:
+    """Measure elapsed wall clock time and store it in runtime metrics."""
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        metrics.add_timing(key, time.perf_counter() - start)
+
+
+def build_layer_group_lookup(df_wms: pd.DataFrame) -> dict[str, str | None]:
+    """Map each layer name to the 2nd hierarchy segment (group)."""
+    lookup: dict[str, str | None] = {}
+    for _, row in df_wms.iterrows():
+        hier_parts = str(row["Hier_Name"]).split("/")
+        lookup[str(row["Name"])] = hier_parts[1] if len(hier_parts) > 1 else None
+    return lookup
+
+
+def to_iso_date(value: str) -> str:
+    """Normalize known date formats to ISO-8601 date strings."""
     for fmt in ("%d.%m.%Y", "%Y/%m/%d", "%Y-%m-%d"):
         try:
-            return datetime.strptime(wert, fmt).strftime("%Y-%m-%d")
+            return datetime.strptime(value, fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
-    raise ValueError(f"Unknown date format: {wert}")
+    raise ValueError(f"Unknown date format: {value}")
 
 
-# Function for retrieving and parsing WMS GetCapabilities
-def get_wms_capabilities(url_wms):
-    response = requests.get(url=url_wms, verify=False)
+def get_wms_capabilities(url_wms: str) -> tuple[ET.Element, dict[str, str]]:
+    """Fetch and parse WMS capabilities XML."""
+    response = requests.get(url=url_wms, verify=False, timeout=120)
+    response.raise_for_status()
     xml_data = response.content
     root = ET.fromstring(xml_data)
-    namespaces = {"wms": "http://www.opengis.net/wms"}
-    return root, namespaces
+    return root, WMS_NAMESPACE
 
 
-# Recursive function to traverse the layer hierarchy and save the paths
-def extract_layers(layer_element, namespaces, data, name_hierarchy=None, title_hierarchy=None):
+def extract_layers(
+    layer_element: ET.Element,
+    namespaces: dict[str, str],
+    data: list[list[str]],
+    name_hierarchy: str | None = None,
+    title_hierarchy: str | None = None,
+) -> None:
+    """Traverse WMS layer hierarchy and store leaf layers."""
     # Find the name and title of the current layer
     name_element = layer_element.find("wms:Name", namespaces)
     title_element = layer_element.find("wms:Title", namespaces)
@@ -92,214 +143,311 @@ def extract_layers(layer_element, namespaces, data, name_hierarchy=None, title_h
             )
 
 
-# Main function to process WMS data and create a DataFrame
-def process_wms_data(url_wms):
-    root, namespaces = get_wms_capabilities(url_wms)
+def process_wms_data(url_wms: str, metrics: RuntimeMetrics) -> pd.DataFrame:
+    """Extract WMS layers into a hierarchy dataframe."""
+    with timed(metrics, "wms_capabilities"):
+        root, namespaces = get_wms_capabilities(url_wms)
     capability_layer = root.find(".//wms:Capability/wms:Layer", namespaces)
 
-    # Initialize the data list outside the recursive function
-    data = []
+    data: list[list[str]] = []
     if capability_layer is not None:
         extract_layers(capability_layer, namespaces, data)
-        df_wms = pd.DataFrame(data, columns=["Name", "Layer", "Hier_Name", "Hier_Titel"])
-    return df_wms
+    return pd.DataFrame(data, columns=["Name", "Layer", "Hier_Name", "Hier_Titel"])
 
 
-# Function for retrieving and parsing WFS GetCapabilities
-def process_wfs_data(wfs):
-    # Retrieve the list of available layers (feature types) and their metadata
-    feature_list = []
-    for feature in wfs.contents:
-        feature_list.append({"Name": feature})
-    # Convert to DataFrame and display
+def process_wfs_data(wfs: WebFeatureService) -> pd.DataFrame:
+    """Extract WFS layer names from capabilities."""
+    feature_list = [{"Name": feature} for feature in wfs.contents]
     df_wfs = pd.DataFrame(feature_list)
-    # Clearing the column 'Layer Name' ( remove 'ms:')
     df_wfs["Name"] = df_wfs["Name"].str.replace("ms:", "", regex=False)
     return df_wfs
 
 
-# Function to create Map_links
-def create_map_links(geometry, p1, p2):
-    # encode p1, p2
+def create_map_links(geometry: Any, p1: str, p2: str) -> str:
+    """Create map-links URL from geometry centroid and map tree params."""
     p1 = urllib.parse.quote(p1)
     p2 = urllib.parse.quote(p2)
-    # check whether the data is a geo point or geo shape
-    logging.info(f"the type of the geometry is {geometry.geom_type}")
-    # geometry_types = gdf.iloc[0][geometry].geom_type
     if geometry.geom_type == "Polygon":
         centroid = geometry.centroid
     else:
         centroid = geometry
 
-    #  create a Map_links
     lat, lon = centroid.y, centroid.x
-    Map_links = f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}"
-    return Map_links
+    return f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1}&p2={p2}"
 
 
-no_file_copy = False
-if "no_file_copy" in sys.argv:
-    no_file_copy = True
-    logging.info("Proceeding without copying files...")
-else:
-    logging.info("Proceeding with copying files...")
-
-
-def get_metadata_cat(df, thema):
+def get_metadata_cat(df: pd.DataFrame, thema: str) -> Any | None:
     filtered_df = df[df["Thema"] == thema]
     if filtered_df.empty:
-        # return None, None
-        return None  # temporary change
+        return None
 
     row = filtered_df.iloc[0]
-    # return row["Aktualisierung"], row["Metadaten"]
-    return row["Aktualisierung"]  # temporary change
+    return row["Aktualisierung"]
 
 
-def remove_empty_string_from_list(string_list):
-    return list(filter(None, string_list))
+def remove_empty_string_from_list(string_list: list[str]) -> list[str]:
+    """Remove empty values from semicolon split lists."""
+    return [value for value in string_list if value]
 
 
-def extract_meta_geocat(geocat_uid):
-    # extract the metadata form geocat
-    geocat_url = f"https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}/formatters/xml"
-    response = common.requests_get(geocat_url)
-    if response.status_code == 200:
-        logging.info(f"Data successfully fetched from {geocat_url}")
-    else:
-        logging.warning(f"Failed to fetch data from {geocat_url}: Status {response.status_code}")
-    xml_data = response.content
-
-    # parsing the XML data
-    namespace = {
-        "che": "http://www.geocat.ch/2008/che",
-        "gmd": "http://www.isotc211.org/2005/gmd",
-        "gco": "http://www.isotc211.org/2005/gco",
-    }
+def parse_geocat_metadata(xml_data: bytes) -> tuple[str, str, str, str]:
+    """Extract selected metadata fields from geocat XML document."""
     root = ET.fromstring(xml_data)
-
-    # Extract "Publizierende Organisation"
     position_name = root.find(
         ".//gmd:pointOfContact/che:CHE_CI_ResponsibleParty/gmd:positionName/gco:CharacterString",
-        namespace,
+        GEOCAT_NAMESPACE,
     )
-    # Extract "Herausgeber"
     first_name = root.find(
         ".//gmd:pointOfContact/che:CHE_CI_ResponsibleParty/che:individualFirstName/gco:CharacterString",
-        namespace,
+        GEOCAT_NAMESPACE,
     )
-    # Extract the description
-    Beschreibung = root.find(
+    description = root.find(
         ".//gmd:abstract/gmd:PT_FreeText/gmd:textGroup/gmd:LocalisedCharacterString",
-        namespace,
+        GEOCAT_NAMESPACE,
     )
-    # Extract dcat.created
-    xpath_date_time = (
-        ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:DateTime"
+    date_time_node = root.find(
+        ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:DateTime",
+        GEOCAT_NAMESPACE,
     )
-    xpath_date = ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:Date"
-    # Try to finde the path
-    date_time_node = root.find(xpath_date_time, namespace)
-    date_node = root.find(xpath_date, namespace)
-    if date_node is not None:
-        date_value = date_node.text
-    else:
-        date_value = date_time_node.text
-    return position_name.text, first_name.text, Beschreibung.text, date_value
+    date_node = root.find(
+        ".//che:CHE_MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:Date",
+        GEOCAT_NAMESPACE,
+    )
+    date_value = date_node.text if date_node is not None else (date_time_node.text if date_time_node is not None else "")
+    return (
+        position_name.text if position_name is not None else "",
+        first_name.text if first_name is not None else "",
+        description.text if description is not None else "",
+        date_value,
+    )
 
 
-# Function for saving FGI geodata for each layer name
-def save_geodata_for_layers(wfs, df_fgi, file_path):
-    meta_data = pd.read_excel(os.path.join("data", "Metadata.xlsx"), na_filter=False)
-    path_cat = os.path.join("data", "100410_geodatenkatalog.csv")
-    df_cat = pd.read_csv(path_cat, sep=";")
-    metadata_for_ods = []
-    logging.info("Iterating over datasets...")
-    failed = []
-    for index, row in meta_data.iterrows():
-        if row["import"]:
-            # Which shapes need to be imported to ods?
-            shapes_to_load = remove_empty_string_from_list(row["Layers"].split(";"))
-            num_files = len(shapes_to_load)
-            if num_files == 0:  # load all shapes.
-                # find the list of shapes in fgi_list
-                ind_list = df_fgi[df_fgi["Gruppe"] == row["Gruppe"]].index
-                shapes_to_load = df_fgi.iloc[ind_list]["Name"].values[0]
-            gdf_result = gpd.GeoDataFrame()
-            for shapefile in shapes_to_load:
-                try:
-                    # Retrieve and save the geodata for each layer name in shapes_to_load
-                    response = wfs.getfeature(typename=shapefile)
-                    gdf = gpd.read_file(io.BytesIO(response.read()))
-                    gdf_result = pd.concat([gdf_result, gdf])
-                except Exception as e:
-                    logging.error(f"Error loading layer '{shapefile}': {e}")
-                    failed.append({"Layer": shapefile, "Error": str(e)})
-                    continue
+def create_wfs_getfeature_url(wfs_base_url: str, layer_name: str) -> str:
+    """Build a WFS GetFeature URL for a single layer in GeoJSON format."""
+    query = urllib.parse.urlencode(
+        {
+            "service": "WFS",
+            "version": "2.0.0",
+            "request": "GetFeature",
+            "typeNames": layer_name,
+            "outputFormat": "application/json",
+        }
+    )
+    return f"{wfs_base_url}?{query}"
 
-            # creat a maps_urls
-            if row["create_map_urls"]:
-                logging.info(f"Create Map urls for {row['titel_nice']}")
-                # Extract params from redirect
-                link = row["mapbs_link"].replace("www.geo.bs.ch", "https://geo.bs.ch")
-                response = requests.get(link, allow_redirects=True)
-                # Find the redircet
-                redirect_link = response.url
-                # Extract the part of the URL after the '?'
-                query_string = redirect_link.split("?")[1]
-                # Splitting the parameters at'&'
-                params = query_string.split("&")
-                tree_groups = [param.replace("tree_groups=", "") for param in params if "tree_groups=" in param][0]
-                tree_group_layers_ = [
-                    param.replace("tree_group_layers_", "") for param in params if "tree_group_layers_" in param
-                ][0]
-                gdf_result = gdf_result.to_crs(epsg=4326)
-                gdf_result["Map Links"] = gdf_result.apply(
-                    lambda row2: create_map_links(row2["geometry"], tree_groups, tree_group_layers_),
-                    axis=1,
-                    result_type="expand",
-                )
-            # save the geofile locally
-            titel = row["Gruppe"]
-            titel_dir = os.path.join(file_path, titel)
-            os.makedirs(titel_dir, exist_ok=True)
-            file_name = f"{row['Dateiname']}.gpkg"
-            geopackage_file = os.path.join(titel_dir, file_name)
-            save_gpkg(gdf_result, file_name, geopackage_file)
-            # save in ftp server
-            ftp_remote_dir = "harvesters/GVA/data"
-            common.upload_ftp(geopackage_file, FTP_SERVER, FTP_USER, FTP_PASS, ftp_remote_dir)
-            # In some geocat URLs there's a tab character, remove it.
-            # aktualisierung, geocat = get_metadata_cat(df_cat, titel)
-            aktualisierung = get_metadata_cat(df_cat, titel)  # temporary change
-            if pd.isna(aktualisierung) or str(aktualisierung).strip() == "":
-                aktualisierung = ""
+
+async def fetch_with_retries(
+    client: httpx.AsyncClient,
+    url: str,
+    metrics: RuntimeMetrics,
+    metric_name: str,
+    retries: int = 3,
+) -> bytes:
+    """Fetch bytes from URL with a small retry loop."""
+    for attempt in range(1, retries + 1):
+        try:
+            start = time.perf_counter()
+            response = await client.get(url)
+            response.raise_for_status()
+            metrics.add_timing(metric_name, time.perf_counter() - start)
+            metrics.inc(f"{metric_name}_requests")
+            return response.content
+        except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+            metrics.inc(f"{metric_name}_errors")
+            if attempt == retries:
+                raise exc
+            await asyncio.sleep(attempt * 0.5)
+    raise RuntimeError(f"Failed to fetch URL after retries: {url}")
+
+
+async def fetch_layer_geodata(
+    client: httpx.AsyncClient,
+    layer_name: str,
+    metrics: RuntimeMetrics,
+    semaphore: asyncio.Semaphore,
+) -> tuple[str, gpd.GeoDataFrame | None, str | None]:
+    """Fetch and parse one WFS layer to a GeoDataFrame."""
+    async with semaphore:
+        try:
+            payload = await fetch_with_retries(
+                client=client,
+                url=create_wfs_getfeature_url(URL_WFS, layer_name),
+                metrics=metrics,
+                metric_name="wfs_getfeature",
+            )
+            parse_start = time.perf_counter()
+            gdf = await asyncio.to_thread(gpd.read_file, io.BytesIO(payload))
+            metrics.add_timing("geopandas_parse", time.perf_counter() - parse_start)
+            metrics.inc("wfs_layers_loaded")
+            return layer_name, gdf, None
+        except Exception as exc:  # noqa: BLE001
+            metrics.inc("wfs_layers_failed")
+            return layer_name, None, str(exc)
+
+
+async def fetch_redirect_params(
+    client: httpx.AsyncClient,
+    source_link: str,
+    metrics: RuntimeMetrics,
+) -> tuple[str, str]:
+    """Resolve a mapbs short link and extract tree params."""
+    normalized_link = source_link.replace("www.geo.bs.ch", "https://geo.bs.ch")
+    response = await client.get(normalized_link, follow_redirects=True)
+    response.raise_for_status()
+    metrics.inc("map_redirect_requests")
+
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(str(response.url)).query)
+    tree_groups = query.get("tree_groups", [""])[0]
+    tree_group_layers = ""
+    for key, values in query.items():
+        if key.startswith("tree_group_layers_"):
+            tree_group_layers = values[0]
+            break
+    return tree_groups, tree_group_layers
+
+
+async def fetch_geocat_metadata(
+    client: httpx.AsyncClient,
+    geocat_uid: str,
+    metrics: RuntimeMetrics,
+) -> tuple[str, str, str, str]:
+    """Fetch geocat XML and parse metadata fields."""
+    url = f"https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}/formatters/xml"
+    payload = await fetch_with_retries(
+        client=client,
+        url=url,
+        metrics=metrics,
+        metric_name="geocat_fetch",
+    )
+    return parse_geocat_metadata(payload)
+
+
+async def save_geodata_for_layers(
+    df_fgi: pd.DataFrame,
+    file_path: str,
+    no_file_copy: bool,
+    metrics: RuntimeMetrics,
+) -> None:
+    """Fetch datasets, build geopackages, and prepare ODS metadata."""
+    meta_data = pd.read_excel(Path("data") / "Metadata.xlsx", na_filter=False)
+    df_cat = pd.read_csv(Path("data") / "100410_geodatenkatalog.csv", sep=";")
+
+    group_to_layers = dict(zip(df_fgi["Gruppe"], df_fgi["Name"], strict=False))
+    rows_to_process: list[dict[str, Any]] = []
+    for _, row in meta_data.iterrows():
+        if not row["import"]:
+            continue
+        layers = remove_empty_string_from_list(str(row["Layers"]).split(";"))
+        if not layers:
+            layers = group_to_layers.get(row["Gruppe"], [])
+        rows_to_process.append({"row": row, "layers": layers})
+    dataset_limit_raw = os.getenv("FGI_DATASET_LIMIT")
+    if dataset_limit_raw:
+        try:
+            rows_to_process = rows_to_process[: int(dataset_limit_raw)]
+        except ValueError:
+            logger.warning("Ignoring invalid FGI_DATASET_LIMIT", value=dataset_limit_raw)
+
+    logger.info("Processing datasets", datasets=len(rows_to_process))
+    metadata_for_ods: list[dict[str, Any]] = []
+    failed: list[dict[str, str]] = []
+    geocat_cache: dict[str, tuple[str, str, str, str]] = {}
+    redirect_cache: dict[str, tuple[str, str]] = {}
+
+    semaphore = asyncio.Semaphore(WFS_CONCURRENCY)
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
+        geocat_uids = {
+            str(entry["row"]["geocat"]).rsplit("/", 1)[-1].replace("\t", "")
+            for entry in rows_to_process
+            if str(entry["row"]["geocat"]).strip()
+        }
+        geocat_tasks = [fetch_geocat_metadata(client, uid, metrics) for uid in geocat_uids]
+        geocat_values = await asyncio.gather(*geocat_tasks, return_exceptions=True)
+        for uid, value in zip(geocat_uids, geocat_values, strict=False):
+            if isinstance(value, Exception):
+                logger.warning("Could not fetch geocat metadata", geocat_uid=uid, error=str(value))
+                geocat_cache[uid] = ("", "", "", "")
             else:
-                aktualisierung = to_iso_date(str(aktualisierung).strip())
-            # geocat_url = row["geocat"] if len(row["geocat"]) > 0 else geocat
-            geocat_url = row["geocat"]  # temporary change
-            geocat_uid = geocat_url.rsplit("/", 1)[-1].replace("\t", "")
-            (
-                publizierende_organisation,
-                herausgeber,
-                geocat_description,
-                dcat_created,
-            ) = extract_meta_geocat(geocat_uid)
-            ods_id = row["ods_id"]
-            schema_file = ""
-            if row["schema_file"]:
-                schema_file = f"{ods_id}.csv"
-            # Check if a description to the current shape is given in Metadata.csv
-            description = row["beschreibung"]
-            dcat_ap_ch_domain = ""
-            if str(row["dcat_ap_ch.domain"]) != "":
-                dcat_ap_ch_domain = str(row["dcat_ap_ch.domain"])
+                geocat_cache[uid] = value
 
-            # Add entry to harvester file
+        redirect_links = {
+            str(entry["row"]["mapbs_link"])
+            for entry in rows_to_process
+            if bool(entry["row"]["create_map_urls"]) and str(entry["row"]["mapbs_link"]).strip()
+        }
+        redirect_tasks = [fetch_redirect_params(client, link, metrics) for link in redirect_links]
+        redirect_values = await asyncio.gather(*redirect_tasks, return_exceptions=True)
+        for link, value in zip(redirect_links, redirect_values, strict=False):
+            if isinstance(value, Exception):
+                logger.warning("Could not resolve map redirect", map_link=link, error=str(value))
+                redirect_cache[link] = ("", "")
+            else:
+                redirect_cache[link] = value
+
+        for entry in rows_to_process:
+            row = entry["row"]
+            layers = entry["layers"]
+            dataset_title = str(row["titel_nice"])
+            logger.info("Loading dataset layers", dataset=dataset_title, layer_count=len(layers))
+
+            tasks = [fetch_layer_geodata(client, layer, metrics, semaphore) for layer in layers]
+            results = await asyncio.gather(*tasks)
+
+            loaded_frames: list[gpd.GeoDataFrame] = []
+            for layer_name, gdf, error in results:
+                if error:
+                    failed.append({"Layer": layer_name, "Error": error})
+                    logger.error("Error loading layer", layer=layer_name, error=error)
+                    continue
+                if gdf is not None:
+                    loaded_frames.append(gdf)
+
+            if loaded_frames:
+                with timed(metrics, "concat_geodataframes"):
+                    merged = pd.concat(loaded_frames, ignore_index=True)
+                    gdf_result = gpd.GeoDataFrame(merged, geometry="geometry", crs=loaded_frames[0].crs)
+            else:
+                gdf_result = gpd.GeoDataFrame()
+
+            if bool(row["create_map_urls"]) and not gdf_result.empty:
+                tree_groups, tree_group_layers = redirect_cache.get(str(row["mapbs_link"]), ("", ""))
+                if tree_groups and tree_group_layers:
+                    gdf_result = gdf_result.to_crs(epsg=4326)
+                    gdf_result["Map Links"] = gdf_result.apply(
+                        lambda row2: create_map_links(row2["geometry"], tree_groups, tree_group_layers),
+                        axis=1,
+                    )
+
+            title = str(row["Gruppe"])
+            title_dir = Path(file_path) / title
+            title_dir.mkdir(parents=True, exist_ok=True)
+            file_name = f"{row['Dateiname']}.gpkg"
+            geopackage_file = title_dir / file_name
+            if gdf_result.empty:
+                logger.warning("Skipping dataset with no features", dataset=dataset_title)
+                continue
+            save_gpkg(gdf_result, file_name, str(geopackage_file), metrics)
+            if not no_file_copy:
+                common.upload_ftp(str(geopackage_file), FTP_SERVER, FTP_USER, FTP_PASS, "harvesters/GVA/data")
+
+            aktualisierung = get_metadata_cat(df_cat, title)
+            if pd.isna(aktualisierung) or str(aktualisierung).strip() == "":
+                aktualisierung_iso = ""
+            else:
+                aktualisierung_iso = to_iso_date(str(aktualisierung).strip())
+
+            geocat_uid = str(row["geocat"]).rsplit("/", 1)[-1].replace("\t", "")
+            publ_org, herausgeber, geocat_description, dcat_created = geocat_cache.get(geocat_uid, ("", "", "", ""))
+            ods_id = row["ods_id"]
+            schema_file = f"{ods_id}.csv" if row["schema_file"] else ""
+            description = row["beschreibung"]
+            dcat_ap_ch_domain = str(row["dcat_ap_ch.domain"]) if str(row["dcat_ap_ch.domain"]) != "" else ""
+            tag_values = [tag for tag in str(row["tags"]).split(";") if tag] + ["opendata.swiss"]
+
             metadata_for_ods.append(
                 {
                     "ods_id": ods_id,
-                    "name": geocat_uid + ":" + row["Dateiname"],
+                    "name": f"{geocat_uid}:{row['Dateiname']}",
                     "title": row["titel_nice"],
                     "description": description if len(description) > 0 else geocat_description,
                     "theme": str(row["theme"]),
@@ -316,184 +464,160 @@ def save_geodata_for_layers(wfs, df_fgi, file_path):
                     "publisher": herausgeber,
                     "dcat.issued": row["dcat.issued"],
                     "dcat.relation": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
-                    "modified": aktualisierung,
+                    "modified": aktualisierung_iso,
                     "language": "de",
-                    "publizierende-organisation": publizierende_organisation,
-                    # Concat tags from csv with list of fixed tags, remove duplicates by converting to set, remove empty string list comprehension
-                    "tags": ";".join([i for i in list(set(row["tags"].split(";") + ["opendata.swiss"])) if i != ""]),
+                    "publizierende-organisation": publ_org,
+                    "tags": ";".join(dict.fromkeys(tag_values)),
                     "geodaten-modellbeschreibung": row["modellbeschreibung"],
-                    "source_dataset": "https://data-bs.ch/opendatasoft/harvesters/GVA/data/" + file_name,
+                    "source_dataset": f"https://data-bs.ch/opendatasoft/harvesters/GVA/data/{file_name}",
                     "schema_file": schema_file,
                 }
             )
 
     pd.DataFrame(failed).to_excel("data/wfs_failed_layers.xlsx", index=False)
-    # Save harvester file
-    if len(metadata_for_ods) > 0:
-        ods_metadata = pd.concat(
-            [pd.DataFrame(), pd.DataFrame(metadata_for_ods)],
-            ignore_index=True,
-            sort=False,
-        )
-        ods_metadata_filename = os.path.join("data", "Opendatasoft_Export_GVA_GPKG.csv")
-        ods_metadata.to_csv(ods_metadata_filename, index=False, sep=";", encoding="utf-8")
-    if ct.has_changed(ods_metadata_filename) and (not no_file_copy):
-        logging.info(f"Uploading ODS harvester file {ods_metadata_filename} to FTP Server...")
-        common.upload_ftp(ods_metadata_filename, FTP_SERVER, FTP_USER, FTP_PASS, "harvesters/GVA")
-        ct.update_hash_file(ods_metadata_filename)
+    if not metadata_for_ods:
+        logger.info("Harvester file contains no entries, no upload necessary.")
+        return
 
-    # Upload each schema_file
-    logging.info("Uploading ODS schema files to FTP Server...")
+    ods_metadata = pd.DataFrame(metadata_for_ods)
+    ods_metadata_filename = Path("data") / "Opendatasoft_Export_GVA_GPKG.csv"
+    ods_metadata.to_csv(ods_metadata_filename, index=False, sep=";", encoding="utf-8")
 
+    if ct.has_changed(str(ods_metadata_filename)) and (not no_file_copy):
+        logger.info("Uploading ODS harvester file", file=str(ods_metadata_filename))
+        common.upload_ftp(str(ods_metadata_filename), FTP_SERVER, FTP_USER, FTP_PASS, "harvesters/GVA")
+        ct.update_hash_file(str(ods_metadata_filename))
+
+    logger.info("Uploading ODS schema files to FTP server...")
     for schemafile in ods_metadata["schema_file"].unique():
-        if schemafile != "":
-            schemafile_with_path = os.path.join("data", "schema_files", schemafile)
-            if ct.has_changed(schemafile_with_path) and (not no_file_copy):
-                logging.info(f"Uploading ODS schema file to FTP Server: {schemafile_with_path}...")
-                common.upload_ftp(
-                    schemafile_with_path,
-                    FTP_SERVER,
-                    FTP_USER,
-                    FTP_PASS,
-                    "harvesters/GVA",
-                )
-                ct.update_hash_file(schemafile_with_path)
-    else:
-        logging.info("Harvester File contains no entries, no upload necessary.")
+        if schemafile == "":
+            continue
+        schemafile_with_path = Path("data") / "schema_files" / schemafile
+        if ct.has_changed(str(schemafile_with_path)) and (not no_file_copy):
+            logger.info("Uploading ODS schema file", file=str(schemafile_with_path))
+            common.upload_ftp(str(schemafile_with_path), FTP_SERVER, FTP_USER, FTP_PASS, "harvesters/GVA")
+            ct.update_hash_file(str(schemafile_with_path))
 
 
-# Get the names of columns for each layers and save it in a csv-schema
-def get_name_col(wfs, df_wfs):
-    # Iterate over all rows in DataFrame `df_wfs`
-    for index, row in df_wfs.iterrows():
-        layer = row["Name"]
-        titel_folder = row["Gruppe"]
-        folder_path = os.path.join("data", "schema_files/templates", titel_folder)
-        logging.info(f"Load layer: {layer} into folder: {titel_folder}")
-        try:
-            # Create folder if it does not exist
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
+async def get_name_col(df_wfs: pd.DataFrame, metrics: RuntimeMetrics) -> None:
+    """Write schema templates containing all columns per layer."""
+    semaphore = asyncio.Semaphore(WFS_CONCURRENCY)
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
+        tasks = [
+            fetch_layer_geodata(client, str(row["Name"]), metrics, semaphore)
+            for _, row in df_wfs.iterrows()
+        ]
+        results = await asyncio.gather(*tasks)
 
-            # GetFeature query with GeoJSON output
-            response = wfs.getfeature(typename=layer)
-
-            # Load GeoJSON into GeoDataFrame
-            gdf = gpd.read_file(io.BytesIO(response.read()))
-
-            # Extract column names
-            spalten_namen = gdf.columns.tolist()
-
-            schema_data = {
-                "name": spalten_namen,
-                "label": ["" for _ in spalten_namen],
-                "description": ["" for _ in spalten_namen],
-            }
-            schema_df = pd.DataFrame(schema_data)
-            # Creat a path for the CSV_file
-            file_path = os.path.join(folder_path, f"{layer}.csv")
-            # Save CSV
-            schema_df.to_csv(file_path, index=False, sep=";")
-
-            logging.info(f"Column names of layer '{layer}' successfully saved to '{file_path}'.")
-        except Exception as e:
-            logging.error(f"Error loading layer '{layer}': {e}")
-
-    logging.info("All column names were saved successfully.")
+    layer_to_group = dict(zip(df_wfs["Name"], df_wfs["Gruppe"], strict=False))
+    for layer, gdf, error in results:
+        group = layer_to_group.get(layer)
+        if error or gdf is None or group is None:
+            logger.error("Schema extraction failed", layer=layer, error=error)
+            continue
+        folder_path = Path("data") / "schema_files" / "templates" / str(group)
+        folder_path.mkdir(parents=True, exist_ok=True)
+        columns = gdf.columns.tolist()
+        schema_df = pd.DataFrame(
+            {"name": columns, "label": ["" for _ in columns], "description": ["" for _ in columns]}
+        )
+        schema_df.to_csv(folder_path / f"{layer}.csv", index=False, sep=";")
+    logger.info("All schema templates were saved successfully.")
 
 
-# Get the number of columns for each layer
-def get_num_col(wfs, df_fgi):
-    # Iterate over all rows in DataFrame `df_fgi
-    for index, row in df_fgi.iterrows():
-        layers = row["Name"]
-        # List for storing the results
-        results = []
-        # Retrieve layers from WFS and save them directly to GeoPackage
-        for layer in layers:
-            try:
-                logging.info(f"load layer: {layer}")
-                response = wfs.getfeature(typename=layer)
-                gdf = gpd.read_file(io.BytesIO(response.read()))
-                anzahl_spalten = gdf.shape[1]
-                # Ergebnis speichern
-                results.append({"Layer": layer, "Anzahl_Spalten": anzahl_spalten})
-                logging.info(f"layer '{layer}' successfully loaded and number of columns saved.")
-            except Exception as e:
-                # Fehler protokollieren und Layer überspringen
-                logging.error(f"Error loading layer '{layer}': {e}")
-                results.append({"Layer": layer, "Anzahl_Spalten": "Fehler"})
-        # DataFrame mit den Ergebnissen erstellen
-        file_name = row["Gruppe"]
-        file_path = os.path.join("data", f"schema_files/templates/{file_name}", "Anzahl der Spalten")
-        df_results = pd.DataFrame(results)
-        # Ergebnisse in eine Excel-Datei speichern
-        df_results.to_csv(f"{file_path}.csv", index=False, sep=";")
+async def get_num_col(df_fgi: pd.DataFrame, metrics: RuntimeMetrics) -> None:
+    """Write csv with number of columns per layer and group."""
+    semaphore = asyncio.Semaphore(WFS_CONCURRENCY)
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
+        for _, row in df_fgi.iterrows():
+            tasks = [fetch_layer_geodata(client, layer, metrics, semaphore) for layer in row["Name"]]
+            outputs = await asyncio.gather(*tasks)
+            results: list[dict[str, Any]] = []
+            for layer_name, gdf, error in outputs:
+                if error or gdf is None:
+                    results.append({"Layer": layer_name, "Anzahl_Spalten": "Fehler"})
+                else:
+                    results.append({"Layer": layer_name, "Anzahl_Spalten": gdf.shape[1]})
+            file_path = Path("data") / "schema_files" / "templates" / str(row["Gruppe"]) / "Anzahl der Spalten.csv"
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(results).to_csv(file_path, index=False, sep=";")
 
 
-def save_gpkg(gdf, file_name, final_gpkg_path):
-    # save gpkg_file temporarily
-    temp_gpkg_path = os.path.join("temp", file_name)
-    gdf.to_file(temp_gpkg_path, driver="GPKG")
-    logging.info(f"{file_name}.gpkg saved temporarily in :{temp_gpkg_path}")
+def save_gpkg(gdf: gpd.GeoDataFrame, file_name: str, final_gpkg_path: str, metrics: RuntimeMetrics) -> None:
+    """Persist a GeoDataFrame as GPKG via temp path then copy."""
+    temp_dir = Path("temp")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_gpkg_path = temp_dir / file_name
+    with timed(metrics, "gpkg_write"):
+        gdf.to_file(temp_gpkg_path, driver="GPKG")
     shutil.copy(temp_gpkg_path, final_gpkg_path)
-    logging.info(f"{file_name}.gpkg copied in :{final_gpkg_path}")
-    if os.path.exists(temp_gpkg_path):
-        os.remove(temp_gpkg_path)
+    if temp_gpkg_path.exists():
+        temp_gpkg_path.unlink()
 
 
-def ods_id_col(df_wfs, df_fgi):
-    # make a new column for ods_id in FGI Data set
-    meta_data = pd.read_excel(os.path.join("data", "Metadata.xlsx"), na_filter=False)
-    layer_data = []  # Sammeln von Daten als Liste
+def ods_id_col(df_wfs: pd.DataFrame, df_fgi: pd.DataFrame) -> pd.DataFrame:
+    """Build and merge ods_id mapping for each WFS layer."""
+    meta_data = pd.read_excel(Path("data") / "Metadata.xlsx", na_filter=False)
+    group_to_layers = dict(zip(df_fgi["Gruppe"], df_fgi["Name"], strict=False))
+    available_layers = set(df_wfs["Name"].to_list())
+    layer_data: list[dict[str, Any]] = []
     for _, row in meta_data.iterrows():
-        shapes_to_load = remove_empty_string_from_list(row["Layers"].split(";"))
-        num_files = len(shapes_to_load)
-        if num_files == 0:
-            ind_list = df_fgi[df_fgi["Gruppe"] == row["Gruppe"]].index
-            shapes_to_load = df_fgi.iloc[ind_list]["Name"].values[0]
+        shapes_to_load = remove_empty_string_from_list(str(row["Layers"]).split(";"))
+        if not shapes_to_load:
+            shapes_to_load = group_to_layers.get(row["Gruppe"], [])
         for layer in shapes_to_load:
-            if layer in df_wfs["Name"].values:
+            if layer in available_layers:
                 layer_data.append({"Name": layer, "ods_ids": row["ods_id"]})
-    layer_mapping = pd.DataFrame(layer_data)  # Daten in DataFrame umwandeln
-    grouped_mapping = layer_mapping.groupby("Name")["ods_ids"].apply(list).reset_index()
 
-    # add the new column
-    df_wfs = df_wfs.merge(grouped_mapping, on="Name", how="left")
-    return df_wfs
+    if not layer_data:
+        df_wfs["ods_ids"] = None
+        return df_wfs
+    layer_mapping = pd.DataFrame(layer_data)
+    grouped_mapping = layer_mapping.groupby("Name", as_index=False)["ods_ids"].apply(list)
+    return df_wfs.merge(grouped_mapping, on="Name", how="left")
 
 
-def main():
-    url_wms = "https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities"
-    url_wfs = "https://wfs.geo.bs.ch/"
-    wfs = WebFeatureService(url=url_wfs, version="2.0.0", timeout=120)
-    df_wms = process_wms_data(url_wms)
+async def async_main(no_file_copy: bool) -> None:
+    """Run the full ETL workflow."""
+    metrics = RuntimeMetrics()
+    with timed(metrics, "wfs_capabilities"):
+        wfs = WebFeatureService(url=URL_WFS, version="2.0.0", timeout=120)
+    df_wms = process_wms_data(URL_WMS, metrics)
     df_wfs = process_wfs_data(wfs)
 
-    df_wfs["Gruppe"] = df_wfs.apply(lambda row: extract_second_hier_name(row, df_wms), axis=1)
-    new_column_order = ["Gruppe", "Name"]
-    df_wfs = df_wfs[new_column_order]
+    layer_group_lookup = build_layer_group_lookup(df_wms)
+    df_wfs["Gruppe"] = df_wfs["Name"].map(layer_group_lookup)
+    df_wfs = df_wfs[["Gruppe", "Name"]]
     df_wms_not_in_wfs = df_wms[~df_wms["Name"].isin(df_wfs["Name"])]
-    # assign the layer names under main names to collect the geodata
-    df_fgi = df_wfs.groupby("Gruppe")["Name"].apply(list).reset_index()
-    # Add the ods_ids column
+    df_fgi = df_wfs.groupby("Gruppe", dropna=False)["Name"].apply(list).reset_index()
     df_wfs = ods_id_col(df_wfs, df_fgi)
-    # save DataFrames in CSV files
-    df_wms.to_csv(os.path.join("data", "Hier_wms.csv"), sep=";", index=False)
-    df_fgi.to_csv(os.path.join("data", "mapBS_shapes.csv"), sep=";", index=False)
-    df_wms_not_in_wfs.to_csv(os.path.join("data", "wms_not_in_wfs.csv"), sep=";", index=False)
-    path_export = os.path.join("data", "100395_OGD_datensaetze.csv")
-    df_wfs.to_csv(path_export, sep=";", index=False)
-    common.update_ftp_and_odsp(path_export, "opendatabs", "100395")
 
-    get_name_col(wfs, df_wfs)
-    get_num_col(wfs, df_fgi)
-    file_path = os.path.join("data", "export")
-    save_geodata_for_layers(wfs, df_fgi, file_path)
+    df_wms.to_csv(Path("data") / "Hier_wms.csv", sep=";", index=False)
+    df_fgi.to_csv(Path("data") / "mapBS_shapes.csv", sep=";", index=False)
+    df_wms_not_in_wfs.to_csv(Path("data") / "wms_not_in_wfs.csv", sep=";", index=False)
+    path_export = Path("data") / "100395_OGD_datensaetze.csv"
+    df_wfs.to_csv(path_export, sep=";", index=False)
+    if not no_file_copy:
+        common.update_ftp_and_odsp(str(path_export), "opendatabs", "100395")
+
+    with timed(metrics, "schema_name_generation"):
+        await get_name_col(df_wfs, metrics)
+    with timed(metrics, "schema_count_generation"):
+        await get_num_col(df_fgi, metrics)
+
+    await save_geodata_for_layers(df_fgi, str(Path("data") / "export"), no_file_copy, metrics)
+    metrics.log_summary()
+
+
+def main() -> None:
+    """Entrypoint for synchronous script execution."""
+    no_file_copy = "no_file_copy" in sys.argv
+    logger.info("Executing job", no_file_copy=no_file_copy, script=__file__)
+    asyncio.run(async_main(no_file_copy=no_file_copy))
+    logger.info("Job successful")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.info(f"Executing {__file__}...")
+    os.environ.setdefault("IS_PROD", "false")
+    init_logger()
     main()
-    logging.info("Job successful!")
