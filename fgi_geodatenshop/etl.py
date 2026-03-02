@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 import os
 import shutil
 import sys
@@ -18,7 +19,6 @@ import httpx
 import pandas as pd
 import requests
 from common import change_tracking as ct
-from dcc_backend_common.logger import get_logger, init_logger
 from dotenv import load_dotenv
 from owslib.wfs import WebFeatureService
 
@@ -39,7 +39,30 @@ GEOCAT_NAMESPACE = {
 }
 WMS_NAMESPACE = {"wms": "http://www.opengis.net/wms"}
 
-logger = get_logger(__name__)
+class AirflowLogger:
+    """Thin logger wrapper that supports structured kwargs with stdlib logging."""
+
+    def __init__(self, base_logger: logging.Logger) -> None:
+        self.base_logger = base_logger
+
+    @staticmethod
+    def _format(message: str, **kwargs: Any) -> str:
+        if not kwargs:
+            return message
+        details = ", ".join(f"{key}={value}" for key, value in kwargs.items())
+        return f"{message} | {details}"
+
+    def info(self, message: str, **kwargs: Any) -> None:
+        self.base_logger.info(self._format(message, **kwargs))
+
+    def warning(self, message: str, **kwargs: Any) -> None:
+        self.base_logger.warning(self._format(message, **kwargs))
+
+    def error(self, message: str, **kwargs: Any) -> None:
+        self.base_logger.error(self._format(message, **kwargs))
+
+
+logger = AirflowLogger(logging.getLogger(__name__))
 
 
 @dataclass(slots=True)
@@ -283,22 +306,25 @@ async def fetch_with_retries(
 
 
 async def fetch_layer_geodata(
-    client: httpx.AsyncClient,
     layer_name: str,
     metrics: RuntimeMetrics,
     semaphore: asyncio.Semaphore,
 ) -> tuple[str, gpd.GeoDataFrame | None, str | None]:
-    """Fetch and parse one WFS layer to a GeoDataFrame."""
+    """Fetch and parse one WFS layer to a GeoDataFrame via OWSLib."""
     async with semaphore:
         try:
             if LOG_WFS_REQUESTS:
                 logger.info("Fetching WFS layer", layer_name=layer_name)
-            payload = await fetch_with_retries(
-                client=client,
-                url=create_wfs_getfeature_url(URL_WFS, layer_name),
-                metrics=metrics,
-                metric_name="wfs_getfeature",
-            )
+            typename = layer_name if ":" in layer_name else f"ms:{layer_name}"
+
+            def _fetch_wfs_payload() -> bytes:
+                wfs = WebFeatureService(url=URL_WFS, version="2.0.0", timeout=120)
+                return wfs.getfeature(typename=typename).read()
+
+            fetch_start = time.perf_counter()
+            payload = await asyncio.to_thread(_fetch_wfs_payload)
+            metrics.add_timing("wfs_getfeature", time.perf_counter() - fetch_start)
+            metrics.inc("wfs_getfeature_requests")
             parse_start = time.perf_counter()
             gdf = await asyncio.to_thread(gpd.read_file, io.BytesIO(payload))
             metrics.add_timing("geopandas_parse", time.perf_counter() - parse_start)
@@ -408,7 +434,7 @@ async def save_geodata_for_layers(
             dataset_title = str(row["titel_nice"])
             logger.info("Loading dataset layers", dataset=dataset_title, layer_count=len(layers))
 
-            tasks = [fetch_layer_geodata(client, layer, metrics, semaphore) for layer in layers]
+            tasks = [fetch_layer_geodata(layer, metrics, semaphore) for layer in layers]
             results = await asyncio.gather(*tasks)
 
             loaded_frames: list[gpd.GeoDataFrame] = []
@@ -520,9 +546,8 @@ async def save_geodata_for_layers(
 async def get_name_col(df_wfs: pd.DataFrame, metrics: RuntimeMetrics) -> None:
     """Write schema templates containing all columns per layer."""
     semaphore = asyncio.Semaphore(WFS_CONCURRENCY)
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
-        tasks = [fetch_layer_geodata(client, str(row["Name"]), metrics, semaphore) for _, row in df_wfs.iterrows()]
-        results = await asyncio.gather(*tasks)
+    tasks = [fetch_layer_geodata(str(row["Name"]), metrics, semaphore) for _, row in df_wfs.iterrows()]
+    results = await asyncio.gather(*tasks)
 
     layer_to_group = dict(zip(df_wfs["Name"], df_wfs["Gruppe"], strict=False))
     for layer, gdf, error in results:
@@ -543,19 +568,18 @@ async def get_name_col(df_wfs: pd.DataFrame, metrics: RuntimeMetrics) -> None:
 async def get_num_col(df_fgi: pd.DataFrame, metrics: RuntimeMetrics) -> None:
     """Write csv with number of columns per layer and group."""
     semaphore = asyncio.Semaphore(WFS_CONCURRENCY)
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
-        for _, row in df_fgi.iterrows():
-            tasks = [fetch_layer_geodata(client, layer, metrics, semaphore) for layer in row["Name"]]
-            outputs = await asyncio.gather(*tasks)
-            results: list[dict[str, Any]] = []
-            for layer_name, gdf, error in outputs:
-                if error or gdf is None:
-                    results.append({"Layer": layer_name, "Anzahl_Spalten": "Fehler"})
-                else:
-                    results.append({"Layer": layer_name, "Anzahl_Spalten": gdf.shape[1]})
-            file_path = Path("data") / "schema_files" / "templates" / str(row["Gruppe"]) / "Anzahl der Spalten.csv"
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            pd.DataFrame(results).to_csv(file_path, index=False, sep=";")
+    for _, row in df_fgi.iterrows():
+        tasks = [fetch_layer_geodata(layer, metrics, semaphore) for layer in row["Name"]]
+        outputs = await asyncio.gather(*tasks)
+        results: list[dict[str, Any]] = []
+        for layer_name, gdf, error in outputs:
+            if error or gdf is None:
+                results.append({"Layer": layer_name, "Anzahl_Spalten": "Fehler"})
+            else:
+                results.append({"Layer": layer_name, "Anzahl_Spalten": gdf.shape[1]})
+        file_path = Path("data") / "schema_files" / "templates" / str(row["Gruppe"]) / "Anzahl der Spalten.csv"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(results).to_csv(file_path, index=False, sep=";")
 
 
 def save_gpkg(gdf: gpd.GeoDataFrame, file_name: str, final_gpkg_path: str, metrics: RuntimeMetrics) -> None:
@@ -642,10 +666,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     os.environ.setdefault("IS_PROD", "false")
-    import logging
-
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.INFO if LOG_WFS_REQUESTS else logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    init_logger()
     logger.info("WFS logging mode", fgi_log_wfs=LOG_WFS_REQUESTS)
     main()
