@@ -213,7 +213,7 @@ def get_coordinates_from_gwr(df, df_geb_eing):
         + ", "
         + df_geb_eing["dplz4"].astype(str)
         + " "
-        + df_geb_eing["dplzname"]
+        + df_geb_eing["plzname"]
     )
     df = df.merge(df_geb_eing[["address", "eingang_koordinaten"]], on="address", how="left")
     df.rename(columns={"eingang_koordinaten": "coordinates"}, inplace=True)
