@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 DATA_ORIG_PATH = "data_orig"
 DOKUMENTE_PATH = os.path.join(DATA_ORIG_PATH, "Dokumente")
-TEXTRUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Textrueckmeldungen")
+RUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Rueckmeldungen")
 
 BASE_URL = "https://www.bs.ch"
 VERNEHMLASSUNGEN_URL = "https://www.bs.ch/regierungsrat/vernehmlassungen#abgeschlossene-vernehmlassungen"
@@ -25,6 +25,13 @@ VERNEHMLASSUNGEN_PAGES = [
     "https://www.bs.ch/regierungsrat/vernehmlassungen/abgeschlossene-vernehmlassungen-2017-2019",
     "https://www.bs.ch/regierungsrat/vernehmlassungen/abgeschlossene-vernehmlassungen-2014-2016",
 ]
+
+
+def _normalize_column_name(value: str) -> str:
+    """Normalize column names for robust matching."""
+    transl_table = str.maketrans({"ä": "ae", "Ä": "ae", "ö": "oe", "Ö": "oe", "ü": "ue", "Ü": "ue", "ß": "ss"})
+    value = str(value).translate(transl_table).lower()
+    return re.sub(r"[^a-z0-9]", "", value)
 
 
 def sanitize_filename(name: str) -> str:
@@ -467,6 +474,46 @@ def scrape_vernehmlassungen() -> pd.DataFrame:
     return df
 
 
+def load_vernehmlassungen_from_excel() -> pd.DataFrame:
+    """Load Vernehmlassungen from provided Excel file."""
+    excel_path = os.path.join(DATA_ORIG_PATH, "Vernehmlassungen.xlsx")
+    if not os.path.exists(excel_path):
+        logging.warning(f"Vernehmlassungen Excel not found: {excel_path}")
+        return pd.DataFrame(columns=["name_vernehmlassung", "startdatum", "enddatum", "beschreibung"])
+
+    df = pd.read_excel(excel_path)
+    rename_map = {
+        "Name": "name_vernehmlassung",
+        "Startdatum": "startdatum",
+        "Enddatum": "enddatum",
+        "Beschreibung": "beschreibung",
+    }
+    df = df.rename(columns=rename_map)
+    for col in ["name_vernehmlassung", "startdatum", "enddatum", "beschreibung"]:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[["name_vernehmlassung", "startdatum", "enddatum", "beschreibung"]]
+
+    df["startdatum"] = df["startdatum"].apply(parse_german_date)
+    df["enddatum"] = df["enddatum"].apply(parse_german_date)
+    return df
+
+
+def load_documents_from_excel() -> pd.DataFrame:
+    """Load documents from provided Excel file only."""
+    excel_path = os.path.join(DOKUMENTE_PATH, "Dokumente_Vernehmlassungen.xlsx")
+    if not os.path.exists(excel_path):
+        logging.warning(f"Dokumente Excel not found: {excel_path}")
+        return pd.DataFrame(columns=["Name", "Typ", "Dateiname", "Vernehmlassung"])
+
+    df = pd.read_excel(excel_path)
+    required = ["Name", "Typ", "Dateiname", "Vernehmlassung"]
+    for col in required:
+        if col not in df.columns:
+            df[col] = ""
+    return df[required]
+
+
 def scrape_and_process_documents() -> pd.DataFrame:
     """Scrape documents from Vernehmlassungen pages and process them."""
     all_documents = []
@@ -744,20 +791,65 @@ def upload_documents_to_ftp(df: pd.DataFrame):
 
 
 def process_textrueckmeldungen():
-    """Concatenate all Excel files in Textrueckmeldungen folder."""
-    if not os.path.exists(TEXTRUECKMELDUNGEN_PATH):
-        logging.warning(f"Textrueckmeldungen folder not found: {TEXTRUECKMELDUNGEN_PATH}")
+    """Concatenate filtered Textrueckmeldungen from Rueckmeldungen folder."""
+    if not os.path.exists(RUECKMELDUNGEN_PATH):
+        logging.warning(f"Rueckmeldungen folder not found: {RUECKMELDUNGEN_PATH}")
         return
 
+    columns_of_interest = [
+        "Bereich",
+        "Kapitel",
+        "Antrag/Bemerkung",
+        "Begründung",
+        "Anhänge",
+        "Übermittlung",
+        "Briefrückmeldung",
+        "Organisation",
+        "Teilnehmerkategorie",
+        "Anrede",
+        "Vorname",
+        "Nachname",
+        "PLZ",
+        "Ort",
+    ]
+    alias_map = {
+        "Antrag/Bemerkung": ["Antrag/Bemerkung", "Antrag / Bemerkung"],
+        "Teilnehmerkategorie": ["Teilnehmerkategorie", "Teilnehmerkategorien"],
+        "Briefrückmeldung": ["Briefrückmeldung", "Brief Rückmeldung"],
+    }
     all_dataframes = []
 
-    for filename in os.listdir(TEXTRUECKMELDUNGEN_PATH):
+    for filename in os.listdir(RUECKMELDUNGEN_PATH):
         if filename.endswith((".xlsx", ".xls")):
-            file_path = os.path.join(TEXTRUECKMELDUNGEN_PATH, filename)
+            file_path = os.path.join(RUECKMELDUNGEN_PATH, filename)
             try:
                 df = pd.read_excel(file_path)
-                all_dataframes.append(df)
-                logging.info(f"Loaded {filename} with {len(df)} rows")
+                normalized_source = {_normalize_column_name(c): c for c in df.columns}
+
+                selected_columns = {}
+                for target in columns_of_interest:
+                    candidates = alias_map.get(target, [target])
+                    source_col = None
+                    for candidate in candidates:
+                        key = _normalize_column_name(candidate)
+                        if key in normalized_source:
+                            source_col = normalized_source[key]
+                            break
+                    if source_col:
+                        selected_columns[target] = source_col
+
+                filtered_df = pd.DataFrame()
+                for target in columns_of_interest:
+                    if target in selected_columns:
+                        filtered_df[target] = df[selected_columns[target]]
+                    else:
+                        filtered_df[target] = ""
+
+                all_dataframes.append(filtered_df)
+                logging.info(
+                    f"Loaded {filename} with {len(filtered_df)} rows "
+                    f"and {len(selected_columns)}/{len(columns_of_interest)} matching columns"
+                )
             except Exception as e:
                 logging.error(f"Error reading {filename}: {e}")
 
@@ -775,7 +867,7 @@ def process_textrueckmeldungen():
         common.update_ftp_and_odsp(csv_file_path, remote_dir, dataset_id="100514")
         logging.info(f"Uploaded {csv_filename} to FTP")
     else:
-        logging.warning("No Excel files found in Textrueckmeldungen folder")
+        logging.warning("No Excel files found in Rueckmeldungen folder")
 
 
 def main():
@@ -784,12 +876,12 @@ def main():
 
     # Ensure directories exist
     os.makedirs(DOKUMENTE_PATH, exist_ok=True)
-    os.makedirs(TEXTRUECKMELDUNGEN_PATH, exist_ok=True)
+    os.makedirs(RUECKMELDUNGEN_PATH, exist_ok=True)
     os.makedirs("data", exist_ok=True)
 
-    # 1. Scrape Vernehmlassungen
-    logging.info("Scraping Vernehmlassungen...")
-    vernehmlassungen_df = scrape_vernehmlassungen()
+    # 1. Load Vernehmlassungen from Excel
+    logging.info("Loading Vernehmlassungen from Excel...")
+    vernehmlassungen_df = load_vernehmlassungen_from_excel()
 
     if not vernehmlassungen_df.empty:
         csv_path = os.path.join("data", "100516_vernehmlassung.csv")
@@ -803,9 +895,9 @@ def main():
     else:
         logging.warning("No Vernehmlassungen found")
 
-    # 2. Scrape and process documents
-    logging.info("Scraping and processing documents...")
-    documents_df = scrape_and_process_documents()
+    # 2. Load and process documents from Excel
+    logging.info("Loading and processing documents from Excel...")
+    documents_df = load_documents_from_excel()
 
     if not documents_df.empty:
         documents_df = process_documents_for_ftp(documents_df)
