@@ -39,6 +39,7 @@ GEOCAT_NAMESPACE = {
 }
 WMS_NAMESPACE = {"wms": "http://www.opengis.net/wms"}
 
+
 class AirflowLogger:
     """Thin logger wrapper that supports structured kwargs with stdlib logging."""
 
