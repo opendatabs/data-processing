@@ -40,13 +40,13 @@ DATASETS: list[dict[str, str]] = [
         "name": "Ladenöffnungszeiten",
         "top_left_cell": "B118",
         "output": "data/100424_ladenoeffnungszeiten.csv",
-        "dataset_id": "100424"
+        "dataset_id": "100424",
     },
     {
         "name": "Arbeitszeitbewilligungen",
         "top_left_cell": "B29",
         "output": "data/100425_arbeitszeitbewilligungen.csv",
-        "dataset_id": "100425"
+        "dataset_id": "100425",
     },
 ]
 
