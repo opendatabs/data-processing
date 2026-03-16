@@ -4,7 +4,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import common
 import pandas as pd
@@ -17,6 +17,8 @@ RUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Rueckmeldungen")
 
 BASE_URL = "https://www.bs.ch"
 VERNEHMLASSUNGEN_URL = "https://www.bs.ch/regierungsrat/vernehmlassungen#abgeschlossene-vernehmlassungen"
+DATASET_100514_URL = "https://data.bs.ch/explore/dataset/100514/table/"
+DATASET_100516_URL = "https://data.bs.ch/explore/dataset/100516/table/"
 
 # URLs for the 4 pages with abgeschlossene Vernehmlassungen
 VERNEHMLASSUNGEN_PAGES = [
@@ -32,6 +34,134 @@ def _normalize_column_name(value: str) -> str:
     transl_table = str.maketrans({"ä": "ae", "Ä": "ae", "ö": "oe", "Ö": "oe", "ü": "ue", "Ü": "ue", "ß": "ss"})
     value = str(value).translate(transl_table).lower()
     return re.sub(r"[^a-z0-9]", "", value)
+
+
+def _clean_cell_value(value) -> str:
+    """Convert cell to cleaned string; keep empty values empty."""
+    if pd.isna(value) or value is None:
+        return ""
+    text = str(value).strip()
+    if text.lower() in {"", "nan", "none"}:
+        return ""
+    return text
+
+
+def _collapse_whitespace(value: str) -> str:
+    return re.sub(r"\s+", " ", _clean_cell_value(value)).strip()
+
+
+def _build_dataset_filter_url(base_url: str, key: str, value: str) -> str:
+    """Build dataset URL with a single refine filter."""
+    cleaned = _clean_cell_value(value)
+    if not cleaned:
+        return ""
+    return f"{base_url}?refine.{key}={quote_plus(cleaned)}"
+
+
+def _normalize_to_iso_date(value) -> str:
+    """Normalize various date strings to YYYY-MM-DD and remove any time."""
+    text = _clean_cell_value(value)
+    if not text:
+        return ""
+
+    # Handle numeric German dates with optional time, e.g. 25.09.2025 10:15
+    numeric_match = re.search(r"(\d{1,2}\.\d{1,2}\.\d{4})", text)
+    if numeric_match:
+        try:
+            dt = datetime.strptime(numeric_match.group(1), "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+
+    # Handle textual German dates, e.g. 09. September 2025
+    text_match = re.search(r"(\d{1,2}\.?\s+\w+\s+\d{4})", text, flags=re.IGNORECASE)
+    if text_match:
+        parsed = parse_german_date(text_match.group(1))
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", parsed):
+            return parsed
+
+    # Fallback parser
+    parsed_dt = pd.to_datetime(text, errors="coerce", dayfirst=True)
+    if not pd.isna(parsed_dt):
+        return parsed_dt.strftime("%Y-%m-%d")
+
+    parsed = parse_german_date(text)
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", parsed):
+        return parsed
+    return ""
+
+
+def _load_vernehmlassung_names() -> list[str]:
+    """Load Vernehmlassung names from source Excel."""
+    excel_path = os.path.join(DATA_ORIG_PATH, "Vernehmlassungen.xlsx")
+    if not os.path.exists(excel_path):
+        return []
+    df = pd.read_excel(excel_path)
+    for candidate in ["Name", "name_vernehmlassung"]:
+        if candidate in df.columns:
+            return [_clean_cell_value(v) for v in df[candidate].tolist() if _clean_cell_value(v)]
+    return []
+
+
+def _infer_vernehmlassung_from_filename(filename: str, available_names: list[str]) -> str:
+    """Best-effort mapping from Rueckmeldungen filename to Vernehmlassung name."""
+    if not available_names:
+        return ""
+
+    stem_norm = _normalize_column_name(Path(filename).stem)
+    stop_tokens = {
+        "befragung",
+        "textrueckmeldungen",
+        "vernehmlassung",
+        "zur",
+        "zum",
+        "des",
+        "der",
+        "und",
+        "weiterer",
+        "weiteren",
+        "erlas",
+        "erlass",
+        "aenderung",
+        "anderung",
+    }
+    stem_tokens = {
+        tok
+        for tok in re.findall(r"[a-z0-9]+", stem_norm)
+        if len(tok) >= 4 and tok not in stop_tokens
+    }
+
+    best_name = ""
+    best_score = -1
+    for name in available_names:
+        name_norm = _normalize_column_name(name)
+        name_tokens = {
+            tok
+            for tok in re.findall(r"[a-z0-9]+", name_norm)
+            if len(tok) >= 4 and tok not in stop_tokens
+        }
+        score = len(stem_tokens.intersection(name_tokens))
+        if "wahlgesetz" in stem_norm and "wahlgesetz" in name_norm:
+            score += 5
+        if "pflichtlektion" in stem_norm and "pflichtlektion" in name_norm:
+            score += 5
+        if "kulturleitbild" in stem_norm and "kulturleitbild" in name_norm:
+            score += 5
+        if score > best_score:
+            best_score = score
+            best_name = name
+
+    return best_name if best_score > 0 else ""
+
+
+def _classify_rueckmeldung_type(filename: str) -> str:
+    """Classify Rueckmeldungen file type from filename."""
+    normalized = _normalize_column_name(Path(filename).stem)
+    if "befragung" in normalized:
+        return "Umfrage/Befragung"
+    if "textrueckmeldungen" in normalized:
+        return "Textrückmeldungen Vernehmlassung"
+    return "Textrückmeldungen Vernehmlassung"
 
 
 def sanitize_filename(name: str) -> str:
@@ -496,6 +626,14 @@ def load_vernehmlassungen_from_excel() -> pd.DataFrame:
 
     df["startdatum"] = df["startdatum"].apply(parse_german_date)
     df["enddatum"] = df["enddatum"].apply(parse_german_date)
+    df["url_textrueckmeldungen"] = df["name_vernehmlassung"].apply(
+        lambda name: _build_dataset_filter_url(DATASET_100514_URL, "vernehmlassung", name)
+    )
+    df["url_dokumente"] = df["name_vernehmlassung"].apply(
+        lambda name: _build_dataset_filter_url(
+            "https://data.bs.ch/explore/dataset/100515/table/", "vernehmlassung", name
+        )
+    )
     return df
 
 
@@ -737,6 +875,9 @@ def process_documents_for_ftp(df: pd.DataFrame) -> pd.DataFrame:
     # Create FTP URL
     base_url = "https://data-bs.ch/stata/staka/vernehmlassungen/dokumente/"
     df["URL_Datei"] = base_url + df["Dateiname_ftp"]
+    df["URL_Vernehmlassung"] = df["Vernehmlassung"].apply(
+        lambda name: _build_dataset_filter_url(DATASET_100516_URL, "name_vernehmlassung", name)
+    )
 
     return df
 
@@ -791,32 +932,45 @@ def upload_documents_to_ftp(df: pd.DataFrame):
 
 
 def process_textrueckmeldungen():
-    """Concatenate filtered Textrueckmeldungen from Rueckmeldungen folder."""
+    """Concatenate and normalize Rueckmeldungen Excel files."""
     if not os.path.exists(RUECKMELDUNGEN_PATH):
         logging.warning(f"Rueckmeldungen folder not found: {RUECKMELDUNGEN_PATH}")
         return
 
     columns_of_interest = [
+        "Typ",
+        "vernehmlassung",
+        "URL_Vernehmlassung",
         "Bereich",
         "Kapitel",
         "Antrag/Bemerkung",
         "Begründung",
         "Anhänge",
-        "Übermittlung",
+        "Erfassungsdatum",
         "Briefrückmeldung",
         "Organisation",
         "Teilnehmerkategorie",
-        "Anrede",
-        "Vorname",
-        "Nachname",
+        "Teilnehmer/in",
         "PLZ",
         "Ort",
     ]
     alias_map = {
+        "Bereich": ["Bereich"],
+        "Kapitel": ["Kapitel"],
+        "Organisation": ["Organisation"],
+        "PLZ": ["PLZ"],
+        "Ort": ["Ort"],
         "Antrag/Bemerkung": ["Antrag/Bemerkung", "Antrag / Bemerkung"],
+        "Begründung": ["Begründung", "Begruendung"],
+        "Anhänge": ["Anhänge", "Anhaenge"],
+        "Erfassungsdatum": ["Erfassungsdatum", "Übermittlung", "Uebermittlung"],
+        "Briefrückmeldung": ["Briefrückmeldung", "Briefrueckmeldung", "Brief Rückmeldung"],
         "Teilnehmerkategorie": ["Teilnehmerkategorie", "Teilnehmerkategorien"],
-        "Briefrückmeldung": ["Briefrückmeldung", "Brief Rückmeldung"],
+        "Vorname": ["Vorname"],
+        "Nachname": ["Nachname"],
+        "Teilnehmer/in": ["Teilnehmer/in"],
     }
+    vernehmlassung_names = _load_vernehmlassung_names()
     all_dataframes = []
 
     for filename in os.listdir(RUECKMELDUNGEN_PATH):
@@ -825,31 +979,167 @@ def process_textrueckmeldungen():
             try:
                 df = pd.read_excel(file_path)
                 normalized_source = {_normalize_column_name(c): c for c in df.columns}
+                typ = _classify_rueckmeldung_type(filename)
+                vernehmlassung = _infer_vernehmlassung_from_filename(filename, vernehmlassung_names)
+                url_vernehmlassung = _build_dataset_filter_url(
+                    DATASET_100516_URL, "name_vernehmlassung", vernehmlassung
+                )
 
                 selected_columns = {}
-                for target in columns_of_interest:
-                    candidates = alias_map.get(target, [target])
-                    source_col = None
+                for key, candidates in alias_map.items():
                     for candidate in candidates:
-                        key = _normalize_column_name(candidate)
-                        if key in normalized_source:
-                            source_col = normalized_source[key]
+                        normalized_candidate = _normalize_column_name(candidate)
+                        if normalized_candidate in normalized_source:
+                            selected_columns[key] = normalized_source[normalized_candidate]
                             break
-                    if source_col:
-                        selected_columns[target] = source_col
 
-                filtered_df = pd.DataFrame()
-                for target in columns_of_interest:
-                    if target in selected_columns:
-                        filtered_df[target] = df[selected_columns[target]]
+                if typ == "Umfrage/Befragung":
+                    base_bereich = _collapse_whitespace(Path(filename).stem.replace("_", " "))
+                    meta_cols = {
+                        _normalize_column_name("Organisation"),
+                        _normalize_column_name("Teilnehmerkategorie"),
+                        _normalize_column_name("ID Teilnehmer/in"),
+                        _normalize_column_name("Teilnehmer/in"),
+                        _normalize_column_name("PLZ"),
+                        _normalize_column_name("Ort"),
+                        _normalize_column_name("Erfassungsdatum"),
+                        _normalize_column_name("ID"),
+                    }
+
+                    records = []
+                    column_list = list(df.columns)
+                    for idx, kapitel_col in enumerate(column_list):
+                        kapitel_norm = _normalize_column_name(kapitel_col)
+                        if kapitel_norm in meta_cols or kapitel_norm.startswith("bemerkung"):
+                            continue
+
+                        begruendung_col = ""
+                        if idx + 1 < len(column_list):
+                            next_col = column_list[idx + 1]
+                            if _normalize_column_name(next_col).startswith("bemerkung"):
+                                begruendung_col = next_col
+
+                        kapitel_value = _collapse_whitespace(kapitel_col)
+                        for _, row in df.iterrows():
+                            antrag_value = _clean_cell_value(row.get(kapitel_col, ""))
+                            begruendung_value = (
+                                _clean_cell_value(row.get(begruendung_col, "")) if begruendung_col else ""
+                            )
+                            if not antrag_value and not begruendung_value:
+                                continue
+
+                            records.append(
+                                {
+                                    "Typ": typ,
+                                    "vernehmlassung": vernehmlassung,
+                                    "URL_Vernehmlassung": url_vernehmlassung,
+                                    "Bereich": base_bereich,
+                                    "Kapitel": kapitel_value,
+                                    "Antrag/Bemerkung": antrag_value,
+                                    "Begründung": begruendung_value,
+                                    "Anhänge": "",
+                                    "Erfassungsdatum": _normalize_to_iso_date(
+                                        row.get(selected_columns.get("Erfassungsdatum", ""), "")
+                                    ),
+                                    "Briefrückmeldung": "",
+                                    "Organisation": _clean_cell_value(
+                                        row.get(selected_columns.get("Organisation", ""), "")
+                                    ),
+                                    "Teilnehmerkategorie": _clean_cell_value(
+                                        row.get(selected_columns.get("Teilnehmerkategorie", ""), "")
+                                    ),
+                                    "Teilnehmer/in": _clean_cell_value(
+                                        row.get(selected_columns.get("Teilnehmer/in", ""), "")
+                                    ),
+                                    "PLZ": _clean_cell_value(row.get(selected_columns.get("PLZ", ""), "")),
+                                    "Ort": _clean_cell_value(row.get(selected_columns.get("Ort", ""), "")),
+                                }
+                            )
+
+                    filtered_df = pd.DataFrame(records, columns=columns_of_interest)
+                else:
+                    filtered_df = pd.DataFrame(index=df.index)
+                    filtered_df["Typ"] = typ
+                    filtered_df["vernehmlassung"] = vernehmlassung
+                    filtered_df["URL_Vernehmlassung"] = url_vernehmlassung
+                    filtered_df["Bereich"] = (
+                        df[selected_columns["Bereich"]].map(_clean_cell_value)
+                        if "Bereich" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Kapitel"] = (
+                        df[selected_columns["Kapitel"]].map(_clean_cell_value)
+                        if "Kapitel" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Antrag/Bemerkung"] = (
+                        df[selected_columns["Antrag/Bemerkung"]].map(_clean_cell_value)
+                        if "Antrag/Bemerkung" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Begründung"] = (
+                        df[selected_columns["Begründung"]].map(_clean_cell_value)
+                        if "Begründung" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Anhänge"] = (
+                        df[selected_columns["Anhänge"]].map(_clean_cell_value)
+                        if "Anhänge" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Erfassungsdatum"] = (
+                        df[selected_columns["Erfassungsdatum"]].map(_normalize_to_iso_date)
+                        if "Erfassungsdatum" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Briefrückmeldung"] = (
+                        df[selected_columns["Briefrückmeldung"]].map(_clean_cell_value)
+                        if "Briefrückmeldung" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Organisation"] = (
+                        df[selected_columns["Organisation"]].map(_clean_cell_value)
+                        if "Organisation" in selected_columns
+                        else ""
+                    )
+                    filtered_df["Teilnehmerkategorie"] = (
+                        df[selected_columns["Teilnehmerkategorie"]].map(_clean_cell_value)
+                        if "Teilnehmerkategorie" in selected_columns
+                        else ""
+                    )
+                    filtered_df["PLZ"] = (
+                        df[selected_columns["PLZ"]].map(_clean_cell_value) if "PLZ" in selected_columns else ""
+                    )
+                    filtered_df["Ort"] = (
+                        df[selected_columns["Ort"]].map(_clean_cell_value) if "Ort" in selected_columns else ""
+                    )
+
+                    vorname_col = selected_columns.get("Vorname")
+                    nachname_col = selected_columns.get("Nachname")
+                    teilnehmer_col = selected_columns.get("Teilnehmer/in")
+                    if vorname_col or nachname_col:
+                        nachname_series = (
+                            df[nachname_col].map(_clean_cell_value)
+                            if nachname_col
+                            else pd.Series([""] * len(df), index=df.index)
+                        )
+                        vorname_series = (
+                            df[vorname_col].map(_clean_cell_value)
+                            if vorname_col
+                            else pd.Series([""] * len(df), index=df.index)
+                        )
+                        filtered_df["Teilnehmer/in"] = (
+                            (nachname_series + " " + vorname_series).str.strip().str.replace(r"\s+", " ", regex=True)
+                        )
+                    elif teilnehmer_col:
+                        filtered_df["Teilnehmer/in"] = df[teilnehmer_col].map(_clean_cell_value)
                     else:
-                        filtered_df[target] = ""
+                        filtered_df["Teilnehmer/in"] = ""
+
+                    filtered_df = filtered_df[columns_of_interest]
 
                 all_dataframes.append(filtered_df)
-                logging.info(
-                    f"Loaded {filename} with {len(filtered_df)} rows "
-                    f"and {len(selected_columns)}/{len(columns_of_interest)} matching columns"
-                )
+                logging.info(f"Loaded {filename} with {len(filtered_df)} normalized rows")
             except Exception as e:
                 logging.error(f"Error reading {filename}: {e}")
 
