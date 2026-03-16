@@ -5,6 +5,7 @@ Arbeitsinspektorat and exports them as tidy CSV files.
 """
 
 import logging
+from datetime import date
 from pathlib import Path
 
 import openpyxl
@@ -102,8 +103,25 @@ def _read_year_headers(
     for col in range(start_col + 1, ws.max_column + 1):
         value = ws.cell(row=header_row, column=col).value
         if value is not None:
-            year_columns.append((col, int(value)))
+            year_columns.append((col, _normalize_year(int(value))))
     return year_columns
+
+
+def _normalize_year(year_value: int) -> int:
+    """Normalize short year values to full years without creating future years.
+
+    Four-digit values are returned unchanged. For two-digit values, the current
+    century is only applied when that inferred year is not in the future.
+    """
+    if year_value >= 100:
+        return year_value
+
+    current_year = date.today().year
+    current_century = current_year - (current_year % 100)
+    inferred_year = current_century + year_value
+    if inferred_year > current_year:
+        return inferred_year - 100
+    return inferred_year
 
 
 def _read_month_rows(
