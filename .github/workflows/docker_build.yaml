@@ -23,7 +23,7 @@ jobs:
 
       - name: Detect changed paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           # Use the base branch for PR comparisons
           base: ${{ github.base_ref }}
