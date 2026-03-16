@@ -8,6 +8,7 @@ import logging
 from datetime import date
 from pathlib import Path
 
+import common
 import openpyxl
 import pandas as pd
 from dotenv import load_dotenv
@@ -39,11 +40,13 @@ DATASETS: list[dict[str, str]] = [
         "name": "Ladenöffnungszeiten",
         "top_left_cell": "B118",
         "output": "data/100424_ladenoeffnungszeiten.csv",
+        "dataset_id": "100424"
     },
     {
         "name": "Arbeitszeitbewilligungen",
         "top_left_cell": "B29",
         "output": "data/100425_arbeitszeitbewilligungen.csv",
+        "dataset_id": "100425"
     },
 ]
 
@@ -80,6 +83,7 @@ def read_monthly_table(filename: Path, sheet_name: str, top_left_cell: str) -> p
     df = pd.DataFrame(records, columns=["Datum", "Jahr", "Monat", "Anzahl"])
     df = df.sort_values("Datum").reset_index(drop=True)
     df = _trim_to_data_range(df)
+    df = _keep_only_past_years(df)
     df["Anzahl"] = df["Anzahl"].astype("Int64")
     return df
 
@@ -103,25 +107,8 @@ def _read_year_headers(
     for col in range(start_col + 1, ws.max_column + 1):
         value = ws.cell(row=header_row, column=col).value
         if value is not None:
-            year_columns.append((col, _normalize_year(int(value))))
+            year_columns.append((col, int(value)))
     return year_columns
-
-
-def _normalize_year(year_value: int) -> int:
-    """Normalize short year values to full years without creating future years.
-
-    Four-digit values are returned unchanged. For two-digit values, the current
-    century is only applied when that inferred year is not in the future.
-    """
-    if year_value >= 100:
-        return year_value
-
-    current_year = date.today().year
-    current_century = current_year - (current_year % 100)
-    inferred_year = current_century + year_value
-    if inferred_year > current_year:
-        return inferred_year - 100
-    return inferred_year
 
 
 def _read_month_rows(
@@ -186,6 +173,12 @@ def _trim_to_data_range(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[first_valid:last_valid].reset_index(drop=True)
 
 
+def _keep_only_past_years(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only rows whose year is strictly in the past."""
+    current_year = date.today().year
+    return df[df["Jahr"] < current_year].reset_index(drop=True)
+
+
 def main() -> None:
     """Read indicator tables from the AWA Excel workbook and export as CSV."""
     for dataset in DATASETS:
@@ -198,6 +191,7 @@ def main() -> None:
         )
         output_path = Path(dataset["output"])
         df.to_csv(output_path, index=False)
+        common.update_ftp_and_odsp(str(output_path), "awa/arbeitsinspektorat/", dataset["dataset_id"])
         logger.info("Wrote %d rows to %s.", len(df), output_path)
 
 
