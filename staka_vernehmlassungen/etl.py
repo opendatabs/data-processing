@@ -125,21 +125,13 @@ def _infer_vernehmlassung_from_filename(filename: str, available_names: list[str
         "aenderung",
         "anderung",
     }
-    stem_tokens = {
-        tok
-        for tok in re.findall(r"[a-z0-9]+", stem_norm)
-        if len(tok) >= 4 and tok not in stop_tokens
-    }
+    stem_tokens = {tok for tok in re.findall(r"[a-z0-9]+", stem_norm) if len(tok) >= 4 and tok not in stop_tokens}
 
     best_name = ""
     best_score = -1
     for name in available_names:
         name_norm = _normalize_column_name(name)
-        name_tokens = {
-            tok
-            for tok in re.findall(r"[a-z0-9]+", name_norm)
-            if len(tok) >= 4 and tok not in stop_tokens
-        }
+        name_tokens = {tok for tok in re.findall(r"[a-z0-9]+", name_norm) if len(tok) >= 4 and tok not in stop_tokens}
         score = len(stem_tokens.intersection(name_tokens))
         if "wahlgesetz" in stem_norm and "wahlgesetz" in name_norm:
             score += 5
@@ -1063,14 +1055,10 @@ def process_textrueckmeldungen():
                     filtered_df["vernehmlassung"] = vernehmlassung
                     filtered_df["URL_Vernehmlassung"] = url_vernehmlassung
                     filtered_df["Bereich"] = (
-                        df[selected_columns["Bereich"]].map(_clean_cell_value)
-                        if "Bereich" in selected_columns
-                        else ""
+                        df[selected_columns["Bereich"]].map(_clean_cell_value) if "Bereich" in selected_columns else ""
                     )
                     filtered_df["Kapitel"] = (
-                        df[selected_columns["Kapitel"]].map(_clean_cell_value)
-                        if "Kapitel" in selected_columns
-                        else ""
+                        df[selected_columns["Kapitel"]].map(_clean_cell_value) if "Kapitel" in selected_columns else ""
                     )
                     filtered_df["Antrag/Bemerkung"] = (
                         df[selected_columns["Antrag/Bemerkung"]].map(_clean_cell_value)
@@ -1083,9 +1071,7 @@ def process_textrueckmeldungen():
                         else ""
                     )
                     filtered_df["Anhänge"] = (
-                        df[selected_columns["Anhänge"]].map(_clean_cell_value)
-                        if "Anhänge" in selected_columns
-                        else ""
+                        df[selected_columns["Anhänge"]].map(_clean_cell_value) if "Anhänge" in selected_columns else ""
                     )
                     filtered_df["Erfassungsdatum"] = (
                         df[selected_columns["Erfassungsdatum"]].map(_normalize_to_iso_date)
