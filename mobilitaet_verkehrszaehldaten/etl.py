@@ -166,7 +166,7 @@ def generate_files(df, filename):
     keep_years = 2
     current_filename = os.path.join("data", "truncated_" + filename)
     logging.info(f"Creating dataset {current_filename}...")
-    latest_year = df["Year"].max()
+    latest_year = int(df["Year"].dropna().max())
     years = range(latest_year - keep_years, latest_year + 1)
     logging.info(f"Keeping only data for the following years in the truncated file: {list(years)}...")
     truncated_data = df[df.Year.isin(years)]
