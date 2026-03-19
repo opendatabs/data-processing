@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- SharePoint config from environment ---
 TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
 CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID")
 SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
