@@ -1,4 +1,6 @@
+import glob
 import os
+import re
 
 import common
 import dateparser
@@ -6,8 +8,70 @@ import numpy as np
 import pandas as pd
 
 
+def get_latest_data_files():
+    data_file_names = []
+    for vote_type in ["EID", "KAN"]:
+        file_list = glob.glob(os.path.join("data", f"*{vote_type}*.xls*"))
+        file_list = [f for f in file_list if not os.path.basename(f).startswith("~$")]
+        if len(file_list) > 0:
+            latest_file = max(file_list, key=os.path.getmtime)
+            data_file_names.append(os.path.basename(latest_file))
+    return data_file_names
+
+
+def get_counterproposal_column(columns):
+    normalized_targets = {"gegenvorschlag", "gegenentwurf"}
+    for column in columns:
+        normalized_column = re.sub(r"[\s\-]+", "", str(column)).lower()
+        if normalized_column in normalized_targets:
+            return column
+    return None
+
+
+def has_counterproposal(abst_title, columns):
+    title_lower = abst_title.lower()
+    if "gegenvorschlag" in title_lower or "gegenentwurf" in title_lower:
+        return True
+    return get_counterproposal_column(columns) is not None
+
+
+def set_elektronisch_as_to_na_if_all_zero(df):
+    mask = df["Wahllok_name"] == "Elektronisch Stimmende AS"
+    if not mask.any():
+        return
+
+    numeric_cols = [
+        "Stimmr_Anz",
+        "Eingel_Anz",
+        "Leer_Anz",
+        "Unguelt_Anz",
+        "Guelt_Anz",
+        "Ja_Anz",
+        "Nein_Anz",
+        "Gege_Ja_Anz",
+        "Gege_Nein_Anz",
+        "Sti_Initiative_Anz",
+        "Sti_Gegenvorschlag_Anz",
+        "Init_OGA_Anz",
+        "Gege_OGA_Anz",
+        "Sti_OGA_Anz",
+        "anteil_ja_stimmen",
+        "gege_anteil_ja_Stimmen",
+        "sti_anteil_init_stimmen",
+    ]
+    existing_numeric_cols = [col for col in numeric_cols if col in df.columns]
+    if len(existing_numeric_cols) == 0:
+        return
+
+    values = df.loc[mask, existing_numeric_cols].apply(pd.to_numeric, errors="coerce")
+    if values.fillna(0).eq(0).all().all():
+        df.loc[mask, existing_numeric_cols] = pd.NA
+
+
 def main():
-    data_file_names = ["Resultate_EID.xlsx", "Resultate_KAN.xlsx"]
+    data_file_names = get_latest_data_files()
+    if len(data_file_names) < 2:
+        raise FileNotFoundError("Could not find both EID and KAN result files in data/.")
     abst_date, concatenated_df = calculate_details(data_file_names)
 
     export_file_name = os.path.join("data", "data-processing-output", f"Abstimmungen_Details_{abst_date}.csv")
@@ -94,14 +158,11 @@ def calculate_details(data_file_names):
 
         dat_sheets = []
         for sheet_name in dat_sheet_names:
-            is_gegenvorschlag = False  # Is this a sheet that contains a Gegenvorschlag?
             print(f"Reading Abstimmungstitel from {sheet_name}...")
             df_title = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=4, index_col=None)
             abst_title_raw = df_title.columns[1]
             # Get String that starts form ')' plus space + 1 characters to the right
             abst_title = abst_title_raw[abst_title_raw.find(")") + 2 :]
-            if "Gegenvorschlag" in abst_title:
-                is_gegenvorschlag = True
 
             print(f"Reading Abstimmungsart and Date from {sheet_name}...")
             df_meta = pd.read_excel(import_file_name, sheet_name=sheet_name, skiprows=2, index_col=None)
@@ -115,6 +176,13 @@ def calculate_details(data_file_names):
                 import_file_name, sheet_name=sheet_name, skiprows=6, index_col=None
             )  # , header=[0, 1, 2])
             df.reset_index(inplace=True)
+            gegen_col = get_counterproposal_column(df.columns)
+            is_gegenvorschlag = has_counterproposal(abst_title, df.columns)
+            if is_gegenvorschlag and gegen_col is None:
+                print(
+                    f"No counter-proposal column found in {sheet_name}; treating this as non-counterproposal case."
+                )
+                is_gegenvorschlag = False
 
             print("Filtering out Wahllokale...")
             if abst_date < "2023-06-18":
@@ -151,20 +219,22 @@ def calculate_details(data_file_names):
 
             if is_gegenvorschlag:
                 print("Adding Gegenvorschlag data...")
-                result_type = df_meta.columns[15]
-                df.abst_typ = "Initiative mit Gegenvorschlag und Stichfrage"
-                df.rename(
-                    columns={
-                        "Ja.1": "Gege_Ja_Anz",
-                        "Nein.1": "Gege_Nein_Anz",
-                        "Initiative": "Sti_Initiative_Anz",
-                        "Gegen-vorschlag": "Sti_Gegenvorschlag_Anz",
-                        "ohne gültige Antwort": "Init_OGA_Anz",
-                        "ohne gültige Antwort.1": "Gege_OGA_Anz",
-                        "ohne gültige Antwort.2": "Sti_OGA_Anz",
-                    },
-                    inplace=True,
-                )
+                result_type = df_meta.columns[15] if len(df_meta.columns) > 15 else df_meta.columns[-1]
+                if abst_type == "national":
+                    df.abst_typ = "Initiative mit Gegenentwurf und Stichfrage"
+                else:
+                    df.abst_typ = "Initiative mit Gegenvorschlag und Stichfrage"
+                rename_columns = {
+                    "Ja.1": "Gege_Ja_Anz",
+                    "Nein.1": "Gege_Nein_Anz",
+                    "Initiative": "Sti_Initiative_Anz",
+                    "ohne gültige Antwort": "Init_OGA_Anz",
+                    "ohne gültige Antwort.1": "Gege_OGA_Anz",
+                    "ohne gültige Antwort.2": "Sti_OGA_Anz",
+                }
+                if gegen_col is not None:
+                    rename_columns[gegen_col] = "Sti_Gegenvorschlag_Anz"
+                df.rename(columns=rename_columns, inplace=True)
 
                 print("Calculating anteil_ja_stimmen for Gegenvorschlag case...")
                 for column in [
@@ -195,10 +265,11 @@ def calculate_details(data_file_names):
                 ]
             else:
                 print("Adding data for case that is not with Gegenvorschlag...")
-                result_type = df_meta.columns[8]
+                result_type = df_meta.columns[8] if len(df_meta.columns) > 8 else df_meta.columns[-1]
                 print("Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag...")
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
+            set_elektronisch_as_to_na_if_all_zero(df)
             df["Result_Art"] = result_type
             dat_sheets.append(df)
 

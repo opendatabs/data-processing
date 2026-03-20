@@ -199,8 +199,9 @@ def upload_ftp_if_changed(df, file_name):
 
 def get_latest_data_files():
     data_file_names = []
-    for pattern in ["*_EID_????????*.xlsx", "*_KAN_????????*.xlsx"]:
-        file_list = glob.glob(os.path.join("data", pattern))
+    for vote_type in ["EID", "KAN"]:
+        file_list = glob.glob(os.path.join("data", f"*{vote_type}*.xls*"))
+        file_list = [f for f in file_list if not os.path.basename(f).startswith("~$")]
         if len(file_list) > 0:
             latest_file = max(file_list, key=os.path.getmtime)
             data_file_names.append(os.path.basename(latest_file))
