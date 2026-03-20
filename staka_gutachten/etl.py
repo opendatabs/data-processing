@@ -1,7 +1,6 @@
 import logging
 import os
 import shutil
-import tempfile
 from pathlib import Path
 
 import common
@@ -52,10 +51,7 @@ def download_sharepoint_files(token: str, site_id: str, dest_dir: str):
     headers = {"Authorization": f"Bearer {token}"}
 
     # List files in the target folder
-    url = (
-        f"https://graph.microsoft.com/v1.0/sites/{site_id}"
-        f"/drives?$select=name,id"
-    )
+    url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives?$select=name,id"
     r = requests.get(url, headers=headers)
     r.raise_for_status()
     drives = r.json()["value"]
@@ -65,10 +61,7 @@ def download_sharepoint_files(token: str, site_id: str, dest_dir: str):
     drive_id = drive["id"]
 
     # List items in the folder
-    folder_url = (
-        f"https://graph.microsoft.com/v1.0/drives/{drive_id}"
-        f"/root:/{SHAREPOINT_FOLDER}:/children"
-    )
+    folder_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{SHAREPOINT_FOLDER}:/children"
     r = requests.get(folder_url, headers=headers)
     r.raise_for_status()
     items = r.json().get("value", [])
