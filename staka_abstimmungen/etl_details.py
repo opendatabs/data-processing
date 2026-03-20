@@ -179,9 +179,7 @@ def calculate_details(data_file_names):
             gegen_col = get_counterproposal_column(df.columns)
             is_gegenvorschlag = has_counterproposal(abst_title, df.columns)
             if is_gegenvorschlag and gegen_col is None:
-                print(
-                    f"No counter-proposal column found in {sheet_name}; treating this as non-counterproposal case."
-                )
+                print(f"No counter-proposal column found in {sheet_name}; treating this as non-counterproposal case.")
                 is_gegenvorschlag = False
 
             print("Filtering out Wahllokale...")
