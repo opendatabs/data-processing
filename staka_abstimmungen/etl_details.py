@@ -120,6 +120,25 @@ def apply_vote_consistency_rules(df, has_counterproposal):
         )
 
 
+def clear_counterproposal_fields_for_non_counterproposal(df, has_counterproposal):
+    if has_counterproposal:
+        return
+    counterproposal_cols = [
+        "Gege_Ja_Anz",
+        "Gege_Nein_Anz",
+        "Sti_Initiative_Anz",
+        "Sti_Gegenvorschlag_Anz",
+        "gege_anteil_ja_Stimmen",
+        "sti_anteil_init_stimmen",
+        "Init_OGA_Anz",
+        "Gege_OGA_Anz",
+        "Sti_OGA_Anz",
+    ]
+    for col in counterproposal_cols:
+        if col in df.columns:
+            df[col] = pd.NA
+
+
 def detect_physical_urne_warnings(df):
     required_columns = {"Wahllok_name", "Abst_Datum", "Abst_Titel", "Guelt_Anz", "Ja_Anz", "Nein_Anz"}
     if not required_columns.issubset(df.columns):
@@ -351,6 +370,7 @@ def calculate_details(data_file_names, return_warnings=False):
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
             apply_vote_consistency_rules(df, is_gegenvorschlag)
+            clear_counterproposal_fields_for_non_counterproposal(df, is_gegenvorschlag)
             set_elektronisch_as_to_na_if_all_zero(df)
             privacy_warnings.extend(detect_physical_urne_warnings(df))
             df["Result_Art"] = result_type

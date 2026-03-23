@@ -79,6 +79,25 @@ def apply_vote_consistency_rules(df, has_counterproposal):
         )
 
 
+def clear_counterproposal_fields_for_non_counterproposal(df, has_counterproposal):
+    if has_counterproposal:
+        return
+    counterproposal_cols = [
+        "Gege_Ja_Anz",
+        "Gege_Nein_Anz",
+        "Sti_Initiative_Anz",
+        "Sti_Gegenvorschlag_Anz",
+        "gege_anteil_ja_Stimmen",
+        "sti_anteil_init_stimmen",
+        "Init_OGA_Anz",
+        "Gege_OGA_Anz",
+        "Sti_OGA_Anz",
+    ]
+    for col in counterproposal_cols:
+        if col in df.columns:
+            df[col] = pd.NA
+
+
 def main():
     data_file_names = get_latest_data_files()
     if len(data_file_names) < 2:
@@ -248,6 +267,7 @@ def calculate_kennzahlen(data_file_names):
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
             apply_vote_consistency_rules(df, is_gegenvorschlag)
+            clear_counterproposal_fields_for_non_counterproposal(df, is_gegenvorschlag)
             df["Result_Art"] = result_type
             dat_sheets.append(df)
 
