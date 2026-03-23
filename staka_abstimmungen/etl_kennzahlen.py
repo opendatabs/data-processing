@@ -36,6 +36,49 @@ def has_counterproposal(abst_title, columns):
     return get_counterproposal_column(columns) is not None
 
 
+def normalize_vote_pair(df, valid_col, yes_col, no_col, ratio_col=None):
+    if valid_col not in df.columns or yes_col not in df.columns or no_col not in df.columns:
+        return
+
+    valid_values = pd.to_numeric(df[valid_col], errors="coerce")
+    yes_values = pd.to_numeric(df[yes_col], errors="coerce")
+    no_values = pd.to_numeric(df[no_col], errors="coerce")
+
+    no_valid_votes = valid_values.isna() | (valid_values <= 0)
+    has_valid_votes = valid_values > 0
+
+    yes_values.loc[no_valid_votes] = pd.NA
+    no_values.loc[no_valid_votes] = pd.NA
+    yes_values.loc[has_valid_votes] = yes_values.loc[has_valid_votes].fillna(0)
+    no_values.loc[has_valid_votes] = no_values.loc[has_valid_votes].fillna(0)
+
+    df[yes_col] = yes_values
+    df[no_col] = no_values
+
+    if ratio_col is not None and ratio_col in df.columns:
+        ratio_values = pd.to_numeric(df[ratio_col], errors="coerce")
+        ratio_values.loc[no_valid_votes] = pd.NA
+        denominator = yes_values + no_values
+        ratio_values.loc[has_valid_votes & (denominator > 0)] = (
+            yes_values.loc[has_valid_votes & (denominator > 0)] / denominator.loc[has_valid_votes & (denominator > 0)]
+        )
+        ratio_values.loc[has_valid_votes & (denominator <= 0)] = pd.NA
+        df[ratio_col] = ratio_values
+
+
+def apply_vote_consistency_rules(df, has_counterproposal):
+    normalize_vote_pair(df, "Guelt_Anz", "Ja_Anz", "Nein_Anz", "anteil_ja_stimmen")
+    if has_counterproposal:
+        normalize_vote_pair(df, "Guelt_Anz", "Gege_Ja_Anz", "Gege_Nein_Anz", "gege_anteil_ja_Stimmen")
+        normalize_vote_pair(
+            df,
+            "Guelt_Anz",
+            "Sti_Initiative_Anz",
+            "Sti_Gegenvorschlag_Anz",
+            "sti_anteil_init_stimmen",
+        )
+
+
 def main():
     data_file_names = get_latest_data_files()
     if len(data_file_names) < 2:
@@ -204,6 +247,7 @@ def calculate_kennzahlen(data_file_names):
                 print("Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag...")
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
+            apply_vote_consistency_rules(df, is_gegenvorschlag)
             df["Result_Art"] = result_type
             dat_sheets.append(df)
 

@@ -7,6 +7,15 @@ import dateparser
 import numpy as np
 import pandas as pd
 
+PHYSICAL_URNE_WAHLLOKALE = {
+    "Bahnhof SBB",
+    "Bettingen Gemeindehaus",
+    "Polizeiwache Clara",
+    "Kleinbasel",
+    "Rathaus",
+    "Riehen Gemeindehaus",
+}
+
 
 def get_latest_data_files():
     data_file_names = []
@@ -68,6 +77,77 @@ def set_elektronisch_as_to_na_if_all_zero(df):
         df.loc[mask, existing_numeric_cols] = pd.NA
 
 
+def normalize_vote_pair(df, valid_col, yes_col, no_col, ratio_col=None):
+    if valid_col not in df.columns or yes_col not in df.columns or no_col not in df.columns:
+        return
+
+    valid_values = pd.to_numeric(df[valid_col], errors="coerce")
+    yes_values = pd.to_numeric(df[yes_col], errors="coerce")
+    no_values = pd.to_numeric(df[no_col], errors="coerce")
+
+    no_valid_votes = valid_values.isna() | (valid_values <= 0)
+    has_valid_votes = valid_values > 0
+
+    yes_values.loc[no_valid_votes] = pd.NA
+    no_values.loc[no_valid_votes] = pd.NA
+    yes_values.loc[has_valid_votes] = yes_values.loc[has_valid_votes].fillna(0)
+    no_values.loc[has_valid_votes] = no_values.loc[has_valid_votes].fillna(0)
+
+    df[yes_col] = yes_values
+    df[no_col] = no_values
+
+    if ratio_col is not None and ratio_col in df.columns:
+        ratio_values = pd.to_numeric(df[ratio_col], errors="coerce")
+        ratio_values.loc[no_valid_votes] = pd.NA
+        denominator = yes_values + no_values
+        ratio_values.loc[has_valid_votes & (denominator > 0)] = (
+            yes_values.loc[has_valid_votes & (denominator > 0)] / denominator.loc[has_valid_votes & (denominator > 0)]
+        )
+        ratio_values.loc[has_valid_votes & (denominator <= 0)] = pd.NA
+        df[ratio_col] = ratio_values
+
+
+def apply_vote_consistency_rules(df, has_counterproposal):
+    normalize_vote_pair(df, "Guelt_Anz", "Ja_Anz", "Nein_Anz", "anteil_ja_stimmen")
+    if has_counterproposal:
+        normalize_vote_pair(df, "Guelt_Anz", "Gege_Ja_Anz", "Gege_Nein_Anz", "gege_anteil_ja_Stimmen")
+        normalize_vote_pair(
+            df,
+            "Guelt_Anz",
+            "Sti_Initiative_Anz",
+            "Sti_Gegenvorschlag_Anz",
+            "sti_anteil_init_stimmen",
+        )
+
+
+def detect_physical_urne_warnings(df):
+    required_columns = {"Wahllok_name", "Abst_Datum", "Abst_Titel", "Guelt_Anz", "Ja_Anz", "Nein_Anz"}
+    if not required_columns.issubset(df.columns):
+        return []
+
+    warnings = []
+    for _, row in df.iterrows():
+        wahllok_name = row["Wahllok_name"]
+        if wahllok_name not in PHYSICAL_URNE_WAHLLOKALE:
+            continue
+
+        guelt = pd.to_numeric(pd.Series([row["Guelt_Anz"]]), errors="coerce").iloc[0]
+        ja = pd.to_numeric(pd.Series([row["Ja_Anz"]]), errors="coerce").iloc[0]
+        nein = pd.to_numeric(pd.Series([row["Nein_Anz"]]), errors="coerce").iloc[0]
+        if pd.notna(guelt) and guelt > 0 and ((pd.notna(ja) and ja == 0) or (pd.notna(nein) and nein == 0)):
+            warnings.append(
+                {
+                    "Abst_Datum": row["Abst_Datum"],
+                    "Abst_Titel": row["Abst_Titel"],
+                    "Wahllok_name": wahllok_name,
+                    "Guelt_Anz": guelt,
+                    "Ja_Anz": ja,
+                    "Nein_Anz": nein,
+                }
+            )
+    return warnings
+
+
 def main():
     data_file_names = get_latest_data_files()
     if len(data_file_names) < 2:
@@ -82,9 +162,10 @@ def main():
     print("Job successful!")
 
 
-def calculate_details(data_file_names):
+def calculate_details(data_file_names, return_warnings=False):
     abst_date = ""
     appended_data = []
+    privacy_warnings = []
     print(f"Starting to work with data file(s) {data_file_names}...")
     columns_to_keep = [
         "Wahllok_name",
@@ -269,7 +350,9 @@ def calculate_details(data_file_names):
                 print("Calculating anteil_ja_stimmen for case that is not with Gegenvorschlag...")
                 df["anteil_ja_stimmen"] = df["Ja_Anz"] / df["Guelt_Anz"]
 
+            apply_vote_consistency_rules(df, is_gegenvorschlag)
             set_elektronisch_as_to_na_if_all_zero(df)
+            privacy_warnings.extend(detect_physical_urne_warnings(df))
             df["Result_Art"] = result_type
             dat_sheets.append(df)
 
@@ -304,6 +387,8 @@ def calculate_details(data_file_names):
         + "_"
         + concatenated_df["wahllok_id"].astype(str)
     )
+    if return_warnings:
+        return abst_date, concatenated_df, privacy_warnings
     return abst_date, concatenated_df
 
 
