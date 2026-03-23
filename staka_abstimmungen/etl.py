@@ -28,7 +28,7 @@ ODS_PUSH_URL_KENNZ_PUBLIC = os.getenv("ODS_PUSH_URL_100346")
 
 
 def main():
-    push_past_abstimmungen = True
+    push_past_abstimmungen = False
     logging.info(f"Pushing abstimmungen from the past to ods? {push_past_abstimmungen}")
     if push_past_abstimmungen:
         push_past_abstimmungen_to_ods()
