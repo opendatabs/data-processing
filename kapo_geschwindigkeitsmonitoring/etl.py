@@ -3,6 +3,7 @@ import glob
 import logging
 import os
 import sqlite3
+import shutil
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -22,6 +23,36 @@ DETAIL_DATA_Q_BASE_PATH = os.getenv("DETAIL_DATA_Q_BASE_PATH")
 TZ = ZoneInfo("Europe/Zurich")
 TODAY = datetime.now(TZ)
 YEARS_TO_PUBLISH = {TODAY.year, TODAY.year - 1}
+
+
+def _safe_unlink(path: str) -> bool:
+    try:
+        os.remove(path)
+        return True
+    except FileNotFoundError:
+        return False
+    except Exception:
+        logging.exception(f"Failed to delete file: {path}")
+        return False
+
+
+def _safe_rmtree(path: str) -> bool:
+    try:
+        shutil.rmtree(path)
+        return True
+    except FileNotFoundError:
+        return False
+    except Exception:
+        logging.exception(f"Failed to delete directory: {path}")
+        return False
+
+
+def _should_keep_local_artifacts() -> bool:
+    """
+    Set KEEP_LOCAL_ARTIFACTS=1 to keep large intermediates on disk
+    (useful for debugging / local exploration).
+    """
+    return os.getenv("KEEP_LOCAL_ARTIFACTS", "").strip().lower() in {"1", "true", "yes", "y"}
 
 
 # Add missing line breaks for lines with more than 5 columns
@@ -323,14 +354,17 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata_p
             result = from_path(file)
             enc = result.best().encoding
             logging.info(f"Fixing errors and reading data into dataframe from {file}...")
+            fixed_path = fix_data(filename=file, measure_id=str(measure_id), encoding=enc)
             raw_df = pd.read_table(
-                fix_data(filename=file, measure_id=str(measure_id), encoding=enc),
+                fixed_path,
                 skiprows=6,
                 header=0,
                 encoding=enc,
                 names=["Geschwindigkeit", "Zeit", "Datum", "Richtung ID", "Fahrzeuglänge"],
                 on_bad_lines="skip",
             )
+            if not _should_keep_local_artifacts() and fixed_path.startswith(os.path.join("data", "fixed")):
+                _safe_unlink(fixed_path)
 
             if raw_df.empty:
                 logging.info("Dataframe is empty, ignoring...")
@@ -406,6 +440,22 @@ def create_measurements_df(df_meta_raw, df_metadata_per_direction, df_metadata_p
         common.upload_ftp(filename=csv_filename, remote_path="kapo/geschwindigkeitsmonitoring/all_data")
         common.publish_ods_dataset_by_id("100097")
         ct.update_hash_file(pkl_filename)
+
+    if not _should_keep_local_artifacts():
+        # These files are uploaded to FTP; keeping them locally quickly fills disks.
+        deleted_processed = 0
+        for f in files_to_upload:
+            if _safe_unlink(f):
+                deleted_processed += 1
+        if deleted_processed:
+            logging.info(f"Deleted {deleted_processed} processed per-measurement CSVs from data/processed/")
+
+        _safe_rmtree(os.path.join("data", "fixed"))
+        os.makedirs(os.path.join("data", "fixed"), exist_ok=True)
+
+        _safe_unlink(csv_filename)
+        # Keep the PKL: it's used as an input by neighboring jobs (e.g. mobilitaet_dtv).
+        logging.info("Deleted local aggregated CSV geschwindigkeitsmonitoring_data.csv (kept PKL)")
 
     return all_df
 
