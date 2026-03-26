@@ -205,11 +205,7 @@ def _to_long_schema(df: pd.DataFrame) -> pd.DataFrame:
 
     normalized = pd.DataFrame(records, columns=TARGET_COLUMNS)
     return normalized[
-        ~(
-            normalized["messbeginn"].eq("")
-            & normalized["messende"].eq("")
-            & normalized["messwert"].eq("")
-        )
+        ~(normalized["messbeginn"].eq("") & normalized["messende"].eq("") & normalized["messwert"].eq(""))
     ].reset_index(drop=True)
 
 
@@ -258,4 +254,3 @@ if __name__ == "__main__":
     logging.info(f"Executing {__file__}...")
     main()
     logging.info("Job successful.")
-
