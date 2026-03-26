@@ -57,7 +57,35 @@ def main():
             "jahr": 2011,
             "ods_id": "100205",
         },
+        {
+            "data_file": os.path.join("data_orig", "Bevoelkerung/2015/Bevölkerungsbefragung_2015_OGD.xlsx"),
+            "var_file": os.path.join("data_orig", "Bevoelkerung/2015/Variablen_BevBef_2015_OGD.xlsx"),
+            "export_folder": "Bevoelkerung/2015",
+            "export_file": "Befragung_Bevoelkerung_2015.csv",
+            "ftp_folder": "bevoelkerung",
+            "jahr": 2015,
+            "ods_id": "100534",
+        },
+        {
+            "data_file": os.path.join("data_orig", "Bevoelkerung/2019/Bevölkerungsbefragung_2019_OGD.xlsx"),
+            "var_file": os.path.join("data_orig", "Bevoelkerung/2019/Variablen_Bevölkerungsbefragung_2019.xlsx"),
+            "export_folder": "Bevoelkerung/2019",
+            "export_file": "Befragung_Bevoelkerung_2019.csv",
+            "ftp_folder": "bevoelkerung",
+            "jahr": 2019,
+            "ods_id": "100535",
+        },
+        {
+            "data_file": os.path.join("data_orig", "Bevoelkerung/2023/Bevölkerungsbefragung_2023_OGD.xlsx"),
+            "var_file": os.path.join("data_orig", "Bevoelkerung/2023/Variablen_Bevölkerungsbefragung_2023.xlsx"),
+            "export_folder": "Bevoelkerung/2023",
+            "export_file": "Befragung_Bevoelkerung_2023.csv",
+            "ftp_folder": "bevoelkerung",
+            "jahr": 2023,
+            "ods_id": "100536",
+        },
     ]
+
     for ds in datasets:
         process_single_file(
             data_file=ds["data_file"],
@@ -124,12 +152,7 @@ def process_single_file(
     jahr=None,
 ):
     logging.info(f"Processing survey with data file {data_file}...")
-    enc = get_encoding(data_file)
-    logging.info("Normalizing unicode data to get rid of &nbsp; (\\xa0)...")
-    with open(data_file, "r", encoding=enc) as f:
-        text = f.read()
-        clean_text = unicodedata.normalize("NFKD", text)
-    df_data = pd.read_csv(io.StringIO(clean_text), encoding=enc, sep=";", engine="python")
+    df_data = read_survey_file(data_file)
     df_data.to_csv(os.path.join(data_path, export_folder, f"Daten_{export_file}"), index=False)
     if jahr:
         if "Jahr" not in df_data:
@@ -138,10 +161,18 @@ def process_single_file(
     else:
         logging.info("Jahresübergreifend: Filter out questions which just appear in one year...")
         # TODO: Filter out questions which just appear in one year
-    df_data_long = df_data.melt(id_vars=["ID", "Jahr"])
+    id_vars = ["ID", "Jahr"]
+    question_columns = [col for col in df_data.columns if col not in id_vars]
+    question_order = {col: idx for idx, col in enumerate(question_columns, start=1)}
+    df_data_long = df_data.melt(id_vars=id_vars, value_vars=question_columns)
+    df_data_long["FrageSpaltenReihenfolge"] = df_data_long["variable"].map(question_order)
+    df_data_long["AntwortReihenfolge"] = (
+        df_data_long["ID"].map(to_order_id_component).astype(str)
+        + "_"
+        + df_data_long["FrageSpaltenReihenfolge"].astype(str)
+    )
 
-    enc = get_encoding(var_file)
-    df_var = pd.read_csv(var_file, encoding=enc, sep=";", engine="python")
+    df_var = read_survey_file(var_file)
     df_var.to_csv(os.path.join(data_path, export_folder, f"Variablen_{export_file}"), index=False)
     df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on="FrageName")
     df_merge = df_merge[df_merge["value"] != "**OTHER**"]
@@ -154,11 +185,38 @@ def process_single_file(
             "FrageLabel_Fortsetzung",
             "FrageLabel_Anmerkung",
             "value",
+            "FrageSpaltenReihenfolge",
+            "AntwortReihenfolge",
         ]
     ].rename(columns={"value": "Antwort"})
     export_path = os.path.join(data_path, export_folder, export_file)
     df_export.to_csv(export_path, index=False)
     common.update_ftp_and_odsp(export_path, f"befragungen/{ftp_folder}", ods_id)
+
+
+def read_survey_file(file_path):
+    _, ext = os.path.splitext(file_path)
+    ext = ext.lower()
+    if ext == ".csv":
+        enc = get_encoding(file_path)
+        logging.info("Normalizing unicode data to get rid of &nbsp; (\\xa0)...")
+        with open(file_path, "r", encoding=enc) as f:
+            text = f.read()
+            clean_text = unicodedata.normalize("NFKD", text)
+        return pd.read_csv(io.StringIO(clean_text), encoding=enc, sep=";", engine="python")
+    if ext in (".xlsx", ".xls"):
+        logging.info("Loading Excel data and normalizing unicode text columns...")
+        df = pd.read_excel(file_path)
+        return df.map(lambda x: unicodedata.normalize("NFKD", x) if isinstance(x, str) else x)
+    raise ValueError(f"Unsupported file extension for survey file: {file_path}")
+
+
+def to_order_id_component(value):
+    if pd.isna(value):
+        return "NA"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
 
 
 def get_encoding(filename):
