@@ -13,6 +13,8 @@ from common import EMAIL_RECEIVERS, EMAIL_SERVER
 from dotenv import load_dotenv
 from etl_details import (
     apply_vote_consistency_rules as apply_details_vote_consistency_rules,
+)
+from etl_details import (
     calculate_details,
     detect_physical_urne_warnings,
 )
@@ -53,7 +55,9 @@ def main():
             logging.info(f"Have the data files changed? {data_files_changed}. ")
             logging.info(f"Is it time to make live datasets public? {make_live_public}. ")
             if data_files_changed or make_live_public:
-                df_details, details_changed, df_kennz, kennz_changed, privacy_warnings = calculate_and_upload(active_files)
+                df_details, details_changed, df_kennz, kennz_changed, privacy_warnings = calculate_and_upload(
+                    active_files
+                )
                 common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_TEST)
                 common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_TEST)
                 what_changed = publish_datasets(details_changed, kennz_changed, what_changed=what_changed)

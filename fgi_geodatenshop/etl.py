@@ -344,7 +344,7 @@ async def fetch_redirect_params(
     metrics: RuntimeMetrics,
 ) -> tuple[str, str]:
     """Resolve a mapbs short link and extract tree params."""
-    #normalized_link = source_link.replace("www.geo.bs.ch", "https://geo.bs.ch")
+    # normalized_link = source_link.replace("www.geo.bs.ch", "https://geo.bs.ch")
     normalized_link = source_link
     response = await client.get(normalized_link, follow_redirects=True)
     response.raise_for_status()

@@ -2,8 +2,8 @@ import gc
 import glob
 import logging
 import os
-import sqlite3
 import shutil
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
