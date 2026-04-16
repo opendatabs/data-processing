@@ -245,12 +245,14 @@ def get_parzellen(df):
     df["districtCadastre_relation_plot"] = df["districtCadastre_relation_plot"].apply(correct_parzellennummer)
 
     df["url_parzellen"] = df.apply(
-        lambda row: "https://data.bs.ch/explore/dataset/100201/table/?"
-        + urlencode(
-            {
-                "refine.r1_sektion": row["districtCadastre_relation_section"],
-                "q": "parzellennummer: " + " OR ".join(row["districtCadastre_relation_plot"].split(",")),
-            }
+        lambda row: (
+            "https://data.bs.ch/explore/dataset/100201/table/?"
+            + urlencode(
+                {
+                    "refine.r1_sektion": row["districtCadastre_relation_section"],
+                    "q": "parzellennummer: " + " OR ".join(row["districtCadastre_relation_plot"].split(",")),
+                }
+            )
         ),
         axis=1,
     )

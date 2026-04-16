@@ -11,7 +11,12 @@ import common.change_tracking as ct
 import pandas as pd
 from common import EMAIL_RECEIVERS, EMAIL_SERVER
 from dotenv import load_dotenv
-from etl_details import calculate_details
+from etl_details import (
+    apply_vote_consistency_rules as apply_details_vote_consistency_rules,
+    calculate_details,
+    detect_physical_urne_warnings,
+)
+from etl_kennzahlen import apply_vote_consistency_rules as apply_kennzahlen_vote_consistency_rules
 from etl_kennzahlen import calculate_kennzahlen
 
 load_dotenv()
@@ -36,7 +41,7 @@ def main():
     )
     active_abst = df.query("Active == True").copy(deep=True)
     active_active_size = active_abst.Active.size
-    what_changed = {"updated_ods_datasets": [], "send_update_email": False}
+    what_changed = {"updated_ods_datasets": [], "send_update_email": False, "privacy_warnings": []}
     if active_active_size == 1:
         abst_date = active_abst.Abstimmungs_datum[0]
         logging.info(f"Processing Abstimmung for date {abst_date}...")
@@ -48,10 +53,11 @@ def main():
             logging.info(f"Have the data files changed? {data_files_changed}. ")
             logging.info(f"Is it time to make live datasets public? {make_live_public}. ")
             if data_files_changed or make_live_public:
-                df_details, details_changed, df_kennz, kennz_changed = calculate_and_upload(active_files)
+                df_details, details_changed, df_kennz, kennz_changed, privacy_warnings = calculate_and_upload(active_files)
                 common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_TEST)
                 common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_TEST)
                 what_changed = publish_datasets(details_changed, kennz_changed, what_changed=what_changed)
+                what_changed["privacy_warnings"].extend(privacy_warnings)
                 for file in active_files:
                     ct.update_hash_file(os.path.join("data", file))
 
@@ -59,7 +65,7 @@ def main():
                     what_changed = make_datasets_public(active_files, what_changed)
                     common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_PUBLIC)
                     common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_PUBLIC)
-                if data_files_changed:
+                if data_files_changed or len(what_changed["privacy_warnings"]) > 0:
                     send_update_email(what_changed)
 
     elif active_active_size == 0:
@@ -75,14 +81,21 @@ def push_past_abstimmungen_to_ods():
     files_details = filter_files_by_date(files_details)
     files_kennz = glob.glob(os.path.join(path_data_processing_output, "Abstimmungen_??????????.csv"))
     files_kennz = filter_files_by_date(files_kennz)
+    privacy_warnings = []
     for file in files_details:
         df_details = pd.read_csv(file)
+        has_counterproposal = "Sti_Gegenvorschlag_Anz" in df_details.columns
+        apply_details_vote_consistency_rules(df_details, has_counterproposal=has_counterproposal)
+        privacy_warnings.extend(detect_physical_urne_warnings(df_details))
         common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_TEST)
-        common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_PUBLIC)
+        # common.ods_realtime_push_df(df_details, ODS_PUSH_URL_DETAILS_PUBLIC)
     for file in files_kennz:
         df_kennz = pd.read_csv(file)
+        has_counterproposal = "Sti_Gegenvorschlag_Anz" in df_kennz.columns
+        apply_kennzahlen_vote_consistency_rules(df_kennz, has_counterproposal=has_counterproposal)
         common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_TEST)
-        common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_PUBLIC)
+        # common.ods_realtime_push_df(df_kennz, ODS_PUSH_URL_KENNZ_PUBLIC)
+    send_update_email({"updated_ods_datasets": [], "send_update_email": False, "privacy_warnings": privacy_warnings})
 
 
 def parse_date_from_filename(filename):
@@ -107,6 +120,15 @@ def send_update_email(what_changed):
         text += "Updated ODS Datasets: \n"
         for ods_id in what_changed["updated_ods_datasets"]:
             text += f"- {ods_id}: https://data.bs.ch/explore/dataset/{ods_id} \n"
+    privacy_warnings = what_changed.get("privacy_warnings", [])
+    if len(privacy_warnings) > 0:
+        what_changed["send_update_email"] = True
+        text += "\nPrivacy warning (physical polling place with Gueltig > 0 and Ja=0 or Nein=0): \n"
+        for warning in privacy_warnings:
+            text += (
+                f"- {warning['Abst_Datum']} | {warning['Abst_Titel']} | {warning['Wahllok_name']} "
+                f"(Gueltig={warning['Guelt_Anz']}, Ja={warning['Ja_Anz']}, Nein={warning['Nein_Anz']})\n"
+            )
     logging.info(f"Is it time to send an update email? {what_changed['send_update_email']}")
     if what_changed["send_update_email"]:
         text += "\n\nKind regards, \nYour automated Open Data Basel-Stadt Python Job"
@@ -147,7 +169,7 @@ def publish_datasets(details_changed, kennz_changed, what_changed):
 
 
 def calculate_and_upload(active_files):
-    details_abst_date, df_details = calculate_details(active_files)
+    details_abst_date, df_details, privacy_warnings = calculate_details(active_files, return_warnings=True)
     details_export_file_name = os.path.join(
         "data",
         "data-processing-output",
@@ -158,11 +180,11 @@ def calculate_and_upload(active_files):
     kennz_abst_date, df_kennz = calculate_kennzahlen(active_files)
     kennz_file_name = os.path.join("data", "data-processing-output", f"Abstimmungen_{kennz_abst_date}.csv")
     kennz_changed = upload_ftp_if_changed(df_kennz, kennz_file_name)
-    return df_details, details_changed, df_kennz, kennz_changed
+    return df_details, details_changed, df_kennz, kennz_changed, privacy_warnings
 
 
 def have_data_files_changed(active_files):
-    data_files_changed = False
+    data_files_changed = True
     for file in active_files:
         if ct.has_changed(os.path.join("data", file)):
             data_files_changed = True
@@ -199,8 +221,9 @@ def upload_ftp_if_changed(df, file_name):
 
 def get_latest_data_files():
     data_file_names = []
-    for pattern in ["*_EID_????????*.xlsx", "*_KAN_????????*.xlsx"]:
-        file_list = glob.glob(os.path.join("data", pattern))
+    for vote_type in ["EID", "KAN"]:
+        file_list = glob.glob(os.path.join("data", f"*{vote_type}*.xls*"))
+        file_list = [f for f in file_list if not os.path.basename(f).startswith("~$")]
         if len(file_list) > 0:
             latest_file = max(file_list, key=os.path.getmtime)
             data_file_names.append(os.path.basename(latest_file))

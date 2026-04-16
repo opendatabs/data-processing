@@ -23,7 +23,7 @@ jobs:
 
       - name: Detect changed paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           # Use the base branch for PR comparisons
           base: ${{ github.base_ref }}
@@ -53,6 +53,9 @@ jobs:
             awa_feiertage:
               - 'Dockerfile'
               - 'awa_feiertage/**'
+            awa_bewilligungen:
+              - 'Dockerfile'
+              - 'awa_bewilligungen/**'
             bafu_hydrodaten:
               - 'Dockerfile'
               - 'bafu_hydrodaten/**'
@@ -134,6 +137,9 @@ jobs:
             meteoblue_wolf:
               - 'Dockerfile'
               - 'meteoblue_wolf/**'
+            meteoschweiz_station_basel_binningen:
+              - 'Dockerfile'
+              - 'meteoschweiz_station_basel_binningen/**'
             mkb_sammlung_europa:
               - 'Dockerfile'
               - 'mkb_sammlung_europa/**'
@@ -296,11 +302,11 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -309,7 +315,7 @@ jobs:
       - name: Build and push the base image
         # Only run if base_changed == 'true'
         if: ${{ needs.changes.outputs.base_changed == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           # Build from the repository root
           context: .
@@ -345,18 +351,18 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build & push Docker image for ${{ matrix.project }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./${{ matrix.project }}
           file: ./${{ matrix.project }}/Dockerfile

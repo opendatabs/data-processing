@@ -75,15 +75,31 @@ def parse_truncate(path, filename):
         velo_filename = "Velo_" + filename
         fuss_filename = "Fussgaenger_" + filename
         miv_data.to_csv(os.path.join("data", miv_filename), sep=";", encoding="utf-8", index=False)
-        velo_data.to_csv(os.path.join("data", velo_filename), sep=";", encoding="utf-8", index=False)
-        fuss_data.to_csv(os.path.join("data", fuss_filename), sep=";", encoding="utf-8", index=False)
+        if not velo_data.empty:
+            velo_data.to_csv(os.path.join("data", velo_filename), sep=";", encoding="utf-8", index=False)
+        else:
+            logging.warning(
+                "No Velo rows found in %s; keeping existing published Velo files and skipping Velo export/upload.",
+                filename,
+            )
+        if not fuss_data.empty:
+            fuss_data.to_csv(os.path.join("data", fuss_filename), sep=";", encoding="utf-8", index=False)
+        else:
+            logging.warning(
+                "No Fussgänger rows found in %s; keeping existing published Fuss files and skipping Fuss export/upload.",
+                filename,
+            )
         logging.info("Creating files for dashboard for MIV and Velo data...")
         dashboard_calc.create_files_for_dashboard(miv_data, filename)
-        dashboard_calc.create_files_for_dashboard(velo_data, filename)
-        dashboard_calc.create_files_for_dashboard(fuss_data, filename)
+        if not velo_data.empty:
+            dashboard_calc.create_files_for_dashboard(velo_data, filename)
+        if not fuss_data.empty:
+            dashboard_calc.create_files_for_dashboard(fuss_data, filename)
         generated_filenames = generate_files(miv_data, miv_filename)
-        generated_filenames += generate_files(velo_data, velo_filename)
-        generated_filenames += generate_files(fuss_data, fuss_filename)
+        if not velo_data.empty:
+            generated_filenames += generate_files(velo_data, velo_filename)
+        if not fuss_data.empty:
+            generated_filenames += generate_files(fuss_data, fuss_filename)
         # Add data to databases
         logging.info("Adding data to database MIV")
         conn = sqlite3.connect(os.path.join("data", "datasette", "MIV.db"))
@@ -92,8 +108,10 @@ def parse_truncate(path, filename):
         conn.close()
         logging.info("Adding data to database Velo_Fuss")
         conn = sqlite3.connect(os.path.join("data", "datasette", "Velo_Fuss.db"))
-        velo_data.to_sql("Velo_Fuss", conn, if_exists="append", index=False)
-        fuss_data.to_sql("Velo_Fuss", conn, if_exists="append", index=False)
+        if not velo_data.empty:
+            velo_data.to_sql("Velo_Fuss", conn, if_exists="append", index=False)
+        if not fuss_data.empty:
+            fuss_data.to_sql("Velo_Fuss", conn, if_exists="append", index=False)
         conn.commit()
         conn.close()
     # 'FLIR_KtBS_MIV6.csv', 'FLIR_KtBS_Velo.csv', 'FLIR_KtBS_FG.csv'
@@ -156,6 +174,21 @@ def parse_truncate(path, filename):
 
 
 def generate_files(df, filename):
+    if df is None or df.empty:
+        logging.warning(
+            "No rows for %s; skip generating derived files to avoid overwriting existing published data.",
+            filename,
+        )
+        return []
+
+    years_series = df["Year"] if "Year" in df.columns else None
+    if years_series is None or years_series.dropna().empty:
+        logging.warning(
+            "No valid Year values for %s; skip generating derived files to avoid overwriting existing published data.",
+            filename,
+        )
+        return []
+
     current_filename = os.path.join("data", "converted_" + filename)
     generated_filenames = []
     logging.info(f"Saving {current_filename}...")
@@ -166,7 +199,7 @@ def generate_files(df, filename):
     keep_years = 2
     current_filename = os.path.join("data", "truncated_" + filename)
     logging.info(f"Creating dataset {current_filename}...")
-    latest_year = df["Year"].max()
+    latest_year = int(years_series.dropna().max())
     years = range(latest_year - keep_years, latest_year + 1)
     logging.info(f"Keeping only data for the following years in the truncated file: {list(years)}...")
     truncated_data = df[df.Year.isin(years)]
@@ -175,7 +208,7 @@ def generate_files(df, filename):
     generated_filenames.append(current_filename)
 
     # Create a separate dataset per year
-    all_years = df.Year.unique()
+    all_years = sorted(pd.unique(years_series.dropna()))
     for year in all_years:
         year_data = df[df.Year.eq(year)]
         current_filename = os.path.join("data", str(year) + "_" + filename)
