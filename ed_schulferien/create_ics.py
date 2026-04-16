@@ -34,7 +34,7 @@ ICS_INCLUDE_EVENTS = [
     "1. Mai",
     "Auffahrt",
     "Pfingstmontag",
-    "Jahresversammlung der Kantonalen Schulkonferenz",
+    "Gesamtkonferenz der Kantonalen Schulkonferenz",
 ]
 
 
