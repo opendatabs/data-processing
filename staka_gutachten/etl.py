@@ -101,7 +101,13 @@ def process_excel_file():
         raise FileNotFoundError(f"The file '{excel_filename}' does not exist in the directory '{DATA_ORIG_PATH}'.")
 
     df = pd.read_excel(excel_file_path)
-    df["Dateiname"] = df["Dateiname"].astype(str)
+    df["Dateiname"] = df["Dateiname"].astype(str).str.strip()
+
+    # Treat entries without an extension as PDF filenames.
+    def ensure_pdf_name(name: str) -> str:
+        return name if Path(name).suffix else f"{name}.pdf"
+
+    df["Dateiname"] = df["Dateiname"].apply(ensure_pdf_name)
     df["Dateiname_ftp"] = df["Dateiname"].apply(sanitize_filename)
 
     def ensure_pdf_suffix(orig_name: str, ftp_name: str) -> str:
