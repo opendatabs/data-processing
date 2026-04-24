@@ -1,17 +1,15 @@
-from pathlib import Path
 import json
 import logging
 from html import escape
+from pathlib import Path
 
-from dataspot_auth import DataspotAuth
 import common
-
+from dataspot_auth import DataspotAuth
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 DATENKATALOG_URL = (
-    "https://datenkatalog.bs.ch/api/prod/schemes/"
-    "Datenprodukte/download?format=json&resourceTypes=Dataset"
+    "https://datenkatalog.bs.ch/api/prod/schemes/Datenprodukte/download?format=json&resourceTypes=Dataset"
 )
 COMPOSITIONS_URL_TEMPLATE = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}/compositions"
 
@@ -74,7 +72,7 @@ def build_child_from_dataset(dataset):
         "label": dataset.get("label"),
         "id": dataset.get("id"),
         "productLayername": dataset.get("productLayername"),
-        "inCollection": dataset.get("inCollection")
+        "inCollection": dataset.get("inCollection"),
     }
 
 
@@ -87,7 +85,7 @@ def build_child_from_composition(composition, dataset_lookup):
         "label": child_dataset.get("label") or composition.get("label"),
         "id": child_id,
         "productLayername": child_dataset.get("productLayername"),
-        "inCollection": child_dataset.get("inCollection")
+        "inCollection": child_dataset.get("inCollection"),
     }
 
 
@@ -123,11 +121,7 @@ def build_hierarchy(datasets):
                     child_ids.add(str(child["id"]).strip())
                     children.append(child)
 
-            paket_geo.append({
-                "type": "paket_geo",
-                "title": dataset.get("label"),
-                "children": children
-            })
+            paket_geo.append({"type": "paket_geo", "title": dataset.get("label"), "children": children})
         else:
             single_geo_candidates.append(dataset)
 
@@ -140,13 +134,9 @@ def build_hierarchy(datasets):
         if dataset_id in child_ids:
             continue
 
-        single_geo.append({
-            "type": "single_geo",
-            "title": dataset.get("label"),
-            "children": [
-                build_child_from_dataset(dataset)
-            ]
-        })
+        single_geo.append(
+            {"type": "single_geo", "title": dataset.get("label"), "children": [build_child_from_dataset(dataset)]}
+        )
 
     hierarchy = paket_geo + single_geo
     hierarchy.sort(key=lambda x: str(x.get("title", "")).lower())
@@ -191,7 +181,7 @@ def html_table_from_children(children):
           </tr>
         </thead>
         <tbody>
-          {''.join(rows)}
+          {"".join(rows)}
         </tbody>
       </table>
     </div>
@@ -582,7 +572,7 @@ def build_html(hierarchy):
   <main class="content">
     <div class="container">
       <h2 class="section-heading">Übersicht</h2>
-      {''.join(sections)}
+      {"".join(sections)}
     </div>
   </main>
 

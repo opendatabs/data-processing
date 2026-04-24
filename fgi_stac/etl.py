@@ -1,15 +1,14 @@
-from pathlib import Path
 import json
 import logging
 import urllib.parse
 import zipfile
+from pathlib import Path
 
-import pandas as pd
 import common
-import httpx
 import geopandas as gpd
+import httpx
+import pandas as pd
 from dataspot_auth import DataspotAuth
-
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -71,6 +70,7 @@ def convert_timestamp(value):
         return value
     return value
 
+
 def fetch_dataset_details(dataset_id):
     url = DATASET_DETAILS_URL.format(id=dataset_id)
     headers = auth.get_headers()
@@ -99,6 +99,7 @@ def build_geo_lookup(geo_data):
         }
 
     return geo_lookup
+
 
 def build_metadata_rows(collections_df, geo_data, pub_df):
     rows = []
@@ -171,7 +172,6 @@ def build_metadata_rows(collections_df, geo_data, pub_df):
             "publizierende-organisation": pub_row.get("publizierende Organisation"),
             "tags": pub_row.get("tags"),
             "schema_file": pub_row.get("schema_file"),
-
             # Technische Referenzen
             "collection_id": collection_row.get("id"),
             "paket": paket_name,
@@ -240,12 +240,14 @@ def build_download_rows(collections_df, geo_data, pub_df):
             )
             continue
 
-        rows.append({
-            "collection_id": collection_row.get("id"),
-            "productLayername": child_record.get("productLayername"),
-            "MapBS_link": collection_row.get("MapBS_link"),
-            "create_map_links": pub_row.get("create_map_links"),
-        })
+        rows.append(
+            {
+                "collection_id": collection_row.get("id"),
+                "productLayername": child_record.get("productLayername"),
+                "MapBS_link": collection_row.get("MapBS_link"),
+                "create_map_links": pub_row.get("create_map_links"),
+            }
+        )
 
     return pd.DataFrame(rows)
 
