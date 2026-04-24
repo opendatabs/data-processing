@@ -1,14 +1,12 @@
-from bs4 import BeautifulSoup
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 import requests
-
+from bs4 import BeautifulSoup
 
 STAC_BASE_URL = "https://api.geo.bs.ch/stac/v1"
 OUTPUT_DIR = Path("data")
-
 
 
 def fetch_json(url: str, timeout: int = 60) -> dict[str, Any]:
@@ -110,10 +108,10 @@ def extract_temporal_interval(intervals):
 
     try:
         dt = pd.to_datetime(start)
-        return dt.strftime("%Y-%m-%d")   # oder "%d.%m.%Y"
+        return dt.strftime("%Y-%m-%d")  # oder "%d.%m.%Y"
     except Exception:
         return start
-    
+
 
 def collection_to_row(collection: dict[str, Any]) -> dict[str, Any]:
     links = extract_links(collection.get("links", []))
@@ -137,7 +135,7 @@ def collection_to_row(collection: dict[str, Any]) -> dict[str, Any]:
         "MapBS_link": links.get("related"),
         "Metadata": metadata_link,
         "producer_organization": producer,
-        "publishing_organization": publisher,   
+        "publishing_organization": publisher,
         "datasets": datasets,
     }
 
