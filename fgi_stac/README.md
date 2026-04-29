@@ -1,101 +1,78 @@
 # fgi_stac
 
-Dieses Projekt verarbeitet STAC-Collections und Dataspot-Datensätze, erstellt lokale Artefakte und publiziert nach Huwise inklusive FTP-Upload der GeoJSON-Dateien.
+YAML-first Pipeline zum Aktualisieren des Katalogs (STAC, Dataspot, Geometa) und zum Publizieren nach HUWISE inkl. FTP-Upload der GeoJSON-Dateien.
 
-## Zweck
+## Wo die Daten liegen (Exchange)
 
-- Metadaten und STAC-Zuordnungen für Huwise pflegen.
-- GeoJSON-Ressourcen aufbereiten und publizieren.
-- Schema-Definitionen pro Datensatz verwalten.
+Die **fachlichen Quelldaten** (GeoJSON-Dateien, die veröffentlicht werden) werden **nicht** „irgendwo im Git“ bearbeitet, sondern im Austauschordner:
 
-## Dateien und Verantwortlichkeiten
+**`Exchange-Ordner/StatA/FGI/STAC`**
 
-- `extract_collections.py`: lädt STAC-Collections und schreibt Rohdaten nach `data_orig`.
-- `extract_metadata.py`: lädt Dataspot-Metadaten und schreibt Rohdaten nach `data_orig`.
-- `etl.py`: erzeugt aus Rohdaten lokale Artefakte (z. B. GeoJSON, `Metadata.csv`).
-- `migrate_publish_catalog.py`: baut `publish_catalog.json` und `stac_index.json` (mit Fallback auf bestehenden Katalog).
-- `publish_dataset.py`: publiziert Ressourcen, Metadaten und Feldkonfigurationen nach Huwise.
-- `data/catalog_editor.py`: Streamlit-Editor für `publish_catalog.json` und Schema-Dateien.
-- `paths.py`: zentrale Pfaddefinitionen und Trennung Input/Output.
+Dort die Dateien pflegen, die später unter `https://data-bs.ch/stata/fgi/stac/…` bereitstehen. Im Repository liegen die GeoJSON-Abzüge unter `data/datasets/` für die Pipeline (Schema-Abgleich, lokale Läufe, CI); Änderungen für den Betrieb sollten konsistent mit dem Exchange-Stand erfolgen (z. B. nach Bearbeitung im Exchange ins Repo kopieren oder umgekehrt, je nach internem Ablauf).
 
-## Datenablage
+---
 
-- `data_orig`: externe Rohdaten (Input).
-- `data`: lokal erzeugte Artefakte (Output).
-- `pub_datasets.xlsx` ist optionaler Legacy-Input und wird nur verwendet, wenn vorhanden.
+## Neue Datensätze hinzufügen
 
-## Lokale Nutzung
+### Ablauf (kurz)
 
-Abhängigkeiten installieren:
+1. **Voraussetzung:** Der Datensatz existiert in **Dataspot** und erscheint in der **STAC-Collection** auf `api.geo.bs.ch` (inkl. Eintrag in der Geometa-HTML-Vorschau der Collection).
+2. **Katalog erzeugen/aktualisieren:** `uv run etl.py` (oder bei Bedarf nur Metadaten-Refresh mit `--refresh-only`). Das Skript liest STAC/Dataspot und schreibt `data/publish_catalog.yaml`.
+3. **HUWISE anbinden:** Für jeden Datensatz, der publiziert werden soll, im YAML unter dem jeweiligen `geo_datasets`-Eintrag **`huwise_id`** setzen (ODS-ID). Ohne `huwise_id` wird der Datensatz beim Publish übersprungen.
+4. **Publish:** `uv run etl.py` (ohne `--refresh-only`) oder direkt `uv run python publish_dataset.py`.
 
-```bash
-uv sync
-```
+---
 
-Pflicht-Umgebungsvariablen:
+## Schema anpassen
 
-- `HUWISE_API_KEY`
-- `FTP_USER_01`
-- `FTP_PASS_01`
+Schemas für HUWISE-Pflichtdatensätze liegen unter `data/schema_files/*.yaml`. Pro Feld sind u. a. vorgesehen:
 
-Optional:
+- `technical_name`, `name`, `description`, `mehrwertigkeit`, `datentyp`
+- `custom` mit `technical_name`, `name`, `description`
+- `export` (Standard `true`, für `gdh_fid` typischerweise `false`)
 
-- `HUWISE_DOMAIN` (Default: `data.bs.ch`)
-- `HUWISE_API_TYPE` (Default: `automation/v1.0`)
+Beim Lauf von **`etl.py`** werden Schema-Dateien für Einträge **mit** `huwise_id` neu aus Dataspot + lokalem GeoJSON zusammengeführt und die YAML-Datei überschrieben. Eigene Anpassungen bleiben erhalten, soweit sie im bestehenden Katalog/Schema schon als „old“-Stand eingebunden sind (Zusammenführung mit Dataspot).
 
-## Wichtige Befehle
+**Felder nur unter custom ändern.**
 
-Kompletter lokaler Lauf:
+---
+
+## Befehle
+
+Katalog aktualisieren **und** Publish ausführen:
 
 ```bash
-uv run extract_collections.py
-uv run extract_metadata.py
 uv run etl.py
-uv run migrate_publish_catalog.py
-uv run publish_dataset.py --dry-run
-uv run publish_dataset.py
 ```
 
-Nur Publish testen (ohne Schreibzugriffe):
+Nur Katalog neu aus STAC/Dataspot schreiben (kein HUWISE/FTP):
 
 ```bash
-uv run publish_dataset.py --dry-run
+uv run python etl.py --refresh-only
 ```
 
-## Metadaten pflegen (Streamlit)
-
-Editor starten:
+Publish trocken testen:
 
 ```bash
-uv run streamlit run data/catalog_editor.py
+uv run python etl.py --dry-run
 ```
 
-Wichtig:
-
-- Streamlit schreibt in `publish_catalog.json` und die Schema-Dateien.
-- Beim Publish werden lokale Werte mit `override_remote_value=true` gesetzt (lokale Werte sind führend).
-
-## Beispiel: Neuen Datensatz über STAC aufnehmen
-
-1. Streamlit öffnen: `uv run streamlit run data/catalog_editor.py`
-2. STAC-Collection auswählen.
-3. Geodatensatz auswählen.
-4. Auf **„Neuen STAC-Datensatz hinzufügen“** klicken.
-5. Huwise-ID (im JSON-Feld `ods_id`), Titel, Beschreibung, Keywords und optionale Custom-Felder ergänzen.
-6. Speichern.
-7. Validieren: `uv run publish_dataset.py --dry-run`
-8. Publizieren: `uv run publish_dataset.py`
-
-## Docker
-
-Container lokal bauen:
-
-```bash
-docker build -t fgi-stac:latest .
-```
-
-Standard-Startkommando im Container:
+Direkt nur Publish (Katalog muss bereits passen):
 
 ```bash
 uv run python publish_dataset.py
 ```
+
+Metadaten in HUWISE für alle konfigurierten Felder erzwingend überschreiben (nur bei Bedarf):
+
+```bash
+uv run python publish_dataset.py --force-metadata-sync
+```
+
+---
+
+## HUWISE-Metadaten und `publish_metadata_last_push.yaml`
+
+`publish_dataset.py` setzt Metadatenfelder nur, wenn HUWISE leer ist, der Wert schon dem gewünschten Stand entspricht (Katalog + Dataspot), oder der aktuelle HUWISE-Wert noch dem zuletzt von diesem Skript erfolgreich geschriebenen Wert entspricht (Snapshot in `data/publish_metadata_last_push.yaml`). So können Katalog-/Dataspot-Änderungen nachgezogen werden, ohne manuelle Portal-Anpassungen zu überschreiben, sobald sich HUWISE vom letzten Push unterscheidet.
+
+Nach jedem Lauf ohne `--dry-run` wird die Snapshot-Datei aktualisiert; sie sollte ins Repository committet werden, damit CI und lokale Läufe dasselbe Verhalten zeigen.

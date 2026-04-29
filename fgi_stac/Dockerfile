@@ -5,4 +5,4 @@ RUN uv sync --frozen
 
 COPY . /code/
 
-CMD ["uv", "run", "python", "publish_dataset.py"]
+CMD ["uv", "run", "python", "etl.py"]

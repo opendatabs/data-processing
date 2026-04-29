@@ -31,6 +31,8 @@ __pycache__/
 **/*.sas7bdat
 **/*.sfv
 **/*.sqlite
+**/*.yaml
+**/*.yml
 **/*.xls
 **/*.xlsm
 **/*.xlsx
