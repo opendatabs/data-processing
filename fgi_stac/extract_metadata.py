@@ -1,10 +1,12 @@
-from pathlib import Path
+"""Extract raw Dataspot metadata into source files."""
+
 import json
 import logging
 from html import escape
 
 from dataspot_auth import DataspotAuth
 import common
+from paths import DATA_ORIG_DIR
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -15,7 +17,7 @@ DATENKATALOG_URL = (
 )
 COMPOSITIONS_URL_TEMPLATE = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}/compositions"
 
-OUTPUT_DIR = Path("data")
+OUTPUT_DIR = DATA_ORIG_DIR
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 JSON_OUTPUT_FILE = OUTPUT_DIR / "geo_datasets.json"
@@ -24,7 +26,7 @@ HTML_OUTPUT_FILE = OUTPUT_DIR / "geo_datsets.html"
 auth = DataspotAuth()
 
 
-def fetch_datasets():
+def fetch_datasets() -> list[dict]:
     headers = auth.get_headers()
     response = common.requests_get(url=DATENKATALOG_URL, headers=headers)
     response.raise_for_status()
@@ -36,7 +38,7 @@ def fetch_datasets():
     return data
 
 
-def fetch_compositions(dataset_id):
+def fetch_compositions(dataset_id: str) -> list[dict]:
     headers = auth.get_headers()
     url = COMPOSITIONS_URL_TEMPLATE.format(dataset_id=dataset_id)
     response = common.requests_get(url=url, headers=headers)
@@ -45,17 +47,17 @@ def fetch_compositions(dataset_id):
     return data.get("_embedded", {}).get("compositions", [])
 
 
-def is_geo_dataset(dataset):
+def is_geo_dataset(dataset: dict) -> bool:
     stereotype = str(dataset.get("stereotype", "")).strip().upper()
     return "GEO" in stereotype
 
 
-def is_geopaket(dataset):
+def is_geopaket(dataset: dict) -> bool:
     stereotype = str(dataset.get("stereotype", "")).strip().upper()
     return "PAKET" in stereotype
 
 
-def is_dataset_composition(composition):
+def is_dataset_composition(composition: dict) -> bool:
     href = composition.get("_links", {}).get("composedOf", {}).get("href", "")
     return "/rest/prod/datasets/" in href
 

@@ -1,13 +1,17 @@
-from bs4 import BeautifulSoup
-from pathlib import Path
+"""Extract STAC collection metadata into raw input files."""
+
 from typing import Any
 
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
+
+from paths import DATA_ORIG_DIR
 
 
 STAC_BASE_URL = "https://api.geo.bs.ch/stac/v1"
-OUTPUT_DIR = Path("data")
+OUTPUT_DIR = DATA_ORIG_DIR
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 
@@ -17,7 +21,7 @@ def fetch_json(url: str, timeout: int = 60) -> dict[str, Any]:
     return response.json()
 
 
-def safe_get(data: dict[str, Any], *keys: str, default=None):
+def safe_get(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
     current = data
     for key in keys:
         if not isinstance(current, dict):
@@ -42,7 +46,7 @@ def extract_links(links: list[dict[str, Any]] | None) -> dict[str, str]:
     return result
 
 
-def extract_orgs(providers):
+def extract_orgs(providers: list[dict[str, Any]]) -> tuple[str, str]:
     producer = []
     publisher = []
 
@@ -60,7 +64,7 @@ def extract_orgs(providers):
     return "; ".join(producer), "; ".join(publisher)
 
 
-def extract_datasets_from_metadata(metadata_url):
+def extract_datasets_from_metadata(metadata_url: str | None) -> str | None:
     if not metadata_url:
         return None
 

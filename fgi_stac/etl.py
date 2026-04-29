@@ -8,6 +8,7 @@ import pandas as pd
 import common
 import httpx
 import geopandas as gpd
+from paths import DATASETS_DIR, ensure_output_dirs, resolve_input_file
 from dataspot_auth import DataspotAuth
 
 
@@ -16,12 +17,13 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 STAC_BASE_URL = "https://api.geo.bs.ch/stac/v1"
 DATASET_DETAILS_URL = "https://bs.dataspot.io/rest/prod/datasets/{id}"
 
-COLLECTIONS_FILE = Path("data/bs_stac_collections.xlsx")
-GEO_DATASETS_FILE = Path("data/geo_datasets.json")
-PUB_DATASETS_FILE = Path("data/pub_datasets.xlsx")
+COLLECTIONS_FILE = resolve_input_file("bs_stac_collections.xlsx")
+GEO_DATASETS_FILE = resolve_input_file("geo_datasets.json")
+PUB_DATASETS_FILE = resolve_input_file("pub_datasets.xlsx")
+PUBLISH_CATALOG_FILE = Path("data/publish_catalog.json")
 
 OUTPUT_METADATA_FILE = Path("data/Metadata.csv")
-OUTPUT_DATASETS_DIR = Path("data/datasets")
+OUTPUT_DATASETS_DIR = DATASETS_DIR
 OUTPUT_DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
 auth = DataspotAuth()
@@ -53,6 +55,40 @@ def load_excel_file(file_path):
     return df
 
 
+def _load_pub_datasets_frame() -> pd.DataFrame:
+    """Load publish dataset mapping from xlsx, fallback to publish_catalog."""
+    if PUB_DATASETS_FILE.exists():
+        return load_excel_file(PUB_DATASETS_FILE)
+    if not PUBLISH_CATALOG_FILE.exists():
+        raise FileNotFoundError(
+            f"Weder {PUB_DATASETS_FILE} noch {PUBLISH_CATALOG_FILE} gefunden. "
+            "Mindestens eine Quelle für Datensatzzuordnungen ist erforderlich."
+        )
+    payload = json.loads(PUBLISH_CATALOG_FILE.read_text(encoding="utf-8"))
+    rows: list[dict[str, Any]] = []
+    for dataset in payload.get("datasets", []):
+        if not isinstance(dataset, dict):
+            continue
+        rows.append(
+            {
+                "ods_id": dataset.get("ods_id", ""),
+                "id": dataset.get("dataspot_dataset_id", ""),
+                "geo_dataset": dataset.get("geo_dataset", ""),
+                "Paket": dataset.get("paket", ""),
+                "titel_nice": dataset.get("title", ""),
+                "description": dataset.get("description", ""),
+                "theme": "; ".join(dataset.get("themes", []) if isinstance(dataset.get("themes"), list) else []),
+                "keyword": "; ".join(dataset.get("keywords", []) if isinstance(dataset.get("keywords"), list) else []),
+                "herausgeber": dataset.get("publisher", ""),
+                "publizierende Organisation": dataset.get("publizierende_organisation", ""),
+                "tags": "; ".join(dataset.get("tags", []) if isinstance(dataset.get("tags"), list) else []),
+                "schema_file": "",
+                "create_map_links": False,
+            }
+        )
+    return pd.DataFrame(rows).fillna("")
+
+
 def convert_timestamp(value):
 
     if value is None or value == "":
@@ -70,6 +106,7 @@ def convert_timestamp(value):
     except Exception:
         return value
     return value
+
 
 def fetch_dataset_details(dataset_id):
     url = DATASET_DETAILS_URL.format(id=dataset_id)
@@ -99,6 +136,7 @@ def build_geo_lookup(geo_data):
         }
 
     return geo_lookup
+
 
 def build_metadata_rows(collections_df, geo_data, pub_df):
     rows = []
@@ -393,14 +431,15 @@ def download_datasets(download_df):
 
 
 def main():
+    ensure_output_dirs()
     logging.info("BS_stac_Collection.xlsx laden ...")
     collections_df = load_excel_file(COLLECTIONS_FILE)
 
     logging.info("geo_datasets.json laden ...")
     geo_data = load_geo_datasets()
 
-    logging.info("pub_datasets.xlsx laden ...")
-    pub_df = load_excel_file(PUB_DATASETS_FILE)
+    logging.info("Datensatzzuordnungen laden ...")
+    pub_df = _load_pub_datasets_frame()
 
     logging.info("Metadaten-Zeilen bauen ...")
     metadata_rows = build_metadata_rows(collections_df, geo_data, pub_df)
