@@ -20,6 +20,7 @@ Dort die Dateien pflegen, die später unter `https://data-bs.ch/stata/fgi/stac/�
 2. **Katalog erzeugen/aktualisieren:** `uv run etl.py` (oder bei Bedarf nur Metadaten-Refresh mit `--refresh-only`). Das Skript liest STAC/Dataspot und schreibt `data/publish_catalog.yaml`.
 3. **HUWISE anbinden:** Für jeden Datensatz, der publiziert werden soll, im YAML unter dem jeweiligen `geo_datasets`-Eintrag **`huwise_id`** setzen (ODS-ID). Ohne `huwise_id` wird der Datensatz beim Publish übersprungen.
 4. **Publish:** `uv run etl.py` (ohne `--refresh-only`) oder direkt `uv run python publish_dataset.py`.
+5. **Metadata:** Change and add the Metadata as you need on Huwise.
 
 ---
 
@@ -48,25 +49,25 @@ uv run etl.py
 Nur Katalog neu aus STAC/Dataspot schreiben (kein HUWISE/FTP):
 
 ```bash
-uv run python etl.py --refresh-only
+uv run etl.py --refresh-only
 ```
 
 Publish trocken testen:
 
 ```bash
-uv run python etl.py --dry-run
+uv run etl.py --dry-run
 ```
 
 Direkt nur Publish (Katalog muss bereits passen):
 
 ```bash
-uv run python publish_dataset.py
+uv run publish_dataset.py
 ```
 
 Metadaten in HUWISE für alle konfigurierten Felder erzwingend überschreiben (nur bei Bedarf):
 
 ```bash
-uv run python publish_dataset.py --force-metadata-sync
+uv run publish_dataset.py --force-metadata-sync
 ```
 
 ---

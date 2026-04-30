@@ -5,19 +5,25 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import logging
 import subprocess
 import sys
 import re
 import time
+import urllib.parse
+import zipfile
 from pathlib import Path
 from typing import Any
 
+import geopandas as gpd
+import httpx
 import requests
 import yaml
 
 from dataspot_auth import DataspotAuth
 
-STAC_COLLECTIONS_URL = "https://api.geo.bs.ch/stac/v1/collections"
+STAC_V1_BASE_URL = "https://api.geo.bs.ch/stac/v1"
+STAC_COLLECTIONS_URL = f"{STAC_V1_BASE_URL}/collections"
 GEOMETA_HTML_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/preview/html/{collection_id}"
 DATASPOT_COMPOSITIONS_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}/compositions"
 DATASPOT_DATASET_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}"
@@ -454,13 +460,251 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
         custom.setdefault("description", "")
         geometry_row["custom"] = custom
         merged.append(geometry_row)
+    for row in merged:
+        if isinstance(row, dict) and _clean(row.get("technical_name")).lower() == "map_links":
+            row["export"] = False
     return merged
+
+
+def _apply_map_links_schema_field(
+    fields: list[dict[str, Any]], mapbs_url: str
+) -> list[dict[str, Any]]:
+    """Ensure a ``map_links`` field for HuWISE schemas: MapBS context in *description*, ``export`` false."""
+    mbs = _clean(mapbs_url)
+    desc = (
+        f"Vorgefüllter Lagekarte-Link (MapBS-Portal: {mbs})"
+        if mbs
+        else "Vorgefüllter Lagekarte-Link (MapBS)"
+    )
+    updated: list[dict[str, Any]] = []
+    has_map_links = False
+    for row in fields:
+        if not isinstance(row, dict):
+            updated.append(row)
+            continue
+        r = dict(row)
+        if _clean(r.get("technical_name")).lower() == "map_links":
+            has_map_links = True
+            r["export"] = False
+            d = _clean(r.get("description"))
+            if mbs and mbs not in d:
+                r["description"] = f"{d} — {desc}" if d else desc
+            elif not mbs and not d:
+                r["description"] = desc
+            custom = r.get("custom")
+            if not isinstance(custom, dict):
+                custom = {}
+            custom = dict(custom)
+            custom.setdefault("technical_name", "map_links")
+            custom.setdefault("name", "")
+            custom.setdefault("description", "")
+            r["custom"] = custom
+        updated.append(r)
+    if has_map_links:
+        return updated
+    inject: dict[str, Any] = {
+        "technical_name": "map_links",
+        "name": "map_links",
+        "description": desc,
+        "mehrwertigkeit": "",
+        "datentyp": "text",
+        "custom": {
+            "technical_name": "map_links",
+            "name": "",
+            "description": "",
+        },
+        "export": False,
+    }
+    idx = next(
+        (
+            i
+            for i, r in enumerate(updated)
+            if isinstance(r, dict) and _clean(r.get("technical_name")).lower() == "geometry"
+        ),
+        len(updated),
+    )
+    updated.insert(idx, inject)
+    return updated
 
 
 def ensure_output_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     DATASETS_DIR.mkdir(parents=True, exist_ok=True)
     SCHEMA_FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _create_map_links(geometry: Any, p1: str, p2: str) -> str | None:
+    """Build opendatabs map-links URL from a feature geometry and MapBS layer parameters."""
+    p1q = urllib.parse.quote(p1)
+    p2q = urllib.parse.quote(p2)
+    if geometry is None:
+        return None
+    if geometry.geom_type == "Polygon":
+        centroid = geometry.centroid
+    else:
+        centroid = geometry
+    lat, lon = centroid.y, centroid.x
+    return f"https://opendatabs.github.io/map-links/?lat={lat}&lon={lon}&p1={p1q}&p2={p2q}"
+
+
+def _extract_map_params_from_mapbs_link(link: str) -> tuple[str | None, str | None]:
+    """Follow MapBS URL redirects and read ``tree_groups`` / ``tree_group_layers_*`` query params."""
+    if not _clean(link):
+        return None, None
+    try:
+        with httpx.Client(follow_redirects=True, timeout=60.0) as client:
+            response = client.get(link)
+        redirect_link = str(response.url)
+        parsed = urllib.parse.urlparse(redirect_link)
+        query_params = urllib.parse.parse_qs(parsed.query)
+        p1 = query_params.get("tree_groups", [None])[0]
+        p2 = None
+        for key, values in query_params.items():
+            if key.startswith("tree_group_layers_"):
+                p2 = values[0] if values else None
+                break
+        return p1, p2
+    except Exception as exc:
+        logging.warning("Could not extract MapBS redirect parameters: %s", exc)
+        return None, None
+
+
+def _add_map_links_to_dataset(dataset_file: Path, mapbs_link: str) -> bool:
+    """Add a ``map_links`` attribute to each feature using MapBS layer tree parameters (GeoJSON in place)."""
+    p1, p2 = _extract_map_params_from_mapbs_link(mapbs_link)
+    if not p1 or not p2:
+        logging.warning("Map link parameters missing for %s", dataset_file)
+        return False
+    try:
+        gdf = gpd.read_file(dataset_file)
+        gdf_transformed = gdf.copy()
+        gdf_transformed = gdf_transformed.to_crs("EPSG:4326")
+        if "geometry" not in gdf_transformed.columns:
+            logging.warning("No geometry column in %s", dataset_file)
+            return False
+        gdf_transformed["map_links"] = gdf_transformed["geometry"].apply(
+            lambda geom: _create_map_links(geom, p1, p2) if geom is not None else None
+        )
+        gdf["map_links"] = gdf_transformed["map_links"]
+        gdf.to_file(dataset_file, driver="GeoJSON")
+        logging.info("map_links added: %s", dataset_file)
+        return True
+    except Exception as exc:
+        logging.error("map_links update failed for %s: %s", dataset_file, exc)
+        return False
+
+
+def _coerce_create_map_links_flag(old: dict[str, Any], mapbs_url: str) -> bool:
+    """Whether to run MapBS enrichment: explicit ``create_map_links`` in catalog, else when ``mapbs_url`` is set."""
+    if "create_map_links" in old:
+        raw = old.get("create_map_links")
+        if isinstance(raw, bool):
+            return raw
+        s = _clean(raw).lower()
+        if s in ("false", "0", "no", "off"):
+            return False
+        if s in ("true", "1", "yes", "on"):
+            return True
+    return bool(_clean(mapbs_url))
+
+
+def _safe_layer_filename_stem(geo_dataset: str) -> str:
+    """Build a STAC/FGI-style file stem part from a layer title (no path separators)."""
+    text = _clean(geo_dataset)
+    replacements = {
+        "ä": "ae",
+        "ö": "oe",
+        "ü": "ue",
+        "Ä": "Ae",
+        "Ö": "Oe",
+        "Ü": "Ue",
+        "ß": "ss",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    text = re.sub(r"[^A-Za-z0-9_]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_")
+    return text or "layer"
+
+
+def _expected_stac_download_path(collection_id: str, geo_dataset: str) -> Path:
+    """Path used by :func:`_download_stac_layer_geojson` for a collection layer."""
+    return DATASETS_DIR / f"{_clean(collection_id)}_{_safe_layer_filename_stem(geo_dataset)}.geojson"
+
+
+def _find_zip_entry_for_geo_layer(zip_names: list[str], geo_dataset: str) -> str | None:
+    """Match a GeoJSON member inside the STAC ``latest/geojson`` ZIP to a Geometa layer label."""
+    if not zip_names or not _clean(geo_dataset):
+        return None
+    wanted = str(geo_dataset).strip()
+    wlow = wanted.lower()
+    for name in zip_names:
+        if name.endswith("/"):
+            continue
+        file_name = Path(name).name
+        stem = Path(file_name).stem
+        if file_name.lower() == wlow or stem.lower() == wlow:
+            return name
+    for name in zip_names:
+        if name.endswith("/"):
+            continue
+        stem = Path(name).stem
+        s_norm = _normalize_name(stem)
+        for key in _normalize_geo_dataset_match_keys(geo_dataset):
+            if not key:
+                continue
+            if s_norm == key or s_norm.endswith(key):
+                return name
+    geojsons = [n for n in zip_names if n.lower().endswith(".geojson") and not n.endswith("/")]
+    if len(geojsons) == 1:
+        return geojsons[0]
+    return None
+
+
+def _download_stac_layer_geojson(collection_id: str, geo_dataset: str, out_dir: Path) -> Path | None:
+    """Download STAC collection GeoJSON archive and extract the layer matching ``geo_dataset``.
+
+    Source: ``/stac/v1/download/{collection_id}/latest/geojson`` (ZIP). The temporary ZIP is
+    removed after a successful extract; local ``*.geojson`` files are only ever written or
+    overwritten, never deleted via :func:`Path.unlink`.
+    """
+    cid = _clean(collection_id)
+    if not cid or not _clean(geo_dataset):
+        return None
+    out_dir.mkdir(parents=True, exist_ok=True)
+    output_file = out_dir / f"{cid}_{_safe_layer_filename_stem(geo_dataset)}.geojson"
+    url = f"{STAC_V1_BASE_URL}/download/{cid}/latest/geojson"
+    zip_path = out_dir / f"_{cid}_stac_latest_geojson.zip"
+    try:
+        response = requests.get(url, timeout=180)
+        response.raise_for_status()
+        zip_path.write_bytes(response.content)
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            names = [n for n in zf.namelist() if n and not n.endswith("/")]
+            if not names:
+                raise ValueError("STAC GeoJSON ZIP has no file entries")
+            matched = _find_zip_entry_for_geo_layer(names, geo_dataset)
+            if not matched:
+                raise ValueError(
+                    f"No GeoJSON entry matches layer {geo_dataset!r}; archive contains: {names!r}"
+                )
+            with zf.open(matched) as source:
+                output_file.write_bytes(source.read())
+        # Remove only the downloaded ZIP, never local .geojson outputs
+        try:
+            zip_path.unlink()
+        except OSError:
+            pass
+        logging.info("STAC GeoJSON saved: %s", output_file)
+        return output_file
+    except Exception as exc:
+        logging.warning("STAC GeoJSON download failed for %s / %r: %s", cid, geo_dataset, exc)
+        try:
+            if zip_path.exists():
+                zip_path.unlink()
+        except OSError:
+            pass
+        return None
 
 
 def _load_schema_from_file(schema_file: str) -> list[dict[str, Any]]:
@@ -614,7 +858,7 @@ def _legacy_huwise_map() -> dict[str, str]:
     return mapping
 
 
-def rebuild_catalog() -> dict[str, Any]:
+def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool = False) -> dict[str, Any]:
     ensure_output_dirs()
     existing_payload = _load_existing_catalog()
     existing = existing_payload.get("datasets", [])
@@ -643,6 +887,7 @@ def rebuild_catalog() -> dict[str, Any]:
         if not collection_id:
             continue
         links = _extract_links(collection)
+        mapbs_url = _clean(links.get("related", ""))
         collection_keywords = _extract_string_list(collection.get("keywords"))
         producer_organization, _ = _extract_orgs(collection.get("providers"))
         instances = _discover_instances_for_collection(collection_id, collection_title)
@@ -653,10 +898,28 @@ def rebuild_catalog() -> dict[str, Any]:
             if not dataspot_uuid:
                 continue
             old = by_uuid.get(dataspot_uuid, {})
+            huwise_id = _clean(old.get("huwise_id")) or _clean(legacy_huwise.get(dataspot_uuid))
+            create_map_links_flag = bool(huwise_id) and _coerce_create_map_links_flag(old, mapbs_url)
+            if huwise_id and not skip_geojson_download:
+                _download_stac_layer_geojson(collection_id, geo_dataset, DATASETS_DIR)
+            if (
+                huwise_id
+                and not skip_map_links
+                and create_map_links_flag
+                and mapbs_url
+            ):
+                layer_path = _expected_stac_download_path(collection_id, geo_dataset)
+                if not layer_path.is_file():
+                    alt = _resolve_geojson_file_for_dataset(geo_dataset)
+                    if alt is not None:
+                        layer_path = alt
+                if layer_path.is_file():
+                    _add_map_links_to_dataset(layer_path, mapbs_url)
             row: dict[str, Any] = {
                 "dataspot_dataset_id": dataspot_uuid,
                 "dataspot_asset_url": f"https://bs.dataspot.io/web/prod/assets/{dataspot_uuid}",
                 "geo_dataset": geo_dataset,
+                "create_map_links": create_map_links_flag,
                 "metadata": _metadata_block(
                     old,
                     auth=auth,
@@ -666,16 +929,16 @@ def rebuild_catalog() -> dict[str, Any]:
                     collection_keywords=collection_keywords,
                     stac_url=GEOMETA_HTML_URL.format(collection_id=collection_id),
                     stac_browser_url=f"https://radiantearth.github.io/stac-browser/#/external/api.geo.bs.ch/stac/v1/collections/{collection_id}",
-                    mapbs_url=links.get("related", ""),
+                    mapbs_url=mapbs_url,
                 ),
             }
-            huwise_id = _clean(old.get("huwise_id")) or _clean(legacy_huwise.get(dataspot_uuid))
             if huwise_id:
                 row["huwise_id"] = huwise_id
                 fields = _dataspot_schema(auth, dataspot_uuid, old.get("schema"))
                 geojson_file = _resolve_geojson_file_for_dataset(geo_dataset)
                 geojson_properties = _read_geojson_properties(geojson_file) if geojson_file else []
                 fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
+                fields = _apply_map_links_schema_field(fields, mapbs_url)
                 if geojson_file:
                     schema_basename = geojson_file.stem
                 else:
@@ -696,7 +959,7 @@ def rebuild_catalog() -> dict[str, Any]:
                 "stac_collection_id": collection_id,
                 "stac_url": GEOMETA_HTML_URL.format(collection_id=collection_id),
                 "stac_browser_url": f"https://radiantearth.github.io/stac-browser/#/external/api.geo.bs.ch/stac/v1/collections/{collection_id}",
-                "mapbs_url": links.get("related", ""),
+                "mapbs_url": mapbs_url,
                 "geo_datasets": geo_rows,
             }
         )
@@ -718,12 +981,26 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Refresh YAML catalog from STAC + run publish.")
     parser.add_argument("--dry-run", action="store_true", help="Run publish in dry-run mode.")
     parser.add_argument("--refresh-only", action="store_true", help="Only rebuild YAML catalog.")
+    parser.add_argument(
+        "--skip-geojson-download",
+        action="store_true",
+        help="Do not fetch per-layer GeoJSON from the STAC download endpoint (offline / use existing files in data/datasets).",
+    )
+    parser.add_argument(
+        "--skip-map-links",
+        action="store_true",
+        help="Do not call MapBS (httpx) to enrich GeoJSON with map_links (no redirect fetch).",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = parse_args()
-    payload = rebuild_catalog()
+    payload = rebuild_catalog(
+        skip_geojson_download=args.skip_geojson_download,
+        skip_map_links=args.skip_map_links,
+    )
     print(f"Catalog updated: {CATALOG_FILE} ({len(payload.get('datasets', []))} datasets)")
     if args.refresh_only:
         return

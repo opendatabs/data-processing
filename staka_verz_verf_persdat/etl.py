@@ -330,7 +330,7 @@ def main() -> None:
         if stelle:
             parts.append(stelle)
 
-        return "/".join(parts) if parts else ""
+        return ">".join(parts) if parts else ""
 
     combined["path"] = combined.apply(join_path, axis=1)
 
