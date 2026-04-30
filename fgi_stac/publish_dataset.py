@@ -12,6 +12,7 @@ This script processes datasets from ``data/publish_catalog.yaml`` and performs:
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 import argparse
@@ -24,11 +25,12 @@ from urllib.parse import urlparse
 from typing import Any
 
 import geopandas as gpd
+import httpx
 import pandas as pd
-import requests
 import yaml
 
 import common
+from common import change_tracking
 from dataspot_auth import DataspotAuth
 from huwise_utils_py import (
     HuwiseDataset,
@@ -121,6 +123,8 @@ LICENSE_ID_BY_NAME = {
 }
 DEFAULT_OVERRIDE_REMOTE_VALUE = True
 _SCHEMA_OVERRIDES_BY_ODS: dict[str, dict[str, dict[str, Any]]] = {}
+HTTP_TIMEOUT = httpx.Timeout(60.0, connect=20.0)
+HTTP_LIMITS = httpx.Limits(max_connections=20, max_keepalive_connections=10)
 
 
 def ensure_output_dirs() -> None:
@@ -459,6 +463,42 @@ def _build_dataspot_client() -> DataspotAuth:
     return DataspotAuth()
 
 
+def _http_get_json(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    allow_404: bool = False,
+) -> dict[str, Any] | None:
+    """Fetch one JSON payload with explicit timeout and status handling."""
+    with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+        response = client.get(url, headers=headers)
+    if response.status_code == 404 and allow_404:
+        return None
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+async def _http_get_json_async(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    allow_404: bool = False,
+) -> dict[str, Any] | None:
+    """Fetch one JSON payload asynchronously with consistent status handling."""
+    response = await client.get(url, headers=headers)
+    if response.status_code == 404 and allow_404:
+        return None
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
 def _dataspot_get(auth: DataspotAuth, url: str, *, allow_404: bool = False) -> dict[str, Any] | None:
     """Execute an authenticated Dataspot GET call.
 
@@ -471,11 +511,7 @@ def _dataspot_get(auth: DataspotAuth, url: str, *, allow_404: bool = False) -> d
         Parsed JSON object or ``None`` when ``allow_404=True`` and the resource
         does not exist.
     """
-    response = requests.get(url=url, headers=auth.get_headers(), timeout=60)
-    if response.status_code == 404 and allow_404:
-        return None
-    response.raise_for_status()
-    return response.json()
+    return _http_get_json(url, headers=auth.get_headers(), allow_404=allow_404)
 
 
 def _load_publish_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -527,6 +563,8 @@ def _save_last_push_snapshot(snapshot: dict[str, dict[str, Any]], path: Path = P
     """Persist metadata last-push snapshot (YAML, stable key order)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(snapshot, allow_unicode=True, sort_keys=True), encoding="utf-8")
+    # Reuse shared hash-file tracking from common for cheap change diagnostics in scheduled runs.
+    change_tracking.update_check_file(str(path), method="hash")
 
 
 def _coerce_string_list(value: Any) -> list[str]:
@@ -699,7 +737,8 @@ def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
 def _fetch_geometa_attribute_technical_names(collection_id: str, dataspot_uuid: str) -> set[str]:
     if not collection_id or not dataspot_uuid:
         return set()
-    response = requests.get(GEOMETA_PREVIEW_URL.format(collection_id=collection_id), timeout=60)
+    with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+        response = client.get(GEOMETA_PREVIEW_URL.format(collection_id=collection_id))
     response.raise_for_status()
     html = response.text
     start_marker = f'id="{dataspot_uuid}"'
@@ -777,12 +816,25 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
     compositions_data = _dataspot_get(auth, DATASPOT_COMPOSITIONS_URL.format(dataset_id=dataspot_dataset_id))
     compositions = compositions_data.get("_embedded", {}).get("compositions", [])
 
+    async def _fetch_attributes_for_compositions() -> list[dict[str, Any] | None]:
+        headers = auth.get_headers()
+        attribute_urls = [
+            DATASPOT_ATTRIBUTE_URL.format(attribute_id=_clean_text(composition.get("composedOf")))
+            for composition in compositions
+            if _clean_text(composition.get("composedOf"))
+        ]
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+            tasks = [
+                _http_get_json_async(client, attribute_url, headers=headers, allow_404=True)
+                for attribute_url in attribute_urls
+            ]
+            if not tasks:
+                return []
+            return list(await asyncio.gather(*tasks))
+
+    attributes_for_compositions = asyncio.run(_fetch_attributes_for_compositions())
     classifier_id = ""
-    for composition in compositions:
-        attribute_id = _clean_text(composition.get("composedOf"))
-        if not attribute_id:
-            continue
-        attribute_payload = _dataspot_get(auth, DATASPOT_ATTRIBUTE_URL.format(attribute_id=attribute_id), allow_404=True)
+    for attribute_payload in attributes_for_compositions:
         if not attribute_payload:
             continue
         classifier_id = _clean_text(attribute_payload.get("hasDomain"))
@@ -797,13 +849,32 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
         )
         classifier_attributes = classifier_attributes_payload.get("_embedded", {}).get("attributes", []) if classifier_attributes_payload else []
         rows: list[dict[str, str]] = []
+        async def _fetch_classifier_datatypes() -> dict[str, dict[str, Any] | None]:
+            headers = auth.get_headers()
+            datatype_ids = [_clean_text(attribute.get("hasRange")) for attribute in classifier_attributes]
+            datatype_ids = [item for item in datatype_ids if item]
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+                tasks = [
+                    _http_get_json_async(
+                        client,
+                        DATASPOT_DATATYPE_URL.format(datatype_id=datatype_id),
+                        headers=headers,
+                        allow_404=True,
+                    )
+                    for datatype_id in datatype_ids
+                ]
+                if not tasks:
+                    return {}
+                payloads = await asyncio.gather(*tasks)
+            return {datatype_ids[idx]: payloads[idx] for idx in range(len(datatype_ids))}
+
+        datatypes_by_id = asyncio.run(_fetch_classifier_datatypes())
         for attribute in classifier_attributes:
             datatype_label = ""
             datatype_id = _clean_text(attribute.get("hasRange"))
-            if datatype_id:
-                datatype = _dataspot_get(auth, DATASPOT_DATATYPE_URL.format(datatype_id=datatype_id), allow_404=True)
-                if datatype is not None:
-                    datatype_label = _clean_text(datatype.get("label")) or _clean_text(datatype.get("title"))
+            datatype = datatypes_by_id.get(datatype_id)
+            if datatype is not None:
+                datatype_label = _clean_text(datatype.get("label")) or _clean_text(datatype.get("title"))
             technical_name = _attribute_technical_name(attribute)
             if "geometr" in _normalize_name(datatype_label) and _normalize_name(technical_name) in {"geometrie", "geometry"}:
                 technical_name = "geometry"
@@ -823,19 +894,56 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
         if rows:
             return rows
 
+    async def _fetch_composition_datatypes() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any] | None]]:
+        headers = auth.get_headers()
+        attribute_payload_by_id: dict[str, dict[str, Any]] = {}
+        for composition in compositions:
+            attribute_id = _clean_text(composition.get("composedOf"))
+            if not attribute_id:
+                continue
+            for payload in attributes_for_compositions:
+                if isinstance(payload, dict) and _clean_text(payload.get("uid")) == attribute_id:
+                    attribute_payload_by_id[attribute_id] = payload
+                    break
+
+        datatype_ids = [
+            _clean_text(attribute_payload.get("hasRange"))
+            for attribute_payload in attribute_payload_by_id.values()
+            if _clean_text(attribute_payload.get("hasRange"))
+        ]
+        datatype_ids = list(dict.fromkeys(datatype_ids))
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+            tasks = [
+                _http_get_json_async(
+                    client,
+                    DATASPOT_DATATYPE_URL.format(datatype_id=datatype_id),
+                    headers=headers,
+                    allow_404=True,
+                )
+                for datatype_id in datatype_ids
+            ]
+            payloads = await asyncio.gather(*tasks) if tasks else []
+        return attribute_payload_by_id, {datatype_ids[idx]: payloads[idx] for idx in range(len(datatype_ids))}
+
+    attribute_payload_by_id, datatypes_by_id = asyncio.run(_fetch_composition_datatypes())
+
     rows: list[dict[str, str]] = []
     for composition in compositions:
         attribute_id = _clean_text(composition.get("composedOf"))
         if not attribute_id:
             continue
-        attribute_payload = _dataspot_get(auth, DATASPOT_ATTRIBUTE_URL.format(attribute_id=attribute_id))
+        attribute_payload = attribute_payload_by_id.get(attribute_id) or _dataspot_get(
+            auth, DATASPOT_ATTRIBUTE_URL.format(attribute_id=attribute_id)
+        )
         if attribute_payload is None:
             continue
         attribute = attribute_payload
         datatype_label = ""
         datatype_id = _clean_text(attribute.get("hasRange"))
         if datatype_id:
-            datatype = _dataspot_get(auth, DATASPOT_DATATYPE_URL.format(datatype_id=datatype_id), allow_404=True)
+            datatype = datatypes_by_id.get(datatype_id) or _dataspot_get(
+                auth, DATASPOT_DATATYPE_URL.format(datatype_id=datatype_id), allow_404=True
+            )
             if datatype is not None:
                 datatype_label = _clean_text(datatype.get("label")) or _clean_text(datatype.get("title"))
         technical_name = _clean_text(composition.get("title"))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import argparse
 import html
 import json
@@ -17,7 +18,6 @@ from typing import Any
 
 import geopandas as gpd
 import httpx
-import requests
 import yaml
 
 from dataspot_auth import DataspotAuth
@@ -34,6 +34,9 @@ CATALOG_FILE = DATA_DIR / "publish_catalog.yaml"
 DATASETS_DIR = DATA_DIR / "datasets"
 SCHEMA_FILES_DIR = DATA_DIR / "schema_files"
 PUB_DATASETS_XLSX = DATA_DIR / "pub_datasets.xlsx"
+HTTP_TIMEOUT = httpx.Timeout(60.0, connect=20.0)
+HTTP_TIMEOUT_LONG = httpx.Timeout(180.0, connect=30.0)
+HTTP_LIMITS = httpx.Limits(max_connections=20, max_keepalive_connections=10)
 _NAV_ANCHOR_RE = re.compile(
     r'<a\s+href="#([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\s*>\s*<li>([^<]*)</li>',
     re.IGNORECASE | re.DOTALL,
@@ -43,33 +46,21 @@ _H3_ID_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _DATATYPE_MAP = {
-    "date": "date",
+    "code": "text",
     "datum": "date",
-    "datetime": "datetime",
-    "zeitstempel": "datetime",
-    "uhrzeit": "datetime",
+    "dezimalzahl": "double",
+    "formatierter text": "text",
     "ganzzahl": "int",
-    "integer": "int",
-    "int": "int",
-    "number": "number",
-    "decimal": "number",
-    "kommazahl": "number",
-    "dezimal": "number",
-    "float": "number",
-    "double": "number",
     "geometrie (punkt)": "geo_point_2d",
     "geometrie (linie)": "geo_shape",
     "geometrie (fläche)": "geo_shape",
     "geometrie (flaeche)": "geo_shape",
-    "boolean": "boolean",
-    "bool": "boolean",
-    "geometry": "geometry",
-    "geometrie": "geometry",
-    "datei": "file",
-    "file": "file",
+    "geometrie": "geo_shape",
+    "ja/nein": "text",
     "text": "text",
-    "formatierter text": "text",
-    "string": "text",
+    "uhrzeit": "text",
+    "url": "text",
+    "zeitpunkt": "datetime",
 }
 
 
@@ -79,10 +70,47 @@ def _clean(value: Any) -> str:
     return str(value).strip()
 
 
-def _fetch_stac_collections() -> list[dict[str, Any]]:
-    response = requests.get(STAC_COLLECTIONS_URL, timeout=90)
+def _http_get_json(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: httpx.Timeout | None = None,
+    allow_404: bool = False,
+) -> dict[str, Any] | None:
+    """Fetch one JSON payload with explicit timeout and status handling."""
+    with httpx.Client(timeout=timeout or HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+        response = client.get(url, headers=headers)
+    if response.status_code == 404 and allow_404:
+        return None
     response.raise_for_status()
     payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+async def _http_get_json_async(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    allow_404: bool = False,
+) -> dict[str, Any] | None:
+    """Fetch one JSON payload asynchronously with consistent handling."""
+    response = await client.get(url, headers=headers)
+    if response.status_code == 404 and allow_404:
+        return None
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _fetch_stac_collections() -> list[dict[str, Any]]:
+    payload = _http_get_json(STAC_COLLECTIONS_URL, timeout=HTTP_TIMEOUT)
+    if payload is None:
+        raise ValueError("Invalid STAC response: expected JSON object")
     collections = payload.get("collections", [])
     if not isinstance(collections, list):
         raise ValueError("Invalid STAC response: collections missing")
@@ -122,7 +150,8 @@ def _extract_orgs(providers: list[dict[str, Any]] | None) -> tuple[str, str]:
 
 def _fetch_geometa_collection_html(collection_id: str) -> str:
     url = GEOMETA_HTML_URL.format(collection_id=collection_id)
-    response = requests.get(url, timeout=90)
+    with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+        response = client.get(url)
     response.raise_for_status()
     return response.text
 
@@ -147,11 +176,7 @@ def _discover_instances_for_collection(collection_id: str, collection_title: str
 
 
 def _dataspot_get(auth: DataspotAuth, url: str, *, allow_404: bool = False) -> dict[str, Any] | None:
-    response = requests.get(url=url, headers=auth.get_headers(), timeout=60)
-    if response.status_code == 404 and allow_404:
-        return None
-    response.raise_for_status()
-    return response.json()
+    return _http_get_json(url, headers=auth.get_headers(), allow_404=allow_404)
 
 
 def _normalize_optional_date(value: Any) -> str:
@@ -305,39 +330,73 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
         row["export"] = _bool_like(_old_value(old, "export"), default=export_default)
         return row
 
-    rows: list[dict[str, Any]] = []
-    for composition in compositions:
-        if not isinstance(composition, dict):
-            continue
-        attribute_id = _clean(composition.get("composedOf"))
-        if not attribute_id:
-            continue
-        attribute_payload = _dataspot_get(auth, DATASPOT_ATTRIBUTE_URL.format(attribute_id=attribute_id), allow_404=True)
-        if not attribute_payload:
-            continue
-        has_range_id = _clean(attribute_payload.get("hasRange"))
-        datatype_label = ""
-        if has_range_id:
-            range_asset = _dataspot_get(auth, DATASPOT_RANGE_ASSET_URL.format(asset_id=has_range_id), allow_404=True)
-            if range_asset:
-                datatype_label = _clean(range_asset.get("label")) or _clean(range_asset.get("title"))
-        technical_name = _clean(composition.get("title")) or _clean(composition.get("label"))
-        if not technical_name:
-            continue
-        if "geometr" in technical_name.lower():
-            technical_name = "geometry"
-        field_name = _clean(composition.get("label")) or technical_name
-        description = _clean(attribute_payload.get("description")) or _clean(composition.get("description"))
-        multivalued_separator = _multivalued_separator_from_attribute(attribute_payload)
-        rows.append(
-            _compose_row(
-                technical_name=technical_name,
-                field_name=field_name,
-                description=description,
-                datatype_label=datatype_label,
-                multivalued_separator=multivalued_separator,
+    async def _build_rows() -> list[dict[str, Any]]:
+        headers = auth.get_headers()
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+            composition_items: list[tuple[dict[str, Any], str]] = []
+            attribute_tasks: list[asyncio.Future] = []
+            for composition in compositions:
+                if not isinstance(composition, dict):
+                    continue
+                attribute_id = _clean(composition.get("composedOf"))
+                if not attribute_id:
+                    continue
+                composition_items.append((composition, attribute_id))
+                attribute_tasks.append(
+                    _http_get_json_async(
+                        client,
+                        DATASPOT_ATTRIBUTE_URL.format(attribute_id=attribute_id),
+                        headers=headers,
+                        allow_404=True,
+                    )
+                )
+
+            attributes = await asyncio.gather(*attribute_tasks) if attribute_tasks else []
+            datatype_tasks: list[asyncio.Future] = []
+            datatype_ids: list[str] = []
+            for attribute_payload in attributes:
+                has_range_id = _clean((attribute_payload or {}).get("hasRange"))
+                if has_range_id:
+                    datatype_ids.append(has_range_id)
+                    datatype_tasks.append(
+                        _http_get_json_async(
+                            client,
+                            DATASPOT_RANGE_ASSET_URL.format(asset_id=has_range_id),
+                            headers=headers,
+                            allow_404=True,
+                        )
+                    )
+            datatype_assets = await asyncio.gather(*datatype_tasks) if datatype_tasks else []
+            datatype_by_id = {datatype_ids[idx]: datatype_assets[idx] for idx in range(len(datatype_ids))}
+
+        rows_local: list[dict[str, Any]] = []
+        for idx, (composition, _) in enumerate(composition_items):
+            attribute_payload = attributes[idx] if idx < len(attributes) else None
+            if not attribute_payload:
+                continue
+            has_range_id = _clean(attribute_payload.get("hasRange"))
+            datatype_payload = datatype_by_id.get(has_range_id)
+            datatype_label = _clean((datatype_payload or {}).get("label")) or _clean((datatype_payload or {}).get("title"))
+            technical_name = _clean(composition.get("title")) or _clean(composition.get("label"))
+            if not technical_name:
+                continue
+            if "geometr" in technical_name.lower():
+                technical_name = "geometry"
+            field_name = _clean(composition.get("label")) or technical_name
+            description = _clean(attribute_payload.get("description")) or _clean(composition.get("description"))
+            multivalued_separator = _multivalued_separator_from_attribute(attribute_payload)
+            rows_local.append(
+                _compose_row(
+                    technical_name=technical_name,
+                    field_name=field_name,
+                    description=description,
+                    datatype_label=datatype_label,
+                    multivalued_separator=multivalued_separator,
+                )
             )
-        )
+        return rows_local
+
+    rows = asyncio.run(_build_rows())
     return rows
 
 
@@ -676,7 +735,8 @@ def _download_stac_layer_geojson(collection_id: str, geo_dataset: str, out_dir: 
     url = f"{STAC_V1_BASE_URL}/download/{cid}/latest/geojson"
     zip_path = out_dir / f"_{cid}_stac_latest_geojson.zip"
     try:
-        response = requests.get(url, timeout=180)
+        with httpx.Client(timeout=HTTP_TIMEOUT_LONG, limits=HTTP_LIMITS) as client:
+            response = client.get(url)
         response.raise_for_status()
         zip_path.write_bytes(response.content)
         with zipfile.ZipFile(zip_path, "r") as zf:
