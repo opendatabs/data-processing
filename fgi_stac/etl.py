@@ -838,6 +838,7 @@ def _metadata_block(
     *,
     auth: DataspotAuth,
     dataspot_dataset_id: str,
+    stac_collection_id: str,
     geo_dataset: str,
     producer_organization: str,
     collection_keywords: list[str],
@@ -870,8 +871,8 @@ def _metadata_block(
             relation_values_final.append(cleaned)
     producer_path = _clean(default.get("publisher")) or _clean(producer_organization) or dataspot_meta["publisher_path"]
     producer_parts = [part.strip() for part in producer_path.split("/") if part.strip()]
-    publisher_last = producer_parts[-1] if producer_parts else ""
-    publizierende_organisation = producer_parts[1] if len(producer_parts) > 1 else ""
+    publisher_from_path = producer_parts[2] if len(producer_parts) > 2 else ""
+    publizierende_organisation = producer_parts[2] if len(producer_parts) > 2 else ""
     keyword_values = [item for item in collection_keywords if _clean(item)]
     if not keyword_values:
         keyword_values_raw = default.get("keyword")
@@ -881,6 +882,8 @@ def _metadata_block(
             keyword_values = [item.strip() for item in _clean(keyword_values_raw).split(";") if item.strip()]
     if not keyword_values:
         keyword_values = [item for item in dataspot_meta["keyword_values"] if _clean(item)]
+    keyword_values = [item for item in keyword_values if _clean(item).lower() != _clean(stac_collection_id).lower()]
+    tags = [item for item in ["opendata.swiss", stac_collection_id] if _clean(item)]
     expected_geodaten_modellbeschreibung = f"{stac_url}#{dataspot_dataset_id}"
     custom_geodaten_modellbeschreibung = _clean(custom.get("geodaten_modellbeschreibung"))
     geodaten_modellbeschreibung = (
@@ -893,14 +896,14 @@ def _metadata_block(
             "title": _clean(default.get("title")) or dataspot_meta["title"] or geo_dataset,
             "description": _description_to_html(_clean(default.get("description")) or dataspot_meta["description"]),
             "keyword": keyword_values,
-            "publisher": publisher_last,
+            "publisher": publisher_from_path,
             "modified_updates_on_data_change": bool(default.get("modified_updates_on_data_change", True)),
         },
         "internal": {
             "license": "CC BY 4.0",
         },
         "dcat": {
-            "creator": _clean(dcat.get("creator")) or publisher_last,
+            "creator": _clean(dcat.get("creator")) or publisher_from_path,
             "created": _clean(dcat.get("created")) or dataspot_meta["created"],
             "issued": _clean(dcat.get("issued")) or dataspot_meta["issued"],
             "accrualperiodicity": _clean(dcat.get("accrualperiodicity")) or dataspot_meta["accrualperiodicity"],
@@ -909,7 +912,7 @@ def _metadata_block(
         "custom": {
             "publizierende_organisation": _clean(custom.get("publizierende_organisation")) or publizierende_organisation,
             "geodaten_modellbeschreibung": geodaten_modellbeschreibung,
-            "tags": custom.get("tags") if isinstance(custom.get("tags"), list) else ["opendata.swiss"],
+            "tags": tags,
         },
     }
 
@@ -998,6 +1001,7 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                     old,
                     auth=auth,
                     dataspot_dataset_id=dataspot_uuid,
+                    stac_collection_id=collection_id,
                     geo_dataset=geo_dataset,
                     producer_organization=producer_organization,
                     collection_keywords=collection_keywords,

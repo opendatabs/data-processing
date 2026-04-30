@@ -324,6 +324,7 @@ def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
     license_id = LICENSE_ID_BY_NAME.get(license_name, _clean_text(license_name))
     return {
         "ods_id": ods_id,
+        "stac_collection_id": _clean_text(dataset.get("stac_collection_id")),
         "title": title,
         "description": _clean_text(default_payload.get("description")),
         "theme": "",
@@ -476,6 +477,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
             dataset_with_links = dict(dataset)
             if not _clean_text(dataset_with_links.get("stac_preview_url")):
                 dataset_with_links["stac_preview_url"] = stac_preview or stac_url
+            dataset_with_links["stac_collection_id"] = stac_collection_id
             relation_urls = [url for url in (stac_url, mapbs_url, stac_browser) if _clean_text(url)]
             if relation_urls:
                 dataset_with_links["relation_urls"] = relation_urls
@@ -1159,18 +1161,14 @@ def _dataspot_metadata_row(auth: DataspotAuth, dataspot_dataset_id: str, metadat
         or details.get("publisher")
     )
     publisher_path_parts = [part.strip() for part in raw_publisher_path.split("/") if part.strip()]
-    publizierende_organisation = publisher_path_parts[1] if len(publisher_path_parts) > 1 else ""
+    publizierende_organisation = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
     geodaten_modellbeschreibung = _clean_text(metadata_row.get("custom.geodaten_modellbeschreibung")) or _clean_text(
         metadata_row.get("stac_preview_url")
     )
     base = metadata_row.to_dict()
     themes = _extract_string_list(details.get("themes"))
     keywords = _extract_string_list(details.get("keywords"))
-    publisher = _clean_text(
-        details.get("producerOrganization")
-        or details.get("publishingOrganization")
-        or details.get("publisher")
-    )
+    publisher = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
     base.update(
         {
             "title": _clean_text(details.get("label") or details.get("title") or base.get("title")),
@@ -1374,9 +1372,14 @@ def _set_metadata_fields(
             publish=False,
         ),
     )
-    keywords = _split_keywords(_clean_text(metadata_row.get("keyword")))
+    stac_collection_id = _clean_text(metadata_row.get("stac_collection_id"))
+    keywords = [
+        keyword
+        for keyword in _split_keywords(_clean_text(metadata_row.get("keyword")))
+        if _clean_text(keyword).lower() != stac_collection_id.lower()
+    ]
     extra_tags = _split_semicolon_list(metadata_row.get("tags"))
-    tags = [tag for tag in [*extra_tags, DEFAULT_TAG] if tag]
+    tags = [tag for tag in [DEFAULT_TAG, stac_collection_id, *extra_tags] if tag]
     deduped_tags = list(dict.fromkeys(tags))
     if keywords:
         _safe_set("keywords", lambda: _set_template_field("default", "keyword", keywords, publish=False))
