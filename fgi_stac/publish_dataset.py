@@ -502,7 +502,7 @@ def _http_get_json(
     """Fetch one JSON payload with explicit timeout and status handling."""
     with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
         response = client.get(url, headers=headers)
-    if response.status_code == 404 and allow_404:
+    if response.status_code in {404, 410} and allow_404:
         return None
     response.raise_for_status()
     payload = response.json()
@@ -520,7 +520,7 @@ async def _http_get_json_async(
 ) -> dict[str, Any] | None:
     """Fetch one JSON payload asynchronously with consistent status handling."""
     response = await client.get(url, headers=headers)
-    if response.status_code == 404 and allow_404:
+    if response.status_code in {404, 410} and allow_404:
         return None
     response.raise_for_status()
     payload = response.json()
