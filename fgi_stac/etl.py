@@ -309,12 +309,16 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
                 "technical_name": _clean(old_custom.get("technical_name")),
                 "name": _clean(old_custom.get("name")),
                 "description": _clean(old_custom.get("description")),
+                "datentyp": _clean(old_custom.get("datentyp")),
+                "mehrwertigkeit": _clean(old_custom.get("mehrwertigkeit")),
             }
         else:
             custom_payload = {
                 "technical_name": _clean(old_custom),
                 "name": "",
                 "description": "",
+                "datentyp": "",
+                "mehrwertigkeit": "",
             }
         row: dict[str, Any] = {
             "technical_name": technical_name,
@@ -322,12 +326,11 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
             "description": description,
             "mehrwertigkeit": _clean(_old_value(old, "mehrwertigkeit")) or multivalued_separator,
             "datentyp": _map_datatype(datatype_label),
+            "export": _bool_like(_old_value(old, "export"), default=technical_name.lower() != "gdh_fid"),
             "custom": custom_payload,
         }
         if not _clean(custom_payload.get("technical_name")):
             row["custom"]["technical_name"] = _normalize_huwise_field_name(technical_name)
-        export_default = technical_name.lower() != "gdh_fid"
-        row["export"] = _bool_like(_old_value(old, "export"), default=export_default)
         return row
 
     async def _build_rows() -> list[dict[str, Any]]:
@@ -492,12 +495,14 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
                 "description": "",
                 "mehrwertigkeit": "",
                 "datentyp": "text",
+                "export": property_name.lower() != "gdh_fid",
                 "custom": {
                     "technical_name": _normalize_huwise_field_name(property_name),
                     "name": "",
                     "description": "",
+                    "datentyp": "",
+                    "mehrwertigkeit": "",
                 },
-                "export": property_name.lower() != "gdh_fid",
             }
         custom = row.get("custom")
         if not isinstance(custom, dict):
@@ -505,6 +510,8 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
         custom.setdefault("technical_name", _normalize_huwise_field_name(_clean(row.get("technical_name"))))
         custom.setdefault("name", "")
         custom.setdefault("description", "")
+        custom.setdefault("datentyp", "")
+        custom.setdefault("mehrwertigkeit", "")
         row["custom"] = custom
         if _clean(row.get("technical_name")).lower() == "gdh_fid" and row.get("export") is None:
             row["export"] = False
@@ -517,6 +524,8 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
         custom.setdefault("technical_name", "geometry")
         custom.setdefault("name", "")
         custom.setdefault("description", "")
+        custom.setdefault("datentyp", "")
+        custom.setdefault("mehrwertigkeit", "")
         geometry_row["custom"] = custom
         merged.append(geometry_row)
     for row in merged:
@@ -557,6 +566,8 @@ def _apply_map_links_schema_field(
             custom.setdefault("technical_name", "map_links")
             custom.setdefault("name", "")
             custom.setdefault("description", "")
+            custom.setdefault("datentyp", "")
+            custom.setdefault("mehrwertigkeit", "")
             r["custom"] = custom
         updated.append(r)
     if has_map_links:
@@ -567,12 +578,14 @@ def _apply_map_links_schema_field(
         "description": desc,
         "mehrwertigkeit": "",
         "datentyp": "text",
+        "export": False,
         "custom": {
             "technical_name": "map_links",
             "name": "",
             "description": "",
+            "datentyp": "",
+            "mehrwertigkeit": "",
         },
-        "export": False,
     }
     idx = next(
         (
@@ -976,6 +989,7 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                 if layer_path.is_file():
                     _add_map_links_to_dataset(layer_path, mapbs_url)
             row: dict[str, Any] = {
+                "huwise_id": huwise_id,
                 "dataspot_dataset_id": dataspot_uuid,
                 "dataspot_asset_url": f"https://bs.dataspot.io/web/prod/assets/{dataspot_uuid}",
                 "geo_dataset": geo_dataset,
@@ -993,7 +1007,6 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                 ),
             }
             if huwise_id:
-                row["huwise_id"] = huwise_id
                 fields = _dataspot_schema(auth, dataspot_uuid, old.get("schema"))
                 geojson_file = _resolve_geojson_file_for_dataset(geo_dataset)
                 geojson_properties = _read_geojson_properties(geojson_file) if geojson_file else []
@@ -1003,7 +1016,7 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                     schema_basename = geojson_file.stem
                 else:
                     schema_basename = f"{collection_id}_{_schema_file_slug(geo_dataset)}"
-                row["schema_file"] = _write_schema_file(
+                _write_schema_file(
                     huwise_id=huwise_id,
                     dataspot_dataset_id=dataspot_uuid,
                     schema_basename=schema_basename,

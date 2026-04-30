@@ -28,15 +28,15 @@ Die **fachlichen Quelldaten** (GeoJSON-Dateien, die veröffentlicht werden und d
 
 ### `data/publish_catalog.yaml`
 
-Erlaubt ist primär das Setzen/Aendern von `huwise_id`.
+Erlaubt ist primär das Setzen/Ändern von `huwise_id`.
 
 ```yaml
 datasets:
   - stac_collection_id: AFBA
     geo_datasets:
-      - dataspot_dataset_id: a396da69-b42e-463b-8dab-95812235c607
+      - huwise_id: ''                # leer lassen, wenn noch keine ODS-ID vorhanden ist
+        dataspot_dataset_id: a396da69-b42e-463b-8dab-95812235c607
         geo_dataset: Abfuhrzonen
-        huwise_id: 100095stac  # OK: darf gesetzt/geaendert werden
         metadata:              # NICHT manuell pflegen (pipeline-managed)
           default:
             title: ...
@@ -48,7 +48,7 @@ Do:
 
 Don't:
 
-- keine manuellen Struktur-Aenderungen an `metadata`, `dataspot_*`, `stac_*`.
+- keine manuellen Struktur-Änderungen an `metadata`, `dataspot_*`, `stac_*`.
 - keine manuellen Feldlisten/Schema-Inhalte hier pflegen.
 
 ### `data/schema_files/*.yaml`
@@ -62,21 +62,25 @@ fields:
   - technical_name: strasse
     name: Strasse
     description: Name der Strasse
+    export: true
+    mehrwertigkeit: ''
     datentyp: text
     custom:
       technical_name: strasse_name   # OK: custom override
       name: Strassenname             # OK: custom override
       description: Amtliche Bezeichnung
+      datentyp: text                 # OK: optionaler Override
+      mehrwertigkeit: ';'            # OK: optionaler Override
 ```
 
 Do:
 
-- nur `fields[].custom.technical_name`, `fields[].custom.name`, `fields[].custom.description` editieren.
+- nur `fields[].custom.*` editieren (`technical_name`, `name`, `description`, optional `datentyp`, `mehrwertigkeit`).
 
 Don't:
 
 - `technical_name`, `name`, `description`, `datentyp`, `mehrwertigkeit`, `export` ausserhalb `custom` nicht manuell ummodellieren.
-- keine HUWISE-Schema-Aenderungen direkt im Portal als Source-of-Truth betrachten; Source-of-Truth bleibt diese Datei.
+- keine HUWISE-Schema-Änderungen direkt im Portal als Source-of-Truth betrachten; Source-of-Truth bleibt diese Datei.
 
 ---
 
@@ -85,12 +89,15 @@ Don't:
 Schemas für HUWISE-Pflichtdatensätze liegen unter `data/schema_files/*.yaml`. Pro Feld sind u. a. vorgesehen:
 
 - `technical_name`, `name`, `description`, `mehrwertigkeit`, `datentyp`
-- `custom` mit `technical_name`, `name`, `description`
-- `export` (Standard `true`, für `gdh_fid` typischerweise `false`)
+- `export` (Standard `true`, für `gdh_fid` typischerweise `false`) steht bewusst vor `custom`
+- `custom` mit `technical_name`, `name`, `description` sowie optional `datentyp`, `mehrwertigkeit`
 
 Beim Lauf von **`etl.py`** werden Schema-Dateien für Einträge **mit** `huwise_id` neu aus Dataspot + lokalem GeoJSON zusammengeführt und die YAML-Datei überschrieben.
 
 **Felder nur unter `custom` ändern.**
+
+`mehrwertigkeit` steuert, wie mehrwertige Attribute getrennt werden (z. B. `';'`).  
+Wenn leer (`''`), wird das Feld als einwertig behandelt.
 
 ---
 

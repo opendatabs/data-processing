@@ -52,6 +52,7 @@ DATASETS_DIR = DATA_DIR / "datasets"
 SCHEMAS_DIR = DATA_DIR / "schemas"
 PUBLISH_CATALOG_FILE = DATA_DIR / "publish_catalog.yaml"
 PUBLISH_METADATA_LAST_PUSH_FILE = DATA_DIR / "publish_metadata_last_push.yaml"
+SCHEMA_FILES_DIR = DATA_DIR / "schema_files"
 DATASPOT_DATASET_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}"
 DATASPOT_COMPOSITIONS_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}/compositions"
 DATASPOT_ATTRIBUTE_URL = "https://bs.dataspot.io/rest/prod/attributes/{attribute_id}"
@@ -351,13 +352,7 @@ def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
 def _extract_schema_overrides(dataset: dict[str, Any]) -> dict[str, dict[str, Any]]:
     schema_payload = dataset.get("schema", [])
     if (not isinstance(schema_payload, list)) or (isinstance(schema_payload, list) and len(schema_payload) == 0):
-        schema_file = _clean_text(dataset.get("schema_file"))
-        if schema_file:
-            path = Path(schema_file)
-            if path.exists():
-                payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-                if isinstance(payload, dict):
-                    schema_payload = payload.get("fields", [])
+        schema_payload = _load_schema_fields_for_dataset(dataset)
     if not isinstance(schema_payload, list):
         return {}
     overrides: dict[str, dict[str, Any]] = {}
@@ -375,6 +370,11 @@ def _extract_schema_overrides(dataset: dict[str, Any]) -> dict[str, dict[str, An
             custom = _clean_text(custom_raw.get("technical_name"))
             custom_name = _clean_text(custom_raw.get("name"))
             custom_description = _clean_text(custom_raw.get("description"))
+            custom_datentyp = _clean_text(custom_raw.get("datentyp"))
+            custom_mehrwertigkeit = _clean_text(custom_raw.get("mehrwertigkeit"))
+        else:
+            custom_datentyp = ""
+            custom_mehrwertigkeit = ""
         field_name = _clean_text(item.get("name"))
         description = _clean_text(item.get("description"))
         multivalued = _clean_text(item.get("mehrwertigkeit"))
@@ -398,10 +398,40 @@ def _extract_schema_overrides(dataset: dict[str, Any]) -> dict[str, dict[str, An
             values["custom_description"] = custom_description
         if multivalued:
             values["mehrwertigkeit"] = multivalued
+        if custom_mehrwertigkeit:
+            values["mehrwertigkeit"] = custom_mehrwertigkeit
         if datatype:
             values["datentyp"] = datatype
+        if custom_datentyp:
+            values["datentyp"] = custom_datentyp
         overrides[technical_name] = values
     return overrides
+
+
+def _load_schema_fields_for_dataset(dataset: dict[str, Any]) -> list[dict[str, Any]]:
+    """Load schema fields via catalog hint or fallback by matching huwise_id in schema files."""
+    schema_file = _clean_text(dataset.get("schema_file"))
+    if schema_file:
+        path = Path(schema_file)
+        if path.exists():
+            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                fields = payload.get("fields", [])
+                return fields if isinstance(fields, list) else []
+
+    huwise_id = _clean_text(dataset.get("huwise_id"))
+    if not huwise_id or not SCHEMA_FILES_DIR.exists():
+        return []
+
+    for path in sorted(SCHEMA_FILES_DIR.glob("*.yaml")):
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        if _clean_text(payload.get("huwise_id")) != huwise_id:
+            continue
+        fields = payload.get("fields", [])
+        return fields if isinstance(fields, list) else []
+    return []
 
 
 def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
