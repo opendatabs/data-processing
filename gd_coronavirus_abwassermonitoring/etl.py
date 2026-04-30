@@ -102,7 +102,7 @@ def make_dataframe_bs_from_2023():
     )
     df_bs = df_bs.reset_index()
     df_bs.columns.name = None
-    df_bs = df_bs.drop(columns=["nicht bestimmbar"]).rename(columns={"positiv": "faelle_bs"})
+    df_bs = df_bs.rename(columns={"positiv": "faelle_bs"})
     df_bs["inzidenz07_bs"] = df_bs["faelle_bs"].rolling(window=7, min_periods=1).sum() / pop_BS * 100000
     return df_bs
 
