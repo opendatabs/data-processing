@@ -322,6 +322,11 @@ def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
         internal_payload = {}
     license_name = _clean_text(internal_payload.get("license")) or DEFAULT_LICENSE_NAME
     license_id = LICENSE_ID_BY_NAME.get(license_name, _clean_text(license_name))
+    raw_publisher = _clean_text(default_payload.get("publisher"))
+    publisher_path_parts = [part.strip() for part in raw_publisher.split("/") if part.strip()]
+    publisher_from_path = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
+    resolved_publisher = publisher_from_path or raw_publisher
+    resolved_creator = _clean_text(dcat_payload.get("creator")) or publisher_from_path or raw_publisher
     return {
         "ods_id": ods_id,
         "stac_collection_id": _clean_text(dataset.get("stac_collection_id")),
@@ -337,9 +342,9 @@ def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
         "dcat.contact_name": DEFAULT_CONTACT_NAME,
         "dcat.contact_email": DEFAULT_CONTACT_EMAIL,
         "dcat.created": "",
-        "dcat.creator": _clean_text(dcat_payload.get("creator")),
+        "dcat.creator": resolved_creator,
         "dcat.accrualperiodicity": _clean_text(dcat_payload.get("accrualperiodicity")),
-        "publisher": _clean_text(default_payload.get("publisher")),
+        "publisher": resolved_publisher,
         "dcat.issued": _clean_text(dcat_payload.get("issued")),
         "language": "de",
         "relation_urls": relation_urls,
