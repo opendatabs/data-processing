@@ -282,7 +282,7 @@ def _dataspot_metadata(auth: DataspotAuth, dataspot_dataset_id: str) -> dict[str
         "keyword_values": keywords,
         "publisher_path": publisher_path,
         "created": _normalize_optional_date(custom.get("creationDate")),
-        "modified": _normalize_optional_date(payload.get("modified")),
+        "modified": _normalize_optional_date(payload.get("lastUpdate") or payload.get("modified")),
         "issued": _normalize_optional_date(custom.get("publicationDate")),
         "accrualperiodicity": _clean(payload.get("accrualPeriodicity")),
     }

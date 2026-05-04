@@ -1185,7 +1185,7 @@ def _dataspot_metadata_row(auth: DataspotAuth, dataspot_dataset_id: str, metadat
             "theme": ";".join(themes),
             "keyword": ";".join(keywords),
             "dcat.created": _normalize_optional_date(custom.get("creationDate")),
-            "default.modified": _normalize_optional_date(details.get("modified")),
+            "default.modified": _normalize_optional_date(details.get("lastUpdate") or details.get("modified")),
             "dcat.issued": _normalize_optional_date(custom.get("publicationDate")),
             "dcat.accrualperiodicity": _clean_text(details.get("accrualPeriodicity")),
             "publisher": publisher,
