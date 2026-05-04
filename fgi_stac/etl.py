@@ -595,13 +595,10 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
 def _apply_map_links_schema_field(
     fields: list[dict[str, Any]], mapbs_url: str
 ) -> list[dict[str, Any]]:
-    """Ensure a ``map_links`` field for HuWISE schemas: MapBS context in *description*, ``export`` false."""
-    mbs = _clean(mapbs_url)
-    desc = (
-        f"Vorgefüllter Lagekarte-Link (MapBS-Portal: {mbs})"
-        if mbs
-        else "Vorgefüllter Lagekarte-Link (MapBS)"
-    )
+    """Ensure a ``map_links`` field with fixed label/description and ``export`` false."""
+    _ = mapbs_url  # Kept for compatibility at call site.
+    fixed_name = "Zum Objekt navigieren"
+    fixed_description = "URL zur Navigation des Standorts in einer Karten-App"
     updated: list[dict[str, Any]] = []
     has_map_links = False
     for row in fields:
@@ -612,11 +609,8 @@ def _apply_map_links_schema_field(
         if _clean(r.get("technical_name")).lower() == "map_links":
             has_map_links = True
             r["export"] = False
-            d = _clean(r.get("description"))
-            if mbs and mbs not in d:
-                r["description"] = f"{d} — {desc}" if d else desc
-            elif not mbs and not d:
-                r["description"] = desc
+            r["name"] = fixed_name
+            r["description"] = fixed_description
             custom = r.get("custom")
             if not isinstance(custom, dict):
                 custom = {}
@@ -632,8 +626,8 @@ def _apply_map_links_schema_field(
         return updated
     inject: dict[str, Any] = {
         "technical_name": "map_links",
-        "name": "map_links",
-        "description": desc,
+        "name": fixed_name,
+        "description": fixed_description,
         "mehrwertigkeit": "",
         "datentyp": "text",
         "export": False,
