@@ -862,8 +862,52 @@ def _schema_file_slug(value: str) -> str:
     return slug or "dataset"
 
 
+def _schema_yaml_path(schema_basename: str) -> Path:
+    return SCHEMA_FILES_DIR / f"{_schema_file_slug(schema_basename)}.yaml"
+
+
+def _load_schema_fields_for_dataspot_merge(
+    path: Path, *, huwise_id: str, dataspot_dataset_id: str
+) -> list[dict[str, Any]] | None:
+    """Load existing schema YAML so ``custom`` overrides survive an ETL refresh.
+
+    ``publish_catalog.yaml`` does not embed per-dataset ``schema``; without reading
+    the file we would pass ``None`` into ``_dataspot_schema`` and regenerate default
+    ``custom`` blocks, overwriting manual edits on disk.
+    """
+    if not path.is_file():
+        return None
+    try:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        logging.warning("Could not read schema file %s for merge: %s", path, exc)
+        return None
+    if not isinstance(payload, dict):
+        return None
+    file_ds = _clean(payload.get("dataspot_dataset_id")).lower()
+    if file_ds and file_ds != _clean(dataspot_dataset_id).lower():
+        logging.warning(
+            "Not merging schema from %s: dataspot_dataset_id mismatch (file=%s, run=%s)",
+            path,
+            file_ds,
+            dataspot_dataset_id,
+        )
+        return None
+    file_hw = _clean(payload.get("huwise_id"))
+    if file_hw and file_hw != _clean(huwise_id):
+        logging.warning(
+            "Not merging schema from %s: huwise_id mismatch (file=%s, run=%s)",
+            path,
+            file_hw,
+            huwise_id,
+        )
+        return None
+    fields = payload.get("fields", [])
+    return fields if isinstance(fields, list) else None
+
+
 def _write_schema_file(*, huwise_id: str, dataspot_dataset_id: str, schema_basename: str, fields: list[dict[str, Any]]) -> str:
-    path = SCHEMA_FILES_DIR / f"{_schema_file_slug(schema_basename)}.yaml"
+    path = _schema_yaml_path(schema_basename)
     payload = {
         "huwise_id": huwise_id,
         "dataspot_dataset_id": dataspot_dataset_id,
@@ -1091,15 +1135,22 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                 ),
             }
             if huwise_id:
-                fields = _dataspot_schema(auth, dataspot_uuid, old.get("schema"))
                 geojson_file = _resolve_geojson_file_for_dataset(geo_dataset)
-                geojson_properties = _read_geojson_properties(geojson_file) if geojson_file else []
-                fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
-                fields = _apply_map_links_schema_field(fields, mapbs_url)
                 if geojson_file:
                     schema_basename = geojson_file.stem
                 else:
                     schema_basename = f"{collection_id}_{_schema_file_slug(geo_dataset)}"
+                schema_path = _schema_yaml_path(schema_basename)
+                preserved_schema = _load_schema_fields_for_dataspot_merge(
+                    schema_path, huwise_id=huwise_id, dataspot_dataset_id=dataspot_uuid
+                )
+                if preserved_schema is None:
+                    catalog_schema = old.get("schema")
+                    preserved_schema = catalog_schema if isinstance(catalog_schema, list) else None
+                fields = _dataspot_schema(auth, dataspot_uuid, preserved_schema)
+                geojson_properties = _read_geojson_properties(geojson_file) if geojson_file else []
+                fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
+                fields = _apply_map_links_schema_field(fields, mapbs_url)
                 _write_schema_file(
                     huwise_id=huwise_id,
                     dataspot_dataset_id=dataspot_uuid,
