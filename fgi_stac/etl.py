@@ -277,6 +277,7 @@ def _dataspot_metadata(auth: DataspotAuth, dataspot_dataset_id: str) -> dict[str
     keywords = _extract_string_list(payload.get("tags"))
     publisher_path = _clean(payload.get("producerOrganization") or payload.get("publishingOrganization") or payload.get("publisher"))
     return {
+        "object_type": _clean(payload.get("_type")),
         "title": _clean(payload.get("label") or payload.get("title")),
         "description": _clean(payload.get("description")),
         "keyword_values": keywords,
@@ -893,7 +894,7 @@ def _load_existing_catalog() -> dict[str, Any]:
 def _metadata_block(
     dataset: dict[str, Any],
     *,
-    auth: DataspotAuth,
+    dataspot_meta: dict[str, Any],
     dataspot_dataset_id: str,
     stac_collection_id: str,
     geo_dataset: str,
@@ -915,7 +916,6 @@ def _metadata_block(
         dcat = {}
     if not isinstance(custom, dict):
         custom = {}
-    dataspot_meta = _dataspot_metadata(auth, dataspot_dataset_id)
     relation_values_raw = dcat.get("relation", [])
     if isinstance(relation_values_raw, list):
         relation_values = [value.strip() for value in relation_values_raw if _clean(value)]
@@ -1020,6 +1020,7 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
 
     auth = DataspotAuth()
     legacy_huwise = _legacy_huwise_map()
+    dataspot_meta_cache: dict[str, dict[str, Any]] = {}
     output_collections: list[dict[str, Any]] = []
     for collection in _fetch_stac_collections():
         collection_id = _clean(collection.get("id"))
@@ -1036,6 +1037,19 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
             dataspot_uuid = _clean(instance.get("dataspot_uuid")).lower()
             geo_dataset = _clean(instance.get("geo_dataset")) or collection_title
             if not dataspot_uuid:
+                continue
+            dataspot_meta = dataspot_meta_cache.get(dataspot_uuid)
+            if dataspot_meta is None:
+                dataspot_meta = _dataspot_metadata(auth, dataspot_uuid)
+                dataspot_meta_cache[dataspot_uuid] = dataspot_meta
+            if _clean(dataspot_meta.get("object_type")).lower() != "dataset":
+                logging.info(
+                    "Skipping non-dataset Dataspot object for %s: %s (%s, _type=%s)",
+                    collection_id,
+                    geo_dataset,
+                    dataspot_uuid,
+                    _clean(dataspot_meta.get("object_type")) or "unknown",
+                )
                 continue
             if _looks_like_wertebereich_label(geo_dataset):
                 logging.info(
@@ -1071,7 +1085,7 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                 "create_map_links": create_map_links_flag,
                 "metadata": _metadata_block(
                     old,
-                    auth=auth,
+                    dataspot_meta=dataspot_meta,
                     dataspot_dataset_id=dataspot_uuid,
                     stac_collection_id=collection_id,
                     geo_dataset=geo_dataset,
