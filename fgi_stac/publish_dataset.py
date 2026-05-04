@@ -676,9 +676,7 @@ def _sync_publish_catalog_from_huwise() -> None:
         publisher = _clean_text(_get_template_field(templates, "default", "publisher"))
         if publisher:
             dataset["publisher"] = publisher
-        language = _clean_text(_get_template_field(templates, "default", "language"))
-        if language:
-            dataset["language"] = language
+        dataset["language"] = "de"
         keywords = _coerce_string_list(_get_template_field(templates, "default", "keyword"))
         if keywords:
             dataset["keywords"] = keywords

@@ -907,6 +907,7 @@ def _metadata_block(
             "title": _clean(default.get("title")) or dataspot_meta["title"] or geo_dataset,
             "description": _description_to_html(_clean(default.get("description")) or dataspot_meta["description"]),
             "keyword": keyword_values,
+            "language": "de",
             "publisher": publisher_from_path,
             "modified_updates_on_data_change": bool(default.get("modified_updates_on_data_change", True)),
         },
