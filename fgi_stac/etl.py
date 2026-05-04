@@ -249,6 +249,12 @@ def _description_to_html(value: Any) -> str:
     return "\n".join(f"<p>{html.escape(part).replace('\n', '<br>')}</p>" for part in paragraphs)
 
 
+def _third_path_segment(path_value: Any) -> str:
+    path = _clean(path_value)
+    parts = [part.strip() for part in path.split("/") if part.strip()]
+    return parts[2] if len(parts) > 2 else ""
+
+
 def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     old_by_name = {}
     if isinstance(old_schema, list):
@@ -869,10 +875,15 @@ def _metadata_block(
         cleaned = _clean(url)
         if cleaned and cleaned not in relation_values_final:
             relation_values_final.append(cleaned)
-    producer_path = _clean(default.get("publisher")) or _clean(producer_organization) or dataspot_meta["publisher_path"]
-    producer_parts = [part.strip() for part in producer_path.split("/") if part.strip()]
-    publisher_from_path = producer_parts[2] if len(producer_parts) > 2 else ""
-    publizierende_organisation = producer_parts[2] if len(producer_parts) > 2 else ""
+    default_publisher = _clean(default.get("publisher"))
+    publisher_from_path = (
+        _third_path_segment(default_publisher)
+        or _third_path_segment(producer_organization)
+        or _third_path_segment(dataspot_meta["publisher_path"])
+    )
+    if not publisher_from_path:
+        publisher_from_path = default_publisher or _clean(producer_organization) or dataspot_meta["publisher_path"]
+    publizierende_organisation = publisher_from_path
     keyword_values = [item for item in collection_keywords if _clean(item)]
     if not keyword_values:
         keyword_values_raw = default.get("keyword")
@@ -903,7 +914,7 @@ def _metadata_block(
             "license": "CC BY 4.0",
         },
         "dcat": {
-            "creator": _clean(dcat.get("creator")) or publisher_from_path,
+            "creator": publisher_from_path,
             "created": _clean(dcat.get("created")) or dataspot_meta["created"],
             "issued": _clean(dcat.get("issued")) or dataspot_meta["issued"],
             "accrualperiodicity": _clean(dcat.get("accrualperiodicity")) or dataspot_meta["accrualperiodicity"],

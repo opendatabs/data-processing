@@ -206,6 +206,12 @@ def _extract_stac_code(value: Any) -> str:
     return ""
 
 
+def _third_path_segment(path_value: Any) -> str:
+    path = _clean_text(path_value)
+    parts = [part.strip() for part in path.split("/") if part.strip()]
+    return parts[2] if len(parts) > 2 else ""
+
+
 _UUID_RE = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
@@ -323,10 +329,9 @@ def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
     license_name = _clean_text(internal_payload.get("license")) or DEFAULT_LICENSE_NAME
     license_id = LICENSE_ID_BY_NAME.get(license_name, _clean_text(license_name))
     raw_publisher = _clean_text(default_payload.get("publisher"))
-    publisher_path_parts = [part.strip() for part in raw_publisher.split("/") if part.strip()]
-    publisher_from_path = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
+    publisher_from_path = _third_path_segment(raw_publisher)
     resolved_publisher = publisher_from_path or raw_publisher
-    resolved_creator = _clean_text(dcat_payload.get("creator")) or publisher_from_path or raw_publisher
+    resolved_creator = publisher_from_path or _clean_text(dcat_payload.get("creator")) or raw_publisher
     return {
         "ods_id": ods_id,
         "stac_collection_id": _clean_text(dataset.get("stac_collection_id")),
