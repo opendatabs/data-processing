@@ -282,6 +282,7 @@ def _dataspot_metadata(auth: DataspotAuth, dataspot_dataset_id: str) -> dict[str
         "keyword_values": keywords,
         "publisher_path": publisher_path,
         "created": _normalize_optional_date(custom.get("creationDate")),
+        "modified": _normalize_optional_date(payload.get("modified")),
         "issued": _normalize_optional_date(custom.get("publicationDate")),
         "accrualperiodicity": _clean(payload.get("accrualPeriodicity")),
     }
@@ -959,7 +960,8 @@ def _metadata_block(
             "keyword": keyword_values,
             "language": "de",
             "publisher": publisher_from_path,
-            "modified_updates_on_data_change": bool(default.get("modified_updates_on_data_change", True)),
+            "modified": _clean(default.get("modified")) or dataspot_meta["modified"],
+            "modified_updates_on_data_change": False,
         },
         "internal": {
             "license": "CC BY 4.0",

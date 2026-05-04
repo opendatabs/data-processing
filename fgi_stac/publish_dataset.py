@@ -356,7 +356,8 @@ def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
         "tags": ";".join(tag_values) if tag_values else DEFAULT_TAG,
         "custom.publizierende_organisation": _clean_text(custom_payload.get("publizierende_organisation")),
         "custom.geodaten_modellbeschreibung": _clean_text(custom_payload.get("geodaten_modellbeschreibung")),
-        "default.modified_updates_on_data_change": bool(default_payload.get("modified_updates_on_data_change", True)),
+        "default.modified": _clean_text(default_payload.get("modified")),
+        "default.modified_updates_on_data_change": bool(default_payload.get("modified_updates_on_data_change", False)),
     }
 
 
@@ -1184,6 +1185,7 @@ def _dataspot_metadata_row(auth: DataspotAuth, dataspot_dataset_id: str, metadat
             "theme": ";".join(themes),
             "keyword": ";".join(keywords),
             "dcat.created": _normalize_optional_date(custom.get("creationDate")),
+            "default.modified": _normalize_optional_date(details.get("modified")),
             "dcat.issued": _normalize_optional_date(custom.get("publicationDate")),
             "dcat.accrualperiodicity": _clean_text(details.get("accrualPeriodicity")),
             "publisher": publisher,
@@ -1418,9 +1420,13 @@ def _set_metadata_fields(
         lambda: _set_template_field(
             "default",
             "modified_updates_on_data_change",
-            bool(metadata_row.get("default.modified_updates_on_data_change", True)),
+            bool(metadata_row.get("default.modified_updates_on_data_change", False)),
             publish=False,
         ),
+    )
+    _safe_set(
+        "modified_value",
+        lambda: _set_template_field("default", "modified", _clean_text(metadata_row.get("default.modified")), publish=False),
     )
     _safe_set(
         "modified_manual",
