@@ -12,24 +12,23 @@ This script processes datasets from ``data/publish_catalog.yaml`` and performs:
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass
-from pathlib import Path
 import argparse
+import asyncio
 import html
 import json
 import logging
 import re
 import tempfile
-from urllib.parse import urlparse
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
+import common
 import geopandas as gpd
 import httpx
 import pandas as pd
 import yaml
-
-import common
 from common import change_tracking
 from dataspot_auth import DataspotAuth
 from huwise_utils_py import (
@@ -40,7 +39,6 @@ from huwise_utils_py import (
 )
 from huwise_utils_py.config import HuwiseConfig
 from huwise_utils_py.http import HttpClient
-
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -212,9 +210,7 @@ def _third_path_segment(path_value: Any) -> str:
     return parts[2] if len(parts) > 2 else ""
 
 
-_UUID_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-)
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
 def _dataspot_uuid_from_catalog(dataset: dict[str, Any]) -> str:
@@ -825,7 +821,11 @@ def _validate_dataspot_schema_against_geometa(
         return
     if not geometa_names:
         return
-    dataspot_names = {_clean_text(row.get("technical_name_dataspot")) for row in schema_rows if _clean_text(row.get("technical_name_dataspot"))}
+    dataspot_names = {
+        _clean_text(row.get("technical_name_dataspot"))
+        for row in schema_rows
+        if _clean_text(row.get("technical_name_dataspot"))
+    }
     missing_in_dataspot = sorted(name for name in geometa_names if name not in dataspot_names)
     if missing_in_dataspot:
         logging.warning(
@@ -848,7 +848,9 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
                 composed_by_href = f"https://bs.dataspot.io{composed_by_href}"
             composition_payload = _dataspot_get(auth, composed_by_href, allow_404=True)
             if composition_payload is not None:
-                technical = _clean_text(composition_payload.get("title")) or _clean_text(composition_payload.get("label"))
+                technical = _clean_text(composition_payload.get("title")) or _clean_text(
+                    composition_payload.get("label")
+                )
                 if technical:
                     return technical
         return _clean_text(attribute.get("label"))
@@ -888,8 +890,13 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
             DATASPOT_CLASSIFIER_ATTRIBUTES_URL.format(classifier_id=classifier_id),
             allow_404=True,
         )
-        classifier_attributes = classifier_attributes_payload.get("_embedded", {}).get("attributes", []) if classifier_attributes_payload else []
+        classifier_attributes = (
+            classifier_attributes_payload.get("_embedded", {}).get("attributes", [])
+            if classifier_attributes_payload
+            else []
+        )
         rows: list[dict[str, str]] = []
+
         async def _fetch_classifier_datatypes() -> dict[str, dict[str, Any] | None]:
             headers = auth.get_headers()
             datatype_ids = [_clean_text(attribute.get("hasRange")) for attribute in classifier_attributes]
@@ -917,7 +924,10 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
             if datatype is not None:
                 datatype_label = _clean_text(datatype.get("label")) or _clean_text(datatype.get("title"))
             technical_name = _attribute_technical_name(attribute)
-            if "geometr" in _normalize_name(datatype_label) and _normalize_name(technical_name) in {"geometrie", "geometry"}:
+            if "geometr" in _normalize_name(datatype_label) and _normalize_name(technical_name) in {
+                "geometrie",
+                "geometry",
+            }:
                 technical_name = "geometry"
             if not technical_name:
                 continue
@@ -990,7 +1000,10 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
         technical_name = _clean_text(composition.get("title"))
         if not technical_name:
             technical_name = _clean_text(composition.get("label"))
-        if "geometr" in _normalize_name(datatype_label) and _normalize_name(technical_name) in {"geometrie", "geometry"}:
+        if "geometr" in _normalize_name(datatype_label) and _normalize_name(technical_name) in {
+            "geometrie",
+            "geometry",
+        }:
             technical_name = "geometry"
         if not technical_name:
             continue
@@ -1000,8 +1013,7 @@ def _fetch_dataspot_schema_rows(auth: DataspotAuth, dataspot_dataset_id: str) ->
                 "technical_name_dataspot": technical_name,
                 "technical_name_huwise": technical_name,
                 "column_name": _clean_text(composition.get("label")) or technical_name,
-                "description": _clean_text(composition.get("description"))
-                or _clean_text(attribute.get("description")),
+                "description": _clean_text(composition.get("description")) or _clean_text(attribute.get("description")),
                 "datatype": datatype_label or "Text",
                 "multivalued_separator": "",
                 "source": "dataspot",
@@ -1165,9 +1177,7 @@ def _dataspot_metadata_row(auth: DataspotAuth, dataspot_dataset_id: str, metadat
         custom = {}
     raw_tags = _extract_string_list(details.get("tags"))
     raw_publisher_path = _clean_text(
-        details.get("producerOrganization")
-        or details.get("publishingOrganization")
-        or details.get("publisher")
+        details.get("producerOrganization") or details.get("publishingOrganization") or details.get("publisher")
     )
     publisher_path_parts = [part.strip() for part in raw_publisher_path.split("/") if part.strip()]
     publizierende_organisation = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
@@ -1361,8 +1371,11 @@ def _set_metadata_fields(
         matches_last_push = last_push is not None and normalized_existing == _normalize_metadata_compare_value(
             last_push
         )
-        can_write = force_metadata_sync or _is_empty_value(existing) or (normalized_existing == normalized_new) or (
-            matches_last_push
+        can_write = (
+            force_metadata_sync
+            or _is_empty_value(existing)
+            or (normalized_existing == normalized_new)
+            or (matches_last_push)
         )
         if not can_write:
             return
@@ -1372,7 +1385,9 @@ def _set_metadata_fields(
         if publish:
             dataset.publish()
 
-    _safe_set("title", lambda: _set_template_field("default", "title", _clean_text(metadata_row.get("title")), publish=False))
+    _safe_set(
+        "title", lambda: _set_template_field("default", "title", _clean_text(metadata_row.get("title")), publish=False)
+    )
     _safe_set(
         "description",
         lambda: _set_template_field(
@@ -1414,7 +1429,10 @@ def _set_metadata_fields(
         _safe_set("license_id", lambda: _set_template_field("internal", "license_id", license_id, publish=False))
 
     _safe_set("language", lambda: _set_template_field("default", "language", "de", publish=False))
-    _safe_set("geographic_reference", lambda: _set_template_field("default", "geographic_reference", DEFAULT_GEOGRAPHIC_REFERENCE, publish=False))
+    _safe_set(
+        "geographic_reference",
+        lambda: _set_template_field("default", "geographic_reference", DEFAULT_GEOGRAPHIC_REFERENCE, publish=False),
+    )
     _safe_set(
         "modified_auto",
         lambda: _set_template_field(
@@ -1426,7 +1444,9 @@ def _set_metadata_fields(
     )
     _safe_set(
         "modified_value",
-        lambda: _set_template_field("default", "modified", _clean_text(metadata_row.get("default.modified")), publish=False),
+        lambda: _set_template_field(
+            "default", "modified", _clean_text(metadata_row.get("default.modified")), publish=False
+        ),
     )
     _safe_set(
         "modified_manual",
@@ -1472,12 +1492,23 @@ def _set_metadata_fields(
         "dcat_license",
         lambda: _set_template_field("dcat_ap_ch", "license", DEFAULT_LICENSE, publish=False),
     )
-    _safe_set("creator", lambda: _set_template_field("dcat", "creator", _clean_text(metadata_row.get("dcat.creator")), publish=False))
-    _safe_set("created", lambda: _set_template_field("dcat", "created", _clean_text(metadata_row.get("dcat.created")), publish=False))
-    _safe_set("issued", lambda: _set_template_field("dcat", "issued", _clean_text(metadata_row.get("dcat.issued")), publish=False))
+    _safe_set(
+        "creator",
+        lambda: _set_template_field("dcat", "creator", _clean_text(metadata_row.get("dcat.creator")), publish=False),
+    )
+    _safe_set(
+        "created",
+        lambda: _set_template_field("dcat", "created", _clean_text(metadata_row.get("dcat.created")), publish=False),
+    )
+    _safe_set(
+        "issued",
+        lambda: _set_template_field("dcat", "issued", _clean_text(metadata_row.get("dcat.issued")), publish=False),
+    )
     _safe_set(
         "accrualperiodicity",
-        lambda: _set_template_field("dcat", "accrualperiodicity", _clean_text(metadata_row.get("dcat.accrualperiodicity")), publish=False),
+        lambda: _set_template_field(
+            "dcat", "accrualperiodicity", _clean_text(metadata_row.get("dcat.accrualperiodicity")), publish=False
+        ),
     )
     relation_urls = _split_semicolon_list(metadata_row.get("relation_urls"))
     if relation_urls:
