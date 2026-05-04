@@ -175,6 +175,56 @@ def _discover_instances_for_collection(collection_id: str, collection_title: str
     return instances
 
 
+_WERTEBEREICH_EXACT_LABELS = {
+    "öreb status geschäft",
+    "verbindlichkeit",
+}
+
+_WERTEBEREICH_PREFIXES = (
+    "typ ",
+    "kategorie ",
+    "status ",
+    "art ",
+)
+
+_WERTEBEREICH_SUFFIXES = (
+    " typ",
+    " kategorie",
+    " status",
+    " art",
+    " typen",
+)
+
+_WERTEBEREICH_CONTAINS = (
+    " status ",
+    " kategorie ",
+    " typ ",
+    " art ",
+)
+
+_WERTEBEREICH_EXCEPTIONS = {
+    # Real datasets that happen to contain "status"/"art"/"typ" wording.
+    "inventar der schützenswerten bauten: erarbeitungsstatus",
+}
+
+
+def _looks_like_wertebereich_label(label: str) -> bool:
+    normalized = _clean(label).casefold()
+    if not normalized:
+        return False
+    if normalized in _WERTEBEREICH_EXCEPTIONS:
+        return False
+    if normalized in _WERTEBEREICH_EXACT_LABELS:
+        return True
+    if normalized.startswith(_WERTEBEREICH_PREFIXES):
+        return True
+    if normalized.endswith(_WERTEBEREICH_SUFFIXES):
+        return True
+    if any(marker in normalized for marker in _WERTEBEREICH_CONTAINS):
+        return True
+    return False
+
+
 def _dataspot_get(auth: DataspotAuth, url: str, *, allow_404: bool = False) -> dict[str, Any] | None:
     return _http_get_json(url, headers=auth.get_headers(), allow_404=allow_404)
 
@@ -984,6 +1034,14 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
             dataspot_uuid = _clean(instance.get("dataspot_uuid")).lower()
             geo_dataset = _clean(instance.get("geo_dataset")) or collection_title
             if not dataspot_uuid:
+                continue
+            if _looks_like_wertebereich_label(geo_dataset):
+                logging.info(
+                    "Skipping Wertebereich entry for %s: %s (%s)",
+                    collection_id,
+                    geo_dataset,
+                    dataspot_uuid,
+                )
                 continue
             old = by_uuid.get(dataspot_uuid, {})
             huwise_id = _clean(old.get("huwise_id")) or _clean(legacy_huwise.get(dataspot_uuid))
