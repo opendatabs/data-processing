@@ -70,6 +70,38 @@ def _clean(value: Any) -> str:
     return str(value).strip()
 
 
+def _schema_export_value(value: Any, *, default: bool) -> bool:
+    """Interpret YAML ``export``; preserved across ETL while Dataspot refreshes other fields."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = _clean(value).lower()
+    if text in {"", "none"}:
+        return default
+    return text not in {"false", "0", "no", "off"}
+
+
+def _custom_block_from_preserved_row(item: dict[str, Any]) -> dict[str, Any]:
+    """Build ``custom`` from a saved schema row (the only top-level keys ETL preserves)."""
+    old_custom = item.get("custom")
+    if isinstance(old_custom, dict):
+        return {
+            "technical_name": _clean(old_custom.get("technical_name")),
+            "name": _clean(old_custom.get("name")),
+            "description": _clean(old_custom.get("description")),
+            "datentyp": _clean(old_custom.get("datentyp")),
+            "mehrwertigkeit": _clean(old_custom.get("mehrwertigkeit")),
+        }
+    return {
+        "technical_name": _clean(old_custom),
+        "name": "",
+        "description": "",
+        "datentyp": "",
+        "mehrwertigkeit": "",
+    }
+
+
 def _http_get_json(
     url: str,
     *,
@@ -330,16 +362,6 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
                 return mapped
         return "text"
 
-    def _bool_like(value: Any, *, default: bool) -> bool:
-        if value is None:
-            return default
-        if isinstance(value, bool):
-            return value
-        text = _clean(value).lower()
-        if text in {"", "none"}:
-            return default
-        return text not in {"false", "0", "no", "off"}
-
     def _old_value(old_item: dict[str, Any], *keys: str) -> Any:
         for key in keys:
             if key in old_item:
@@ -361,30 +383,16 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
         multivalued_separator: str,
     ) -> dict[str, Any]:
         old = old_by_name.get(technical_name, {})
-        old_custom = _old_value(old, "custom")
-        if isinstance(old_custom, dict):
-            custom_payload = {
-                "technical_name": _clean(old_custom.get("technical_name")),
-                "name": _clean(old_custom.get("name")),
-                "description": _clean(old_custom.get("description")),
-                "datentyp": _clean(old_custom.get("datentyp")),
-                "mehrwertigkeit": _clean(old_custom.get("mehrwertigkeit")),
-            }
-        else:
-            custom_payload = {
-                "technical_name": _clean(old_custom),
-                "name": "",
-                "description": "",
-                "datentyp": "",
-                "mehrwertigkeit": "",
-            }
+        custom_payload = _custom_block_from_preserved_row(old)
         row: dict[str, Any] = {
             "technical_name": technical_name,
             "name": field_name or technical_name,
             "description": description,
-            "mehrwertigkeit": _clean(_old_value(old, "mehrwertigkeit")) or multivalued_separator,
+            "mehrwertigkeit": multivalued_separator,
             "datentyp": _map_datatype(datatype_label),
-            "export": _bool_like(_old_value(old, "export"), default=technical_name.lower() != "gdh_fid"),
+            "export": _schema_export_value(
+                _old_value(old, "export"), default=technical_name.lower() != "gdh_fid"
+            ),
             "custom": custom_payload,
         }
         if not _clean(custom_payload.get("technical_name")):
@@ -535,6 +543,53 @@ def _read_geojson_properties(path: Path) -> list[str]:
     return [str(key) for key in properties.keys()]
 
 
+def _append_preserved_fields_missing_from_dataspot(
+    fields: list[dict[str, Any]],
+    preserved_schema: list[dict[str, Any]] | None,
+    geojson_properties: list[str],
+) -> list[dict[str, Any]]:
+    """Re-attach GeoJSON-only columns so ``export`` and ``custom`` survive ETL.
+
+    Top-level ``name`` / ``description`` / ``datentyp`` / ``mehrwertigkeit`` come from the
+    task (synthetic defaults, then ``map_links`` fixed copy); only ``custom`` and ``export``
+    are taken from the saved YAML.
+    """
+    if not preserved_schema or not geojson_properties:
+        return fields
+    geo_names = {str(p) for p in geojson_properties}
+    existing: set[str] = set()
+    for item in fields:
+        if isinstance(item, dict):
+            tn = _clean(item.get("technical_name"))
+            if tn:
+                existing.add(tn)
+    extra: list[dict[str, Any]] = []
+    for item in preserved_schema:
+        if not isinstance(item, dict):
+            continue
+        tn = _clean(item.get("technical_name"))
+        if not tn or tn not in geo_names or tn in existing:
+            continue
+        export_default = tn.lower() != "gdh_fid"
+        if tn.lower() == "map_links":
+            export_default = False
+        custom_payload = _custom_block_from_preserved_row(item)
+        row: dict[str, Any] = {
+            "technical_name": tn,
+            "name": tn,
+            "description": "",
+            "mehrwertigkeit": "",
+            "datentyp": "text",
+            "export": _schema_export_value(item.get("export"), default=export_default),
+            "custom": custom_payload,
+        }
+        if not _clean(custom_payload.get("technical_name")):
+            row["custom"]["technical_name"] = _normalize_huwise_field_name(tn)
+        extra.append(row)
+        existing.add(tn)
+    return fields + extra if extra else fields
+
+
 def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_properties: list[str]) -> list[dict[str, Any]]:
     by_name: dict[str, dict[str, Any]] = {}
     for item in fields:
@@ -547,13 +602,16 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
     for property_name in geojson_properties:
         row = dict(by_name.get(property_name, {}))
         if not row:
+            export_default = property_name.lower() != "gdh_fid"
+            if property_name.lower() == "map_links":
+                export_default = False
             row = {
                 "technical_name": property_name,
                 "name": property_name,
                 "description": "",
                 "mehrwertigkeit": "",
                 "datentyp": "text",
-                "export": property_name.lower() != "gdh_fid",
+                "export": export_default,
                 "custom": {
                     "technical_name": _normalize_huwise_field_name(property_name),
                     "name": "",
@@ -586,16 +644,13 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
         custom.setdefault("mehrwertigkeit", "")
         geometry_row["custom"] = custom
         merged.append(geometry_row)
-    for row in merged:
-        if isinstance(row, dict) and _clean(row.get("technical_name")).lower() == "map_links":
-            row["export"] = False
     return merged
 
 
 def _apply_map_links_schema_field(
     fields: list[dict[str, Any]], mapbs_url: str
 ) -> list[dict[str, Any]]:
-    """Ensure a ``map_links`` field with fixed label/description and ``export`` false."""
+    """Ensure ``map_links`` exists; task sets DE label/type, YAML keeps ``export`` and ``custom``."""
     _ = mapbs_url  # Kept for compatibility at call site.
     fixed_name = "Zum Objekt navigieren"
     fixed_description = "URL zur Navigation des Standorts in einer Karten-App"
@@ -608,9 +663,10 @@ def _apply_map_links_schema_field(
         r = dict(row)
         if _clean(r.get("technical_name")).lower() == "map_links":
             has_map_links = True
-            r["export"] = False
             r["name"] = fixed_name
             r["description"] = fixed_description
+            r["datentyp"] = "text"
+            r["mehrwertigkeit"] = ""
             custom = r.get("custom")
             if not isinstance(custom, dict):
                 custom = {}
@@ -1149,6 +1205,9 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                     preserved_schema = catalog_schema if isinstance(catalog_schema, list) else None
                 fields = _dataspot_schema(auth, dataspot_uuid, preserved_schema)
                 geojson_properties = _read_geojson_properties(geojson_file) if geojson_file else []
+                fields = _append_preserved_fields_missing_from_dataspot(
+                    fields, preserved_schema, geojson_properties
+                )
                 fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
                 fields = _apply_map_links_schema_field(fields, mapbs_url)
                 _write_schema_file(
