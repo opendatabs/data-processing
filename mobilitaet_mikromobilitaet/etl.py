@@ -27,8 +27,12 @@ def create_map_links(geometry, p1, p2):
 def load_current_data_from_wfs(url_wfs, shapes_to_load):
     logging.info(f"Connecting to WFS at {url_wfs}")
     wfs = WebFeatureService(url=url_wfs, version="2.0.0", timeout=120)
-    # override broken endpoint from capabilities
-    wfs.url = url_wfs
+    if hasattr(wfs, "operations"):
+        for operation in wfs.operations:
+            if isinstance(operation.methods, list):
+                for method in operation.methods:
+                    if isinstance(method, dict) and "url" in method:
+                        method["url"] = f"{url_wfs.rstrip('/')}?"
     gdf_current = gpd.GeoDataFrame()
     failed_layers = []
 
