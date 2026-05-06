@@ -283,6 +283,18 @@ def create_wfs_getfeature_url(wfs_base_url: str, layer_name: str) -> str:
     return f"{wfs_base_url}?{query}"
 
 
+def create_patched_wfs_client(url_wfs: str) -> WebFeatureService:
+    """Create WFS client and patch operation method URLs to public endpoint."""
+    wfs = WebFeatureService(url=url_wfs, version="2.0.0", timeout=120)
+    if hasattr(wfs, "operations"):
+        for operation in wfs.operations:
+            if isinstance(operation.methods, list):
+                for method in operation.methods:
+                    if isinstance(method, dict) and "url" in method:
+                        method["url"] = f"{URL_WFS.rstrip('/')}?"
+    return wfs
+
+
 async def fetch_with_retries(
     client: httpx.AsyncClient,
     url: str,
@@ -319,10 +331,15 @@ async def fetch_layer_geodata(
                 logger.info("Fetching WFS layer", layer_name=layer_name)
 
             def _fetch_wfs_payload() -> bytes:
-                getfeature_url = create_wfs_getfeature_url(URL_WFS, layer_name)
-                response = requests.get(getfeature_url, timeout=120)
-                response.raise_for_status()
-                return response.content
+                typename = layer_name if ":" in layer_name else f"ms:{layer_name}"
+                wfs = create_patched_wfs_client(URL_WFS)
+                try:
+                    return wfs.getfeature(typename=typename, method="GET").read()
+                except Exception:
+                    getfeature_url = create_wfs_getfeature_url(URL_WFS, layer_name)
+                    response = requests.get(getfeature_url, timeout=120)
+                    response.raise_for_status()
+                    return response.content
 
             fetch_start = time.perf_counter()
             payload = await asyncio.to_thread(_fetch_wfs_payload)
@@ -627,7 +644,7 @@ async def async_main(no_file_copy: bool) -> None:
     generate_schemas = os.getenv("FGI_GENERATE_SCHEMAS", "true").lower() in {"1", "true", "yes"}
 
     with timed(metrics, "wfs_capabilities"):
-        wfs = WebFeatureService(url=URL_WFS_CAPABILITIES, version="2.0.0", timeout=120)
+        wfs = create_patched_wfs_client(URL_WFS_CAPABILITIES)
     df_wms = process_wms_data(URL_WMS, metrics)
     df_wfs = process_wfs_data(wfs)
 
