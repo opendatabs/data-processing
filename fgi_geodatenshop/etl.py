@@ -29,6 +29,7 @@ FTP_USER = os.getenv("FTP_USER_01")
 FTP_PASS = os.getenv("FTP_PASS_01")
 URL_WMS = "https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities"
 URL_WFS = "https://wfs.geo.bs.ch/"
+URL_WFS_CAPABILITIES = f"{URL_WFS}?service=WFS&request=GetCapabilities&version=2.0.0"
 WFS_CONCURRENCY = 8
 HTTP_TIMEOUT = httpx.Timeout(120.0, connect=30.0)
 LOG_WFS_REQUESTS = True
@@ -319,12 +320,10 @@ async def fetch_layer_geodata(
             typename = layer_name if ":" in layer_name else f"ms:{layer_name}"
 
             def _fetch_wfs_payload() -> bytes:
-                wfs = WebFeatureService(url=URL_WFS, version="2.0.0", timeout=120)
-
-                # critical fix: override broken endpoint
-                wfs.url = URL_WFS
-
-                return wfs.getfeature(typename=typename, method="GET").read()
+                getfeature_url = create_wfs_getfeature_url(URL_WFS, layer_name)
+                response = requests.get(getfeature_url, timeout=120)
+                response.raise_for_status()
+                return response.content
 
             fetch_start = time.perf_counter()
             payload = await asyncio.to_thread(_fetch_wfs_payload)
@@ -629,7 +628,7 @@ async def async_main(no_file_copy: bool) -> None:
     generate_schemas = os.getenv("FGI_GENERATE_SCHEMAS", "true").lower() in {"1", "true", "yes"}
 
     with timed(metrics, "wfs_capabilities"):
-        wfs = WebFeatureService(url=URL_WFS, version="2.0.0", timeout=120)
+        wfs = WebFeatureService(url=URL_WFS_CAPABILITIES, version="2.0.0", timeout=120)
     df_wms = process_wms_data(URL_WMS, metrics)
     df_wfs = process_wfs_data(wfs)
 
