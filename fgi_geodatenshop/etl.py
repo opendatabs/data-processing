@@ -317,7 +317,6 @@ async def fetch_layer_geodata(
         try:
             if LOG_WFS_REQUESTS:
                 logger.info("Fetching WFS layer", layer_name=layer_name)
-            typename = layer_name if ":" in layer_name else f"ms:{layer_name}"
 
             def _fetch_wfs_payload() -> bytes:
                 getfeature_url = create_wfs_getfeature_url(URL_WFS, layer_name)
