@@ -320,7 +320,11 @@ async def fetch_layer_geodata(
 
             def _fetch_wfs_payload() -> bytes:
                 wfs = WebFeatureService(url=URL_WFS, version="2.0.0", timeout=120)
-                return wfs.getfeature(typename=typename).read()
+
+                # critical fix: override broken endpoint
+                wfs.url = URL_WFS
+
+                return wfs.getfeature(typename=typename, method="GET").read()
 
             fetch_start = time.perf_counter()
             payload = await asyncio.to_thread(_fetch_wfs_payload)
