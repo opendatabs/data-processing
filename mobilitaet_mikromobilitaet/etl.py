@@ -223,6 +223,7 @@ def main():
         "XS_Lime",
         "XS_PickEBike",
         "XS_PickEMoped",
+        "XS_Dott"
     ]
     gdf_current, failed_layers = load_current_data_from_wfs(url_wfs, shapes_to_load)
 
