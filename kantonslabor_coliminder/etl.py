@@ -27,11 +27,11 @@ EXPORT_FROM_DATE = date(2026, 4, 28)
 COLIMINDER_EXPORT_FROM = date(2026, 1, 1)
 
 DATA_DIR = Path("data")
-LAB_EXCEL = DATA_DIR / "Laborergebnisse2026.xlsx"
-COLIMINDER_XLSX = DATA_DIR / "Coliminder.xlsx"
-JOINED_XLSX = DATA_DIR / "joined_data.xlsx"
-LEGACY_SHORT_XLSX = DATA_DIR / "data_ecoli_entero_short.xlsx"
-LEGACY_LIMS_XLSX = DATA_DIR / "Daten_LIMS_komplett.xlsx"
+OGD_DIR = DATA_DIR / "daten_aus_ogd"
+LAB_EXCEL = DATA_DIR / "input" / "Laborergebnisse2026.xlsx"
+COLIMINDER_XLSX = DATA_DIR / "etl_output" / "Coliminder.xlsx"
+JOINED_XLSX = DATA_DIR / "etl_output" / "joined_data.xlsx"
+LEGACY_SHORT_XLSX = DATA_DIR / "input" / "data_ecoli_entero_short.xlsx"
 TZ = ZoneInfo("Europe/Zurich")
 
 @dataclass(frozen=True)
@@ -361,60 +361,6 @@ def load_legacy_short_excel(path: Path | str = LEGACY_SHORT_XLSX) -> pd.DataFram
     return out
 
 
-def load_legacy_lims_excel(path: Path | str = LEGACY_LIMS_XLSX) -> pd.DataFrame:
-    """Load old `Daten_LIMS_komplett.xlsx` if available."""
-    p = Path(path)
-    if not p.exists():
-        return pd.DataFrame(
-            columns=[
-                "Messzeitpunkt_Labor",
-                "Entnahmeort",
-                "E.coli",
-                "Enterokokken",
-                "Badewasserqualität",
-                "coliminder_e_coli",
-                "coliminder_entero",
-                "Wassertemperatur",
-            ]
-        )
-
-    df = pd.read_excel(p)
-    df.columns = [str(c).strip() for c in df.columns]
-    # First row is often a metadata row in this file.
-    if "Proben" in df.columns:
-        df = df[df["Proben"].astype(str).str.strip().str.lower() != "probennummer"].copy()
-
-    col_datum = _find_column(list(df.columns), "erhebungsdatum") or "Unnamed: 2"
-    col_zeit = _find_column(list(df.columns), "uhrzeit") or "Uhrzeit"
-    col_ort = _find_column(list(df.columns), "bezeichnung") or "Unnamed: 1"
-    col_ecoli = _find_column(list(df.columns), "e", "coli", "kbe")
-    col_entero = _find_column(list(df.columns), "entero", "kbe")
-    col_bwq = _find_column(list(df.columns), "qualitatsklasse")
-    col_cm_ecoli = _find_column(list(df.columns), "durchschnitt", "coliminder", "ecoli")
-    col_cm_entero = _find_column(list(df.columns), "durchschnitt", "coliminder", "entero")
-    col_temp = _find_column(list(df.columns), "temperatur", "wasser")
-
-    dt = pd.to_datetime(
-        df[col_datum].astype(str).str.strip() + " " + df[col_zeit].astype(str).str.strip(),
-        format="%d.%m.%Y %H:%M:%S",
-        errors="coerce",
-    )
-    mess = dt.dt.tz_localize(TZ, ambiguous="infer", nonexistent="shift_forward")
-
-    out = pd.DataFrame(
-        {
-            "Messzeitpunkt_Labor": mess,
-            "Entnahmeort": df[col_ort] if col_ort in df.columns else pd.NA,
-            "E.coli": pd.to_numeric(df[col_ecoli], errors="coerce") if col_ecoli else pd.NA,
-            "Enterokokken": pd.to_numeric(df[col_entero], errors="coerce") if col_entero else pd.NA,
-            "Badewasserqualität": df[col_bwq] if col_bwq else pd.NA,
-            "coliminder_e_coli": pd.to_numeric(df[col_cm_ecoli], errors="coerce") if col_cm_ecoli else pd.NA,
-            "coliminder_entero": pd.to_numeric(df[col_cm_entero], errors="coerce") if col_cm_entero else pd.NA,
-            "Wassertemperatur": pd.to_numeric(df[col_temp], errors="coerce") if col_temp else pd.NA,
-        }
-    )
-    return out
-
 def fetch_coliminder_long(
     client: OpenRemoteClient,
     *,
@@ -552,8 +498,7 @@ def download_huwise_xlsx(
         "timezone": "Europe/Zurich",
         "use_labels": "true",
     }
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    dest = DATA_DIR / f"{ods_id}.xlsx"
+    dest = OGD_DIR / f"{ods_id}.xlsx"
 
     qv1_effective = qv1 or f'{time_field} >= "{oldest_iso}"'
     resp = common.requests_get(url, params={**params_base, "qv1": qv1_effective})
@@ -1038,8 +983,6 @@ def labor_oldest_date(df_lab: pd.DataFrame) -> date:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     LOGGER.info("Starting Kantonslabor + Coliminder + Huwise ETL.")
-
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     df_lab_new = load_labor_excel(LAB_EXCEL)
     df_lab_short = load_legacy_short_excel(LEGACY_SHORT_XLSX)
