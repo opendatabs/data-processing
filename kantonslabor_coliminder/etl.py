@@ -821,57 +821,6 @@ def _merge_asof_nearest(
     )
 
 
-def _first_notna(series: pd.Series) -> Any:
-    non_na = series.dropna()
-    if non_na.empty:
-        return pd.NA
-    return non_na.iloc[0]
-
-
-def _join_unique_nonempty(series: pd.Series) -> Any:
-    vals = [str(v).strip() for v in series.dropna().tolist() if str(v).strip()]
-    uniq: list[str] = []
-    for v in vals:
-        if v not in uniq:
-            uniq.append(v)
-    if not uniq:
-        return pd.NA
-    return " | ".join(uniq)
-
-
-def _collapse_duplicate_messzeitpunkt(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Keep exactly one row per Messzeitpunkt.
-    For lab-related columns, concatenate unique values to avoid silent data loss.
-    """
-    if df.empty or "Messzeitpunkt" not in df.columns:
-        return df
-
-    agg: dict[str, Any] = {}
-    concat_cols = {
-        "Messzeitpunkt_Labor",
-        "Entnahmeort",
-        "E.coli",
-        "Enterokokken",
-        "Badewasserqualität",
-        "coliminder_e_coli",
-        "coliminder_entero",
-    }
-    for col in df.columns:
-        if col == "Messzeitpunkt":
-            continue
-        agg[col] = _join_unique_nonempty if col in concat_cols else _first_notna
-
-    out = (
-        df.sort_values("Messzeitpunkt", na_position="last")
-        .groupby("Messzeitpunkt", as_index=False, dropna=False)
-        .agg(agg)
-        .sort_values("Messzeitpunkt", na_position="last")
-        .reset_index(drop=True)
-    )
-    return out
-
-
 def _attach_coliminder_per_measurement(
     base: pd.DataFrame,
     df_coli_wide: pd.DataFrame,
