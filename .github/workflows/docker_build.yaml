@@ -136,7 +136,7 @@ jobs:
               - 'kapo_smileys/**'
             kantonslabor_coliminder:
               - 'Dockerfile'
-              - 'kantonslabor_coliminder'
+              - 'kantonslabor_coliminder/**'
             meteoblue_rosental:
               - 'Dockerfile'
               - 'meteoblue_rosental/**'
