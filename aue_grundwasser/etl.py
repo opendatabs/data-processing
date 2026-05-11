@@ -78,33 +78,15 @@ def process(file, x_coords_1416):
         .dt.tz_convert("UTC")
     )
     logging.info("Rounding LV95 coordinates as required...")
-    df.XCoord = pd.to_numeric(df.XCoord, errors="coerce").round(0)
-    df.YCoord = pd.to_numeric(df.YCoord, errors="coerce").round(0)
-    
+    df.XCoord = df.XCoord.round(0).astype(int)
+    df.YCoord = df.YCoord.round(0).astype(int)
     logging.info(f'Replacing potentially wrong xcoord for 1416 with value "{x_coords_1416}"...')
-    df.loc[df.StationNr == "0000001416", "XCoord"] = x_coords_1416
-    logging.info("Marking invalid coordinates...")
-    # Valid LV95 ranges for Switzerland (roughly)
-    valid_coords = (
-        df.XCoord.between(2400000, 2900000)
-        & df.YCoord.between(1000000, 1400000)
-    )
-    # Set invalid coordinates to NaN
-    df.loc[~valid_coords, ["XCoord", "YCoord"]] = np.nan
-    logging.info("Transforming coords to WGS84...")
+    df.loc[(df.StationNr == "0000001416"), "XCoord"] = x_coords_1416
+    logging.info("transforming coords to WGS84")
+    # see https://stackoverflow.com/a/65711998
     t = Transformer.from_crs("EPSG:2056", "EPSG:4326", always_xy=True)
-    df["lon"] = np.nan
-    df["lat"] = np.nan
-    mask = df.XCoord.notna() & df.YCoord.notna()
-    df.loc[mask, "lon"], df.loc[mask, "lat"] = t.transform(
-        df.loc[mask, "XCoord"].values,
-        df.loc[mask, "YCoord"].values,
-    )
-    df["geo_point_2d"] = np.where(
-        mask,
-        df.lat.astype(str).str.cat(df.lon.astype(str), sep=","),
-        np.nan,
-    )
+    df["lon"], df["lat"] = t.transform(df.XCoord.values, df.YCoord.values)
+    df["geo_point_2d"] = df.lat.astype(str).str.cat(df.lon.astype(str), sep=",")
 
     exported_files = []
     for sensornr_filter in [10, 20]:
