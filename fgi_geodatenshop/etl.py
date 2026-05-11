@@ -505,7 +505,13 @@ async def save_geodata_for_layers(
             publ_org, herausgeber, geocat_description, dcat_created = geocat_cache.get(geocat_uid, ("", "", "", ""))
             ods_id = row["ods_id"]
             schema_file = f"{ods_id}.csv" if row["schema_file"] else ""
-            description = row["beschreibung"]
+            manual_description = str(row["beschreibung"]).strip()
+            manual_herausgeber = str(row["Herausgeber"]).strip()
+            manual_publ_org = str(row["Publizierende Organisation"]).strip()
+
+            final_description = manual_description or geocat_description.strip()
+            final_herausgeber = manual_herausgeber or herausgeber.strip()
+            final_publ_org = manual_publ_org or publ_org.strip()
             dcat_ap_ch_domain = str(row["dcat_ap_ch.domain"]) if str(row["dcat_ap_ch.domain"]) != "" else ""
             tag_values = [tag for tag in str(row["tags"]).split(";") if tag] + ["opendata.swiss"]
 
@@ -514,7 +520,7 @@ async def save_geodata_for_layers(
                     "ods_id": ods_id,
                     "name": f"{geocat_uid}:{row['Dateiname']}",
                     "title": row["titel_nice"],
-                    "description": description if len(description) > 0 else geocat_description,
+                    "description":final_description,
                     "theme": str(row["theme"]),
                     "keyword": str(row["keyword"]),
                     "dcat_ap_ch.domain": dcat_ap_ch_domain,
@@ -523,15 +529,15 @@ async def save_geodata_for_layers(
                     "dcat.contact_name": "Open Data Basel-Stadt",
                     "dcat.contact_email": "opendata@bs.ch",
                     "dcat.created": dcat_created,
-                    "dcat.creator": herausgeber,
+                    "dcat.creator": final_herausgeber,
                     "dcat.accrualperiodicity": row["dcat.accrualperiodicity"],
                     "attributions": "Geodaten Kanton Basel-Stadt",
-                    "publisher": herausgeber,
+                    "publisher": final_herausgeber,
                     "dcat.issued": row["dcat.issued"],
                     "dcat.relation": "; ".join(filter(None, [row["mapbs_link"], row["geocat"], row["referenz"]])),
                     "modified": aktualisierung_iso,
                     "language": "de",
-                    "publizierende-organisation": publ_org,
+                    "publizierende-organisation": final_publ_org,
                     "tags": ";".join(dict.fromkeys(tag_values)),
                     "geodaten-modellbeschreibung": row["modellbeschreibung"],
                     "source_dataset": f"https://data-bs.ch/opendatasoft/harvesters/GVA/data/{file_name}",
