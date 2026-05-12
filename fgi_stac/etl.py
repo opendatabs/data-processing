@@ -7,6 +7,7 @@ import argparse
 import html
 import json
 import logging
+import os
 import subprocess
 import sys
 import re
@@ -19,12 +20,23 @@ from typing import Any
 import geopandas as gpd
 import httpx
 import yaml
+from dotenv import load_dotenv
 
 from dataspot_auth import DataspotAuth
 
+load_dotenv()
+
 STAC_V1_BASE_URL = "https://api.geo.bs.ch/stac/v1"
 STAC_COLLECTIONS_URL = f"{STAC_V1_BASE_URL}/collections"
-GEOMETA_HTML_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/preview/html/{collection_id}"
+GEOMETA_HTML_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/published/html/{collection_id}"
+
+
+def _api_geo_bs_headers() -> dict[str, str]:
+    """Headers required by api.geo.bs.ch endpoints that need authentication."""
+    api_key = os.getenv("API_KEY_MAPBS", "")
+    return {"apikey": api_key} if api_key else {}
+
+
 DATASPOT_COMPOSITIONS_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}/compositions"
 DATASPOT_DATASET_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}"
 DATASPOT_ATTRIBUTE_URL = "https://bs.dataspot.io/rest/prod/attributes/{attribute_id}"
@@ -140,7 +152,8 @@ async def _http_get_json_async(
 
 
 def _fetch_stac_collections() -> list[dict[str, Any]]:
-    payload = _http_get_json(STAC_COLLECTIONS_URL, timeout=HTTP_TIMEOUT)
+    headers = _api_geo_bs_headers()
+    payload = _http_get_json(STAC_COLLECTIONS_URL, headers=headers, timeout=HTTP_TIMEOUT)
     if payload is None:
         raise ValueError("Invalid STAC response: expected JSON object")
     collections = payload.get("collections", [])
@@ -855,9 +868,10 @@ def _download_stac_layer_geojson(collection_id: str, geo_dataset: str, out_dir: 
     output_file = out_dir / f"{cid}_{_safe_layer_filename_stem(geo_dataset)}.geojson"
     url = f"{STAC_V1_BASE_URL}/download/{cid}/latest/geojson"
     zip_path = out_dir / f"_{cid}_stac_latest_geojson.zip"
+    headers = _api_geo_bs_headers()
     try:
         with httpx.Client(timeout=HTTP_TIMEOUT_LONG, limits=HTTP_LIMITS) as client:
-            response = client.get(url)
+            response = client.get(url, headers=headers)
         response.raise_for_status()
         zip_path.write_bytes(response.content)
         with zipfile.ZipFile(zip_path, "r") as zf:
