@@ -936,6 +936,56 @@ def _schema_yaml_path(schema_basename: str) -> Path:
     return SCHEMA_FILES_DIR / f"{_schema_file_slug(schema_basename)}.yaml"
 
 
+_YAML_KEY_RE = re.compile(r"^[A-Za-z_][\w-]*\s*:(?:\s|$)")
+
+
+def _recover_yaml_broken_continuations(text: str) -> str:
+    """Join plain-scalar continuation lines that were dedented to the same indent as their key.
+
+    PyYAML wraps long plain-scalar values across multiple lines, indenting the continuation
+    deeper than the key. When the file is then edited (e.g. auto-formatted) and the
+    continuation lines end up at the *same* indent as the key, the YAML becomes invalid.
+    This helper joins those orphaned continuation lines back into the key's value.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    prev_indent: int | None = None
+    prev_was_unterm_plain_value = False
+    for line in lines:
+        if not line.strip():
+            out.append(line)
+            prev_indent = None
+            prev_was_unterm_plain_value = False
+            continue
+        stripped = line.lstrip(" ")
+        indent = len(line) - len(stripped)
+        if stripped.startswith("#"):
+            out.append(line)
+            continue
+        is_list_item = stripped.startswith("-")
+        is_key = bool(_YAML_KEY_RE.match(stripped))
+        if (
+            not is_key
+            and not is_list_item
+            and prev_indent is not None
+            and indent == prev_indent
+            and prev_was_unterm_plain_value
+        ):
+            out[-1] = out[-1].rstrip() + " " + stripped
+            continue
+        out.append(line)
+        prev_indent = indent
+        if is_key:
+            colon_idx = stripped.index(":")
+            value_part = stripped[colon_idx + 1:].strip()
+            prev_was_unterm_plain_value = bool(value_part) and not value_part.startswith(
+                ('"', "'", "|", ">", "[", "{")
+            )
+        else:
+            prev_was_unterm_plain_value = False
+    return "\n".join(out)
+
+
 def _load_schema_fields_for_dataspot_merge(
     path: Path, *, huwise_id: str, dataspot_dataset_id: str
 ) -> list[dict[str, Any]] | None:
@@ -947,9 +997,29 @@ def _load_schema_fields_for_dataspot_merge(
     """
     if not path.is_file():
         return None
+    raw_text = path.read_text(encoding="utf-8")
     try:
-        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+        payload = yaml.safe_load(raw_text)
+    except yaml.YAMLError as exc:
+        recovered_text = _recover_yaml_broken_continuations(raw_text)
+        try:
+            payload = yaml.safe_load(recovered_text)
+        except yaml.YAMLError as exc2:
+            logging.error(
+                "Schema file %s has invalid YAML and could not be recovered; "
+                "aborting to avoid overwriting user edits. Original error: %s",
+                path,
+                exc,
+            )
+            raise RuntimeError(
+                f"Cannot parse schema file {path}: invalid YAML. "
+                f"Fix the file manually and re-run. Original error: {exc}"
+            ) from exc
+        logging.warning(
+            "Recovered malformed schema file %s by joining broken continuation lines.",
+            path,
+        )
+    except OSError as exc:
         logging.warning("Could not read schema file %s for merge: %s", path, exc)
         return None
     if not isinstance(payload, dict):
@@ -983,7 +1053,10 @@ def _write_schema_file(*, huwise_id: str, dataspot_dataset_id: str, schema_basen
         "dataspot_dataset_id": dataspot_dataset_id,
         "fields": fields,
     }
-    path.write_text(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.safe_dump(payload, allow_unicode=True, sort_keys=False, width=10_000),
+        encoding="utf-8",
+    )
     return str(path)
 
 
