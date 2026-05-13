@@ -5,11 +5,10 @@ from __future__ import annotations
 import asyncio
 import argparse
 import html
+import io
 import json
 import logging
 import os
-import subprocess
-import sys
 import re
 import time
 import urllib.parse
@@ -29,6 +28,7 @@ load_dotenv()
 STAC_V1_BASE_URL = "https://api.geo.bs.ch/stac/v1"
 STAC_COLLECTIONS_URL = f"{STAC_V1_BASE_URL}/collections"
 GEOMETA_HTML_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/published/html/{collection_id}"
+GEOMETA_JSON_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/published/json/{collection_id}"
 
 
 def _api_geo_bs_headers() -> dict[str, str]:
@@ -45,18 +45,9 @@ DATA_DIR = Path("data")
 CATALOG_FILE = DATA_DIR / "publish_catalog.yaml"
 DATASETS_DIR = DATA_DIR / "datasets"
 SCHEMA_FILES_DIR = DATA_DIR / "schema_files"
-PUB_DATASETS_XLSX = DATA_DIR / "pub_datasets.xlsx"
 HTTP_TIMEOUT = httpx.Timeout(60.0, connect=20.0)
 HTTP_TIMEOUT_LONG = httpx.Timeout(180.0, connect=30.0)
 HTTP_LIMITS = httpx.Limits(max_connections=20, max_keepalive_connections=10)
-_NAV_ANCHOR_RE = re.compile(
-    r'<a\s+href="#([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\s*>\s*<li>([^<]*)</li>',
-    re.IGNORECASE | re.DOTALL,
-)
-_H3_ID_RE = re.compile(
-    r'<h3\s+id="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\s*>\s*([^<]*)',
-    re.IGNORECASE | re.DOTALL,
-)
 _DATATYPE_MAP = {
     "code": "text",
     "datum": "date",
@@ -193,81 +184,49 @@ def _extract_orgs(providers: list[dict[str, Any]] | None) -> tuple[str, str]:
     return "; ".join(producer), "; ".join(publisher)
 
 
-def _fetch_geometa_collection_html(collection_id: str) -> str:
-    url = GEOMETA_HTML_URL.format(collection_id=collection_id)
-    with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
-        response = client.get(url)
-    response.raise_for_status()
-    return response.text
+def _fetch_geometa_collection_json(collection_id: str) -> dict[str, Any]:
+    """Read the Geometa JSON document for a STAC collection.
+
+    Returns the parsed document. The collection-level JSON exposes
+    a top-level ``datasets`` list, each entry carrying ``dataset_uuid`` and
+    ``label`` (already filtered to real dataset objects, no Wertebereiche).
+    """
+    url = GEOMETA_JSON_URL.format(collection_id=collection_id)
+    headers = _api_geo_bs_headers()
+    payload = _http_get_json(url, headers=headers, timeout=HTTP_TIMEOUT)
+    if payload is None:
+        raise ValueError(f"Geometa JSON for collection {collection_id!r} returned a non-object payload")
+    return payload
 
 
 def _discover_instances_for_collection(collection_id: str, collection_title: str) -> list[dict[str, str]]:
-    html = _fetch_geometa_collection_html(collection_id)
+    """Return ``[{dataspot_uuid, geo_dataset}]`` for every dataset instance in a collection.
+
+    Reads the Geometa JSON document (the structured twin of the HTML preview).
+    Fails loudly when STAC announces a collection but Geometa lists zero datasets,
+    so that silent drops from upstream API regressions become visible.
+    """
+    document = _fetch_geometa_collection_json(collection_id)
+    datasets = document.get("datasets", [])
+    if not isinstance(datasets, list):
+        raise ValueError(f"Geometa JSON for {collection_id!r}: 'datasets' is not a list")
+    if not datasets:
+        raise ValueError(
+            f"Geometa JSON for {collection_id!r} returned 0 datasets but STAC lists the collection. "
+            "Refusing to silently drop rows; check the upstream Geometa import."
+        )
     seen: set[str] = set()
     instances: list[dict[str, str]] = []
-
-    def _add(uuid: str, label: str) -> None:
-        key = uuid.lower()
-        if key in seen:
-            return
-        seen.add(key)
-        instances.append({"dataspot_uuid": key, "geo_dataset": _clean(label) or collection_title or "Datensatz"})
-
-    for match in _NAV_ANCHOR_RE.finditer(html):
-        _add(match.group(1), match.group(2))
-    for match in _H3_ID_RE.finditer(html):
-        _add(match.group(1), match.group(2))
+    for entry in datasets:
+        if not isinstance(entry, dict):
+            continue
+        uuid = _clean(entry.get("dataset_uuid")).lower()
+        if not uuid or uuid in seen:
+            continue
+        seen.add(uuid)
+        label = _clean(entry.get("label")) or collection_title or "Datensatz"
+        instances.append({"dataspot_uuid": uuid, "geo_dataset": label})
     return instances
-
-
-_WERTEBEREICH_EXACT_LABELS = {
-    "öreb status geschäft",
-    "verbindlichkeit",
-}
-
-_WERTEBEREICH_PREFIXES = (
-    "typ ",
-    "kategorie ",
-    "status ",
-    "art ",
-)
-
-_WERTEBEREICH_SUFFIXES = (
-    " typ",
-    " kategorie",
-    " status",
-    " art",
-    " typen",
-)
-
-_WERTEBEREICH_CONTAINS = (
-    " status ",
-    " kategorie ",
-    " typ ",
-    " art ",
-)
-
-_WERTEBEREICH_EXCEPTIONS = {
-    # Real datasets that happen to contain "status"/"art"/"typ" wording.
-    "inventar der schützenswerten bauten: erarbeitungsstatus",
-}
-
-
-def _looks_like_wertebereich_label(label: str) -> bool:
-    normalized = _clean(label).casefold()
-    if not normalized:
-        return False
-    if normalized in _WERTEBEREICH_EXCEPTIONS:
-        return False
-    if normalized in _WERTEBEREICH_EXACT_LABELS:
-        return True
-    if normalized.startswith(_WERTEBEREICH_PREFIXES):
-        return True
-    if normalized.endswith(_WERTEBEREICH_SUFFIXES):
-        return True
-    if any(marker in normalized for marker in _WERTEBEREICH_CONTAINS):
-        return True
-    return False
 
 
 def _dataspot_get(auth: DataspotAuth, url: str, *, allow_404: bool = False) -> dict[str, Any] | None:
@@ -334,11 +293,26 @@ def _dataspot_metadata(auth: DataspotAuth, dataspot_dataset_id: str) -> dict[str
     }
 
 
+_HTML_MARKER_RE = re.compile(
+    r"</[a-zA-Z][\w-]*\s*>"          # closing tag, e.g. </p>
+    r"|<[a-zA-Z][\w-]*[^<>]*?/\s*>"  # self-closing tag, e.g. <br/>
+    r"|<[a-zA-Z][\w-]*\s+[^<>]*?>"   # opening tag with attributes, e.g. <a href=...>
+)
+
+
 def _description_to_html(value: Any) -> str:
+    """Convert a Dataspot description to HUWISE-ready HTML.
+
+    Uses a stricter HTML-detection regex than the previous heuristic so
+    expressions like ``1 < 2`` (which the old ``<[a-zA-Z]`` test mis-
+    classified as HTML) are correctly escaped. The regex requires either a
+    closing tag, a self-closing tag, or an opening tag with attributes –
+    none of which occur in plain mathematical text.
+    """
     text = _clean(value)
     if not text:
         return ""
-    if re.search(r"<[a-zA-Z][^>]*>", text):
+    if _HTML_MARKER_RE.search(text):
         return text
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
     if not paragraphs:
@@ -670,9 +644,19 @@ def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_
 
 
 def _apply_map_links_schema_field(
-    fields: list[dict[str, Any]], mapbs_url: str
+    fields: list[dict[str, Any]],
+    mapbs_url: str,
+    *,
+    create_map_links: bool,
 ) -> list[dict[str, Any]]:
-    """Ensure ``map_links`` exists; task sets DE label/type, YAML keeps ``export`` and ``custom``."""
+    """Ensure the synthetic ``map_links`` row exists in the schema YAML.
+
+    The row's ``export`` flag *is* the per-dataset ``create_map_links``
+    toggle. When a row already exists we preserve the user-edited
+    ``export`` (so manual toggles survive an ETL refresh); when injecting
+    a fresh row, we seed ``export`` from the resolved
+    ``create_map_links`` value passed in by the caller.
+    """
     _ = mapbs_url  # Kept for compatibility at call site.
     fixed_name = "Zum Objekt navigieren"
     fixed_description = "URL zur Navigation des Standorts in einer Karten-App"
@@ -699,6 +683,10 @@ def _apply_map_links_schema_field(
             custom.setdefault("datentyp", "")
             custom.setdefault("mehrwertigkeit", "")
             r["custom"] = custom
+            # Preserve the user-edited export flag if present; otherwise
+            # fall back to the resolved create_map_links default.
+            if "export" not in r:
+                r["export"] = bool(create_map_links)
         updated.append(r)
     if has_map_links:
         return updated
@@ -708,7 +696,7 @@ def _apply_map_links_schema_field(
         "description": fixed_description,
         "mehrwertigkeit": "",
         "datentyp": "text",
-        "export": False,
+        "export": bool(create_map_links),
         "custom": {
             "technical_name": "map_links",
             "name": "",
@@ -782,7 +770,11 @@ def _add_map_links_to_dataset(dataset_file: Path, mapbs_link: str) -> bool:
             lambda geom: _create_map_links(geom, p1, p2) if geom is not None else None
         )
         gdf["map_links"] = gdf_transformed["map_links"]
-        gdf.to_file(dataset_file, driver="GeoJSON")
+        # Atomic write via .tmp + os.replace so a crash mid-write does not
+        # corrupt the local GeoJSON (publishing reads it again later).
+        tmp_path = dataset_file.with_suffix(dataset_file.suffix + ".tmp")
+        gdf.to_file(tmp_path, driver="GeoJSON")
+        os.replace(tmp_path, dataset_file)
         logging.info("map_links added: %s", dataset_file)
         return True
     except Exception as exc:
@@ -790,10 +782,29 @@ def _add_map_links_to_dataset(dataset_file: Path, mapbs_link: str) -> bool:
         return False
 
 
-def _coerce_create_map_links_flag(old: dict[str, Any], mapbs_url: str) -> bool:
-    """Whether to run MapBS enrichment: explicit ``create_map_links`` in catalog, else when ``mapbs_url`` is set."""
-    if "create_map_links" in old:
-        raw = old.get("create_map_links")
+def _coerce_create_map_links_flag(
+    preserved: dict[str, Any] | None,
+    legacy: dict[str, Any] | None,
+    mapbs_url: str,
+) -> bool:
+    """Whether to run MapBS enrichment for this dataset.
+
+    The flag is encoded in the schema YAML via the ``export`` value on the
+    synthetic ``map_links`` field row: ``export: true`` means "produce
+    map_links and publish them to HUWISE"; ``export: false`` (or no row)
+    means "do not enrich the GeoJSON".
+
+    Priority:
+
+    1. ``map_links.export`` on the preserved schema YAML (the source of
+       truth users edit).
+    2. ``create_map_links`` on the previous catalog row (one-time
+       migration fallback for older catalogs that still carry the key).
+    3. Truthiness of ``mapbs_url`` as the default for collections that
+       ship a MapBS link.
+    """
+
+    def _coerce(raw: Any) -> bool | None:
         if isinstance(raw, bool):
             return raw
         s = _clean(raw).lower()
@@ -801,6 +812,22 @@ def _coerce_create_map_links_flag(old: dict[str, Any], mapbs_url: str) -> bool:
             return False
         if s in ("true", "1", "yes", "on"):
             return True
+        return None
+
+    if isinstance(preserved, dict):
+        for field in preserved.get("fields", []) if isinstance(preserved.get("fields"), list) else []:
+            if not isinstance(field, dict):
+                continue
+            if _clean(field.get("technical_name")).lower() != "map_links":
+                continue
+            resolved = _coerce(field.get("export"))
+            if resolved is not None:
+                return resolved
+            break
+    if isinstance(legacy, dict) and "create_map_links" in legacy:
+        resolved = _coerce(legacy.get("create_map_links"))
+        if resolved is not None:
+            return resolved
     return bool(_clean(mapbs_url))
 
 
@@ -857,27 +884,56 @@ def _find_zip_entry_for_geo_layer(zip_names: list[str], geo_dataset: str) -> str
     return None
 
 
-def _download_stac_layer_geojson(collection_id: str, geo_dataset: str, out_dir: Path) -> Path | None:
+def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` via a ``.tmp`` + :func:`os.replace`.
+
+    Prevents corrupt half-written files when the process is killed mid-write.
+    """
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_bytes(data)
+    os.replace(tmp_path, path)
+
+
+def _download_stac_layer_geojson(
+    collection_id: str,
+    geo_dataset: str,
+    out_dir: Path,
+    *,
+    zip_cache: dict[str, bytes] | None = None,
+) -> Path | None:
     """Download STAC collection GeoJSON archive and extract the layer matching ``geo_dataset``.
 
-    Source: ``/stac/v1/download/{collection_id}/latest/geojson`` (ZIP). The temporary ZIP is
-    removed after a successful extract; local ``*.geojson`` files are only ever written or
-    overwritten, never deleted via :func:`Path.unlink`.
+    Source: ``/stac/v1/download/{collection_id}/latest/geojson`` (ZIP). The
+    ``zip_cache`` argument lets callers reuse the same archive bytes across
+    multiple layer extractions (one HTTP roundtrip per collection instead of
+    one per layer); the cache is keyed by collection id. The extracted
+    GeoJSON is written via :func:`_atomic_write_bytes` so a crash mid-write
+    never leaves a corrupted local file behind.
     """
     cid = _clean(collection_id)
     if not cid or not _clean(geo_dataset):
         return None
     out_dir.mkdir(parents=True, exist_ok=True)
     output_file = out_dir / f"{cid}_{_safe_layer_filename_stem(geo_dataset)}.geojson"
-    url = f"{STAC_V1_BASE_URL}/download/{cid}/latest/geojson"
-    zip_path = out_dir / f"_{cid}_stac_latest_geojson.zip"
-    headers = _api_geo_bs_headers()
+
+    cache_key = cid.lower()
+    cached_zip = zip_cache.get(cache_key) if zip_cache is not None else None
+    if cached_zip is None:
+        url = f"{STAC_V1_BASE_URL}/download/{cid}/latest/geojson"
+        headers = _api_geo_bs_headers()
+        try:
+            with httpx.Client(timeout=HTTP_TIMEOUT_LONG, limits=HTTP_LIMITS) as client:
+                response = client.get(url, headers=headers)
+            response.raise_for_status()
+        except Exception as exc:
+            logging.warning("STAC GeoJSON download failed for %s / %r: %s", cid, geo_dataset, exc)
+            return None
+        cached_zip = response.content
+        if zip_cache is not None:
+            zip_cache[cache_key] = cached_zip
+
     try:
-        with httpx.Client(timeout=HTTP_TIMEOUT_LONG, limits=HTTP_LIMITS) as client:
-            response = client.get(url, headers=headers)
-        response.raise_for_status()
-        zip_path.write_bytes(response.content)
-        with zipfile.ZipFile(zip_path, "r") as zf:
+        with zipfile.ZipFile(io.BytesIO(cached_zip), "r") as zf:
             names = [n for n in zf.namelist() if n and not n.endswith("/")]
             if not names:
                 raise ValueError("STAC GeoJSON ZIP has no file entries")
@@ -887,35 +943,12 @@ def _download_stac_layer_geojson(collection_id: str, geo_dataset: str, out_dir: 
                     f"No GeoJSON entry matches layer {geo_dataset!r}; archive contains: {names!r}"
                 )
             with zf.open(matched) as source:
-                output_file.write_bytes(source.read())
-        # Remove only the downloaded ZIP, never local .geojson outputs
-        try:
-            zip_path.unlink()
-        except OSError:
-            pass
+                _atomic_write_bytes(output_file, source.read())
         logging.info("STAC GeoJSON saved: %s", output_file)
         return output_file
     except Exception as exc:
-        logging.warning("STAC GeoJSON download failed for %s / %r: %s", cid, geo_dataset, exc)
-        try:
-            if zip_path.exists():
-                zip_path.unlink()
-        except OSError:
-            pass
+        logging.warning("STAC GeoJSON extract failed for %s / %r: %s", cid, geo_dataset, exc)
         return None
-
-
-def _load_schema_from_file(schema_file: str) -> list[dict[str, Any]]:
-    path = Path(schema_file)
-    if not path.is_absolute():
-        path = Path(schema_file)
-    if not path.exists():
-        return []
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return []
-    fields = payload.get("fields", [])
-    return fields if isinstance(fields, list) else []
 
 
 def _schema_file_slug(value: str) -> str:
@@ -939,92 +972,56 @@ def _schema_yaml_path(schema_basename: str) -> Path:
     return SCHEMA_FILES_DIR / f"{_schema_file_slug(schema_basename)}.yaml"
 
 
-_YAML_KEY_RE = re.compile(r"^[A-Za-z_][\w-]*\s*:(?:\s|$)")
+def _yaml_str_representer(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
+    """Emit long / multi-line strings as folded block scalars (``>-``).
 
-
-def _recover_yaml_broken_continuations(text: str) -> str:
-    """Join plain-scalar continuation lines that were dedented to the same indent as their key.
-
-    PyYAML wraps long plain-scalar values across multiple lines, indenting the continuation
-    deeper than the key. When the file is then edited (e.g. auto-formatted) and the
-    continuation lines end up at the *same* indent as the key, the YAML becomes invalid.
-    This helper joins those orphaned continuation lines back into the key's value.
+    Folded blocks are robust against manual edits: indentation alone scopes
+    the value, so adding lines or wrapping does not break the file. This
+    replaces the previous ``_recover_yaml_broken_continuations`` hack that
+    tried to repair dedented continuation lines after the fact.
     """
-    lines = text.split("\n")
-    out: list[str] = []
-    prev_indent: int | None = None
-    prev_was_unterm_plain_value = False
-    for line in lines:
-        if not line.strip():
-            out.append(line)
-            prev_indent = None
-            prev_was_unterm_plain_value = False
-            continue
-        stripped = line.lstrip(" ")
-        indent = len(line) - len(stripped)
-        if stripped.startswith("#"):
-            out.append(line)
-            continue
-        is_list_item = stripped.startswith("-")
-        is_key = bool(_YAML_KEY_RE.match(stripped))
-        if (
-            not is_key
-            and not is_list_item
-            and prev_indent is not None
-            and indent == prev_indent
-            and prev_was_unterm_plain_value
-        ):
-            out[-1] = out[-1].rstrip() + " " + stripped
-            continue
-        out.append(line)
-        prev_indent = indent
-        if is_key:
-            colon_idx = stripped.index(":")
-            value_part = stripped[colon_idx + 1:].strip()
-            prev_was_unterm_plain_value = bool(value_part) and not value_part.startswith(
-                ('"', "'", "|", ">", "[", "{")
-            )
-        else:
-            prev_was_unterm_plain_value = False
-    return "\n".join(out)
+    if "\n" in value or len(value) > 120:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", value, style=">")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", value)
 
 
-def _load_schema_fields_for_dataspot_merge(
+yaml.SafeDumper.add_representer(str, _yaml_str_representer)
+
+
+def _load_preserved_schema_payload(
     path: Path, *, huwise_id: str, dataspot_dataset_id: str
-) -> list[dict[str, Any]] | None:
-    """Load existing schema YAML so ``custom`` overrides survive an ETL refresh.
+) -> dict[str, Any] | None:
+    """Load the existing schema YAML so user edits survive an ETL refresh.
 
-    ``publish_catalog.yaml`` does not embed per-dataset ``schema``; without reading
-    the file we would pass ``None`` into ``_dataspot_schema`` and regenerate default
-    ``custom`` blocks, overwriting manual edits on disk.
+    Returns the full payload (with at minimum ``fields`` and optionally
+    ``create_map_links``) when the file exists and the ``huwise_id`` /
+    ``dataspot_dataset_id`` match. ``publish_catalog.yaml`` does not embed
+    per-dataset schema; this is the only mechanism that carries
+    ``fields[].custom`` and ``create_map_links`` across runs.
+
+    If the YAML is malformed (e.g. after a botched manual edit), fail loudly
+    so we do not silently overwrite user data on the next ETL run.
     """
     if not path.is_file():
         return None
-    raw_text = path.read_text(encoding="utf-8")
     try:
-        payload = yaml.safe_load(raw_text)
-    except yaml.YAMLError as exc:
-        recovered_text = _recover_yaml_broken_continuations(raw_text)
-        try:
-            payload = yaml.safe_load(recovered_text)
-        except yaml.YAMLError as exc2:
-            logging.error(
-                "Schema file %s has invalid YAML and could not be recovered; "
-                "aborting to avoid overwriting user edits. Original error: %s",
-                path,
-                exc,
-            )
-            raise RuntimeError(
-                f"Cannot parse schema file {path}: invalid YAML. "
-                f"Fix the file manually and re-run. Original error: {exc}"
-            ) from exc
-        logging.warning(
-            "Recovered malformed schema file %s by joining broken continuation lines.",
-            path,
-        )
+        raw_text = path.read_text(encoding="utf-8")
     except OSError as exc:
         logging.warning("Could not read schema file %s for merge: %s", path, exc)
         return None
+    try:
+        payload = yaml.safe_load(raw_text)
+    except yaml.YAMLError as exc:
+        logging.error(
+            "Schema file %s has invalid YAML; refusing to merge so user edits "
+            "are not silently overwritten. Fix the file and re-run. Error: %s",
+            path,
+            exc,
+        )
+        raise RuntimeError(
+            f"Cannot parse schema file {path}: invalid YAML. "
+            f"Fix the file manually and re-run. Original error: {exc}"
+        ) from exc
     if not isinstance(payload, dict):
         return None
     file_ds = _clean(payload.get("dataspot_dataset_id")).lower()
@@ -1045,11 +1042,20 @@ def _load_schema_fields_for_dataspot_merge(
             huwise_id,
         )
         return None
-    fields = payload.get("fields", [])
-    return fields if isinstance(fields, list) else None
+    return payload
 
 
-def _write_schema_file(*, huwise_id: str, dataspot_dataset_id: str, schema_basename: str, fields: list[dict[str, Any]]) -> str:
+def _write_schema_file(
+    *,
+    huwise_id: str,
+    dataspot_dataset_id: str,
+    schema_basename: str,
+    fields: list[dict[str, Any]],
+) -> str:
+    """Write the schema YAML. ``create_map_links`` is *not* a separate
+    top-level key; the synthetic ``map_links`` field's ``export`` value is
+    the single source of truth (see :func:`_coerce_create_map_links_flag`).
+    """
     path = _schema_yaml_path(schema_basename)
     payload = {
         "huwise_id": huwise_id,
@@ -1075,6 +1081,37 @@ def _load_existing_catalog() -> dict[str, Any]:
     return {"version": 1, "datasets": datasets}
 
 
+# Catalog-vs-Dataspot precedence table for ``_metadata_block``.
+#
+# Each row is "catalog edit wins, Dataspot is the fallback" (EDITORIAL) –
+# this matches today's behaviour and lets a human override the automated
+# pull by editing ``publish_catalog.yaml`` (or, more commonly, by editing
+# the corresponding metadata in HUWISE which the publish layer's three-way
+# merge then keeps; see ``publish_dataset._set_metadata_fields``).
+#
+# Fields not in this table are either purely derived (URL composition, tag
+# defaults) or always come from a single side (e.g. ``modified_updates_on_data_change``).
+_METADATA_PRECEDENCE_DOC = """
+Precedence table (catalog-side key -> Dataspot key, all EDITORIAL):
+    default.title              -> dataspot_meta["title"]            (fallback geo_dataset)
+    default.description        -> dataspot_meta["description"]      (HTML-escaped via _description_to_html)
+    default.keyword            -> dataspot_meta["keyword_values"]   (collection.keywords seeded first)
+    default.publisher          -> producer_organization / dataspot_meta["publisher_path"]
+    default.modified           -> dataspot_meta["modified"]
+    dcat.created               -> dataspot_meta["created"]
+    dcat.issued                -> dataspot_meta["issued"]
+    dcat.accrualperiodicity    -> dataspot_meta["accrualperiodicity"]
+    custom.publizierende_organisation -> derived publisher_from_path
+
+MANAGED (always overwritten from upstream, no catalog override):
+    custom.geodaten_modellbeschreibung -> {stac_url}#{dataspot_dataset_id}
+    custom.tags                        -> [opendata.swiss, stac_collection_id]
+    dcat.creator                       -> publisher_from_path
+    dcat.relation                      -> [stac_browser_url, mapbs_url, ...]
+    internal.license                   -> "CC BY 4.0"
+""".strip()
+
+
 def _metadata_block(
     dataset: dict[str, Any],
     *,
@@ -1088,6 +1125,9 @@ def _metadata_block(
     stac_browser_url: str,
     mapbs_url: str,
 ) -> dict[str, Any]:
+    # See ``_METADATA_PRECEDENCE_DOC`` for the EDITORIAL / MANAGED split that
+    # drives the ``_clean(default.get("X")) or dataspot_meta["X"]`` pattern
+    # below.
     metadata = dataset.get("metadata", {})
     if not isinstance(metadata, dict):
         metadata = {}
@@ -1165,23 +1205,6 @@ def _metadata_block(
     }
 
 
-def _legacy_huwise_map() -> dict[str, str]:
-    if not PUB_DATASETS_XLSX.exists():
-        return {}
-    try:
-        import pandas as pd
-    except Exception:
-        return {}
-    frame = pd.read_excel(PUB_DATASETS_XLSX).fillna("")
-    mapping: dict[str, str] = {}
-    for _, row in frame.iterrows():
-        dataset_id = _clean(row.get("id")).lower()
-        huwise_id = _clean(row.get("ods_id"))
-        if dataset_id and huwise_id:
-            mapping[dataset_id] = huwise_id
-    return mapping
-
-
 def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool = False) -> dict[str, Any]:
     existing_payload = _load_existing_catalog()
     existing = existing_payload.get("datasets", [])
@@ -1194,16 +1217,11 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                 continue
             key = _clean(geo_item.get("dataspot_dataset_id")).lower()
             if key:
-                if not isinstance(geo_item.get("schema"), list):
-                    schema_file = _clean(geo_item.get("schema_file"))
-                    if schema_file:
-                        geo_item = dict(geo_item)
-                        geo_item["schema"] = _load_schema_from_file(schema_file)
                 by_uuid[key] = geo_item
 
     auth = DataspotAuth()
-    legacy_huwise = _legacy_huwise_map()
     dataspot_meta_cache: dict[str, dict[str, Any]] = {}
+    stac_zip_cache: dict[str, bytes] = {}
     output_collections: list[dict[str, Any]] = []
     for collection in _fetch_stac_collections():
         collection_id = _clean(collection.get("id"))
@@ -1234,19 +1252,30 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                     _clean(dataspot_meta.get("object_type")) or "unknown",
                 )
                 continue
-            if _looks_like_wertebereich_label(geo_dataset):
-                logging.info(
-                    "Skipping Wertebereich entry for %s: %s (%s)",
-                    collection_id,
-                    geo_dataset,
-                    dataspot_uuid,
-                )
-                continue
             old = by_uuid.get(dataspot_uuid, {})
-            huwise_id = _clean(old.get("huwise_id")) or _clean(legacy_huwise.get(dataspot_uuid))
-            create_map_links_flag = bool(huwise_id) and _coerce_create_map_links_flag(old, mapbs_url)
+            huwise_id = _clean(old.get("huwise_id"))
+
+            preserved_payload: dict[str, Any] | None = None
+            schema_basename: str | None = None
+            if huwise_id:
+                geojson_file_hint = _resolve_geojson_file_for_dataset(geo_dataset)
+                if geojson_file_hint:
+                    schema_basename = geojson_file_hint.stem
+                else:
+                    schema_basename = f"{collection_id}_{_schema_file_slug(geo_dataset)}"
+                preserved_payload = _load_preserved_schema_payload(
+                    _schema_yaml_path(schema_basename),
+                    huwise_id=huwise_id,
+                    dataspot_dataset_id=dataspot_uuid,
+                )
+
+            create_map_links_flag = bool(huwise_id) and _coerce_create_map_links_flag(
+                preserved_payload, old, mapbs_url
+            )
             if huwise_id and not skip_geojson_download:
-                _download_stac_layer_geojson(collection_id, geo_dataset, DATASETS_DIR)
+                _download_stac_layer_geojson(
+                    collection_id, geo_dataset, DATASETS_DIR, zip_cache=stac_zip_cache
+                )
             if (
                 huwise_id
                 and not skip_map_links
@@ -1265,7 +1294,6 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                 "dataspot_dataset_id": dataspot_uuid,
                 "dataspot_asset_url": f"https://bs.dataspot.io/web/prod/assets/{dataspot_uuid}",
                 "geo_dataset": geo_dataset,
-                "create_map_links": create_map_links_flag,
                 "metadata": _metadata_block(
                     old,
                     dataspot_meta=dataspot_meta,
@@ -1279,26 +1307,38 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
                     mapbs_url=mapbs_url,
                 ),
             }
-            if huwise_id:
+            if huwise_id and schema_basename is not None:
+                preserved_fields = None
+                if isinstance(preserved_payload, dict):
+                    candidate = preserved_payload.get("fields")
+                    if isinstance(candidate, list):
+                        preserved_fields = candidate
                 geojson_file = _resolve_geojson_file_for_dataset(geo_dataset)
-                if geojson_file:
-                    schema_basename = geojson_file.stem
-                else:
-                    schema_basename = f"{collection_id}_{_schema_file_slug(geo_dataset)}"
-                schema_path = _schema_yaml_path(schema_basename)
-                preserved_schema = _load_schema_fields_for_dataspot_merge(
-                    schema_path, huwise_id=huwise_id, dataspot_dataset_id=dataspot_uuid
-                )
-                if preserved_schema is None:
-                    catalog_schema = old.get("schema")
-                    preserved_schema = catalog_schema if isinstance(catalog_schema, list) else None
-                fields = _dataspot_schema(auth, dataspot_uuid, preserved_schema)
                 geojson_properties = _read_geojson_properties(geojson_file) if geojson_file else []
+                # Schema reconciliation is intentionally split into four
+                # stages with single, auditable responsibilities:
+                #   1. ``_dataspot_schema`` – fetch upstream Dataspot
+                #      compositions/attributes/datatypes and re-attach any
+                #      preserved ``custom``/``export`` blocks for matching
+                #      fields (so manual edits survive a refresh).
+                #   2. ``_append_preserved_fields_missing_from_dataspot`` –
+                #      re-introduce preserved fields that Dataspot no longer
+                #      lists but still appear in the local GeoJSON
+                #      (transient upstream gaps must not erase columns).
+                #   3. ``_reconcile_schema_fields_with_geojson`` – add
+                #      GeoJSON-only properties that were never in Dataspot
+                #      (so the schema is a superset of what gets uploaded).
+                #   4. ``_apply_map_links_schema_field`` – inject the
+                #      synthetic ``map_links`` row with the fixed default
+                #      label/datatype the publisher expects.
+                fields = _dataspot_schema(auth, dataspot_uuid, preserved_fields)
                 fields = _append_preserved_fields_missing_from_dataspot(
-                    fields, preserved_schema, geojson_properties
+                    fields, preserved_fields, geojson_properties
                 )
                 fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
-                fields = _apply_map_links_schema_field(fields, mapbs_url)
+                fields = _apply_map_links_schema_field(
+                    fields, mapbs_url, create_map_links=create_map_links_flag
+                )
                 _write_schema_file(
                     huwise_id=huwise_id,
                     dataspot_dataset_id=dataspot_uuid,
@@ -1326,11 +1366,15 @@ def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool
     return payload
 
 
-def run_publish(*, dry_run: bool) -> None:
-    command = [sys.executable, "publish_dataset.py"]
-    if dry_run:
-        command.append("--dry-run")
-    subprocess.run(command, check=True)
+def run_publish(*, dry_run: bool, force_metadata_sync: bool = False, force_field_recreate: bool = False) -> None:
+    """Run the publish pipeline in-process (no second Python startup)."""
+    import publish_dataset
+
+    publish_dataset.run(
+        dry_run=dry_run,
+        force_metadata_sync=force_metadata_sync,
+        force_field_recreate=force_field_recreate,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -1347,6 +1391,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not call MapBS (httpx) to enrich GeoJSON with map_links (no redirect fetch).",
     )
+    parser.add_argument(
+        "--force-metadata-sync",
+        action="store_true",
+        help="Forward --force-metadata-sync to the publish step.",
+    )
+    parser.add_argument(
+        "--force-field-recreate",
+        action="store_true",
+        help="Forward --force-field-recreate to the publish step (delete/recreate HUWISE fields with changed datentyp).",
+    )
     return parser.parse_args()
 
 
@@ -1360,7 +1414,11 @@ def main() -> None:
     print(f"Catalog updated: {CATALOG_FILE} ({len(payload.get('datasets', []))} datasets)")
     if args.refresh_only:
         return
-    run_publish(dry_run=args.dry_run)
+    run_publish(
+        dry_run=args.dry_run,
+        force_metadata_sync=args.force_metadata_sync,
+        force_field_recreate=args.force_field_recreate,
+    )
 
 
 if __name__ == "__main__":
