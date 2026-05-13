@@ -1929,7 +1929,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    ensure_output_dirs()
     """Run the publishing pipeline for all rows in pub_datasets."""
     args = parse_args()
     auth = _build_dataspot_client()

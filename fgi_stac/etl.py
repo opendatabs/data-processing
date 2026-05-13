@@ -499,7 +499,10 @@ def _normalize_geo_dataset_match_keys(geo_dataset: str) -> list[str]:
     """Normalized forms of geo_dataset for matching local GeoJSON stems.
 
     Filenames often drop the word *und* between title parts (e.g. ``Tagesheime_Kitas``)
-    while STAC/geo metadata uses the full phrase *Tagesheime und Kitas*.
+    while STAC/geo metadata uses the full phrase *Tagesheime und Kitas*. Catalog
+    labels also sometimes carry a parenthetical municipality disambiguator
+    (e.g. ``Überlagernde Festlegung (Basel)``) that the STAC ZIP entries omit,
+    so a parenthetical-stripped variant is emitted as a fallback key.
     """
     keys: list[str] = []
     seen: set[str] = set()
@@ -514,6 +517,12 @@ def _normalize_geo_dataset_match_keys(geo_dataset: str) -> list[str]:
         if merged and merged not in seen:
             seen.add(merged)
             keys.append(merged)
+    if text and "(" in text:
+        stripped = re.sub(r"\s*\([^)]*\)\s*", " ", text)
+        stripped_key = _normalize_name(stripped)
+        if stripped_key and stripped_key not in seen:
+            seen.add(stripped_key)
+            keys.append(stripped_key)
     return keys
 
 
@@ -718,12 +727,6 @@ def _apply_map_links_schema_field(
     )
     updated.insert(idx, inject)
     return updated
-
-
-def ensure_output_dirs() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    DATASETS_DIR.mkdir(parents=True, exist_ok=True)
-    SCHEMA_FILES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _create_map_links(geometry: Any, p1: str, p2: str) -> str | None:
@@ -1180,7 +1183,6 @@ def _legacy_huwise_map() -> dict[str, str]:
 
 
 def rebuild_catalog(*, skip_geojson_download: bool = False, skip_map_links: bool = False) -> dict[str, Any]:
-    ensure_output_dirs()
     existing_payload = _load_existing_catalog()
     existing = existing_payload.get("datasets", [])
     by_uuid: dict[str, dict[str, Any]] = {}
