@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-import argparse
 import html
 import json
 import logging
@@ -27,12 +26,60 @@ import geopandas as gpd
 import httpx
 import pandas as pd
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 import common
+from catalog import (
+    filter_snapshot_entry,
+    load_active_dataset_rows,
+    load_flat_publish_catalog,
+    merge_snapshot_entries,
+    merge_snapshot_fill_gaps,
+    order_snapshot_entry,
+    prune_all_publish_artifacts,
+    write_metadata_snapshot_file,
+)
 from common import change_tracking
+from dataspot_api import DATASPOT_DATASET_URL, dataspot_get
 from dataspot_auth import DataspotAuth
-from http_retry import with_http_retry
+from http_client import HTTP_TIMEOUT, HTTP_LIMITS, http_get_json
+from http_client import with_http_retry
+from metadata import (
+    DEFAULT_CONTACT_EMAIL,
+    DEFAULT_CONTACT_NAME,
+    DEFAULT_GEOGRAPHIC_REFERENCE,
+    DEFAULT_LICENSE,
+    DEFAULT_LICENSE_ID,
+    DEFAULT_LICENSE_NAME,
+    DEFAULT_RIGHTS,
+    DEFAULT_TAG,
+    GEOMETA_PREVIEW_URL,
+    LICENSE_ID_BY_NAME,
+    dataspot_uuid_from_snapshot,
+)
+from util import (
+    clean_text,
+    description_to_html,
+    extract_stac_code,
+    extract_string_list,
+    is_uuid,
+    normalize_name,
+    normalize_huwise_field_name,
+    normalize_optional_date,
+    read_geojson_properties,
+    split_keywords,
+    split_semicolon_list,
+    third_path_segment,
+)
+from paths import (
+    LEGACY_CATALOG_FILE,
+    LEGACY_METADATA_LAST_PUSH_FILE,
+    ORIG_CATALOG_FILE,
+    ORIG_METADATA_LAST_PUSH_FILE,
+    PUBLISH_DATASETS_DIR,
+    ensure_layout_dirs,
+)
+from schema_merge import load_merged_schema_payload, resolve_schema_basename_for
 from huwise_utils_py import (
     HuwiseDataset,
     create_dataset,
@@ -48,13 +95,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-DATA_DIR = Path("data")
-DATASETS_DIR = DATA_DIR / "datasets"
-PUBLISH_CATALOG_FILE = DATA_DIR / "publish_catalog.yaml"
-PUBLISH_METADATA_LAST_PUSH_FILE = DATA_DIR / "publish_metadata_last_push.yaml"
-SCHEMA_FILES_DIR = DATA_DIR / "schema_files"
-DATASPOT_DATASET_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}"
-GEOMETA_PREVIEW_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/preview/html/{collection_id}"
+DATASETS_DIR = PUBLISH_DATASETS_DIR
+PUBLISH_CATALOG_FILE = ORIG_CATALOG_FILE
+PUBLISH_METADATA_LAST_PUSH_FILE = ORIG_METADATA_LAST_PUSH_FILE
 FTP_REMOTE_FOLDER = "fgi/stac"
 SOURCE_URL_PREFIX = "https://data-bs.ch/stata/fgi/stac"
 SCHEMA_COLUMNS = [
@@ -105,28 +148,11 @@ THEME_MAP_DATA_BS_CH = {
     "volkswirtschaft": "0774467",
     "offentliche ordnung und sicherheit": "60c7454",
 }
-DEFAULT_RIGHTS = "NonCommercialAllowed-CommercialAllowed-ReferenceRequired"
-DEFAULT_LICENSE = "terms_by"
-DEFAULT_CONTACT_NAME = "Open Data Basel-Stadt"
-DEFAULT_CONTACT_EMAIL = "opendata@bs.ch"
-DEFAULT_TAG = "opendata.swiss"
-DEFAULT_GEOGRAPHIC_REFERENCE = ["ch_40_12"]
-DEFAULT_LICENSE_ID = "cc-by"
-DEFAULT_LICENSE_NAME = "CC BY 4.0"
-LICENSE_ID_BY_NAME = {
-    "CC BY 4.0": "5sylls5",
-    "CC BY 3.0 CH": "cc_by",
-    "CC0 1.0": "4bj8ceb",
-}
 DEFAULT_OVERRIDE_REMOTE_VALUE = True
-HTTP_TIMEOUT = httpx.Timeout(60.0, connect=20.0)
-HTTP_LIMITS = httpx.Limits(max_connections=20, max_keepalive_connections=10)
 
 
 def ensure_output_dirs() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    DATASETS_DIR.mkdir(parents=True, exist_ok=True)
-    SCHEMA_FILES_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_layout_dirs()
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,89 +164,15 @@ class DatasetContext:
     geo_dataset: str
 
 
-def _clean_text(value: Any) -> str:
-    """Return a stripped string representation."""
-    if value is None:
-        return ""
-    if isinstance(value, float) and pd.isna(value):
-        return ""
-    return str(value).strip()
-
-
-def _normalize_name(value: str) -> str:
-    """Normalize identifiers for fuzzy filename/field matching."""
-    text = _clean_text(value).lower()
-    replacements = {
-        "ä": "ae",
-        "ö": "oe",
-        "ü": "ue",
-        "ß": "ss",
-    }
-    for src, dst in replacements.items():
-        text = text.replace(src, dst)
-    return re.sub(r"[^a-z0-9]", "", text)
-
-
-def _normalize_huwise_field_name(value: str) -> str:
-    """Normalize a field name to HUWISE-compatible technical naming."""
-    text = _clean_text(value).lower()
-    text = re.sub(r"\s+", "_", text)
-    text = re.sub(r"[^a-z0-9_]", "_", text)
-    text = re.sub(r"_+", "_", text).strip("_")
-    return text
-
-
-def _split_keywords(value: Any) -> list[str]:
-    """Parse metadata keywords into a list of non-empty values."""
-    if isinstance(value, list):
-        return [str(part).strip() for part in value if str(part).strip()]
-    normalized = _clean_text(value).replace(";", ",")
-    return [part.strip() for part in normalized.split(",") if part.strip()]
-
-
-def _split_semicolon_list(value: Any) -> list[str]:
-    """Convert a semicolon-delimited string (or list) to clean list values."""
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    text = _clean_text(value)
-    if not text:
-        return []
-    return [part.strip() for part in text.split(";") if part.strip()]
-
-
-def _extract_stac_code(value: Any) -> str:
-    """Extract short STAC/Dataspot code (e.g. AFBA) from id/url-like values."""
-    text = _clean_text(value)
-    if not text:
-        return ""
-    tail = text.rstrip("/").split("/")[-1]
-    if re.fullmatch(r"[A-Za-z0-9_]{3,16}", tail):
-        return tail.upper()
-    if re.fullmatch(r"[A-Za-z0-9_]{3,16}", text):
-        return text.upper()
-    return ""
-
-
-def _third_path_segment(path_value: Any) -> str:
-    path = _clean_text(path_value)
-    parts = [part.strip() for part in path.split("/") if part.strip()]
-    return parts[2] if len(parts) > 2 else ""
-
-
-_UUID_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-)
-
-
 def _dataspot_uuid_from_catalog(dataset: dict[str, Any]) -> str:
     """Return Dataspot REST dataset UUID (not STAC collection code like AFBA)."""
-    raw_id = _clean_text(dataset.get("dataspot_dataset_id"))
-    if _UUID_RE.match(raw_id):
+    raw_id = clean_text(dataset.get("dataspot_dataset_id"))
+    if is_uuid(raw_id):
         return raw_id
-    preview = _clean_text(dataset.get("html_preview"))
+    preview = clean_text(dataset.get("html_preview"))
     if "#" in preview:
         frag = preview.split("#")[-1].strip()
-        if _UUID_RE.match(frag):
+        if is_uuid(frag):
             return frag
     return raw_id
 
@@ -228,13 +180,13 @@ def _dataspot_uuid_from_catalog(dataset: dict[str, Any]) -> str:
 def _resolve_dataspot_dataset_id(dataset: dict[str, Any]) -> str:
     """Resolve id for Dataspot compositions/schema: UUID when present, else legacy short code."""
     resolved = _dataspot_uuid_from_catalog(dataset)
-    if resolved and _UUID_RE.match(resolved):
+    if resolved and is_uuid(resolved):
         return resolved
-    raw_id = _clean_text(dataset.get("dataspot_dataset_id"))
-    short_from_id = _extract_stac_code(raw_id)
+    raw_id = clean_text(dataset.get("dataspot_dataset_id"))
+    short_from_id = extract_stac_code(raw_id)
     if short_from_id:
         return short_from_id
-    short_from_preview = _extract_stac_code(dataset.get("html_preview"))
+    short_from_preview = extract_stac_code(dataset.get("html_preview"))
     if short_from_preview:
         return short_from_preview
     return raw_id
@@ -265,46 +217,6 @@ def _resolve_theme_id(theme_cell: str) -> str:
         if mapped:
             return mapped
     return ""
-
-
-class _CatalogGeoDataset(BaseModel):
-    """One geo dataset row inside ``publish_catalog.yaml``."""
-
-    model_config = ConfigDict(extra="allow")
-
-    huwise_id: str = ""
-    dataspot_dataset_id: str
-    geo_dataset: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class _CatalogCollection(BaseModel):
-    """One STAC collection inside ``publish_catalog.yaml``."""
-
-    model_config = ConfigDict(extra="allow")
-
-    stac_collection_id: str
-    geo_datasets: list[_CatalogGeoDataset] = Field(default_factory=list)
-
-
-class _CatalogModel(BaseModel):
-    """Top-level shape of ``data/publish_catalog.yaml``."""
-
-    model_config = ConfigDict(extra="allow")
-
-    datasets: list[_CatalogCollection]
-
-    @model_validator(mode="after")
-    def _huwise_ids_unique(self) -> "_CatalogModel":
-        seen: set[str] = set()
-        for collection in self.datasets:
-            for dataset in collection.geo_datasets:
-                huwise_id = _clean_text(dataset.huwise_id)
-                if huwise_id and huwise_id in seen:
-                    raise ValueError(f"Duplicate huwise_id found: {huwise_id}")
-                if huwise_id:
-                    seen.add(huwise_id)
-        return self
 
 
 class _SchemaCustomBlock(BaseModel):
@@ -343,126 +255,75 @@ class _SchemaFileModel(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    huwise_id: str
-    dataspot_dataset_id: str
+    huwise_id: str = ""
+    dataspot_dataset_id: str = ""
+    dataspot_asset_url: str = ""
+    stac_url: str = ""
     fields: list[_SchemaField]
 
 
-def _validate_publish_catalog(payload: dict[str, Any]) -> None:
-    """Validate minimal YAML catalog shape using a pydantic model."""
-    try:
-        _CatalogModel.model_validate(payload)
-    except ValidationError as exc:
-        raise ValueError(f"publish_catalog.yaml validation failed:\n{exc}") from exc
+def snapshot_fields_only(entry: dict[str, Any]) -> dict[str, Any]:
+    """Keep only ``template.field`` keys in canonical field order."""
+    return order_snapshot_entry(entry)
 
 
-def _metadata_defaults(dataset: dict[str, Any], ods_id: str) -> dict[str, Any]:
-    metadata_payload = dataset.get("metadata", {})
-    if not isinstance(metadata_payload, dict):
-        metadata_payload = {}
-    default_payload = metadata_payload.get("default", {})
-    dcat_payload = metadata_payload.get("dcat", {})
-    custom_payload = metadata_payload.get("custom", {})
-    if not isinstance(default_payload, dict):
-        default_payload = {}
-    if not isinstance(dcat_payload, dict):
-        dcat_payload = {}
-    if not isinstance(custom_payload, dict):
-        custom_payload = {}
-    relation_urls = _split_semicolon_list(dcat_payload.get("relation"))
-    title = _clean_text(default_payload.get("title")) or _clean_text(dataset.get("geo_dataset"))
-    keyword_values = _split_keywords(default_payload.get("keyword"))
-    tag_values = _split_keywords(custom_payload.get("tags"))
-    internal_payload = metadata_payload.get("internal", {})
-    if not isinstance(internal_payload, dict):
-        internal_payload = {}
-    license_name = _clean_text(internal_payload.get("license")) or DEFAULT_LICENSE_NAME
-    license_id = LICENSE_ID_BY_NAME.get(license_name, _clean_text(license_name))
-    raw_publisher = _clean_text(default_payload.get("publisher"))
-    publisher_from_path = _third_path_segment(raw_publisher)
-    resolved_publisher = publisher_from_path or raw_publisher
-    resolved_creator = publisher_from_path or _clean_text(dcat_payload.get("creator")) or raw_publisher
-    return {
-        "ods_id": ods_id,
-        "stac_collection_id": _clean_text(dataset.get("stac_collection_id")),
-        "title": title,
-        "description": _clean_text(default_payload.get("description")),
-        "theme": "",
-        "theme_ids": [],
-        "keyword": ";".join(keyword_values),
-        "dcat_ap_ch.rights": DEFAULT_RIGHTS,
-        "dcat_ap_ch.license": DEFAULT_LICENSE,
-        "internal.license_id": license_id,
-        "publizierende_organisation": _clean_text(custom_payload.get("publizierende_organisation")),
-        "dcat.contact_name": DEFAULT_CONTACT_NAME,
-        "dcat.contact_email": DEFAULT_CONTACT_EMAIL,
-        "dcat.created": "",
-        "dcat.creator": resolved_creator,
-        "dcat.accrualperiodicity": _clean_text(dcat_payload.get("accrualperiodicity")),
-        "publisher": resolved_publisher,
-        "dcat.issued": _clean_text(dcat_payload.get("issued")),
-        "language": "de",
-        "relation_urls": relation_urls,
-        "tags": ";".join(tag_values) if tag_values else DEFAULT_TAG,
-        "custom.publizierende_organisation": _clean_text(custom_payload.get("publizierende_organisation")),
-        "custom.geodaten_modellbeschreibung": _clean_text(custom_payload.get("geodaten_modellbeschreibung")),
-        "default.modified": _clean_text(default_payload.get("modified")),
-        "default.modified_updates_on_data_change": bool(default_payload.get("modified_updates_on_data_change", False)),
-    }
+def _metadata_row_field(metadata_row: pd.Series, snapshot_key: str, legacy_key: str = "") -> Any:
+    value = metadata_row.get(snapshot_key)
+    if value is None or (isinstance(value, str) and not clean_text(value)):
+        if legacy_key:
+            return metadata_row.get(legacy_key)
+        return value
+    return value
+
+
+def _stac_collection_from_metadata_row(metadata_row: pd.Series) -> str:
+    explicit = clean_text(metadata_row.get("stac_collection_id"))
+    if explicit:
+        return explicit
+    tags = metadata_row.get("custom.tags")
+    tag_list = tags if isinstance(tags, list) else split_semicolon_list(tags) or split_semicolon_list(metadata_row.get("tags"))
+    for tag in tag_list:
+        cleaned = clean_text(tag)
+        if cleaned and cleaned.lower() not in {DEFAULT_TAG.lower(), "opendata.swiss"}:
+            return cleaned
+    return ""
 
 
 def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Load YAML catalog and convert to pub/metadata dataframes.
+    """Load snapshot catalog + Excel bindings (``template.field`` keys only in YAML)."""
+    from catalog import load_active_dataset_rows
 
-    Per-dataset schema overrides no longer live in the catalog; they are
-    resolved at publish time directly from ``data/schema_files/*.yaml`` via
-    :func:`_load_schema_rows_from_yaml`.
-    """
-    payload = yaml.safe_load(PUBLISH_CATALOG_FILE.read_text(encoding="utf-8"))
-    _validate_publish_catalog(payload)
-    datasets = payload.get("datasets", [])
+    catalog_path = PUBLISH_CATALOG_FILE if PUBLISH_CATALOG_FILE.exists() else LEGACY_CATALOG_FILE
+    flat = load_flat_publish_catalog(catalog_path)
+    if not flat:
+        raise FileNotFoundError(f"No active datasets in publish catalog: {catalog_path}")
 
+    binding_rows = {row["huwise_id"]: row for row in load_active_dataset_rows()}
     pub_rows: list[dict[str, Any]] = []
     metadata_rows: list[dict[str, Any]] = []
-    skipped_without_huwise = 0
-    for collection in datasets:
-        stac_collection_id = _clean_text(collection.get("stac_collection_id"))
-        stac_url = _clean_text(collection.get("stac_url"))
-        stac_preview = _clean_text(collection.get("stac_preview_url"))
-        stac_browser = _clean_text(collection.get("stac_browser_url"))
-        mapbs_url = _clean_text(collection.get("mapbs_url"))
-        geo_datasets = collection.get("geo_datasets", [])
-        if not isinstance(geo_datasets, list):
+    for ods_id in sorted(flat.keys(), key=lambda value: clean_text(value)):
+        entry = flat[ods_id]
+        if not isinstance(entry, dict):
             continue
+        snapshot = snapshot_fields_only(entry)
+        binding = binding_rows.get(ods_id, {})
+        dataspot_id = clean_text(binding.get("dataspot_dataset_id")) or dataspot_uuid_from_snapshot(snapshot)
+        geo_dataset = clean_text(binding.get("geo_dataset"))
+        stac_collection_id = clean_text(binding.get("stac_collection_id")) or _stac_collection_from_metadata_row(
+            pd.Series(snapshot)
+        )
+        pub_rows.append(
+            {
+                "ods_id": ods_id,
+                "id": dataspot_id,
+                "geo_dataset": geo_dataset,
+                "paket": stac_collection_id,
+            }
+        )
+        metadata_row = dict(snapshot)
+        metadata_row["ods_id"] = ods_id
+        metadata_rows.append(metadata_row)
 
-        for dataset in geo_datasets:
-            if not isinstance(dataset, dict):
-                continue
-            ods_id = _clean_text(dataset.get("huwise_id"))
-            if not ods_id:
-                skipped_without_huwise += 1
-                continue
-            dataspot_id = _clean_text(dataset.get("dataspot_dataset_id"))
-            geo_dataset = _clean_text(dataset.get("geo_dataset"))
-            pub_rows.append(
-                {
-                    "ods_id": ods_id,
-                    "id": dataspot_id,
-                    "geo_dataset": geo_dataset,
-                    "paket": stac_collection_id,
-                }
-            )
-            dataset_with_links = dict(dataset)
-            if not _clean_text(dataset_with_links.get("stac_preview_url")):
-                dataset_with_links["stac_preview_url"] = stac_preview or stac_url
-            dataset_with_links["stac_collection_id"] = stac_collection_id
-            relation_urls = [url for url in (stac_url, mapbs_url, stac_browser) if _clean_text(url)]
-            if relation_urls:
-                dataset_with_links["relation_urls"] = relation_urls
-            metadata_rows.append(_metadata_defaults(dataset_with_links, ods_id))
-
-    if skipped_without_huwise:
-        logging.info("Skipped %s datasets without huwise_id in YAML", skipped_without_huwise)
     return pd.DataFrame(pub_rows), pd.DataFrame(metadata_rows)
 
 
@@ -471,46 +332,13 @@ def _build_dataspot_client() -> DataspotAuth:
     return DataspotAuth()
 
 
-@with_http_retry
-def _http_get_json(
-    url: str,
-    *,
-    headers: dict[str, str] | None = None,
-    allow_404: bool = False,
-) -> dict[str, Any] | None:
-    """Fetch one JSON payload with explicit timeout and status handling."""
-    with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
-        response = client.get(url, headers=headers)
-    if response.status_code in {404, 410} and allow_404:
-        return None
-    response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, dict):
-        return None
-    return payload
-
-
-def _dataspot_get(auth: DataspotAuth, url: str, *, allow_404: bool = False) -> dict[str, Any] | None:
-    """Execute an authenticated Dataspot GET call.
-
-    Args:
-        auth: Dataspot auth helper.
-        url: Dataspot endpoint URL.
-        allow_404: Whether missing resources should return ``None``.
-
-    Returns:
-        Parsed JSON object or ``None`` when ``allow_404=True`` and the resource
-        does not exist.
-    """
-    return _http_get_json(url, headers=auth.get_headers(), allow_404=allow_404)
-
-
 def _load_publish_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Load publish inputs from YAML catalog only."""
-    if not PUBLISH_CATALOG_FILE.exists():
-        raise FileNotFoundError(f"Missing required file: {PUBLISH_CATALOG_FILE}")
+    """Load publish inputs from orig catalog + HUWISE bindings."""
+    catalog_path = PUBLISH_CATALOG_FILE if PUBLISH_CATALOG_FILE.exists() else LEGACY_CATALOG_FILE
+    if not catalog_path.exists():
+        raise FileNotFoundError(f"Missing required catalog: {ORIG_CATALOG_FILE} or {LEGACY_CATALOG_FILE}")
     pub_df, metadata_df = _load_catalog_dataframes()
-    logging.info("Loaded %s datasets with huwise_id from %s", len(pub_df), PUBLISH_CATALOG_FILE)
+    logging.info("Loaded %s datasets with huwise_id from %s (+ bindings)", len(pub_df), catalog_path)
     return pub_df, metadata_df
 
 
@@ -528,14 +356,23 @@ def _normalize_metadata_compare_value(value: Any) -> Any:
     """Normalize metadata for equality checks (Huwise payloads, snapshot file, or new values)."""
     extracted = _extract_metadata_value(value)
     if isinstance(extracted, list):
-        return [item for item in [_clean_text(v) for v in extracted] if item]
+        return [item for item in [clean_text(v) for v in extracted] if item]
     if isinstance(extracted, bool):
         return extracted
-    return _clean_text(extracted)
+    return clean_text(extracted)
 
 
-def _load_last_push_snapshot(path: Path = PUBLISH_METADATA_LAST_PUSH_FILE) -> dict[str, dict[str, Any]]:
+def _metadata_snapshot_path() -> Path:
+    if PUBLISH_METADATA_LAST_PUSH_FILE.exists():
+        return PUBLISH_METADATA_LAST_PUSH_FILE
+    if LEGACY_METADATA_LAST_PUSH_FILE.exists():
+        return LEGACY_METADATA_LAST_PUSH_FILE
+    return PUBLISH_METADATA_LAST_PUSH_FILE
+
+
+def _load_last_push_snapshot(path: Path | None = None) -> dict[str, dict[str, Any]]:
     """Load last successful metadata push per ods_id and logical field key ``template.field``."""
+    path = path or _metadata_snapshot_path()
     if not path.exists():
         return {}
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -543,7 +380,7 @@ def _load_last_push_snapshot(path: Path = PUBLISH_METADATA_LAST_PUSH_FILE) -> di
         return {}
     out: dict[str, dict[str, Any]] = {}
     for ods_raw, fields in raw.items():
-        ods_id = _clean_text(str(ods_raw))
+        ods_id = clean_text(str(ods_raw))
         if not ods_id or not isinstance(fields, dict):
             continue
         out[ods_id] = {str(k): v for k, v in fields.items()}
@@ -552,8 +389,7 @@ def _load_last_push_snapshot(path: Path = PUBLISH_METADATA_LAST_PUSH_FILE) -> di
 
 def _save_last_push_snapshot(snapshot: dict[str, dict[str, Any]], path: Path = PUBLISH_METADATA_LAST_PUSH_FILE) -> None:
     """Persist metadata last-push snapshot (YAML, stable key order)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(snapshot, allow_unicode=True, sort_keys=True), encoding="utf-8")
+    write_metadata_snapshot_file(path, snapshot)
     # Reuse shared hash-file tracking from common for cheap change diagnostics in scheduled runs.
     change_tracking.update_check_file(str(path), method="hash")
 
@@ -562,8 +398,8 @@ def _coerce_string_list(value: Any) -> list[str]:
     """Normalize a metadata value to a list of non-empty strings."""
     extracted = _extract_metadata_value(value)
     if isinstance(extracted, list):
-        return [_clean_text(item) for item in extracted if _clean_text(item)]
-    text = _clean_text(extracted)
+        return [clean_text(item) for item in extracted if clean_text(item)]
+    text = clean_text(extracted)
     if not text:
         return []
     if ";" in text:
@@ -589,90 +425,6 @@ def _get_template_field(templates: dict[str, dict[str, Any]], template: str, fie
     return _extract_metadata_value(templates.get(template, {}).get(field))
 
 
-def _sync_publish_catalog_from_huwise() -> None:
-    """Refresh catalog metadata fields from HUWISE for all existing ods_id rows."""
-    if not PUBLISH_CATALOG_FILE.exists():
-        return
-    payload = json.loads(PUBLISH_CATALOG_FILE.read_text(encoding="utf-8"))
-    _validate_publish_catalog(payload)
-    datasets = payload.get("datasets", [])
-    if not datasets:
-        return
-
-    client = HttpClient(HuwiseConfig.from_env())
-    theme_name_by_id = {theme_id: label for label, theme_id in THEME_MAP_DATA_BS_CH.items()}
-    updated = 0
-
-    for dataset in datasets:
-        ods_id = _clean_text(dataset.get("ods_id"))
-        if not ods_id:
-            continue
-        try:
-            dataset_uid = get_uid_by_id(dataset_id=ods_id)
-            templates = _fetch_metadata_templates(client, dataset_uid)
-        except Exception as exc:
-            logging.warning("Skipping HUWISE pull for ods_id=%s: %s", ods_id, exc)
-            continue
-        if not templates:
-            continue
-
-        title = _clean_text(_get_template_field(templates, "default", "title"))
-        if title:
-            dataset["title"] = title
-        description = _clean_text(_get_template_field(templates, "default", "description"))
-        if description:
-            dataset["description"] = description
-        publisher = _clean_text(_get_template_field(templates, "default", "publisher"))
-        if publisher:
-            dataset["publisher"] = publisher
-        dataset["language"] = "de"
-        keywords = _coerce_string_list(_get_template_field(templates, "default", "keyword"))
-        if keywords:
-            dataset["keywords"] = keywords
-
-        theme_ids = _coerce_string_list(_get_template_field(templates, "internal", "theme_id"))
-        if theme_ids:
-            dataset["theme_ids"] = theme_ids
-            dataset["themes"] = [theme_name_by_id.get(theme_id, theme_id) for theme_id in theme_ids]
-
-        relation_urls = _coerce_string_list(_get_template_field(templates, "dcat", "relation"))
-        if relation_urls:
-            dataset["relation_urls"] = relation_urls
-            if not _clean_text(dataset.get("html_preview")):
-                dataset["html_preview"] = relation_urls[0]
-        created = _clean_text(_get_template_field(templates, "dcat", "created"))
-        if created:
-            dataset["dcat_created"] = created
-        creator = _clean_text(_get_template_field(templates, "dcat", "creator"))
-        if creator:
-            dataset["dcat_creator"] = creator
-        issued = _clean_text(_get_template_field(templates, "dcat", "issued"))
-        if issued:
-            dataset["dcat_issued"] = issued
-        contact_name = _clean_text(_get_template_field(templates, "dcat", "contact_name"))
-        if contact_name:
-            dataset["dcat_contact_name"] = contact_name
-        contact_email = _clean_text(_get_template_field(templates, "dcat", "contact_email"))
-        if contact_email:
-            dataset["dcat_contact_email"] = contact_email
-        accrual = _clean_text(_get_template_field(templates, "dcat", "accrualperiodicity"))
-        if accrual:
-            dataset["dcat_accrualperiodicity"] = accrual
-
-        rights = _clean_text(_get_template_field(templates, "dcat_ap_ch", "rights"))
-        if rights:
-            dataset["dcat_ap_ch_rights"] = rights
-        license_name = _clean_text(_get_template_field(templates, "dcat_ap_ch", "license"))
-        if license_name:
-            dataset["dcat_ap_ch_license"] = license_name
-        updated += 1
-
-    temp_path = PUBLISH_CATALOG_FILE.with_suffix(".json.tmp")
-    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temp_path.replace(PUBLISH_CATALOG_FILE)
-    logging.info("Refreshed publish catalog metadata from HUWISE for %s datasets", updated)
-
-
 def _build_geojson_index() -> list[Path]:
     """Return all local GeoJSON files in the datasets folder."""
     if not DATASETS_DIR.exists():
@@ -682,32 +434,22 @@ def _build_geojson_index() -> list[Path]:
 
 def _resolve_geojson_file(context: DatasetContext, candidates: list[Path]) -> Path | None:
     """Resolve the local GeoJSON for the given dataset context."""
-    normalized_geo_dataset = _normalize_name(context.geo_dataset)
+    normalized_geo_dataset = normalize_name(context.geo_dataset)
     for candidate in candidates:
-        stem_normalized = _normalize_name(candidate.stem)
+        stem_normalized = normalize_name(candidate.stem)
         if stem_normalized.endswith(normalized_geo_dataset):
             return candidate
 
     for candidate in candidates:
-        stem_normalized = _normalize_name(candidate.stem)
+        stem_normalized = normalize_name(candidate.stem)
         if normalized_geo_dataset in stem_normalized:
             return candidate
 
     return None
 
 
-def _read_geojson_properties(geojson_file: Path) -> list[str]:
-    """Read top-level property keys from the first feature."""
-    payload = json.loads(geojson_file.read_text(encoding="utf-8"))
-    features = payload.get("features", [])
-    if not features:
-        return []
-    properties = features[0].get("properties", {})
-    return [str(key) for key in properties.keys()]
-
-
 def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
-    relation_urls = _split_semicolon_list(metadata_row.get("relation_urls"))
+    relation_urls = split_semicolon_list(metadata_row.get("relation_urls"))
     for url in relation_urls:
         marker = "/metadata_details/dataset/preview/html/"
         if marker in url:
@@ -744,7 +486,7 @@ def _fetch_geometa_attribute_technical_names(collection_id: str, dataspot_uuid: 
         if len(cells) < 2:
             continue
         # Attribute table: cell[1] is "Technische Bezeichnung"
-        value = _clean_text(re.sub(r"<[^>]+>", "", cells[1]))
+        value = clean_text(re.sub(r"<[^>]+>", "", cells[1]))
         if value:
             extracted.add(value)
     return extracted
@@ -773,7 +515,7 @@ def _validate_dataspot_schema_against_geometa(
         return
     if not geometa_names:
         return
-    dataspot_names = {_clean_text(row.get("technical_name_dataspot")) for row in schema_rows if _clean_text(row.get("technical_name_dataspot"))}
+    dataspot_names = {clean_text(row.get("technical_name_dataspot")) for row in schema_rows if clean_text(row.get("technical_name_dataspot"))}
     missing_in_dataspot = sorted(name for name in geometa_names if name not in dataspot_names)
     if missing_in_dataspot:
         logging.warning(
@@ -785,29 +527,16 @@ def _validate_dataspot_schema_against_geometa(
         )
 
 
-def _resolve_schema_yaml_for(huwise_id: str, dataspot_dataset_id: str) -> Path | None:
-    """Find the schema YAML for one dataset.
-
-    Matching priority: ``huwise_id`` (primary key), then ``dataspot_dataset_id``.
-    Returns ``None`` if no matching file exists.
-    """
-    if not SCHEMA_FILES_DIR.exists():
+def _resolve_merged_schema_payload(huwise_id: str, dataspot_dataset_id: str) -> dict[str, Any] | None:
+    """Load merged schema (data_orig + user overrides) for one dataset."""
+    basename = resolve_schema_basename_for(huwise_id, dataspot_dataset_id)
+    if not basename:
         return None
-    huwise_id_norm = _clean_text(huwise_id)
-    dataspot_norm = _clean_text(dataspot_dataset_id).lower()
-    for path in sorted(SCHEMA_FILES_DIR.glob("*.yaml")):
-        try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except yaml.YAMLError as exc:
-            logging.warning("Skipping unreadable schema file %s: %s", path, exc)
-            continue
-        if not isinstance(payload, dict):
-            continue
-        if huwise_id_norm and _clean_text(payload.get("huwise_id")) == huwise_id_norm:
-            return path
-        if dataspot_norm and _clean_text(payload.get("dataspot_dataset_id")).lower() == dataspot_norm:
-            return path
-    return None
+    return load_merged_schema_payload(
+        basename,
+        huwise_id=huwise_id,
+        dataspot_dataset_id=dataspot_dataset_id,
+    )
 
 
 def _huwise_field_type_for_yaml_datentyp(datentyp: str) -> str:
@@ -820,7 +549,7 @@ def _huwise_field_type_for_yaml_datentyp(datentyp: str) -> str:
     ``text`` because those exact strings did not match any of its substring
     rules. This map is the single source of truth for the schema upsert.
     """
-    normalized = _clean_text(datentyp).lower()
+    normalized = clean_text(datentyp).lower()
     direct = {
         # etl.py-normalized canonical forms (the common case)
         "text": "text",
@@ -858,12 +587,11 @@ def _huwise_field_type_for_yaml_datentyp(datentyp: str) -> str:
 
 
 def _load_schema_rows_from_yaml(huwise_id: str, dataspot_dataset_id: str) -> list[dict[str, str]]:
-    """Load schema rows for one dataset from ``data/schema_files/*.yaml``.
+    """Load schema rows from merged ``data_orig/schema_files`` + ``data/schema_files``.
 
-    Replaces the previous compositions/attributes/datatypes walk against
-    Dataspot. ``etl.py`` is now the sole producer of schema YAMLs; this
-    function consumes them and emits the row shape the rest of
-    ``publish_dataset.py`` expects.
+    ``etl.py`` produces the orig schema; users edit ``data/schema_files`` with
+    ``dataspot_attribute``, ``technical_name`` (HUWISE), and ``export``. This
+    function emits the row shape ``publish_dataset.py`` expects.
 
     Rules:
 
@@ -879,8 +607,8 @@ def _load_schema_rows_from_yaml(huwise_id: str, dataspot_dataset_id: str) -> lis
     - Rows with ``export: false`` (e.g. ``gdh_fid``, ``map_links``) are
       dropped here so the rest of the publish pipeline can stay simple.
     """
-    schema_path = _resolve_schema_yaml_for(huwise_id, dataspot_dataset_id)
-    if schema_path is None:
+    raw_payload = _resolve_merged_schema_payload(huwise_id, dataspot_dataset_id)
+    if raw_payload is None:
         logging.warning(
             "No schema YAML found for huwise_id=%s dataspot_dataset_id=%s; "
             "publish will proceed with GeoJSON-derived columns only.",
@@ -889,33 +617,30 @@ def _load_schema_rows_from_yaml(huwise_id: str, dataspot_dataset_id: str) -> lis
         )
         return []
     try:
-        raw_payload = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
-    except yaml.YAMLError as exc:
-        raise RuntimeError(f"Cannot parse schema file {schema_path}: {exc}") from exc
-    if not isinstance(raw_payload, dict):
-        return []
-    try:
         schema_model = _SchemaFileModel.model_validate(raw_payload)
     except ValidationError as exc:
-        raise RuntimeError(f"Schema file {schema_path} failed validation:\n{exc}") from exc
+        raise RuntimeError(
+            f"Merged schema for huwise_id={huwise_id} dataspot_dataset_id={dataspot_dataset_id} "
+            f"failed validation:\n{exc}"
+        ) from exc
 
     rows: list[dict[str, str]] = []
     for item in schema_model.fields:
-        technical_name = _clean_text(item.technical_name)
+        technical_name = clean_text(item.technical_name)
         if not technical_name or not item.export:
             continue
         custom = item.custom
-        custom_technical = _clean_text(custom.technical_name)
+        custom_technical = clean_text(custom.technical_name)
         technical_name_huwise = custom_technical or technical_name
-        datentyp_value = _clean_text(custom.datentyp) or _clean_text(item.datentyp) or "text"
+        datentyp_value = clean_text(custom.datentyp) or clean_text(item.datentyp) or "text"
         rows.append(
             {
                 "technical_name_dataspot": technical_name,
                 "technical_name_huwise": technical_name_huwise,
-                "column_name": _clean_text(custom.name) or _clean_text(item.name) or technical_name,
-                "description": _clean_text(custom.description) or _clean_text(item.description),
+                "column_name": clean_text(custom.name) or clean_text(item.name) or technical_name,
+                "description": clean_text(custom.description) or clean_text(item.description),
                 "datatype": datentyp_value,
-                "multivalued_separator": _clean_text(custom.mehrwertigkeit) or _clean_text(item.mehrwertigkeit),
+                "multivalued_separator": clean_text(custom.mehrwertigkeit) or clean_text(item.mehrwertigkeit),
                 "source": "schema_yaml",
             }
         )
@@ -929,9 +654,9 @@ def _reconcile_schema_with_geojson(
     """Ensure schema contains all GeoJSON properties and preserve Dataspot labels."""
     by_technical_name: dict[str, dict[str, str]] = {}
     for row in schema_rows:
-        source_name = _clean_text(row.get("technical_name_dataspot"))
+        source_name = clean_text(row.get("technical_name_dataspot"))
         if not source_name:
-            source_name = _clean_text(row.get("technical_name_huwise"))
+            source_name = clean_text(row.get("technical_name_huwise"))
         if not source_name:
             continue
         by_technical_name[source_name] = row
@@ -956,92 +681,14 @@ def _schema_rows_to_records(schema_rows: list[dict[str, str]]) -> list[dict[str,
     return frame.to_dict("records")
 
 
-def _normalize_optional_date(value: Any) -> str:
-    text = _clean_text(value)
-    if not text:
-        return ""
-    if text.isdigit():
-        try:
-            return pd.to_datetime(int(text), unit="ms").strftime("%Y-%m-%d")
-        except Exception:
-            return text
-    return text
-
-
-def _extract_string_list(value: Any) -> list[str]:
-    if isinstance(value, list):
-        items: list[str] = []
-        for item in value:
-            if isinstance(item, dict):
-                label = _clean_text(item.get("label") or item.get("title") or item.get("name"))
-                if label:
-                    items.append(label)
-            else:
-                text = _clean_text(item)
-                if text:
-                    items.append(text)
-        return items
-    text = _clean_text(value)
-    if not text:
-        return []
-    return [text]
-
-
-def _dataspot_metadata_row(auth: DataspotAuth, dataspot_dataset_id: str, metadata_row: pd.Series) -> pd.Series:
-    """Build metadata row from Dataspot details, keeping YAML relation URLs."""
-    details = _dataspot_get(auth, DATASPOT_DATASET_URL.format(dataset_id=dataspot_dataset_id), allow_404=True) or {}
-    if not isinstance(details, dict):
-        details = {}
-    custom = details.get("customProperties", {})
-    if not isinstance(custom, dict):
-        custom = {}
-    raw_tags = _extract_string_list(details.get("tags"))
-    raw_publisher_path = _clean_text(
-        details.get("producerOrganization")
-        or details.get("publishingOrganization")
-        or details.get("publisher")
-    )
-    publisher_path_parts = [part.strip() for part in raw_publisher_path.split("/") if part.strip()]
-    publizierende_organisation = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
-    geodaten_modellbeschreibung = _clean_text(metadata_row.get("custom.geodaten_modellbeschreibung")) or _clean_text(
-        metadata_row.get("stac_preview_url")
-    )
-    base = metadata_row.to_dict()
-    themes = _extract_string_list(details.get("themes"))
-    keywords = _extract_string_list(details.get("keywords"))
-    publisher = publisher_path_parts[2] if len(publisher_path_parts) > 2 else ""
-    base.update(
-        {
-            "title": _clean_text(details.get("label") or details.get("title") or base.get("title")),
-            "description": _clean_text(details.get("description")),
-            "theme": ";".join(themes),
-            "keyword": ";".join(keywords),
-            "dcat.created": _normalize_optional_date(custom.get("creationDate")),
-            "default.modified": _normalize_optional_date(details.get("lastUpdate") or details.get("modified")),
-            "dcat.issued": _normalize_optional_date(custom.get("publicationDate")),
-            "dcat.accrualperiodicity": _clean_text(details.get("accrualPeriodicity")),
-            "publisher": publisher,
-            "dcat.creator": publisher,
-            "tags": ";".join(raw_tags),
-            "custom.publizierende_organisation": publizierende_organisation,
-            "custom.geodaten_modellbeschreibung": geodaten_modellbeschreibung,
-        }
-    )
-    return pd.Series(base)
-
-
-def _ensure_huwise_dataset(ods_id: str, metadata_row: pd.Series, dry_run: bool) -> tuple[str | None, bool]:
+def _ensure_huwise_dataset(ods_id: str, metadata_row: pd.Series) -> tuple[str | None, bool]:
     """Create dataset by ods_id if missing and return dataset UID + created flag."""
-    if dry_run:
-        logging.info("[dry-run] Would ensure HUWISE dataset for ods_id=%s", ods_id)
-        return None, False
-
     try:
         return get_uid_by_id(dataset_id=ods_id), False
     except Exception:
         # Keep create payload minimal as recommended by huwise-utils-py docs.
         # Additional metadata is set afterwards via dedicated setter calls.
-        title = _clean_text(metadata_row.get("title")) or ods_id
+        title = clean_text(metadata_row.get("title")) or ods_id
         metadata_payload = {
             "default": {
                 "title": {"value": title},
@@ -1078,52 +725,21 @@ def _template_field_definitions(client: HttpClient, template_name: str) -> set[s
     if isinstance(payload, dict):
         for item in payload.get("results", []):
             if isinstance(item, dict):
-                name = _clean_text(item.get("name"))
+                name = clean_text(item.get("name"))
                 if name:
                     names.add(name)
     _TEMPLATE_FIELD_DEFINITIONS_CACHE[template_name] = names
     return names
 
 
-_HTML_MARKER_RE = re.compile(
-    r"</[a-zA-Z][\w-]*\s*>"          # closing tag, e.g. </p>
-    r"|<[a-zA-Z][\w-]*[^<>]*?/\s*>"  # self-closing tag, e.g. <br/>
-    r"|<[a-zA-Z][\w-]*\s+[^<>]*?>"   # opening tag with attributes, e.g. <a href=...>
-)
-
-
-def _description_to_huwise_html(value: Any) -> str:
-    """Return HTML for HUWISE description while preserving existing HTML input.
-
-    Uses a stricter HTML-detection regex than the previous heuristic so
-    expressions like ``1 < 2`` (which a bare ``<[a-zA-Z]`` would mis-
-    classify as HTML) are correctly escaped.
-    """
-    text = _clean_text(value)
-    if not text:
-        return ""
-    if _HTML_MARKER_RE.search(text):
-        return text
-    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
-    if not paragraphs:
-        return html.escape(text).replace("\n", "<br>")
-    return "\n".join(f"<p>{html.escape(part).replace('\n', '<br>')}</p>" for part in paragraphs)
-
-
 def _set_metadata_fields(
     ods_id: str,
     metadata_row: pd.Series,
     source_url: str,
-    dry_run: bool,
     *,
     metadata_last_push: dict[str, dict[str, Any]] | None = None,
-    force_metadata_sync: bool = False,
 ) -> None:
     """Set HUWISE metadata fields from the metadata table."""
-    if dry_run:
-        logging.info("[dry-run] Would update metadata for ods_id=%s", ods_id)
-        return
-
     last_push_by_ods = metadata_last_push if metadata_last_push is not None else {}
 
     def _safe_set(action: str, callback: Any) -> None:
@@ -1138,7 +754,7 @@ def _set_metadata_fields(
     try:
         all_templates_payload = client.get(f"/datasets/{dataset_uid}/metadata/").json()
     except Exception as exc:
-        all_templates_payload = {"_error": _clean_text(exc)}
+        all_templates_payload = {"_error": clean_text(exc)}
     template_fields: dict[str, set[str]] = {}
     template_payloads: dict[str, dict[str, Any]] = {}
     for template_name in ("default", "internal", "dcat", "dcat_ap_ch", "custom"):
@@ -1166,8 +782,8 @@ def _set_metadata_fields(
         if extracted is None:
             return True
         if isinstance(extracted, list):
-            return len([item for item in extracted if _clean_text(item)]) == 0
-        return _clean_text(extracted) == ""
+            return len([item for item in extracted if clean_text(item)]) == 0
+        return clean_text(extracted) == ""
 
     def _set_template_field(template: str, field: str, value: Any, *, publish: bool = False) -> None:
         resolved_template = template
@@ -1209,46 +825,102 @@ def _set_metadata_fields(
         matches_last_push = last_push is not None and normalized_existing == _normalize_metadata_compare_value(
             last_push
         )
-        can_write = force_metadata_sync or _is_empty_value(existing) or (normalized_existing == normalized_new) or (
-            matches_last_push
+        can_write = (
+            _is_empty_value(existing)
+            or (normalized_existing == normalized_new)
+            or matches_last_push
         )
         if not can_write:
             return
         payload = {"value": value, "override_remote_value": DEFAULT_OVERRIDE_REMOTE_VALUE}
         client.put(f"/datasets/{dataset_uid}/metadata/{resolved_template}/{api_field}/", json=payload)
-        last_push_by_ods.setdefault(ods_id, {})[snapshot_key] = normalized_new
+        entry = last_push_by_ods.setdefault(ods_id, {})
+        entry[snapshot_key] = normalized_new
+        last_push_by_ods[ods_id] = order_snapshot_entry(entry)
         if publish:
             dataset.publish()
 
-    _safe_set("title", lambda: _set_template_field("default", "title", _clean_text(metadata_row.get("title")), publish=False))
-    _safe_set(
-        "description",
-        lambda: _set_template_field(
-            "default",
-            "description",
-            _description_to_huwise_html(metadata_row.get("description")),
-            publish=False,
-        ),
-    )
-    stac_collection_id = _clean_text(metadata_row.get("stac_collection_id"))
+    stac_collection_id = _stac_collection_from_metadata_row(metadata_row)
+    keyword_source = _metadata_row_field(metadata_row, "default.keyword", "keyword")
     keywords = [
         keyword
-        for keyword in _split_keywords(_clean_text(metadata_row.get("keyword")))
-        if _clean_text(keyword).lower() != stac_collection_id.lower()
+        for keyword in split_keywords(keyword_source)
+        if clean_text(keyword).lower() != stac_collection_id.lower()
     ]
-    extra_tags = _split_semicolon_list(metadata_row.get("tags"))
+    tag_source = metadata_row.get("custom.tags")
+    if isinstance(tag_source, list):
+        extra_tags = [clean_text(tag) for tag in tag_source if clean_text(tag)]
+    else:
+        extra_tags = split_semicolon_list(tag_source) or split_semicolon_list(metadata_row.get("tags"))
     tags = [tag for tag in [DEFAULT_TAG, stac_collection_id, *extra_tags] if tag]
     deduped_tags = list(dict.fromkeys(tags))
     if keywords:
         _safe_set("keywords", lambda: _set_template_field("default", "keyword", keywords, publish=False))
     _safe_set("custom_tags", lambda: _set_template_field("custom", "tags", deduped_tags, publish=False))
 
-    explicit_theme_ids = _split_semicolon_list(metadata_row.get("theme_ids"))
+    geo_ref = metadata_row.get("default.geographic_reference")
+    if not isinstance(geo_ref, list) or not geo_ref:
+        geo_ref = list(DEFAULT_GEOGRAPHIC_REFERENCE)
+
+    static_fields: list[tuple[str, str, Any, bool]] = [
+        ("default", "title", clean_text(_metadata_row_field(metadata_row, "default.title", "title")), False),
+        (
+            "default",
+            "description",
+            description_to_html(_metadata_row_field(metadata_row, "default.description", "description")),
+            False,
+        ),
+        ("default", "language", clean_text(_metadata_row_field(metadata_row, "default.language")) or "de", False),
+        ("default", "geographic_reference", geo_ref, False),
+        (
+            "default",
+            "modified_updates_on_data_change",
+            bool(metadata_row.get("default.modified_updates_on_data_change", False)),
+            False,
+        ),
+        ("default", "modified", clean_text(metadata_row.get("default.modified")), False),
+        ("default", "modified_updates_on_metadata_change", False, False),
+        (
+            "default",
+            "publisher",
+            clean_text(_metadata_row_field(metadata_row, "default.publisher", "publisher")),
+            False,
+        ),
+        (
+            "custom",
+            "publizierende_organisation",
+            clean_text(metadata_row.get("custom.publizierende_organisation"))
+            or clean_text(metadata_row.get("publizierende_organisation")),
+            False,
+        ),
+        (
+            "custom",
+            "geodaten_modellbeschreibung",
+            clean_text(metadata_row.get("custom.geodaten_modellbeschreibung"))
+            or clean_text(metadata_row.get("geodaten_modellbeschreibung")),
+            False,
+        ),
+        ("dcat", "contact_name", DEFAULT_CONTACT_NAME, False),
+        ("dcat", "contact_email", DEFAULT_CONTACT_EMAIL, False),
+        ("dcat_ap_ch", "rights", DEFAULT_RIGHTS, False),
+        ("dcat_ap_ch", "license", DEFAULT_LICENSE, False),
+        ("dcat", "creator", clean_text(metadata_row.get("dcat.creator")), False),
+        ("dcat", "created", clean_text(metadata_row.get("dcat.created")), False),
+        ("dcat", "issued", clean_text(metadata_row.get("dcat.issued")), False),
+        ("dcat", "accrualperiodicity", clean_text(metadata_row.get("dcat.accrualperiodicity")), False),
+    ]
+    for template, field, value, publish in static_fields:
+        _safe_set(
+            f"{template}.{field}",
+            lambda t=template, f=field, v=value, p=publish: _set_template_field(t, f, v, publish=p),
+        )
+
+    explicit_theme_ids = split_semicolon_list(_metadata_row_field(metadata_row, "internal.theme_id", "theme_ids"))
     if explicit_theme_ids:
         theme_ids = explicit_theme_ids
     else:
         theme_ids = []
-        theme_text = _clean_text(metadata_row.get("theme"))
+        theme_text = clean_text(_metadata_row_field(metadata_row, "internal.theme", "theme"))
         if theme_text:
             resolved = _resolve_theme_id(theme_text)
             if resolved:
@@ -1257,84 +929,22 @@ def _set_metadata_fields(
                 logging.warning("No known theme mapping for ods_id=%s theme=%s", ods_id, theme_text)
     if theme_ids:
         _safe_set("theme", lambda: _set_template_field("internal", "theme_id", theme_ids, publish=False))
-    license_id = _clean_text(metadata_row.get("internal.license_id"))
+    license_id = clean_text(_metadata_row_field(metadata_row, "internal.license_id"))
     if license_id:
         _safe_set("license_id", lambda: _set_template_field("internal", "license_id", license_id, publish=False))
 
-    _safe_set("language", lambda: _set_template_field("default", "language", "de", publish=False))
-    _safe_set("geographic_reference", lambda: _set_template_field("default", "geographic_reference", DEFAULT_GEOGRAPHIC_REFERENCE, publish=False))
-    _safe_set(
-        "modified_auto",
-        lambda: _set_template_field(
-            "default",
-            "modified_updates_on_data_change",
-            bool(metadata_row.get("default.modified_updates_on_data_change", False)),
-            publish=False,
-        ),
-    )
-    _safe_set(
-        "modified_value",
-        lambda: _set_template_field("default", "modified", _clean_text(metadata_row.get("default.modified")), publish=False),
-    )
-    _safe_set(
-        "modified_manual",
-        lambda: _set_template_field("default", "modified_updates_on_metadata_change", False, publish=False),
-    )
-    _safe_set(
-        "publisher",
-        lambda: _set_template_field("default", "publisher", _clean_text(metadata_row.get("publisher")), publish=False),
-    )
-    _safe_set(
-        "custom_publizierende_organisation",
-        lambda: _set_template_field(
-            "custom",
-            "publizierende_organisation",
-            _clean_text(metadata_row.get("custom.publizierende_organisation"))
-            or _clean_text(metadata_row.get("publizierende_organisation")),
-            publish=False,
-        ),
-    )
-    _safe_set(
-        "custom_geodaten_modellbeschreibung",
-        lambda: _set_template_field(
-            "custom",
-            "geodaten_modellbeschreibung",
-            _clean_text(metadata_row.get("custom.geodaten_modellbeschreibung"))
-            or _clean_text(metadata_row.get("geodaten_modellbeschreibung")),
-            publish=False,
-        ),
-    )
-    _safe_set(
-        "contact_name",
-        lambda: _set_template_field("dcat", "contact_name", DEFAULT_CONTACT_NAME, publish=False),
-    )
-    _safe_set(
-        "contact_email",
-        lambda: _set_template_field("dcat", "contact_email", DEFAULT_CONTACT_EMAIL, publish=False),
-    )
-    _safe_set(
-        "dcat_rights",
-        lambda: _set_template_field("dcat_ap_ch", "rights", DEFAULT_RIGHTS, publish=False),
-    )
-    _safe_set(
-        "dcat_license",
-        lambda: _set_template_field("dcat_ap_ch", "license", DEFAULT_LICENSE, publish=False),
-    )
-    _safe_set("creator", lambda: _set_template_field("dcat", "creator", _clean_text(metadata_row.get("dcat.creator")), publish=False))
-    _safe_set("created", lambda: _set_template_field("dcat", "created", _clean_text(metadata_row.get("dcat.created")), publish=False))
-    _safe_set("issued", lambda: _set_template_field("dcat", "issued", _clean_text(metadata_row.get("dcat.issued")), publish=False))
-    _safe_set(
-        "accrualperiodicity",
-        lambda: _set_template_field("dcat", "accrualperiodicity", _clean_text(metadata_row.get("dcat.accrualperiodicity")), publish=False),
-    )
-    relation_urls = _split_semicolon_list(metadata_row.get("relation_urls"))
+    relation_source = metadata_row.get("dcat.relation")
+    if isinstance(relation_source, list):
+        relation_urls = [clean_text(url) for url in relation_source if clean_text(url)]
+    else:
+        relation_urls = split_semicolon_list(relation_source) or split_semicolon_list(metadata_row.get("relation_urls"))
     if relation_urls:
         _safe_set("relation", lambda: _set_template_field("dcat", "relation", relation_urls, publish=True))
 
 
 def _normalize_datatype_family(datatype: str) -> str:
     """Map source datatype labels into logical datatype families."""
-    normalized = _normalize_name(datatype)
+    normalized = normalize_name(datatype)
     if "geopoint2d" in normalized or "point" in normalized:
         return "geo_point_2d"
     if "datetime" in normalized:
@@ -1365,7 +975,7 @@ def _discover_portal_field_types(dataset_ids: list[str]) -> set[str]:
         except Exception:
             continue
         for field in payload.get("results", []):
-            field_type = _clean_text(field.get("type"))
+            field_type = clean_text(field.get("type"))
             if field_type:
                 discovered.add(field_type)
         if discovered:
@@ -1380,7 +990,7 @@ def _discover_portal_field_types(dataset_ids: list[str]) -> set[str]:
         response = client.get("/datasets/", params={"limit": 50})
         results = response.json().get("results", [])
         for item in results:
-            uid = _clean_text(item.get("uid"))
+            uid = clean_text(item.get("uid"))
             if not uid:
                 continue
             try:
@@ -1388,7 +998,7 @@ def _discover_portal_field_types(dataset_ids: list[str]) -> set[str]:
             except Exception:
                 continue
             for field in fields_response.json().get("results", []):
-                field_type = _clean_text(field.get("type"))
+                field_type = clean_text(field.get("type"))
                 if field_type:
                     discovered.add(field_type)
             if discovered:
@@ -1406,7 +1016,7 @@ def _build_field_type_value(row: dict[str, str], accepted_types: set[str]) -> st
     to HUWISE types instead of being silently downgraded to ``text`` by
     the legacy substring rules in ``_normalize_datatype_family``.
     """
-    raw = _clean_text(row.get("datatype"))
+    raw = clean_text(row.get("datatype"))
     if not raw:
         return None
     # ``accepted_types`` is reserved for future field-type whitelisting; today
@@ -1434,10 +1044,10 @@ def _existing_field_type(existing_fields: list[dict[str, Any]], technical_name: 
     for field in existing_fields:
         if not isinstance(field, dict):
             continue
-        field_name = _clean_text(field.get("name") or field.get("field"))
+        field_name = clean_text(field.get("name") or field.get("field"))
         if field_name.lower() != name_lower:
             continue
-        ftype = _clean_text(field.get("type"))
+        ftype = clean_text(field.get("type"))
         if ftype:
             return ftype
     return ""
@@ -1446,22 +1056,9 @@ def _existing_field_type(existing_fields: list[dict[str, Any]], technical_name: 
 def _upsert_huwise_schema(
     ods_id: str,
     rows: list[dict[str, str]],
-    dry_run: bool,
     accepted_types: set[str],
-    *,
-    force_field_recreate: bool = False,
 ) -> None:
-    """Upsert HUWISE field configurations from normalized schema rows.
-
-    ``force_field_recreate`` deletes the existing HUWISE field when the
-    desired ``datentyp`` differs from the current one. HUWISE refuses to
-    change a field's type once set, so this is the only way to push a
-    ``custom.datentyp`` change end-to-end. Without the flag we log an
-    ERROR and continue, leaving the field with its old type.
-    """
-    if dry_run:
-        logging.info("[dry-run] Would upsert %s schema fields for ods_id=%s", len(rows), ods_id)
-        return
+    """Upsert HUWISE field configurations from normalized schema rows."""
     if not accepted_types:
         logging.warning(
             "Skipping schema upsert for ods_id=%s because no accepted HUWISE field types were discovered",
@@ -1476,8 +1073,8 @@ def _upsert_huwise_schema(
 
     # Remove previous processors created by this sync to keep run idempotent.
     for field in existing_fields:
-        uid = _clean_text(field.get("uid"))
-        label = _clean_text(field.get("label"))
+        uid = clean_text(field.get("uid"))
+        label = clean_text(field.get("label"))
         if uid and label.startswith(SCHEMA_PROCESSOR_LABEL_PREFIX):
             try:
                 client.delete(f"/datasets/{dataset_uid}/fields/{uid}/")
@@ -1485,19 +1082,15 @@ def _upsert_huwise_schema(
                 logging.warning("Could not delete managed processor ods_id=%s uid=%s: %s", ods_id, uid, exc)
 
     for row in rows:
-        row["technical_name_huwise"] = _clean_text(row.get("technical_name_huwise"))
+        row["technical_name_huwise"] = clean_text(row.get("technical_name_huwise"))
         if not row["technical_name_huwise"]:
             logging.warning("Skipping field with empty HUWISE technical name for ods_id=%s", ods_id)
             continue
-        technical_name = _clean_text(row.get("technical_name_huwise"))
-        # ``from_name`` must be the column name as it arrives from the FTP source
-        # (i.e. the original Dataspot name). The local GeoJSON is pre-renamed in
-        # :func:`_prepare_geojson_wgs84` so that the file on FTP already carries
-        # ``technical_name``; the rename processor is then either a no-op (file
-        # in sync) or actually performs the rename (file still has the old
-        # name, e.g. after a schema rename before the next ETL run). Either
-        # way the column ends up named ``technical_name`` on the portal.
-        from_name = _clean_text(row.get("technical_name_dataspot")) or technical_name
+        technical_name = clean_text(row.get("technical_name_huwise"))
+        # GeoJSON on FTP already uses ``technical_name_huwise`` column ids
+        # (:func:`_prepare_geojson_wgs84`). Identity rename (from_name == to_name)
+        # only sets the portal display label via ``field_label`` — safe unlike the
+        # old Dataspot→HUWISE rename that broke resource processing.
         type_value = _build_field_type_value(row, accepted_types)
         if type_value is None:
             logging.warning(
@@ -1509,61 +1102,36 @@ def _upsert_huwise_schema(
 
         current_type = _existing_field_type(existing_fields, technical_name)
         if current_type and current_type != type_value:
-            if force_field_recreate:
-                logging.warning(
-                    "ods_id=%s field=%s: --force-field-recreate set, deleting existing field "
-                    "(current type=%s, requested=%s) before re-upsert",
-                    ods_id,
-                    technical_name,
-                    current_type,
-                    type_value,
-                )
-                # Best-effort delete the data field itself. HUWISE will recreate
-                # it from the next GeoJSON import with the new type.
-                for field in existing_fields:
-                    if _clean_text(field.get("name")).lower() != technical_name.lower():
-                        continue
-                    uid = _clean_text(field.get("uid"))
-                    if not uid:
-                        continue
-                    try:
-                        client.delete(f"/datasets/{dataset_uid}/fields/{uid}/")
-                        logging.info("Deleted existing field uid=%s for forced recreate", uid)
-                    except Exception as exc:
-                        logging.error(
-                            "Could not delete field uid=%s for ods_id=%s field=%s: %s",
-                            uid,
-                            ods_id,
-                            technical_name,
-                            _extract_http_error_detail(exc),
-                        )
-            else:
-                logging.error(
-                    "datentyp change requires field recreation for ods_id=%s field=%s "
-                    "(current=%s, requested=%s). Re-run publish_dataset.py with "
-                    "--force-field-recreate to apply, or change the type manually in HUWISE.",
-                    ods_id,
-                    technical_name,
-                    current_type,
-                    type_value,
-                )
+            logging.error(
+                "datentyp mismatch for ods_id=%s field=%s (current=%s, requested=%s); "
+                "change the type manually in HUWISE or delete the field before re-publish",
+                ods_id,
+                technical_name,
+                current_type,
+                type_value,
+            )
 
-        processors: list[dict[str, Any]] = [
-            {
-                "type": "rename",
-                "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: label {technical_name}",
-                "from_name": from_name,
-                "to_name": technical_name,
-                "field_label": _clean_text(row.get("column_name")) or technical_name,
-            },
+        processors: list[dict[str, Any]] = []
+        field_label = clean_text(row.get("column_name"))
+        if field_label:
+            processors.append(
+                {
+                    "type": "rename",
+                    "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: label {technical_name}",
+                    "from_name": technical_name,
+                    "to_name": technical_name,
+                    "field_label": field_label,
+                }
+            )
+        processors.append(
             {
                 "type": "type",
                 "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: type {technical_name}",
                 "field": technical_name,
                 "type_param": type_value,
-            },
-        ]
-        description = _clean_text(row.get("description"))
+            }
+        )
+        description = clean_text(row.get("description"))
         if description:
             processors.append(
                 {
@@ -1573,8 +1141,10 @@ def _upsert_huwise_schema(
                     "description": description,
                 }
             )
-        multivalued_separator = _clean_text(row.get("multivalued_separator"))
-        if multivalued_separator:
+        # HUWISE ``annotate`` / ``multivalued`` (text fields only): separator from
+        # schema ``mehrwertigkeit`` (Dataspot cardinality → ETL → YAML).
+        multivalued_separator = clean_text(row.get("multivalued_separator"))
+        if multivalued_separator and type_value == "text":
             processors.append(
                 {
                     "type": "annotate",
@@ -1586,14 +1156,14 @@ def _upsert_huwise_schema(
             )
 
         for processor in processors:
-            processor_type = _clean_text(processor.get("type"))
+            processor_type = clean_text(processor.get("type"))
             try:
                 response = client.post(f"/datasets/{dataset_uid}/fields/", json=processor).json()
                 logging.info(
                     "Created schema processor for ods_id=%s field=%s uid=%s type=%s",
                     ods_id,
                     technical_name,
-                    _clean_text(response.get("uid")),
+                    clean_text(response.get("uid")),
                     processor_type,
                 )
             except Exception as exc:
@@ -1620,11 +1190,9 @@ def _upsert_huwise_schema(
                     )
 
 
-def _upload_geojson(local_file: Path, dry_run: bool) -> None:
+def _upload_geojson(local_file: Path) -> None:
     """Upload GeoJSON file to FTP destination folder."""
-    if dry_run:
-        logging.info("[dry-run] Would upload %s to FTP folder %s", local_file.name, FTP_REMOTE_FOLDER)
-        return
+    logging.info("STEP upload_geojson file=%s", local_file.name)
     common.upload_ftp(str(local_file), remote_path=FTP_REMOTE_FOLDER)
 
 
@@ -1632,17 +1200,42 @@ def _schema_name_mapping(schema_rows: list[dict[str, str]]) -> dict[str, str]:
     """Build mapping from Dataspot technical names to HUWISE technical names."""
     mapping: dict[str, str] = {}
     for row in schema_rows:
-        src = _clean_text(row.get("technical_name_dataspot"))
-        dst = _clean_text(row.get("technical_name_huwise"))
+        src = clean_text(row.get("technical_name_dataspot"))
+        dst = clean_text(row.get("technical_name_huwise"))
         if not src or not dst or src == "geometry":
             continue
         mapping[src] = dst
     return mapping
 
 
+def _sanitize_geojson_for_huwise(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Fix geometries and null-like property values before FTP upload."""
+    if gdf.empty:
+        return gdf
+    out = gdf.copy()
+    geometry_column = str(out.geometry.name) if hasattr(out, "geometry") else "geometry"
+    if geometry_column in out.columns:
+        valid_mask = out.geometry.notna()
+        if valid_mask.any():
+            invalid = valid_mask & (~out.geometry.is_valid)
+            if invalid.any():
+                try:
+                    from shapely import make_valid
+
+                    out.loc[invalid, geometry_column] = make_valid(out.loc[invalid, geometry_column])
+                except Exception:
+                    out.loc[invalid, geometry_column] = out.loc[invalid, geometry_column].buffer(0)
+        out = out[valid_mask]
+    for column in out.columns:
+        if column == geometry_column:
+            continue
+        out[column] = out[column].where(out[column].notna(), None)
+    return out
+
+
 def _prepare_geojson_wgs84(local_file: Path, column_mapping: dict[str, str], allowed_fields: set[str]) -> Path:
     """Ensure uploaded GeoJSON uses EPSG:4326 and applies the schema rename."""
-    gdf = gpd.read_file(local_file)
+    gdf = _sanitize_geojson_for_huwise(gpd.read_file(local_file))
     # Resolve column matching case-insensitively so a Dataspot name like
     # ``ID_Block`` still finds a GeoJSON column named ``id_block`` (or vice
     # versa). The mapping value (HUWISE name) is preserved exactly.
@@ -1737,7 +1330,7 @@ def _guess_resource_extractor(client: HttpClient, dataset_uid: str, source_url: 
         results = response.json()
         if isinstance(results, list) and results:
             first = results[0]
-            guessed = _clean_text(first.get("type") if isinstance(first, dict) else "")
+            guessed = clean_text(first.get("type") if isinstance(first, dict) else "")
             if guessed:
                 return guessed
     except Exception:
@@ -1745,11 +1338,9 @@ def _guess_resource_extractor(client: HttpClient, dataset_uid: str, source_url: 
     return "geojson"
 
 
-def _upsert_dataset_resource(ods_id: str, source_url: str, *, dry_run: bool) -> None:
+def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
     """Create/update HUWISE resource that points to the published GeoJSON URL."""
-    if dry_run:
-        logging.info("[dry-run] Would upsert resource for ods_id=%s source=%s", ods_id, source_url)
-        return
+    logging.info("STEP upsert_resource huwise_id=%s", ods_id)
     dataset_uid = get_uid_by_id(dataset_id=ods_id)
     client = HttpClient(HuwiseConfig.from_env())
     try:
@@ -1765,13 +1356,13 @@ def _upsert_dataset_resource(ods_id: str, source_url: str, *, dry_run: bool) -> 
 
     matched_uid = ""
     for item in existing:
-        title = _clean_text(item.get("title"))
+        title = clean_text(item.get("title"))
         datasource = item.get("datasource", {})
-        relative_url = _clean_text(datasource.get("relative_url"))
-        connection_url = _clean_text(datasource.get("connection", {}).get("url"))
+        relative_url = clean_text(datasource.get("relative_url"))
+        connection_url = clean_text(datasource.get("connection", {}).get("url"))
         full_url = f"{connection_url}{relative_url}" if connection_url and relative_url else ""
         if title == resource_title or full_url == source_url or relative_url == urlparse(source_url).path:
-            matched_uid = _clean_text(item.get("uid"))
+            matched_uid = clean_text(item.get("uid"))
             break
 
     if matched_uid:
@@ -1787,7 +1378,7 @@ def _upsert_dataset_resource(ods_id: str, source_url: str, *, dry_run: bool) -> 
             )
             try:
                 response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
-                logging.info("Created fallback resource for ods_id=%s uid=%s", ods_id, _clean_text(response.get("uid")))
+                logging.info("Created fallback resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
             except Exception as create_exc:
                 logging.warning(
                     "Failed fallback resource create for ods_id=%s source=%s: %s",
@@ -1798,7 +1389,7 @@ def _upsert_dataset_resource(ods_id: str, source_url: str, *, dry_run: bool) -> 
     else:
         try:
             response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
-            logging.info("Created resource for ods_id=%s uid=%s", ods_id, _clean_text(response.get("uid")))
+            logging.info("Created resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
         except Exception as exc:
             logging.warning("Failed to create resource for ods_id=%s source=%s: %s", ods_id, source_url, exc)
 
@@ -1809,23 +1400,21 @@ def _process_dataset(
     metadata_row: pd.Series,
     geojson_files: list[Path],
     accepted_types: set[str],
-    dry_run: bool,
     *,
     metadata_last_push: dict[str, dict[str, Any]] | None = None,
-    force_metadata_sync: bool = False,
-    force_field_recreate: bool = False,
 ) -> None:
     """Process one dataset from source extraction to HUWISE schema update."""
+    logging.info("STEP publish_dataset huwise_id=%s", clean_text(pub_row.get("ods_id")))
     context = DatasetContext(
-        ods_id=_clean_text(pub_row.get("ods_id")),
-        dataspot_dataset_id=_clean_text(pub_row.get("id")),
-        geo_dataset=_clean_text(pub_row.get("geo_dataset")),
+        ods_id=clean_text(pub_row.get("ods_id")),
+        dataspot_dataset_id=clean_text(pub_row.get("id")),
+        geo_dataset=clean_text(pub_row.get("geo_dataset")),
     )
     if not context.ods_id or not context.dataspot_dataset_id:
         logging.warning("Skipping row with missing ods_id or dataspot id")
         return
 
-    _, dataset_created = _ensure_huwise_dataset(context.ods_id, metadata_row, dry_run=dry_run)
+    _, dataset_created = _ensure_huwise_dataset(context.ods_id, metadata_row)
 
     geojson_file = _resolve_geojson_file(context, geojson_files)
     if geojson_file is None:
@@ -1838,15 +1427,13 @@ def _process_dataset(
             context.ods_id,
             metadata_row,
             source_url="",
-            dry_run=dry_run,
             metadata_last_push=metadata_last_push,
-            force_metadata_sync=force_metadata_sync,
         )
         logging.info("Finished ods_id=%s (metadata only, no local GeoJSON)", context.ods_id)
         return
 
     schema_rows = _load_schema_rows_from_yaml(context.ods_id, context.dataspot_dataset_id)
-    geojson_properties = _read_geojson_properties(geojson_file)
+    geojson_properties = read_geojson_properties(geojson_file)
     reconciled_schema = _reconcile_schema_with_geojson(schema_rows, geojson_properties)
     _validate_dataspot_schema_against_geometa(
         schema_rows=reconciled_schema,
@@ -1863,9 +1450,9 @@ def _process_dataset(
         )
     schema_records = _schema_rows_to_records(reconciled_schema)
     allowed_fields = {
-        _clean_text(row.get("technical_name_huwise"))
+        clean_text(row.get("technical_name_huwise"))
         for row in reconciled_schema
-        if _clean_text(row.get("technical_name_huwise"))
+        if clean_text(row.get("technical_name_huwise"))
     }
     publish_geojson = _prepare_geojson_wgs84(
         geojson_file,
@@ -1874,25 +1461,22 @@ def _process_dataset(
     )
     source_url = f"{SOURCE_URL_PREFIX}/{publish_geojson.name}"
 
-    _upload_geojson(publish_geojson, dry_run=dry_run)
+    _upload_geojson(publish_geojson)
     if dataset_created:
-        _upsert_dataset_resource(context.ods_id, source_url, dry_run=dry_run)
+        _upsert_dataset_resource(context.ods_id, source_url)
     else:
         logging.info("Skipping resource upsert for existing ods_id=%s", context.ods_id)
     _set_metadata_fields(
         context.ods_id,
         metadata_row,
         source_url,
-        dry_run=dry_run,
         metadata_last_push=metadata_last_push,
-        force_metadata_sync=force_metadata_sync,
     )
+    logging.info("STEP publish_schema huwise_id=%s", context.ods_id)
     _upsert_huwise_schema(
         context.ods_id,
         schema_records,
-        dry_run=dry_run,
         accepted_types=accepted_types,
-        force_field_recreate=force_field_recreate,
     )
     logging.info("Finished ods_id=%s", context.ods_id)
 
@@ -1901,71 +1485,32 @@ def _build_metadata_lookup(metadata_df: pd.DataFrame) -> dict[str, pd.Series]:
     """Build a map of metadata rows by ods_id."""
     lookup: dict[str, pd.Series] = {}
     for _, row in metadata_df.iterrows():
-        ods_id = _clean_text(row.get("ods_id"))
+        ods_id = clean_text(row.get("ods_id"))
         if ods_id:
             lookup[ods_id] = row
     return lookup
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Publish STAC datasets to FTP and HUWISE.")
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Run without FTP/HUWISE write operations.",
-    )
-    parser.add_argument(
-        "--ods-id",
-        type=str,
-        default="",
-        help="Only process one ods_id (e.g. 100095stac).",
-    )
-    parser.add_argument(
-        "--force-metadata-sync",
-        action="store_true",
-        help="Overwrite HUWISE metadata even when the portal value diverged from the last automated push (use sparingly).",
-    )
-    parser.add_argument(
-        "--force-field-recreate",
-        action="store_true",
-        help=(
-            "Delete and recreate any HUWISE field whose current type differs from the "
-            "schema YAML's datentyp. Use after changing custom.datentyp; HUWISE cannot "
-            "mutate an existing field's type otherwise."
-        ),
-    )
-    return parser.parse_args()
-
-
-def run(
-    *,
-    dry_run: bool = False,
-    ods_id_filter: str = "",
-    force_metadata_sync: bool = False,
-    force_field_recreate: bool = False,
-) -> None:
-    """Programmatic entry point used both from the CLI and from ``etl.py``.
-
-    Splitting this out from :func:`main` lets ``etl.py`` invoke the publish
-    step in-process (no second Python startup + auth) while the CLI keeps
-    forwarding its parsed flags here.
-    """
+def run(*, huwise_id_filter: str = "") -> None:
+    """Publish active datasets to FTP and HUWISE."""
+    logging.info("STEP publish start")
     auth = _build_dataspot_client()
     pub_df, metadata_df = _load_publish_inputs()
+    active_ids = {clean_text(ods) for ods in pub_df.get("ods_id", []) if clean_text(ods)}
     metadata_lookup = _build_metadata_lookup(metadata_df)
     geojson_files = _build_geojson_index()
     metadata_last_push = _load_last_push_snapshot()
-    accepted_field_types = _discover_portal_field_types([_clean_text(value) for value in pub_df.get("ods_id", [])])
+    metadata_last_push = {ods_id: fields for ods_id, fields in metadata_last_push.items() if ods_id in active_ids}
+    accepted_field_types = _discover_portal_field_types([clean_text(value) for value in pub_df.get("ods_id", [])])
     if accepted_field_types:
         logging.info("Discovered HUWISE field types: %s", ", ".join(sorted(accepted_field_types)))
     else:
         logging.warning("Could not discover HUWISE field types; schema field upserts may be skipped")
 
-    ods_filter = _clean_text(ods_id_filter)
+    huwise_filter = clean_text(huwise_id_filter)
     for _, pub_row in pub_df.iterrows():
-        ods_id = _clean_text(pub_row.get("ods_id"))
-        if ods_filter and ods_id != ods_filter:
+        ods_id = clean_text(pub_row.get("ods_id"))
+        if huwise_filter and ods_id != huwise_filter:
             continue
         metadata_row = metadata_lookup.get(ods_id)
         if metadata_row is None:
@@ -1978,28 +1523,16 @@ def run(
                 metadata_row=metadata_row,
                 geojson_files=geojson_files,
                 accepted_types=accepted_field_types,
-                dry_run=dry_run,
                 metadata_last_push=metadata_last_push,
-                force_metadata_sync=force_metadata_sync,
-                force_field_recreate=force_field_recreate,
             )
         except Exception as exc:
             logging.error("Failed ods_id=%s: %s", ods_id, exc)
 
-    if not dry_run:
-        _save_last_push_snapshot(metadata_last_push)
-
-
-def main() -> None:
-    """Run the publishing pipeline for all rows in pub_datasets."""
-    args = parse_args()
-    run(
-        dry_run=args.dry_run,
-        ods_id_filter=args.ods_id,
-        force_metadata_sync=args.force_metadata_sync,
-        force_field_recreate=args.force_field_recreate,
-    )
-
-
-if __name__ == "__main__":
-    main()
+    catalog_snapshots = load_flat_publish_catalog()
+    for ods_id in active_ids:
+        catalog_entry = catalog_snapshots.get(ods_id, {})
+        pushed_entry = metadata_last_push.get(ods_id, {})
+        metadata_last_push[ods_id] = merge_snapshot_entries(catalog_entry, pushed_entry)
+    prune_all_publish_artifacts(active_ids)
+    _save_last_push_snapshot(metadata_last_push)
+    logging.info("STEP publish done")
