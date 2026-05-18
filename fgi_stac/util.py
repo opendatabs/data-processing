@@ -14,9 +14,7 @@ _HTML_MARKER_RE = re.compile(
     r"|<[a-zA-Z][\w-]*[^<>]*?/\s*>"
     r"|<[a-zA-Z][\w-]*\s+[^<>]*?>"
 )
-_UUID_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-)
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
 def clean(value: Any) -> str:

@@ -34,6 +34,7 @@ JOINED_XLSX = DATA_DIR / "etl_output" / "joined_data.xlsx"
 LEGACY_SHORT_XLSX = DATA_DIR / "input" / "data_ecoli_entero_short.xlsx"
 TZ = ZoneInfo("Europe/Zurich")
 
+
 @dataclass(frozen=True)
 class Config:
     base_url: str
@@ -384,8 +385,7 @@ def fetch_coliminder_long(
     pairs = _basel_dashboard_attribute_pairs(basel)
     if not pairs:
         raise RuntimeError(
-            f"Dashboard {DASHBOARD_BASEL!r} contains no attributeRefs for "
-            f"{', '.join(sorted(TARGET_ATTRIBUTE_NAMES))}."
+            f"Dashboard {DASHBOARD_BASEL!r} contains no attributeRefs for {', '.join(sorted(TARGET_ATTRIBUTE_NAMES))}."
         )
 
     LOGGER.info(
@@ -822,11 +822,17 @@ def build_joined_sheets(
     labor = df_lab.copy()
     labor["Messzeitpunkt"] = _normalize_ts_series(labor["Messzeitpunkt_Labor"])
     labor = labor[labor["Messzeitpunkt"].notna()].copy()
-    labor = labor.sort_values("Messzeitpunkt").drop_duplicates(subset=["Messzeitpunkt"], keep="first").reset_index(drop=True)
+    labor = (
+        labor.sort_values("Messzeitpunkt")
+        .drop_duplicates(subset=["Messzeitpunkt"], keep="first")
+        .reset_index(drop=True)
+    )
 
     labor = _merge_asof_nearest(
-        labor, df_046[["Messzeitpunkt", "Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"]],
-        right_cols=["Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"], tolerance=one_hour
+        labor,
+        df_046[["Messzeitpunkt", "Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"]],
+        right_cols=["Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"],
+        tolerance=one_hour,
     )
     labor = _merge_asof_nearest(
         labor, df_089[["Messzeitpunkt", "Abflussmenge"]], right_cols=["Abflussmenge"], tolerance=one_hour
@@ -834,11 +840,10 @@ def build_joined_sheets(
     labor = _merge_asof_nearest(
         labor, df_089[["Messzeitpunkt", "Wasserstand"]], right_cols=["Wasserstand"], tolerance=one_hour
     )
+    labor = _merge_asof_nearest(labor, df_323[["Messzeitpunkt", "Trübung"]], right_cols=["Trübung"], tolerance=one_hour)
     labor = _merge_asof_nearest(
-        labor, df_323[["Messzeitpunkt", "Trübung"]], right_cols=["Trübung"], tolerance=one_hour
-    )
-    labor = _merge_asof_nearest(
-        labor, df_243[["Messzeitpunkt", "wasserstand_klingentalfaehre"]],
+        labor,
+        df_243[["Messzeitpunkt", "wasserstand_klingentalfaehre"]],
         right_cols=["wasserstand_klingentalfaehre"],
         tolerance=one_hour,
     )
@@ -864,23 +869,42 @@ def build_joined_sheets(
         }
     )
     labor_cols = [
-        "messzeitpunkt_labor", "entnahmeort", "e_coli", "enterokokken", "badewasserqualitaet",
-        "coliminder_e_coli", "coliminder_entero", "coliminder_transimission", "coliminder_gehalt",
-        "abflussmenge", "truebung", "pegel", "ph_wert", "sauerstoffgehalt", "wassertemperatur", "wasserstand",
+        "messzeitpunkt_labor",
+        "entnahmeort",
+        "e_coli",
+        "enterokokken",
+        "badewasserqualitaet",
+        "coliminder_e_coli",
+        "coliminder_entero",
+        "coliminder_transimission",
+        "coliminder_gehalt",
+        "abflussmenge",
+        "truebung",
+        "pegel",
+        "ph_wert",
+        "sauerstoffgehalt",
+        "wassertemperatur",
+        "wasserstand",
         "wasserstand_klingentalfaehre",
     ]
     for c in labor_cols:
         if c not in labor.columns:
             labor[c] = pd.NA
-    labor = labor[labor_cols].sort_values("messzeitpunkt_labor", ascending=False, na_position="last").reset_index(drop=True)
+    labor = (
+        labor[labor_cols].sort_values("messzeitpunkt_labor", ascending=False, na_position="last").reset_index(drop=True)
+    )
 
     # Coliminder sheet (frequency of coliminder, no lab measurements)
     coli = df_coli_wide.copy()
     coli["Messzeitpunkt"] = _normalize_ts_series(coli["Messzeitpunkt"])
-    coli = coli.sort_values("Messzeitpunkt").drop_duplicates(subset=["Messzeitpunkt"], keep="last").reset_index(drop=True)
+    coli = (
+        coli.sort_values("Messzeitpunkt").drop_duplicates(subset=["Messzeitpunkt"], keep="last").reset_index(drop=True)
+    )
     coli = _merge_asof_nearest(
-        coli, df_046[["Messzeitpunkt", "Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"]],
-        right_cols=["Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"], tolerance=one_hour
+        coli,
+        df_046[["Messzeitpunkt", "Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"]],
+        right_cols=["Wassertemperatur", "Sauerstoffgehalt", "pH-Wert"],
+        tolerance=one_hour,
     )
     coli = _merge_asof_nearest(
         coli, df_089[["Messzeitpunkt", "Abflussmenge"]], right_cols=["Abflussmenge"], tolerance=one_hour
@@ -888,11 +912,10 @@ def build_joined_sheets(
     coli = _merge_asof_nearest(
         coli, df_089[["Messzeitpunkt", "Wasserstand"]], right_cols=["Wasserstand"], tolerance=one_hour
     )
+    coli = _merge_asof_nearest(coli, df_323[["Messzeitpunkt", "Trübung"]], right_cols=["Trübung"], tolerance=one_hour)
     coli = _merge_asof_nearest(
-        coli, df_323[["Messzeitpunkt", "Trübung"]], right_cols=["Trübung"], tolerance=one_hour
-    )
-    coli = _merge_asof_nearest(
-        coli, df_243[["Messzeitpunkt", "wasserstand_klingentalfaehre"]],
+        coli,
+        df_243[["Messzeitpunkt", "wasserstand_klingentalfaehre"]],
         right_cols=["wasserstand_klingentalfaehre"],
         tolerance=one_hour,
     )
@@ -914,9 +937,19 @@ def build_joined_sheets(
         }
     )
     coli_cols = [
-        "messzeitpunkt", "coliminder_e_coli", "coliminder_entero", "coliminder_transimission",
-        "coliminder_gehalt", "abflussmenge", "truebung", "pegel", "ph_wert", "sauerstoffgehalt",
-        "wassertemperatur", "wasserstand", "wasserstand_klingentalfaehre",
+        "messzeitpunkt",
+        "coliminder_e_coli",
+        "coliminder_entero",
+        "coliminder_transimission",
+        "coliminder_gehalt",
+        "abflussmenge",
+        "truebung",
+        "pegel",
+        "ph_wert",
+        "sauerstoffgehalt",
+        "wassertemperatur",
+        "wasserstand",
+        "wasserstand_klingentalfaehre",
     ]
     for c in coli_cols:
         if c not in coli.columns:

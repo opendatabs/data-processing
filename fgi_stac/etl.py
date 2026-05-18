@@ -5,10 +5,9 @@ from __future__ import annotations
 import argparse
 import logging
 
-from dotenv import load_dotenv
-
 import publish_dataset
 from catalog import load_flat_publish_catalog
+from dotenv import load_dotenv
 from paths import ORIG_CATALOG_FILE
 from stac_sync import CATALOG_FILE, prepare_assets, sync_catalog
 

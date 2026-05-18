@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 
 import geopandas as gpd
-
 from paths import PUBLISH_DATASETS_DIR, TRANSFORMS_DIR
 
 

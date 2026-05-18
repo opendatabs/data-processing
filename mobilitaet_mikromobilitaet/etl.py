@@ -39,10 +39,7 @@ def load_current_data_from_wfs(url_wfs, shapes_to_load):
     for shapefile in shapes_to_load:
         logging.info(f"Fetching data for layer: {shapefile}")
         try:
-            response = wfs.getfeature(
-                typename=shapefile,
-                method="GET"
-            )
+            response = wfs.getfeature(typename=shapefile, method="GET")
             gdf = gpd.read_file(io.BytesIO(response.read()))
             gdf_current = pd.concat([gdf_current, gdf])
         except Exception as e:
@@ -50,6 +47,7 @@ def load_current_data_from_wfs(url_wfs, shapes_to_load):
             failed_layers.append(shapefile)
 
     return gdf_current, failed_layers
+
 
 def add_map_links(gdf, tree_groups, tree_group_layers):
     """
@@ -230,7 +228,7 @@ def main():
         "XS_Lime",
         "XS_PickEBike",
         "XS_PickEMoped",
-        "XS_Dott"
+        "XS_Dott",
     ]
     gdf_current, failed_layers = load_current_data_from_wfs(url_wfs, shapes_to_load)
 

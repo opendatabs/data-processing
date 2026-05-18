@@ -15,8 +15,6 @@ from typing import Any
 import geopandas as gpd
 import httpx
 import yaml
-from http_client import with_http_retry
-
 from catalog import (
     active_huwise_ids_from_bindings,
     existing_geo_by_dataspot_uuid,
@@ -34,14 +32,20 @@ from dataspot_api import (
     dataspot_metadata,
 )
 from dataspot_auth import DataspotAuth
-from http_client import HTTP_TIMEOUT, HTTP_TIMEOUT_LONG, http_get_bytes, http_get_json, http_get_json_async
+from http_client import (
+    HTTP_TIMEOUT,
+    HTTP_TIMEOUT_LONG,
+    http_get_bytes,
+    http_get_json,
+    http_get_json_async,
+    with_http_retry,
+)
 from metadata import build_metadata_block
 from paths import (
     BINDINGS_FILE,
     LEGACY_CATALOG_FILE,
     ORIG_CATALOG_FILE,
     ORIG_DATASETS_DIR,
-    ORIG_SCHEMA_FILES_DIR,
     PUBLISH_DATASETS_DIR,
     ensure_layout_dirs,
 )
@@ -55,6 +59,8 @@ from schema_merge import (
     sync_user_schema_file,
 )
 from transform_runner import publish_geojson_path, run_transform
+from yaml_io import dump_yaml
+
 from util import (
     clean,
     extract_string_list,
@@ -63,7 +69,6 @@ from util import (
     normalize_name,
     read_geojson_properties,
 )
-from yaml_io import dump_yaml
 
 STAC_V1_BASE_URL = "https://api.geo.bs.ch/stac/v1"
 STAC_COLLECTIONS_URL = f"{STAC_V1_BASE_URL}/collections"
@@ -207,12 +212,16 @@ def _discover_instances_for_collection(collection_id: str, collection_title: str
     return instances
 
 
-def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+def _dataspot_schema(
+    auth: DataspotAuth, dataset_id: str, old_schema: list[dict[str, Any]] | None
+) -> list[dict[str, Any]]:
     old_by_name = {}
     if isinstance(old_schema, list):
         old_by_name = {clean(item.get("technical_name")): item for item in old_schema if isinstance(item, dict)}
 
-    compositions_data = dataspot_get(auth, DATASPOT_COMPOSITIONS_URL.format(dataset_id=dataset_id), allow_404=True) or {}
+    compositions_data = (
+        dataspot_get(auth, DATASPOT_COMPOSITIONS_URL.format(dataset_id=dataset_id), allow_404=True) or {}
+    )
     compositions = compositions_data.get("_embedded", {}).get("compositions", [])
     if not isinstance(compositions, list):
         compositions = []
@@ -258,9 +267,7 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
             "description": description,
             "mehrwertigkeit": multivalued_separator,
             "datentyp": _map_datatype(datatype_label),
-            "export": schema_export_value(
-                _old_value(old, "export"), default=technical_name.lower() != "gdh_fid"
-            ),
+            "export": schema_export_value(_old_value(old, "export"), default=technical_name.lower() != "gdh_fid"),
             "custom": custom_payload,
         }
         if not clean(custom_payload.get("technical_name")):
@@ -313,7 +320,9 @@ def _dataspot_schema(auth: DataspotAuth, dataset_id: str, old_schema: list[dict[
                 continue
             has_range_id = clean(attribute_payload.get("hasRange"))
             datatype_payload = datatype_by_id.get(has_range_id)
-            datatype_label = clean((datatype_payload or {}).get("label")) or clean((datatype_payload or {}).get("title"))
+            datatype_label = clean((datatype_payload or {}).get("label")) or clean(
+                (datatype_payload or {}).get("title")
+            )
             technical_name = clean(composition.get("title")) or clean(composition.get("label"))
             if not technical_name:
                 continue
@@ -404,7 +413,9 @@ def _append_preserved_fields_missing_from_dataspot(
     return fields + extra if extra else fields
 
 
-def _reconcile_schema_fields_with_geojson(fields: list[dict[str, Any]], geojson_properties: list[str]) -> list[dict[str, Any]]:
+def _reconcile_schema_fields_with_geojson(
+    fields: list[dict[str, Any]], geojson_properties: list[str]
+) -> list[dict[str, Any]]:
     by_name: dict[str, dict[str, Any]] = {}
     for item in fields:
         if not isinstance(item, dict):
@@ -759,9 +770,7 @@ def _download_stac_layer_geojson(
                 raise ValueError("STAC GeoJSON ZIP has no file entries")
             matched = _find_zip_entry_for_geo_layer(names, geo_dataset)
             if not matched:
-                raise ValueError(
-                    f"No GeoJSON entry matches layer {geo_dataset!r}; archive contains: {names!r}"
-                )
+                raise ValueError(f"No GeoJSON entry matches layer {geo_dataset!r}; archive contains: {names!r}")
             with zf.open(matched) as source:
                 _atomic_write_bytes(output_file, source.read())
         logging.info("STAC GeoJSON saved: %s", output_file)
@@ -808,9 +817,7 @@ def _write_schema_file(
         fields=fields,
     )
     path.write_text(dump_yaml(orig_payload), encoding="utf-8")
-    sync_user_schema_file(
-        schema_basename, orig_payload, previous_orig_payload=previous_orig
-    )
+    sync_user_schema_file(schema_basename, orig_payload, previous_orig_payload=previous_orig)
     return str(path)
 
 
@@ -846,9 +853,7 @@ def _prepare_one_dataset_assets(
     )
     create_map_links_flag = _coerce_create_map_links_flag(preserved_payload, old, mapbs_url)
 
-    raw_path = _download_stac_layer_geojson(
-        collection_id, geo_dataset, DATASETS_DIR, zip_cache=stac_zip_cache
-    )
+    raw_path = _download_stac_layer_geojson(collection_id, geo_dataset, DATASETS_DIR, zip_cache=stac_zip_cache)
     if raw_path is not None:
         stem = schema_basename or raw_path.stem
         run_transform(
@@ -874,13 +879,9 @@ def _prepare_one_dataset_assets(
     geojson_file = _resolve_geojson_file_for_dataset(geo_dataset)
     geojson_properties = read_geojson_properties(geojson_file) if geojson_file else []
     fields = _dataspot_schema(auth, dataspot_uuid, preserved_fields)
-    fields = _append_preserved_fields_missing_from_dataspot(
-        fields, preserved_fields, geojson_properties
-    )
+    fields = _append_preserved_fields_missing_from_dataspot(fields, preserved_fields, geojson_properties)
     fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
-    fields = _apply_map_links_schema_field(
-        fields, mapbs_url, create_map_links=create_map_links_flag
-    )
+    fields = _apply_map_links_schema_field(fields, mapbs_url, create_map_links=create_map_links_flag)
     _write_schema_file(
         huwise_id=huwise_id,
         dataspot_dataset_id=dataspot_uuid,
@@ -982,13 +983,9 @@ def prepare_assets(*, huwise_id_filter: str = "") -> None:
     logging.info("STEP prepare_assets start")
     ensure_layout_dirs()
     if not CATALOG_FILE.is_file() and not LEGACY_CATALOG_FILE.is_file():
-        raise FileNotFoundError(
-            f"Missing publish catalog at {CATALOG_FILE}. Run `uv run sync_catalog.py` first."
-        )
+        raise FileNotFoundError(f"Missing publish catalog at {CATALOG_FILE}. Run `uv run sync_catalog.py` first.")
     if not BINDINGS_FILE.is_file():
-        raise FileNotFoundError(
-            f"Missing bindings workbook at {BINDINGS_FILE}. Run `uv run sync_catalog.py` first."
-        )
+        raise FileNotFoundError(f"Missing bindings workbook at {BINDINGS_FILE}. Run `uv run sync_catalog.py` first.")
 
     by_uuid = existing_geo_by_dataspot_uuid(CATALOG_FILE if CATALOG_FILE.exists() else LEGACY_CATALOG_FILE)
     auth = DataspotAuth()
@@ -1024,5 +1021,3 @@ def prepare_assets(*, huwise_id_filter: str = "") -> None:
         prepared += 1
 
     logging.info("STEP prepare_assets done (%s dataset(s))", prepared)
-
-

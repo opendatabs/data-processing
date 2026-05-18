@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 from dotenv import load_dotenv
-
 from stac_sync import sync_catalog
 
 load_dotenv()

@@ -6,7 +6,6 @@ import argparse
 import logging
 
 from dotenv import load_dotenv
-
 from stac_sync import prepare_assets
 
 load_dotenv()

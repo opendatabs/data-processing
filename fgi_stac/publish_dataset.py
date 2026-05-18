@@ -12,64 +12,47 @@ This script processes datasets from ``data/publish_catalog.yaml`` and performs:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-import html
-import json
 import logging
 import re
 import tempfile
-from urllib.parse import urlparse
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
+import common
 import geopandas as gpd
 import httpx
 import pandas as pd
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
-
-import common
 from catalog import (
-    filter_snapshot_entry,
     load_active_dataset_rows,
     load_flat_publish_catalog,
     merge_snapshot_entries,
-    merge_snapshot_fill_gaps,
     order_snapshot_entry,
     prune_all_publish_artifacts,
     write_metadata_snapshot_file,
 )
 from common import change_tracking
-from dataspot_api import DATASPOT_DATASET_URL, dataspot_get
 from dataspot_auth import DataspotAuth
-from http_client import HTTP_TIMEOUT, HTTP_LIMITS, http_get_json
-from http_client import with_http_retry
+from http_client import HTTP_LIMITS, HTTP_TIMEOUT, with_http_retry
+from huwise_utils_py import (
+    HuwiseDataset,
+    create_dataset,
+    get_uid_by_id,
+    list_dataset_field_configurations,
+)
+from huwise_utils_py.config import HuwiseConfig
+from huwise_utils_py.http import HttpClient
 from metadata import (
     DEFAULT_CONTACT_EMAIL,
     DEFAULT_CONTACT_NAME,
     DEFAULT_GEOGRAPHIC_REFERENCE,
     DEFAULT_LICENSE,
-    DEFAULT_LICENSE_ID,
-    DEFAULT_LICENSE_NAME,
     DEFAULT_RIGHTS,
     DEFAULT_TAG,
     GEOMETA_PREVIEW_URL,
-    LICENSE_ID_BY_NAME,
     dataspot_uuid_from_snapshot,
-)
-from util import (
-    clean_text,
-    description_to_html,
-    extract_stac_code,
-    extract_string_list,
-    is_uuid,
-    normalize_name,
-    normalize_huwise_field_name,
-    normalize_optional_date,
-    read_geojson_properties,
-    split_keywords,
-    split_semicolon_list,
-    third_path_segment,
 )
 from paths import (
     LEGACY_CATALOG_FILE,
@@ -79,16 +62,19 @@ from paths import (
     PUBLISH_DATASETS_DIR,
     ensure_layout_dirs,
 )
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from schema_merge import load_merged_schema_payload, resolve_schema_basename_for
-from huwise_utils_py import (
-    HuwiseDataset,
-    create_dataset,
-    get_uid_by_id,
-    list_dataset_field_configurations,
-)
-from huwise_utils_py.config import HuwiseConfig
-from huwise_utils_py.http import HttpClient
 
+from util import (
+    clean_text,
+    description_to_html,
+    extract_stac_code,
+    is_uuid,
+    normalize_name,
+    read_geojson_properties,
+    split_keywords,
+    split_semicolon_list,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -281,7 +267,9 @@ def _stac_collection_from_metadata_row(metadata_row: pd.Series) -> str:
     if explicit:
         return explicit
     tags = metadata_row.get("custom.tags")
-    tag_list = tags if isinstance(tags, list) else split_semicolon_list(tags) or split_semicolon_list(metadata_row.get("tags"))
+    tag_list = (
+        tags if isinstance(tags, list) else split_semicolon_list(tags) or split_semicolon_list(metadata_row.get("tags"))
+    )
     for tag in tag_list:
         cleaned = clean_text(tag)
         if cleaned and cleaned.lower() not in {DEFAULT_TAG.lower(), "opendata.swiss"}:
@@ -291,7 +279,6 @@ def _stac_collection_from_metadata_row(metadata_row: pd.Series) -> str:
 
 def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load snapshot catalog + Excel bindings (``template.field`` keys only in YAML)."""
-    from catalog import load_active_dataset_rows
 
     catalog_path = PUBLISH_CATALOG_FILE if PUBLISH_CATALOG_FILE.exists() else LEGACY_CATALOG_FILE
     flat = load_flat_publish_catalog(catalog_path)
@@ -515,7 +502,11 @@ def _validate_dataspot_schema_against_geometa(
         return
     if not geometa_names:
         return
-    dataspot_names = {clean_text(row.get("technical_name_dataspot")) for row in schema_rows if clean_text(row.get("technical_name_dataspot"))}
+    dataspot_names = {
+        clean_text(row.get("technical_name_dataspot"))
+        for row in schema_rows
+        if clean_text(row.get("technical_name_dataspot"))
+    }
     missing_in_dataspot = sorted(name for name in geometa_names if name not in dataspot_names)
     if missing_in_dataspot:
         logging.warning(
@@ -824,11 +815,7 @@ def _set_metadata_fields(
         matches_last_push = last_push is not None and normalized_existing == _normalize_metadata_compare_value(
             last_push
         )
-        can_write = (
-            _is_empty_value(existing)
-            or (normalized_existing == normalized_new)
-            or matches_last_push
-        )
+        can_write = _is_empty_value(existing) or (normalized_existing == normalized_new) or matches_last_push
         if not can_write:
             return
         payload = {"value": value, "override_remote_value": DEFAULT_OVERRIDE_REMOTE_VALUE}
