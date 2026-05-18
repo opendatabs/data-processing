@@ -22,6 +22,7 @@ import yaml
 from dotenv import load_dotenv
 
 from dataspot_auth import DataspotAuth
+from http_retry import await_with_http_retry, with_http_retry
 
 load_dotenv()
 
@@ -105,6 +106,21 @@ def _custom_block_from_preserved_row(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@with_http_retry
+def _http_get_bytes(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: httpx.Timeout | None = None,
+) -> bytes:
+    """Fetch response body bytes with retries on transient failures."""
+    with httpx.Client(timeout=timeout or HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
+        response = client.get(url, headers=headers)
+    response.raise_for_status()
+    return response.content
+
+
+@with_http_retry
 def _http_get_json(
     url: str,
     *,
@@ -132,14 +148,18 @@ async def _http_get_json_async(
     allow_404: bool = False,
 ) -> dict[str, Any] | None:
     """Fetch one JSON payload asynchronously with consistent handling."""
-    response = await client.get(url, headers=headers)
-    if response.status_code in {404, 410} and allow_404:
-        return None
-    response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, dict):
-        return None
-    return payload
+
+    async def _fetch() -> dict[str, Any] | None:
+        response = await client.get(url, headers=headers)
+        if response.status_code in {404, 410} and allow_404:
+            return None
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            return None
+        return payload
+
+    return await await_with_http_retry(_fetch)
 
 
 def _fetch_stac_collections() -> list[dict[str, Any]]:
@@ -736,8 +756,13 @@ def _extract_map_params_from_mapbs_link(link: str) -> tuple[str | None, str | No
     if not _clean(link):
         return None, None
     try:
-        with httpx.Client(follow_redirects=True, timeout=60.0) as client:
-            response = client.get(link)
+
+        @with_http_retry
+        def _fetch_redirect() -> httpx.Response:
+            with httpx.Client(follow_redirects=True, timeout=60.0) as client:
+                return client.get(link)
+
+        response = _fetch_redirect()
         redirect_link = str(response.url)
         parsed = urllib.parse.urlparse(redirect_link)
         query_params = urllib.parse.parse_qs(parsed.query)
@@ -922,13 +947,10 @@ def _download_stac_layer_geojson(
         url = f"{STAC_V1_BASE_URL}/download/{cid}/latest/geojson"
         headers = _api_geo_bs_headers()
         try:
-            with httpx.Client(timeout=HTTP_TIMEOUT_LONG, limits=HTTP_LIMITS) as client:
-                response = client.get(url, headers=headers)
-            response.raise_for_status()
+            cached_zip = _http_get_bytes(url, headers=headers, timeout=HTTP_TIMEOUT_LONG)
         except Exception as exc:
             logging.warning("STAC GeoJSON download failed for %s / %r: %s", cid, geo_dataset, exc)
             return None
-        cached_zip = response.content
         if zip_cache is not None:
             zip_cache[cache_key] = cached_zip
 

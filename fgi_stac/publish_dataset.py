@@ -32,6 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 import common
 from common import change_tracking
 from dataspot_auth import DataspotAuth
+from http_retry import with_http_retry
 from huwise_utils_py import (
     HuwiseDataset,
     create_dataset,
@@ -470,6 +471,7 @@ def _build_dataspot_client() -> DataspotAuth:
     return DataspotAuth()
 
 
+@with_http_retry
 def _http_get_json(
     url: str,
     *,
@@ -716,13 +718,18 @@ def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
     return ""
 
 
-def _fetch_geometa_attribute_technical_names(collection_id: str, dataspot_uuid: str) -> set[str]:
-    if not collection_id or not dataspot_uuid:
-        return set()
+@with_http_retry
+def _fetch_geometa_preview_html(collection_id: str) -> str:
     with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
         response = client.get(GEOMETA_PREVIEW_URL.format(collection_id=collection_id))
     response.raise_for_status()
-    html = response.text
+    return response.text
+
+
+def _fetch_geometa_attribute_technical_names(collection_id: str, dataspot_uuid: str) -> set[str]:
+    if not collection_id or not dataspot_uuid:
+        return set()
+    html = _fetch_geometa_preview_html(collection_id)
     start_marker = f'id="{dataspot_uuid}"'
     start_idx = html.find(start_marker)
     if start_idx < 0:
@@ -1038,30 +1045,14 @@ def _ensure_huwise_dataset(ods_id: str, metadata_row: pd.Series, dry_run: bool) 
         metadata_payload = {
             "default": {
                 "title": {"value": title},
+                "language": {"value": "de"},
+            },
+            "internal": {
+                "metadata_source_language": {"value": "de"},
             },
         }
         created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
         return created.uid, True
-
-
-def _ensure_dataset_restricted(ods_id: str, dry_run: bool) -> None:
-    """Force dataset visibility to restricted for existing datasets."""
-    if dry_run:
-        logging.info("[dry-run] Would enforce restricted visibility for ods_id=%s", ods_id)
-        return
-    dataset_uid = get_uid_by_id(dataset_id=ods_id)
-    client = HttpClient(HuwiseConfig.from_env())
-    try:
-        client.patch(f"/datasets/{dataset_uid}/", json={"is_restricted": True})
-        return
-    except Exception:
-        pass
-    try:
-        current = client.get(f"/datasets/{dataset_uid}/").json()
-        current["is_restricted"] = True
-        client.put(f"/datasets/{dataset_uid}/", json=current)
-    except Exception as exc:
-        logging.warning("Could not enforce restricted visibility for ods_id=%s: %s", ods_id, exc)
 
 
 _TEMPLATE_FIELD_DEFINITIONS_CACHE: dict[str, set[str]] = {}
@@ -1835,7 +1826,6 @@ def _process_dataset(
         return
 
     _, dataset_created = _ensure_huwise_dataset(context.ods_id, metadata_row, dry_run=dry_run)
-    _ensure_dataset_restricted(context.ods_id, dry_run=dry_run)
 
     geojson_file = _resolve_geojson_file(context, geojson_files)
     if geojson_file is None:
