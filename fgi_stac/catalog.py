@@ -7,18 +7,18 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dataspot_api import dataspot_metadata
+from dataspot_auth import DataspotAuth
+from metadata import flatten_to_snapshot
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
-
-from dataspot_api import dataspot_metadata
-from dataspot_auth import DataspotAuth
-from metadata import flatten_to_snapshot
 from paths import BINDINGS_FILE, ORIG_CATALOG_FILE, ORIG_METADATA_LAST_PUSH_FILE
 from schema_merge import geometa_stac_url
-from util import clean, normalize_uuid, row_key
 from yaml_io import dump_yaml
+
+from util import clean, normalize_uuid, row_key
 
 _TEMPLATE_ORDER = ("custom", "dcat", "dcat_ap_ch", "default", "internal")
 _SNAPSHOT_TEMPLATES = frozenset(_TEMPLATE_ORDER)
@@ -45,7 +45,10 @@ COLUMN_WIDTHS = {
 }
 METADATA_LEGEND_ROWS = [
     ("HUWISE ids", "Edit the huwise_id column on the Datasets sheet."),
-    ("Metadata policy", "Editorial metadata lives in HUWISE; publish uses conservative overwrite + data_orig/publish_metadata_last_push.yaml."),
+    (
+        "Metadata policy",
+        "Editorial metadata lives in HUWISE; publish uses conservative overwrite + data_orig/publish_metadata_last_push.yaml.",
+    ),
     ("Pipeline jobs", "sync_catalog → prepare_assets → publish (or uv run etl.py for all three)."),
     ("Machine catalog", "data_orig/publish_catalog.yaml — flat, active HUWISE datasets only; do not edit manually."),
 ]
@@ -415,7 +418,9 @@ def write_flat_publish_catalog(
                 dataspot_by_huwise[hw] = ds
 
     auth = DataspotAuth()
-    last_push = load_metadata_snapshot_document(ORIG_METADATA_LAST_PUSH_FILE) if ORIG_METADATA_LAST_PUSH_FILE.is_file() else {}
+    last_push = (
+        load_metadata_snapshot_document(ORIG_METADATA_LAST_PUSH_FILE) if ORIG_METADATA_LAST_PUSH_FILE.is_file() else {}
+    )
     enriched: dict[str, dict[str, Any]] = {}
     for huwise_id, entry in flat.items():
         merged = merge_snapshot_fill_gaps(entry, last_push.get(huwise_id, {}))

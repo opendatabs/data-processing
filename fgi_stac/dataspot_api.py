@@ -6,6 +6,7 @@ from typing import Any
 
 from dataspot_auth import DataspotAuth
 from http_client import http_get_json
+
 from util import clean, extract_string_list, normalize_optional_date
 
 DATASPOT_COMPOSITIONS_URL = "https://bs.dataspot.io/rest/prod/datasets/{dataset_id}/compositions"

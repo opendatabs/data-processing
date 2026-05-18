@@ -520,7 +520,7 @@ async def save_geodata_for_layers(
                     "ods_id": ods_id,
                     "name": f"{geocat_uid}:{row['Dateiname']}",
                     "title": row["titel_nice"],
-                    "description":final_description,
+                    "description": final_description,
                     "theme": str(row["theme"]),
                     "keyword": str(row["keyword"]),
                     "dcat_ap_ch.domain": dcat_ap_ch_domain,
