@@ -132,85 +132,88 @@ def export_current_data(gdf_current, filename_current):
     return gdf_previous
 
 
-def compare_geometries_and_filter_moved(gdf_previous, gdf_current):
-    """
-    Compare the geometries from gdf_previous and gdf_current to find bikes
-    that moved more than 100m or are new (previous geometry is missing).
-    Skip rows where xs_provider_name is 'Bird'.
-    Bird changes the ID every minute, so it's not possible to track movement.
-
-    :return: (moved_ids_current, moved_ids_previous, gdf_current_moved)
-    """
-    # Filter out Bird
-    gdf_previous_2056 = gdf_previous[gdf_previous["xs_provider_name"] != "Bird"].to_crs(epsg=2056)
-    gdf_current_2056 = gdf_current[gdf_current["xs_provider_name"] != "Bird"].to_crs(epsg=2056)
-
-    merged = gdf_current_2056[["xs_bike_id", "geometry"]].merge(
-        gdf_previous_2056[["xs_bike_id", "geometry"]],
-        on="xs_bike_id",
-        how="outer",
-        suffixes=("_current", "_previous"),
-    )
-
-    merged["distance_m"] = merged.geometry_current.distance(merged.geometry_previous)
-
-    # Bikes that moved >100m or are new
-    moved_over_100m_current = merged[(merged["distance_m"] > 100) | (merged["geometry_previous"].isna())].copy()
-    moved_ids_current = moved_over_100m_current["xs_bike_id"].unique()
-
-    # Bikes that moved >100m or no longer exist
-    moved_over_100m_previous = merged[(merged["distance_m"] > 100) | (merged["geometry_current"].isna())].copy()
-    moved_ids_previous = moved_over_100m_previous["xs_bike_id"].unique()
-
-    gdf_current_moved = gdf_current[gdf_current["xs_bike_id"].isin(moved_ids_current)]
-    logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m or new ones.")
-    logging.info(
-        f"Filtered gdf_previous down to {len(moved_ids_previous)} records with movement > 100m or missing ones."
-    )
-
-    return moved_ids_previous, gdf_current_moved
-
-
-def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
-    """
-    Load the existing timeseries data, update 'timestamp_moved' for bikes that moved or no longer exist and append new
-    """
-    path_export_zeitreihe = os.path.join("data", "zeitreihe_verfuegbarkeit.gpkg")
-    gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
-
-    # Update timestamp_moved for bikes that have not moved yet, but now have
-    mask_to_update = gdf_zeitreihe["xs_bike_id"].isin(moved_ids_previous) & gdf_zeitreihe["timestamp_moved"].isna()
-    gdf_zeitreihe.loc[mask_to_update, "timestamp_moved"] = timestamp
-
-    # Append new moved bikes to the timeseries
-    gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
-
-    # Save and upload updated timeseries
-    gpd_to_mounted_file(gdf_zeitreihe, path_export_zeitreihe, driver="GPKG")
-
-    return gdf_zeitreihe
-
-
-def convert_to_csv(gdf_zeitreihe):
-    """
-    Final step: convert geometry to geo_point_2d and save as csv
-    """
-    # Extract the geo_point_2d from the geometry and switch them
-    gdf_zeitreihe["geo_point_2d"] = (
-        gdf_zeitreihe["geometry"]
-        .astype(str)
-        .str.replace("POINT ", "", regex=False)
-        .str.replace("(", "", regex=False)
-        .str.replace(")", "", regex=False)
-    )
-    gdf_zeitreihe["geo_point_2d"] = gdf_zeitreihe["geo_point_2d"].str.split(" ").apply(lambda x: f"{x[1]}, {x[0]}")
-
-    # Drop geometry and 'Map Links' before pushing
-    df_zeitreihe = gdf_zeitreihe.drop(columns=["geometry", "Map Links"]).copy()
-
-    # Save as CSV
-    path_export_csv = os.path.join("data", "zeitreihe_verfuegbarkeit.csv")
-    df_zeitreihe.to_csv(path_export_csv, index=False)
+# Disabled: incremental zeitreihe updates corrupt the GPKG on mounted volumes and fail the job.
+# Rebuild zeitreihe_verfuegbarkeit offline from data/archiv/ snapshots when needed.
+#
+# def compare_geometries_and_filter_moved(gdf_previous, gdf_current):
+#     """
+#     Compare the geometries from gdf_previous and gdf_current to find bikes
+#     that moved more than 100m or are new (previous geometry is missing).
+#     Skip rows where xs_provider_name is 'Bird'.
+#     Bird changes the ID every minute, so it's not possible to track movement.
+#
+#     :return: (moved_ids_current, moved_ids_previous, gdf_current_moved)
+#     """
+#     # Filter out Bird
+#     gdf_previous_2056 = gdf_previous[gdf_previous["xs_provider_name"] != "Bird"].to_crs(epsg=2056)
+#     gdf_current_2056 = gdf_current[gdf_current["xs_provider_name"] != "Bird"].to_crs(epsg=2056)
+#
+#     merged = gdf_current_2056[["xs_bike_id", "geometry"]].merge(
+#         gdf_previous_2056[["xs_bike_id", "geometry"]],
+#         on="xs_bike_id",
+#         how="outer",
+#         suffixes=("_current", "_previous"),
+#     )
+#
+#     merged["distance_m"] = merged.geometry_current.distance(merged.geometry_previous)
+#
+#     # Bikes that moved >100m or are new
+#     moved_over_100m_current = merged[(merged["distance_m"] > 100) | (merged["geometry_previous"].isna())].copy()
+#     moved_ids_current = moved_over_100m_current["xs_bike_id"].unique()
+#
+#     # Bikes that moved >100m or no longer exist
+#     moved_over_100m_previous = merged[(merged["distance_m"] > 100) | (merged["geometry_current"].isna())].copy()
+#     moved_ids_previous = moved_over_100m_previous["xs_bike_id"].unique()
+#
+#     gdf_current_moved = gdf_current[gdf_current["xs_bike_id"].isin(moved_ids_current)]
+#     logging.info(f"Filtered gdf_current down to {len(gdf_current_moved)} records with movement > 100m or new ones.")
+#     logging.info(
+#         f"Filtered gdf_previous down to {len(moved_ids_previous)} records with movement > 100m or missing ones."
+#     )
+#
+#     return moved_ids_previous, gdf_current_moved
+#
+#
+# def update_timeseries(moved_ids_previous, gdf_current_moved, timestamp):
+#     """
+#     Load the existing timeseries data, update 'timestamp_moved' for bikes that moved or no longer exist and append new
+#     """
+#     path_export_zeitreihe = os.path.join("data", "zeitreihe_verfuegbarkeit.gpkg")
+#     gdf_zeitreihe = gpd.read_file(path_export_zeitreihe)
+#
+#     # Update timestamp_moved for bikes that have not moved yet, but now have
+#     mask_to_update = gdf_zeitreihe["xs_bike_id"].isin(moved_ids_previous) & gdf_zeitreihe["timestamp_moved"].isna()
+#     gdf_zeitreihe.loc[mask_to_update, "timestamp_moved"] = timestamp
+#
+#     # Append new moved bikes to the timeseries
+#     gdf_zeitreihe = pd.concat([gdf_zeitreihe, gdf_current_moved])
+#
+#     # Save and upload updated timeseries
+#     gpd_to_mounted_file(gdf_zeitreihe, path_export_zeitreihe, driver="GPKG")
+#
+#     return gdf_zeitreihe
+#
+#
+# def convert_to_csv(gdf_zeitreihe):
+#     """
+#     Final step: convert geometry to geo_point_2d and save as csv
+#     """
+#     # Extract the geo_point_2d from the geometry and switch them
+#     gdf_zeitreihe["geo_point_2d"] = (
+#         gdf_zeitreihe["geometry"]
+#         .astype(str)
+#         .str.replace("POINT ", "", regex=False)
+#         .str.replace("(", "", regex=False)
+#         .str.replace(")", "", regex=False)
+#     )
+#     gdf_zeitreihe["geo_point_2d"] = gdf_zeitreihe["geo_point_2d"].str.split(" ").apply(lambda x: f"{x[1]}, {x[0]}")
+#
+#     # Drop geometry and 'Map Links' before pushing
+#     df_zeitreihe = gdf_zeitreihe.drop(columns=["geometry", "Map Links"]).copy()
+#
+#     # Save as CSV
+#     path_export_csv = os.path.join("data", "zeitreihe_verfuegbarkeit.csv")
+#     df_zeitreihe.to_csv(path_export_csv, index=False)
 
 
 def main():
@@ -239,14 +242,12 @@ def main():
     gdf_current = prepare_gdf(gdf_current, drop_cols=["gml_id"])
 
     filename_current = "aktuelle_verfuegbarkeit.gpkg"
-    gdf_previous = export_current_data(gdf_current, filename_current)
+    export_current_data(gdf_current, filename_current)
 
-    moved_ids_previous, gdf_current_moved = compare_geometries_and_filter_moved(gdf_previous, gdf_current)
-
-    current_timestamp = gdf_current["timestamp"].iloc[0]  # Same timestamp for the entire current dataset
-    gdf_zeitreihe = update_timeseries(moved_ids_previous, gdf_current_moved, current_timestamp)
-
-    convert_to_csv(gdf_zeitreihe)
+    # moved_ids_previous, gdf_current_moved = compare_geometries_and_filter_moved(gdf_previous, gdf_current)
+    # current_timestamp = gdf_current["timestamp"].iloc[0]
+    # gdf_zeitreihe = update_timeseries(moved_ids_previous, gdf_current_moved, current_timestamp)
+    # convert_to_csv(gdf_zeitreihe)
 
     # FTP and ODS upload (in the end to avoid incomplete data, if something fails)
     path_export_current = os.path.join("data", filename_current)
