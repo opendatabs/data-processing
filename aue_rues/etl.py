@@ -13,6 +13,22 @@ FTP_USER = os.getenv("FTP_USER_03")
 FTP_PASS = os.getenv("FTP_PASS_03")
 ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100046")
 ODS_PUSH_URL_TRUEBUNG = os.getenv("ODS_PUSH_URL_100323")
+TRUEBUNG_REMOTE_PATH = "onlinedaten/truebung"
+TRUEBUNG_ARCHIVE_PATH = f"{TRUEBUNG_REMOTE_PATH}/archiv_ods"
+TZ = "Europe/Zurich"
+
+
+def localize_startzeitpunkt(series: pd.Series) -> pd.Series:
+    """Localize naive RUES timestamps to Europe/Zurich, handling DST transitions."""
+    dt = pd.to_datetime(series, format="%d.%m.%Y %H:%M:%S")
+    try:
+        return dt.dt.tz_localize(TZ, ambiguous="infer", nonexistent="shift_forward")
+    except Exception:
+        ambiguous = [False] * len(dt)
+        for value in dt[dt.duplicated(keep=False)].unique():
+            positions = dt.index[dt == value].tolist()
+            ambiguous[positions[0]] = True  # first occurrence during fall-back = CEST
+        return dt.dt.tz_localize(TZ, ambiguous=ambiguous, nonexistent="shift_forward")
 
 
 def download_latest_data(truebung=False):
@@ -23,7 +39,7 @@ def download_latest_data(truebung=False):
             FTP_SERVER,
             FTP_USER,
             FTP_PASS,
-            "onlinedaten/truebung",
+            TRUEBUNG_REMOTE_PATH,
             local_path,
             "*_RUES_Online_Truebung.csv",
             list_only=False,
@@ -61,14 +77,51 @@ def push_data_files(csv_files, truebung=False):
         logging.info(f"Processing files for date {date}...")
         df = df.sort_values(by=["Startzeitpunkt"]).reset_index(drop=True)
 
-        df["Startzeitpunkt"] = pd.to_datetime(df["Startzeitpunkt"], format="%d.%m.%Y %H:%M:%S").dt.tz_localize(
-            "Europe/Zurich", ambiguous="infer"
-        )
-        # df['Startzeitpunkt'] plus one hour
+        df["Startzeitpunkt"] = localize_startzeitpunkt(df["Startzeitpunkt"])
         df["Endezeitpunkt"] = df["Startzeitpunkt"] + datetime.timedelta(hours=1)
         df["Startzeitpunkt"] = df["Startzeitpunkt"].dt.strftime("%Y-%m-%d %H:%M:%S%z")
         df["Endezeitpunkt"] = df["Endezeitpunkt"].dt.strftime("%Y-%m-%d %H:%M:%S%z")
         common.ods_realtime_push_df(df, url=ODS_PUSH_URL_TRUEBUNG if truebung else ODS_PUSH_URL)
+
+
+def _list_truebung_archive_years():
+    entries = common.download_ftp(
+        [],
+        FTP_SERVER,
+        FTP_USER,
+        FTP_PASS,
+        TRUEBUNG_ARCHIVE_PATH,
+        os.path.join(os.path.dirname(__file__), "data_orig"),
+        "20[0-9][0-9]",
+        list_only=True,
+    )
+    return sorted(entry["remote_file"] for entry in entries)
+
+
+def download_archived_truebung(years=None):
+    local_path = os.path.join(os.path.dirname(__file__), "data_orig")
+    years = years or _list_truebung_archive_years()
+    csv_files = []
+    for year in years:
+        csv_files.extend(
+            common.download_ftp(
+                [],
+                FTP_SERVER,
+                FTP_USER,
+                FTP_PASS,
+                f"{TRUEBUNG_ARCHIVE_PATH}/{year}",
+                local_path,
+                "*_RUES_Online_Truebung.csv",
+            )
+        )
+    return csv_files
+
+
+def push_archived_truebung(years=None):
+    """Re-push all Trübung files from FTP archiv_ods (per year). Clear dataset 100323 in ODS first."""
+    csv_files = download_archived_truebung(years=years)
+    logging.info(f"Pushing {len(csv_files)} archived Trübung file(s) to ODS...")
+    push_data_files(csv_files, truebung=True)
 
 
 def archive_data_files(csv_files, truebung=False):
@@ -79,9 +132,12 @@ def archive_data_files(csv_files, truebung=False):
         date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d")
         if date_obj.date() < datetime.date.today():
             from_name = f"{file['remote_path']}/{file['remote_file']}"
-            to_name = (
-                f"{archive_folder}/{file['remote_file']}" if truebung else f"roh/{archive_folder}/{file['remote_file']}"
-            )
+            if truebung:
+                year = date_str[:4]
+                common.ensure_ftp_dir(FTP_SERVER, FTP_USER, FTP_PASS, f"{TRUEBUNG_ARCHIVE_PATH}/{year}")
+                to_name = f"{archive_folder}/{year}/{file['remote_file']}"
+            else:
+                to_name = f"roh/{archive_folder}/{file['remote_file']}"
             logging.info(f"Renaming file on FTP server from {from_name} to {to_name}...")
             common.rename_ftp(from_name, to_name, FTP_SERVER, FTP_USER, FTP_PASS)
 
@@ -159,6 +215,7 @@ def main():
     # Uncomment to parse, transform and push older files (corrected etc.)
     # push_older_data_files()
     # push_data_files_corrected()
+    # push_archived_truebung()
 
     csv_files = download_latest_data()
     push_data_files_old(csv_files)
