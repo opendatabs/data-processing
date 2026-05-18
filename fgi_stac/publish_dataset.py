@@ -749,7 +749,6 @@ def _set_metadata_fields(
             logging.warning("Failed metadata update '%s' for ods_id=%s: %s", action, ods_id, exc)
 
     dataset_uid = get_uid_by_id(dataset_id=ods_id)
-    dataset = HuwiseDataset(uid=dataset_uid)
     client = HttpClient(HuwiseConfig.from_env())
     try:
         all_templates_payload = client.get(f"/datasets/{dataset_uid}/metadata/").json()
@@ -785,7 +784,7 @@ def _set_metadata_fields(
             return len([item for item in extracted if clean_text(item)]) == 0
         return clean_text(extracted) == ""
 
-    def _set_template_field(template: str, field: str, value: Any, *, publish: bool = False) -> None:
+    def _set_template_field(template: str, field: str, value: Any) -> None:
         resolved_template = template
         api_field = field
         # Route custom metadata fields to the real template namespace on this portal.
@@ -837,8 +836,6 @@ def _set_metadata_fields(
         entry = last_push_by_ods.setdefault(ods_id, {})
         entry[snapshot_key] = normalized_new
         last_push_by_ods[ods_id] = order_snapshot_entry(entry)
-        if publish:
-            dataset.publish()
 
     stac_collection_id = _stac_collection_from_metadata_row(metadata_row)
     keyword_source = _metadata_row_field(metadata_row, "default.keyword", "keyword")
@@ -855,64 +852,59 @@ def _set_metadata_fields(
     tags = [tag for tag in [DEFAULT_TAG, stac_collection_id, *extra_tags] if tag]
     deduped_tags = list(dict.fromkeys(tags))
     if keywords:
-        _safe_set("keywords", lambda: _set_template_field("default", "keyword", keywords, publish=False))
-    _safe_set("custom_tags", lambda: _set_template_field("custom", "tags", deduped_tags, publish=False))
+        _safe_set("keywords", lambda: _set_template_field("default", "keyword", keywords))
+    _safe_set("custom_tags", lambda: _set_template_field("custom", "tags", deduped_tags))
 
     geo_ref = metadata_row.get("default.geographic_reference")
     if not isinstance(geo_ref, list) or not geo_ref:
         geo_ref = list(DEFAULT_GEOGRAPHIC_REFERENCE)
 
-    static_fields: list[tuple[str, str, Any, bool]] = [
-        ("default", "title", clean_text(_metadata_row_field(metadata_row, "default.title", "title")), False),
+    static_fields: list[tuple[str, str, Any]] = [
+        ("default", "title", clean_text(_metadata_row_field(metadata_row, "default.title", "title"))),
         (
             "default",
             "description",
             description_to_html(_metadata_row_field(metadata_row, "default.description", "description")),
-            False,
         ),
-        ("default", "language", clean_text(_metadata_row_field(metadata_row, "default.language")) or "de", False),
-        ("default", "geographic_reference", geo_ref, False),
+        ("default", "language", clean_text(_metadata_row_field(metadata_row, "default.language")) or "de"),
+        ("default", "geographic_reference", geo_ref),
         (
             "default",
             "modified_updates_on_data_change",
             bool(metadata_row.get("default.modified_updates_on_data_change", False)),
-            False,
         ),
-        ("default", "modified", clean_text(metadata_row.get("default.modified")), False),
-        ("default", "modified_updates_on_metadata_change", False, False),
+        ("default", "modified", clean_text(metadata_row.get("default.modified"))),
+        ("default", "modified_updates_on_metadata_change", False),
         (
             "default",
             "publisher",
             clean_text(_metadata_row_field(metadata_row, "default.publisher", "publisher")),
-            False,
         ),
         (
             "custom",
             "publizierende_organisation",
             clean_text(metadata_row.get("custom.publizierende_organisation"))
             or clean_text(metadata_row.get("publizierende_organisation")),
-            False,
         ),
         (
             "custom",
             "geodaten_modellbeschreibung",
             clean_text(metadata_row.get("custom.geodaten_modellbeschreibung"))
             or clean_text(metadata_row.get("geodaten_modellbeschreibung")),
-            False,
         ),
-        ("dcat", "contact_name", DEFAULT_CONTACT_NAME, False),
-        ("dcat", "contact_email", DEFAULT_CONTACT_EMAIL, False),
-        ("dcat_ap_ch", "rights", DEFAULT_RIGHTS, False),
-        ("dcat_ap_ch", "license", DEFAULT_LICENSE, False),
-        ("dcat", "creator", clean_text(metadata_row.get("dcat.creator")), False),
-        ("dcat", "created", clean_text(metadata_row.get("dcat.created")), False),
-        ("dcat", "issued", clean_text(metadata_row.get("dcat.issued")), False),
-        ("dcat", "accrualperiodicity", clean_text(metadata_row.get("dcat.accrualperiodicity")), False),
+        ("dcat", "contact_name", DEFAULT_CONTACT_NAME),
+        ("dcat", "contact_email", DEFAULT_CONTACT_EMAIL),
+        ("dcat_ap_ch", "rights", DEFAULT_RIGHTS),
+        ("dcat_ap_ch", "license", DEFAULT_LICENSE),
+        ("dcat", "creator", clean_text(metadata_row.get("dcat.creator"))),
+        ("dcat", "created", clean_text(metadata_row.get("dcat.created"))),
+        ("dcat", "issued", clean_text(metadata_row.get("dcat.issued"))),
+        ("dcat", "accrualperiodicity", clean_text(metadata_row.get("dcat.accrualperiodicity"))),
     ]
-    for template, field, value, publish in static_fields:
+    for template, field, value in static_fields:
         _safe_set(
             f"{template}.{field}",
-            lambda t=template, f=field, v=value, p=publish: _set_template_field(t, f, v, publish=p),
+            lambda t=template, f=field, v=value: _set_template_field(t, f, v),
         )
 
     explicit_theme_ids = split_semicolon_list(_metadata_row_field(metadata_row, "internal.theme_id", "theme_ids"))
@@ -928,10 +920,10 @@ def _set_metadata_fields(
             else:
                 logging.warning("No known theme mapping for ods_id=%s theme=%s", ods_id, theme_text)
     if theme_ids:
-        _safe_set("theme", lambda: _set_template_field("internal", "theme_id", theme_ids, publish=False))
+        _safe_set("theme", lambda: _set_template_field("internal", "theme_id", theme_ids))
     license_id = clean_text(_metadata_row_field(metadata_row, "internal.license_id"))
     if license_id:
-        _safe_set("license_id", lambda: _set_template_field("internal", "license_id", license_id, publish=False))
+        _safe_set("license_id", lambda: _set_template_field("internal", "license_id", license_id))
 
     relation_source = metadata_row.get("dcat.relation")
     if isinstance(relation_source, list):
@@ -939,7 +931,14 @@ def _set_metadata_fields(
     else:
         relation_urls = split_semicolon_list(relation_source) or split_semicolon_list(metadata_row.get("relation_urls"))
     if relation_urls:
-        _safe_set("relation", lambda: _set_template_field("dcat", "relation", relation_urls, publish=True))
+        _safe_set("relation", lambda: _set_template_field("dcat", "relation", relation_urls))
+
+
+def _publish_huwise_dataset(huwise_id: str) -> None:
+    """Publish the dataset on HUWISE so metadata and schema changes become visible."""
+    logging.info("STEP publish_huwise huwise_id=%s", huwise_id)
+    dataset_uid = get_uid_by_id(dataset_id=huwise_id)
+    HuwiseDataset(uid=dataset_uid).publish()
 
 
 def _normalize_datatype_family(datatype: str) -> str:
@@ -1429,6 +1428,7 @@ def _process_dataset(
             source_url="",
             metadata_last_push=metadata_last_push,
         )
+        _publish_huwise_dataset(context.ods_id)
         logging.info("Finished ods_id=%s (metadata only, no local GeoJSON)", context.ods_id)
         return
 
@@ -1478,6 +1478,7 @@ def _process_dataset(
         schema_records,
         accepted_types=accepted_types,
     )
+    _publish_huwise_dataset(context.ods_id)
     logging.info("Finished ods_id=%s", context.ods_id)
 
 

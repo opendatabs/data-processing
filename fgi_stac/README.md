@@ -25,7 +25,7 @@ flowchart TB
 
   subgraph job3 [Job 3: publish]
     FTP["FTP fgi/stac"]
-    HW["HUWISE API"]
+    HW["HUWISE API\n+ publish()"]
     geo --> FTP
     geo --> HW
     catalog --> HW
@@ -118,7 +118,7 @@ Logs nutzen `STEP …`-Zeilen pro Phase:
 | ---------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
 | `sync_catalog`   | `STEP sync_catalog start/done`                             | `data/huwise_bindings.xlsx`, `data_orig/publish_catalog.yaml` |
 | `prepare_assets` | `STEP prepare_assets huwise_id=…`                          | `data/datasets/*.geojson`, `data/schema_files/*.yaml`         |
-| `publish`        | `STEP publish_dataset`, `upload_geojson`, `publish_schema` | GeoJSON auf FTP, `export`/`datentyp` in Schema-YAML           |
+| `publish`        | `STEP publish_dataset`, `upload_geojson`, `publish_schema`, `publish_huwise` | GeoJSON auf FTP, Schema-YAML; HUWISE-Portal nach `HuwiseDataset.publish()` |
 
 
 - Job 2 ohne Job 1: Fehler „Missing publish catalog“ → zuerst `uv run sync_catalog.py`.

@@ -8,10 +8,9 @@ from typing import Any
 
 import yaml
 
-_HUIWISE_ID_PATTERN = re.compile(r"^[0-9][0-9a-zA-Z_-]*$")
-
-
 from util import clean
+
+_HUIWISE_ID_PATTERN = re.compile(r"^[0-9][0-9a-zA-Z_-]*$")
 
 
 def _normalize_huwise_id_value(value: Any) -> Any:

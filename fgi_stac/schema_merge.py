@@ -9,12 +9,10 @@ from typing import Any
 import yaml
 
 from paths import GEOMETA_DATASET_HTML_URL, ORIG_SCHEMA_FILES_DIR, USER_SCHEMA_FILES_DIR
+from util import clean
 from yaml_io import dump_yaml
 
 EDITORIAL_KEYS = ("name", "description", "mehrwertigkeit", "datentyp")
-
-
-from util import clean
 
 
 def schema_file_slug(value: str) -> str:
