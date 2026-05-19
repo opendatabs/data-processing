@@ -98,9 +98,7 @@ def build_metadata_block(
     expected_geodaten_modellbeschreibung = f"{stac_url}#{dataspot_dataset_id}"
     custom_geodaten = clean(custom.get("geodaten_modellbeschreibung"))
     geodaten_modellbeschreibung = (
-        custom_geodaten
-        if custom_geodaten.endswith(f"#{dataspot_dataset_id}")
-        else expected_geodaten_modellbeschreibung
+        custom_geodaten if custom_geodaten.endswith(f"#{dataspot_dataset_id}") else expected_geodaten_modellbeschreibung
     )
 
     return {
@@ -176,7 +174,9 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
     publizierende = clean(custom.get("publizierende_organisation")) or resolved_publisher
     geodaten_modellbeschreibung = clean(custom.get("geodaten_modellbeschreibung"))
     if not geodaten_modellbeschreibung and stac_collection_id and dataspot_dataset_id:
-        geodaten_modellbeschreibung = f"{GEOMETA_PREVIEW_URL.format(collection_id=stac_collection_id)}#{dataspot_dataset_id}"
+        geodaten_modellbeschreibung = (
+            f"{GEOMETA_PREVIEW_URL.format(collection_id=stac_collection_id)}#{dataspot_dataset_id}"
+        )
 
     snapshot: dict[str, Any] = {
         "default.title": title,

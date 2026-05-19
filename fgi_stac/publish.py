@@ -5,9 +5,8 @@ from __future__ import annotations
 import argparse
 import logging
 
-from dotenv import load_dotenv
-
 import publish_dataset
+from dotenv import load_dotenv
 
 load_dotenv()
 

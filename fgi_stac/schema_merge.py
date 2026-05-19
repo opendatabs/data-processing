@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 
 import yaml
-
 from paths import GEOMETA_DATASET_HTML_URL, ORIG_SCHEMA_FILES_DIR, USER_SCHEMA_FILES_DIR
-from util import clean
 from yaml_io import dump_yaml
+
+from util import clean
 
 EDITORIAL_KEYS = ("name", "description", "mehrwertigkeit", "datentyp")
 
@@ -164,9 +163,7 @@ def _user_field_row(
         "export": schema_export_value(saved.get("export"), default=_default_export(ds)),
     }
     for key in EDITORIAL_KEYS:
-        row[key] = _merge_editorial_value(
-            key, saved=saved, new_orig=orig_field, previous_orig=previous_orig_field
-        )
+        row[key] = _merge_editorial_value(key, saved=saved, new_orig=orig_field, previous_orig=previous_orig_field)
         if key == "datentyp" and not row[key]:
             row[key] = "text"
     return row
@@ -189,9 +186,7 @@ def build_user_schema_payload(
         if not ds:
             continue
         saved = preserved_settings.get(ds, {})
-        fields_out.append(
-            _user_field_row(field, saved, previous_orig_field=previous_by_ds.get(ds))
-        )
+        fields_out.append(_user_field_row(field, saved, previous_orig_field=previous_by_ds.get(ds)))
     return {
         "huwise_id": clean(orig_payload.get("huwise_id")),
         "dataspot_asset_url": clean(orig_payload.get("dataspot_asset_url")),
