@@ -11,7 +11,7 @@ COL_GEPLANT = "geplante_Bohrung"
 COL_ZUSTAND = "Zustand_der_Bohrung"
 COL_GEOTHERM = "Geothermische_Bohrung"
 COL_ROHR_DM = "Rohr_Durchmesser"
-COL_HOEHE_FELS = "Hoehe_Felsoberkante"
+COL_TERR_KOTE = "Terrain_Kote"
 COL_HOEHE_GWL = "Hoehe_Grundwasserspiegel"
 
 
@@ -33,7 +33,7 @@ def transform(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
             geplant,
             kassiert,
             geotherm,
-            rohr.eq(-99),
+            rohr.isna(),
             rohr.notna() & rohr.lt(200),
             rohr.notna() & rohr.ge(200),
         ],
@@ -48,15 +48,15 @@ def transform(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         default=None,
     )
 
-    hoehe_fels = pd.to_numeric(out[COL_HOEHE_FELS], errors="coerce")
+    hoehe_gel = pd.to_numeric(out[COL_TERR_KOTE], errors="coerce")
     hoehe_gwl = pd.to_numeric(out[COL_HOEHE_GWL], errors="coerce")
-    flurabstand = hoehe_fels - hoehe_gwl
-    out["flurabstand"] = flurabstand.where(flurabstand.gt(0) & hoehe_fels.notna() & hoehe_gwl.notna())
+    flurabstand = hoehe_gel - hoehe_gwl
+    out["flurabstand"] = flurabstand.where(flurabstand.gt(0) & hoehe_gel.notna() & hoehe_gwl.notna())
 
     out["grundwasserdaten"] = np.select(
         [hoehe_gwl.notna() & hoehe_gwl.ge(0), hoehe_gwl.isna()],
-        ["1", "0"],
-        default="0",
+        [True, False],
+        default=False,
     )
 
     return out
