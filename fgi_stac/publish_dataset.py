@@ -100,7 +100,7 @@ DEFAULT_FIELD_TYPE_BY_DATATYPE = {
     "datetime": "datetime",
     "int": "int",
     "number": "double",
-    "boolean": "text",
+    "boolean": "boolean",
     "geo_point_2d": "geo_point_2d",
     "geometry": "geo_shape",
     "file": "file",
@@ -553,7 +553,7 @@ def _huwise_field_type_for_yaml_datentyp(datentyp: str) -> str:
         "geo_shape": "geo_shape",
         "geometry": "geo_shape",
         "file": "file",
-        "boolean": "text",
+        "boolean": "boolean",
         # Raw Dataspot labels (defensive; may appear if a user pastes a
         # Dataspot value into the schema YAML manually)
         "datum": "date",
@@ -563,7 +563,7 @@ def _huwise_field_type_for_yaml_datentyp(datentyp: str) -> str:
         "dezimalzahl": "double",
         "code": "text",
         "url": "text",
-        "ja/nein": "text",
+        "ja/nein": "boolean",
         "formatierter text": "text",
         "geometrie": "geo_shape",
         "geometrie (punkt)": "geo_point_2d",

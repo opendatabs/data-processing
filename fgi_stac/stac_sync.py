@@ -97,7 +97,7 @@ _DATATYPE_MAP = {
     "geometrie (fläche)": "geo_shape",
     "geometrie (flaeche)": "geo_shape",
     "geometrie": "geo_shape",
-    "ja/nein": "text",
+    "ja/nein": "boolean",
     "text": "text",
     "uhrzeit": "text",
     "url": "text",
