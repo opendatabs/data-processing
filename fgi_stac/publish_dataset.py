@@ -679,7 +679,7 @@ def _ensure_huwise_dataset(ods_id: str, metadata_row: pd.Series) -> tuple[str | 
     except Exception:
         # Keep create payload minimal as recommended by huwise-utils-py docs.
         # Additional metadata is set afterwards via dedicated setter calls.
-        title = clean_text(metadata_row.get("title")) or ods_id
+        title = clean_text(_metadata_row_field(metadata_row, "default.title", "title")) or ods_id
         metadata_payload = {
             "default": {
                 "title": {"value": title},
