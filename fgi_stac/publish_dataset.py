@@ -134,7 +134,6 @@ THEME_MAP_DATA_BS_CH = {
     "volkswirtschaft": "0774467",
     "offentliche ordnung und sicherheit": "60c7454",
 }
-DEFAULT_OVERRIDE_REMOTE_VALUE = True
 
 
 def ensure_output_dirs() -> None:
@@ -804,8 +803,6 @@ def _set_metadata_fields(
         existing = template_payloads.get(resolved_template, {}).get(field)
         if existing is None and api_field != field:
             existing = template_payloads.get(resolved_template, {}).get(api_field)
-        if (not DEFAULT_OVERRIDE_REMOTE_VALUE) and (not _is_empty_value(existing)):
-            return
         if _is_empty_value(value):
             return
         snapshot_key = f"{resolved_template}.{field}"
@@ -815,10 +812,14 @@ def _set_metadata_fields(
         matches_last_push = last_push is not None and normalized_existing == _normalize_metadata_compare_value(
             last_push
         )
-        can_write = _is_empty_value(existing) or (normalized_existing == normalized_new) or matches_last_push
+        can_write = (
+            _is_empty_value(existing)
+            or (normalized_existing == normalized_new)
+            or matches_last_push
+        )
         if not can_write:
             return
-        payload = {"value": value, "override_remote_value": DEFAULT_OVERRIDE_REMOTE_VALUE}
+        payload = {"value": value}
         client.put(f"/datasets/{dataset_uid}/metadata/{resolved_template}/{api_field}/", json=payload)
         entry = last_push_by_ods.setdefault(ods_id, {})
         entry[snapshot_key] = normalized_new
@@ -870,8 +871,13 @@ def _set_metadata_fields(
         (
             "custom",
             "publizierende_organisation",
-            clean_text(metadata_row.get("custom.publizierende_organisation"))
-            or clean_text(metadata_row.get("publizierende_organisation")),
+            clean_text(
+                _metadata_row_field(
+                    metadata_row,
+                    "custom.publizierende_organisation",
+                    "publizierende_organisation",
+                )
+            ),
         ),
         (
             "custom",
