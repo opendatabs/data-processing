@@ -7,6 +7,7 @@ from typing import Any
 from util import (
     clean,
     description_to_html,
+    second_path_segment,
     split_keywords,
     split_semicolon_list,
     third_path_segment,
@@ -19,6 +20,7 @@ DEFAULT_CONTACT_NAME = "Open Data Basel-Stadt"
 DEFAULT_CONTACT_EMAIL = "opendata@bs.ch"
 DEFAULT_TAG = "opendata.swiss"
 DEFAULT_GEOGRAPHIC_REFERENCE = ["ch_40_12"]
+DEFAULT_ATTRIBUTIONS = ["Geodaten Kanton Basel-Stadt"]
 DEFAULT_LICENSE_ID = "cc-by"
 DEFAULT_LICENSE_NAME = "CC BY 4.0"
 LICENSE_ID_BY_NAME = {
@@ -108,6 +110,7 @@ def build_metadata_block(
             "keyword": keyword_values,
             "language": "de",
             "publisher": publisher_from_path,
+            "attributions": list(DEFAULT_ATTRIBUTIONS),
             "modified": clean(default.get("modified")) or dataspot_meta["modified"],
             "modified_updates_on_data_change": False,
         },
@@ -120,7 +123,9 @@ def build_metadata_block(
             "relation": relation_values_final,
         },
         "custom": {
-            "publizierende_organisation": clean(custom.get("publizierende_organisation")) or publisher_from_path,
+            "publizierende_organisation": clean(custom.get("publizierende_organisation"))
+            or second_path_segment(default_publisher)
+            or second_path_segment(dataspot_meta["publisher_path"]),
             "geodaten_modellbeschreibung": geodaten_modellbeschreibung,
             "tags": tags,
         },
@@ -171,7 +176,11 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
     publisher_from_path = third_path_segment(raw_publisher)
     resolved_publisher = publisher_from_path or raw_publisher
     resolved_creator = publisher_from_path or clean(dcat.get("creator")) or raw_publisher
-    publizierende = clean(custom.get("publizierende_organisation")) or resolved_publisher
+    publizierende = (
+        clean(custom.get("publizierende_organisation"))
+        or second_path_segment(raw_publisher)
+        or resolved_publisher
+    )
     geodaten_modellbeschreibung = clean(custom.get("geodaten_modellbeschreibung"))
     if not geodaten_modellbeschreibung and stac_collection_id and dataspot_dataset_id:
         geodaten_modellbeschreibung = (
@@ -184,6 +193,7 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
         "default.language": "de",
         "default.geographic_reference": list(DEFAULT_GEOGRAPHIC_REFERENCE),
         "default.publisher": resolved_publisher,
+        "default.attributions": list(DEFAULT_ATTRIBUTIONS),
         "default.modified_updates_on_data_change": bool(default.get("modified_updates_on_data_change", False)),
         "default.modified_updates_on_metadata_change": False,
         "custom.publizierende_organisation": publizierende,

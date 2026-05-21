@@ -47,6 +47,7 @@ from huwise_utils_py.http import HttpClient
 from metadata import (
     DEFAULT_CONTACT_EMAIL,
     DEFAULT_CONTACT_NAME,
+    DEFAULT_ATTRIBUTIONS,
     DEFAULT_GEOGRAPHIC_REFERENCE,
     DEFAULT_LICENSE,
     DEFAULT_RIGHTS,
@@ -855,6 +856,11 @@ def _set_metadata_fields(
             description_to_html(_metadata_row_field(metadata_row, "default.description", "description")),
         ),
         ("default", "language", clean_text(_metadata_row_field(metadata_row, "default.language")) or "de"),
+        (
+            "default",
+            "attributions",
+            _coerce_string_list(metadata_row.get("default.attributions")) or list(DEFAULT_ATTRIBUTIONS),
+        ),
         ("default", "geographic_reference", geo_ref),
         (
             "default",

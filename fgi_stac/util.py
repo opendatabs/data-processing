@@ -74,7 +74,14 @@ def normalize_geo_dataset_match_keys(geo_dataset: str) -> list[str]:
     return keys
 
 
+def second_path_segment(path_value: Any) -> str:
+    """Return the 2nd path segment (department / publizierende organisation)."""
+    parts = [part.strip() for part in clean(path_value).split("/") if part.strip()]
+    return parts[1] if len(parts) > 1 else ""
+
+
 def third_path_segment(path_value: Any) -> str:
+    """Return the 3rd path segment (amt / publisher)."""
     parts = [part.strip() for part in clean(path_value).split("/") if part.strip()]
     return parts[2] if len(parts) > 2 else ""
 
