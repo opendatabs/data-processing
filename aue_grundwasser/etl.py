@@ -71,11 +71,7 @@ def process(file, x_coords_1416):
         logging.info(f"Starting reading csv into dataframe ({datetime.datetime.now()})...")
         df = pd.read_csv(file, sep=";", encoding="cp1252", low_memory=False)
     logging.info(f"Dataframe present in memory now ({datetime.datetime.now()}).")
-    df["timestamp_text"] = (
-        df["Date"].astype(str).str.strip()
-        + "T"
-        + df["Time"].astype(str).str.strip()
-    )
+    df["timestamp_text"] = df["Date"].astype(str).str.strip() + "T" + df["Time"].astype(str).str.strip()
     df["timestamp"] = (
         pd.to_datetime(
             df.timestamp_text,

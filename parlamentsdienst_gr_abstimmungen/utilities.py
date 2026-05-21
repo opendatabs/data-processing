@@ -146,9 +146,7 @@ def get_trakt_names(session_day):
     if closest_session_path is None:
         raise ValueError(f"No session found for date {session_day}")
 
-    logging.info(
-        f"Found closest session date {closest_session_path} for date {session_day}"
-    )
+    logging.info(f"Found closest session date {closest_session_path} for date {session_day}")
 
     # Re-fetch files for selected session
     sub_files = get_ftp_ls(
