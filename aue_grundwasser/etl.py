@@ -71,12 +71,21 @@ def process(file, x_coords_1416):
         logging.info(f"Starting reading csv into dataframe ({datetime.datetime.now()})...")
         df = pd.read_csv(file, sep=";", encoding="cp1252", low_memory=False)
     logging.info(f"Dataframe present in memory now ({datetime.datetime.now()}).")
-    df["timestamp_text"] = df.Date + "T" + df.Time
+    df["timestamp_text"] = df["Date"].astype(str).str.strip() + "T" + df["Time"].astype(str).str.strip()
     df["timestamp"] = (
-        pd.to_datetime(df.timestamp_text, format="%Y-%m-%dT%H:%M:%S")
+        pd.to_datetime(
+            df.timestamp_text,
+            format="mixed",
+            dayfirst=True,
+            errors="coerce",
+        )
         .dt.tz_localize(ZoneInfo("Etc/GMT-1"))
         .dt.tz_convert("UTC")
     )
+    invalid_timestamps = df["timestamp"].isna().sum()
+
+    if invalid_timestamps > 0:
+        logging.warning(f"{invalid_timestamps} invalid timestamps detected.")
     logging.info("Rounding LV95 coordinates as required...")
     df.XCoord = df.XCoord.round(0).astype(int)
     df.YCoord = df.YCoord.round(0).astype(int)

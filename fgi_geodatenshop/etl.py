@@ -27,7 +27,7 @@ load_dotenv()
 FTP_SERVER = os.getenv("FTP_SERVER")
 FTP_USER = os.getenv("FTP_USER_01")
 FTP_PASS = os.getenv("FTP_PASS_01")
-URL_WMS = "https://wms.geo.bs.ch/?SERVICE=wms&REQUEST=GetCapabilities"
+URL_WMS = "https://wms.geo.bs.ch/?SERVICE=WMS&REQUEST=GetCapabilities"
 URL_WFS = "https://wfs.geo.bs.ch/"
 URL_WFS_CAPABILITIES = f"{URL_WFS}?service=WFS&request=GetCapabilities&version=2.0.0"
 WFS_CONCURRENCY = 8

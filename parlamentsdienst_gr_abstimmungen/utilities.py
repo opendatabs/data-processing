@@ -98,34 +98,87 @@ def get_trakt_names(session_day):
         "user": FTP_USER_GR_SESSION_DATA,
         "password": FTP_PASS_GR_SESSION_DATA,
     }
+
     dir_ls_file = "data/ftp_listing_session_data_dir.json"
-    dir_ls = get_ftp_ls(remote_path="", pattern="*-*-*", file_name=dir_ls_file, ftp=ftp)
+
+    dir_ls = get_ftp_ls(
+        remote_path="",
+        pattern="*-*-*",
+        file_name=dir_ls_file,
+        ftp=ftp,
+    )
+
     # Iterate over directory and find closest past session date
     closest_session_path = None
-    closest_session_date = None
+    closest_session_diff = None
+
     for session in dir_ls:
         session_str = session["remote_file"]
-        session_date = re.search(r"\d{4}-\d{2}-\d{2}", session["remote_file"]).group()
+
+        match = re.search(r"\d{4}-\d{2}-\d{2}", session_str)
+        if not match:
+            continue
+
+        session_date = match.group()
         session_datetime = datetime.strptime(session_date, "%Y-%m-%d")
-        # Skip if it's strictly in the future
+
+        # Skip future sessions
         if session_datetime > session_day:
             continue
-        # Check if the folder is empty or missing the required files
-        sub_dir_ls_file = "data/ftp_listing_session_data_sub_dir.json"
-        # Looking for files called 'BSGR_Agenda.csv' and 'BSGR_MEMBERS.csv'
-        sub_files = get_ftp_ls(remote_path=session_str, pattern="*.csv", file_name=sub_dir_ls_file, ftp=ftp)
+
+        # List CSV files in session folder
+        sub_files = get_ftp_ls(
+            remote_path=session_str,
+            pattern="*.csv",
+            file_name="data/ftp_listing_session_data_sub_dir.json",
+            ftp=ftp,
+        )
 
         if len(sub_files) == 0:
             continue
 
-        diff_sessions = session_day - session_datetime
-        if diff_sessions.days >= 0 and (closest_session_date is None or diff_sessions.days < closest_session_date.days):
-            closest_session_date = diff_sessions
+        diff = session_day - session_datetime
+
+        if closest_session_diff is None or diff.days < closest_session_diff.days:
+            closest_session_diff = diff
             closest_session_path = session_str
+
     if closest_session_path is None:
         raise ValueError(f"No session found for date {session_day}")
+
     logging.info(f"Found closest session date {closest_session_path} for date {session_day}")
-    # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
+
+    # Re-fetch files for selected session
+    sub_files = get_ftp_ls(
+        remote_path=closest_session_path,
+        pattern="*.csv",
+        file_name="data/ftp_listing_session_data_sub_dir.json",
+        ftp=ftp,
+    )
+
+    # Find agenda CSV dynamically
+    agenda_candidates = [
+        f["remote_file"]
+        for f in sub_files
+        if re.match(
+            r"^BSGR_AGENDA(?:-.*)?\.csv$",
+            f["remote_file"],
+            re.IGNORECASE,
+        )
+    ]
+
+    if not agenda_candidates:
+        raise ValueError(f"No agenda CSV found for date {session_day}")
+
+    # Prefer exact filename if present
+    if "BSGR_AGENDA.csv" in agenda_candidates:
+        agenda_filename = "BSGR_AGENDA.csv"
+    else:
+        agenda_filename = sorted(agenda_candidates)[-1]
+
+    logging.info(f"Using agenda file: {agenda_filename}")
+
+    # Download agenda file
     agenda_file = common.download_ftp(
         [],
         ftp["server"],
@@ -133,8 +186,10 @@ def get_trakt_names(session_day):
         ftp["password"],
         closest_session_path,
         "data",
-        "BSGR_AGENDA.csv",
+        agenda_filename,
     )
+
+    # Download members file
     members_file = common.download_ftp(
         [],
         ftp["server"],
@@ -144,11 +199,24 @@ def get_trakt_names(session_day):
         "data",
         "BSGR_MEMBERS.csv",
     )
-    # if csv_file is empty, raise error
+
     if len(agenda_file) == 0:
-        raise ValueError(f"No BSGR_Agenda.csv found for date {session_day}")
-    return pd.read_csv(agenda_file[0]["local_file"], delimiter=";", dtype=str), pd.read_csv(
-        members_file[0]["local_file"], delimiter=";"
+        raise ValueError(f"No agenda CSV found for date {session_day}")
+
+    if len(members_file) == 0:
+        raise ValueError(f"No BSGR_MEMBERS.csv found for date {session_day}")
+
+    return (
+        pd.read_csv(
+            agenda_file[0]["local_file"],
+            delimiter=";",
+            dtype=str,
+        ),
+        pd.read_csv(
+            members_file[0]["local_file"],
+            delimiter=";",
+            dtype=str,
+        ),
     )
 
 
