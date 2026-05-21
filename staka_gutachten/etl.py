@@ -38,23 +38,16 @@ def get_graph_token() -> str:
         },
     )
 
-    result = app.acquire_token_for_client(
-        scopes=["https://graph.microsoft.com/.default"]
-    )
+    result = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
 
     if "access_token" not in result:
-        raise RuntimeError(
-            f"Auth failed: {result.get('error_description')}"
-        )
+        raise RuntimeError(f"Auth failed: {result.get('error_description')}")
 
     return result["access_token"]
 
 
 def get_site_id(token: str) -> str:
-    url = (
-        f"https://graph.microsoft.com/v1.0/sites/"
-        f"{SHAREPOINT_HOST}:/sites/{SITE_NAME}"
-    )
+    url = f"https://graph.microsoft.com/v1.0/sites/{SHAREPOINT_HOST}:/sites/{SITE_NAME}"
 
     r = requests.get(
         url,
@@ -98,10 +91,7 @@ def download_folder(
 
     os.makedirs(local_dir, exist_ok=True)
 
-    url = (
-        f"https://graph.microsoft.com/v1.0/drives/"
-        f"{drive_id}/root:/{sharepoint_folder}:/children"
-    )
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_folder}:/children"
 
     r = requests.get(url, headers=headers)
     r.raise_for_status()
@@ -173,9 +163,7 @@ def download_sharepoint_files(token: str, site_id: str):
         download_folder(
             token=token,
             drive_id=drive_id,
-            sharepoint_folder=(
-                f"{SHAREPOINT_ROOT}/Gutachten/{departement}"
-            ),
+            sharepoint_folder=(f"{SHAREPOINT_ROOT}/Gutachten/{departement}"),
             local_dir=DATA_ORIG_PATH,
         )
 
@@ -195,11 +183,7 @@ def sanitize_filename(name: str) -> str:
 
     name = name.translate(transl_table).replace(" ", "_")
 
-    allowed = (
-        "abcdefghijklmnopqrstuvwxyz"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "0123456789._-"
-    )
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 
     return "".join(c for c in name if c in allowed)
 
@@ -213,41 +197,25 @@ def process_excel_file():
     )
 
     if not os.path.exists(excel_file_path):
-        raise FileNotFoundError(
-            f"The file '{excel_filename}' does not exist "
-            f"in '{DATA_ORIG_PATH}'."
-        )
+        raise FileNotFoundError(f"The file '{excel_filename}' does not exist in '{DATA_ORIG_PATH}'.")
 
     df = pd.read_excel(excel_file_path)
 
-    df["Dateiname"] = (
-        df["Dateiname"]
-        .astype(str)
-        .str.strip()
-    )
+    df["Dateiname"] = df["Dateiname"].astype(str).str.strip()
 
     def ensure_pdf_name(name: str) -> str:
         return name if Path(name).suffix else f"{name}.pdf"
 
-    df["Dateiname"] = df["Dateiname"].apply(
-        ensure_pdf_name
-    )
+    df["Dateiname"] = df["Dateiname"].apply(ensure_pdf_name)
 
-    df["Dateiname_ftp"] = df["Dateiname"].apply(
-        sanitize_filename
-    )
+    df["Dateiname_ftp"] = df["Dateiname"].apply(sanitize_filename)
 
     def ensure_pdf_suffix(
         orig_name: str,
         ftp_name: str,
     ) -> str:
-        if (
-            Path(orig_name).suffix.lower() == ".pdf"
-            and Path(ftp_name).suffix.lower() != ".pdf"
-        ):
-            return str(
-                Path(ftp_name).with_suffix(".pdf")
-            )
+        if Path(orig_name).suffix.lower() == ".pdf" and Path(ftp_name).suffix.lower() != ".pdf":
+            return str(Path(ftp_name).with_suffix(".pdf"))
 
         return ftp_name
 
@@ -264,11 +232,7 @@ def process_excel_file():
 
     df["URL_Datei"] = gate_url + df["Dateiname_ftp"]
 
-    files_in_data_orig = {
-        f
-        for f in os.listdir(DATA_ORIG_PATH)
-        if os.path.isfile(os.path.join(DATA_ORIG_PATH, f))
-    }
+    files_in_data_orig = {f for f in os.listdir(DATA_ORIG_PATH) if os.path.isfile(os.path.join(DATA_ORIG_PATH, f))}
 
     listed_files = set(df["Dateiname"])
 
@@ -278,31 +242,19 @@ def process_excel_file():
         "DESKTOP.INI",
     }
 
-    unlisted_files = (
-        files_in_data_orig
-        - listed_files
-        - ignored
-    )
+    unlisted_files = files_in_data_orig - listed_files - ignored
 
     if unlisted_files:
-        raise ValueError(
-            "The following files are in 'data_orig' "
-            f"but not in 'Liste_Gutachten': {unlisted_files}"
-        )
+        raise ValueError(f"The following files are in 'data_orig' but not in 'Liste_Gutachten': {unlisted_files}")
 
     missing_files = listed_files - files_in_data_orig
 
     if missing_files:
         raise ValueError(
-            "The following files are listed in "
-            "'Liste_Gutachten' but do not exist "
-            f"in 'data_orig': {missing_files}"
+            f"The following files are listed in 'Liste_Gutachten' but do not exist in 'data_orig': {missing_files}"
         )
 
-    logging.info(
-        "All files in 'data_orig' are listed "
-        "in 'Liste_Gutachten' and vice versa."
-    )
+    logging.info("All files in 'data_orig' are listed in 'Liste_Gutachten' and vice versa.")
 
     return df
 
@@ -333,9 +285,7 @@ def upload_files_to_ftp(df: pd.DataFrame):
             remote_path=remote_dir,
         )
 
-        logging.info(
-            f"Uploaded {orig_name} as {ftp_name}"
-        )
+        logging.info(f"Uploaded {orig_name} as {ftp_name}")
 
     csv_filename = "100489_gutachten.csv"
 
