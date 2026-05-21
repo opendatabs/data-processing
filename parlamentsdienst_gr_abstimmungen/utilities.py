@@ -125,16 +125,26 @@ def get_trakt_names(session_day):
     if closest_session_path is None:
         raise ValueError(f"No session found for date {session_day}")
     logging.info(f"Found closest session date {closest_session_path} for date {session_day}")
-    # Return BSGR_Agenda.csv saved in closest_session_path as pandas Dataframe
-    agenda_file = common.download_ftp(
-        [],
-        ftp["server"],
-        ftp["user"],
-        ftp["password"],
-        closest_session_path,
-        "data",
-        "BSGR_AGENDA.csv",
+
+    # Re-fetch files for selected session
+    sub_files = get_ftp_ls(
+        remote_path=closest_session_path,
+        pattern="*.csv",
+        file_name="data/ftp_listing_session_data_sub_dir.json",
+        ftp=ftp,
     )
+    
+    agenda_candidates = [
+        f["remote_file"]
+        for f in sub_files
+        if re.match(r"BSGR_AGENDA.*\.csv$", f["remote_file"], re.IGNORECASE)
+    ]
+    
+    if not agenda_candidates:
+        raise ValueError(f"No agenda CSV found for date {session_day}")
+    
+    agenda_filename = agenda_candidates[0]
+    
     members_file = common.download_ftp(
         [],
         ftp["server"],
