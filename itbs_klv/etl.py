@@ -47,7 +47,7 @@ def get_leistungen():
         "LeistungId",
         "Aktiv",
         "Departement",
-        "Diensstelle",
+        "Dienststelle",
         "Weitere Gliederung OE",
         "Identifikationsnummer",
         "Name",
