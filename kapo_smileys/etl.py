@@ -1,3 +1,4 @@
+import gc
 import glob
 import io
 import logging
@@ -30,9 +31,32 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
     list_path = os.path.join("data", "list_files.txt")
     common.list_files(messdaten_path, list_path, recursive=True)
     if ct.has_changed(list_path):
+        current_zyklus = int(df_einsaetze["Zyklus"].max())
+        previous_zyklus = current_zyklus - 1
+        zyklus_filter = {current_zyklus, previous_zyklus}
+
+        export_file_all_unfiltered = os.path.join("data", "all_data.csv")
+        export_file_filtered = os.path.join("data", "current_previous_cycles_data.csv")
+        export_file_stats = os.path.join("data", "all_stat.csv")
+
+        for path in (export_file_all_unfiltered, export_file_filtered):
+            if os.path.exists(path):
+                os.remove(path)
+
+        sqlite_path = os.path.join("data", "datasette", "Smiley-Geschwindigkeitsmessungen.db")
+        os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
+        conn = sqlite3.connect(sqlite_path)
+        logging.info(f"Creating SQLite database {sqlite_path}...")
+        init_sqlite(conn)
+
         messdaten_folders = glob.glob(os.path.join(messdaten_path, "*"))
-        messdaten_dfs = []
         stat_dfs = []
+        total_all_rows = 0
+        total_filtered_rows = 0
+        first_all_csv = True
+        first_filtered_csv = True
+        messdaten_columns = None
+
         for folder in messdaten_folders:
             if not any(os.listdir(folder)):
                 logging.info(f"No data in folder {folder}...")
@@ -47,63 +71,82 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
             df_all_pro_standort, df_stat_pro_standort = parse_single_messdaten_folder(
                 folder, df_einsatz_days, df_einsaetze, id_standort
             )
-            messdaten_dfs.append(df_all_pro_standort)
+
+            if messdaten_columns is None:
+                messdaten_columns = df_all_pro_standort.columns
+
+            total_all_rows += len(df_all_pro_standort)
+            df_all_pro_standort.to_csv(
+                export_file_all_unfiltered, mode="a", header=first_all_csv, index=False
+            )
+            first_all_csv = False
+
+            df_filtered = df_all_pro_standort[df_all_pro_standort["Zyklus"].isin(zyklus_filter)]
+            if not df_filtered.empty:
+                total_filtered_rows += len(df_filtered)
+                df_filtered.to_csv(
+                    export_file_filtered, mode="a", header=first_filtered_csv, index=False
+                )
+                first_filtered_csv = False
+            del df_filtered
+
+            append_to_sqlite(df_all_pro_standort, conn)
             stat_dfs.append(df_stat_pro_standort)
+            del df_all_pro_standort
+            gc.collect()
 
-        all_df = pd.concat(messdaten_dfs)
+        if total_all_rows == 0:
+            conn.close()
+            logging.info("No messdaten rows processed. Exiting...")
+            return None, None
 
-        # Save complete unfiltered data for plotting
-        export_file_all_unfiltered = os.path.join("data", "all_data.csv")
-        all_df.to_csv(export_file_all_unfiltered, index=False)
-        logging.info(f"Saved unfiltered data with {len(all_df)} datapoints to {export_file_all_unfiltered}")
+        if first_filtered_csv:
+            logging.warning(
+                f"No datapoints for cycles {previous_zyklus} and {current_zyklus}; "
+                f"writing empty {export_file_filtered}"
+            )
+            pd.DataFrame(columns=messdaten_columns).to_csv(export_file_filtered, index=False)
 
-        # Get the current and previous zyklus numbers
-        current_zyklus = df_einsaetze["Zyklus"].max()
-        previous_zyklus = current_zyklus - 1
-
-        # Filter data to include only current and previous zyklus
-        all_df_filtered = all_df[all_df["Zyklus"].isin([current_zyklus, previous_zyklus])]
-
-        # Log information about the filtered cycles and datapoints
+        logging.info(
+            f"Saved unfiltered data with {total_all_rows} datapoints to {export_file_all_unfiltered}"
+        )
         logging.info(f"Extracting data for cycles {previous_zyklus} and {current_zyklus}")
         logging.info(
-            f"Filtered data contains {len(all_df_filtered)} datapoints out of {len(all_df)} total ({len(all_df_filtered) / len(all_df) * 100:.1f}%)"
+            f"Filtered data contains {total_filtered_rows} datapoints out of {total_all_rows} total "
+            f"({total_filtered_rows / total_all_rows * 100:.1f}%)"
         )
 
-        # Save the filtered version for dataset 100268
-        export_file_filtered = os.path.join("data", "current_previous_cycles_data.csv")
-        all_df_filtered.to_csv(export_file_filtered, index=False)
-
-        # Check file size for logging purposes
         file_size_mb = os.path.getsize(export_file_filtered) / (1024 * 1024)
         logging.info(f"File {export_file_filtered} size is {file_size_mb:.2f} MB")
 
-        # Always create a zip file for consistency
         export_file_zip = export_file_filtered + ".zip"
         with zipfile.ZipFile(export_file_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(export_file_filtered, os.path.basename(export_file_filtered))
 
-        # Set the zip file as the file to upload
         export_file_to_upload = export_file_zip
         logging.info(f"Created compressed file: {export_file_zip}")
 
-        # Check the zip file size
         zip_size_mb = os.path.getsize(export_file_zip) / (1024 * 1024)
-        logging.info(
-            f"Compressed file size: {zip_size_mb:.2f} MB (compression ratio: {zip_size_mb / file_size_mb * 100:.1f}%)"
-        )
+        if file_size_mb > 0:
+            logging.info(
+                f"Compressed file size: {zip_size_mb:.2f} MB "
+                f"(compression ratio: {zip_size_mb / file_size_mb * 100:.1f}%)"
+            )
+        else:
+            logging.info(f"Compressed file size: {zip_size_mb:.2f} MB")
 
-        # Log a warning if the file size exceeds OpenDataSoft limit
         if zip_size_mb > 240:
             logging.warning(f"Even the compressed file {export_file_zip} exceeds the OpenDataSoft 240 MB limit!")
             logging.warning("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
             logging.warning("Consider reducing the number of cycles included or implementing further compression.")
 
         stat_df = pd.concat(stat_dfs)
-        export_file_stats = os.path.join("data", "all_stat.csv")
         stat_df.to_csv(export_file_stats, index=False)
 
-        df_to_sqlite(all_df)
+        finalize_sqlite(conn)
+        conn.close()
+        gc.collect()
+
         ct.update_hash_file(list_path)
         return export_file_to_upload, export_file_stats
     return None, None
@@ -317,14 +360,16 @@ def parse_einsatzplaene():
     return df_einsaetze
 
 
-def df_to_sqlite(df):
-    # Convert Zyklus and id_standort to int
-    df["Zyklus"] = df["Zyklus"].astype(int)
-    df["id_standort"] = df["id_standort"].astype(int)
+SQLITE_CHUNK_SIZE = 50_000
 
-    # Extract the two tables from the DataFrame
-    df["ID"] = df.apply(lambda x: f"{x['Zyklus']}-{x['id_standort']}", axis=1)
-    df_einsatzplan = df[
+
+def _prepare_sqlite_frames(df):
+    work = df.copy()
+    work["Zyklus"] = work["Zyklus"].astype(int)
+    work["id_standort"] = work["id_standort"].astype(int)
+    work["ID"] = work["Zyklus"].astype(str) + "-" + work["id_standort"].astype(str)
+
+    df_einsatzplan = work[
         [
             "ID",
             "id_standort",
@@ -341,13 +386,15 @@ def df_to_sqlite(df):
             "geo_point_2d",
         ]
     ].drop_duplicates()
+    df_einsatzplan = df_einsatzplan.copy()
     df_einsatzplan["geometry"] = df_einsatzplan["geo_point_2d"].apply(
         lambda x: (
             f'{{"type": "Point", "coordinates": [{", ".join(str(x).split(", ")[::-1])}]}}' if pd.notna(x) else None
         )
     )
-    df_einsatzplan.drop(columns=["geo_point_2d"], inplace=True)
-    df_einzelmessungen = df[
+    df_einsatzplan = df_einsatzplan.drop(columns=["geo_point_2d"])
+
+    df_einzelmessungen = work[
         [
             "ID",
             "id_standort",
@@ -361,14 +408,11 @@ def df_to_sqlite(df):
             "V_Delta",
         ]
     ]
-    sqlite_path = os.path.join("data", "datasette", "Smiley-Geschwindigkeitsmessungen.db")
+    return df_einsatzplan, df_einzelmessungen
 
-    # Connect to SQLite database (or create it if it doesn't exist)
-    conn = sqlite3.connect(sqlite_path)
-    logging.info(f"Creating SQLite database {sqlite_path}...")
+
+def init_sqlite(conn):
     cursor = conn.cursor()
-
-    # Create the Einsatzplan table
     logging.info("Creating table Einsatzplan...")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Einsatzplan (
@@ -388,9 +432,7 @@ def df_to_sqlite(df):
     )
     """)
     cursor.execute("DELETE FROM Einsatzplan")
-    df_einsatzplan.to_sql("Einsatzplan", conn, if_exists="append", index=False)
 
-    # Create the Einzelmessungen table
     logging.info("Creating table Einzelmessungen...")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Einzelmessungen (
@@ -408,8 +450,19 @@ def df_to_sqlite(df):
     )
     """)
     cursor.execute("DELETE FROM Einzelmessungen")
-    df_einzelmessungen.to_sql("Einzelmessungen", conn, if_exists="append", index=False)
+    conn.commit()
 
+
+def append_to_sqlite(df, conn):
+    df_einsatzplan, df_einzelmessungen = _prepare_sqlite_frames(df)
+    df_einsatzplan.to_sql("Einsatzplan", conn, if_exists="append", index=False)
+    df_einzelmessungen.to_sql(
+        "Einzelmessungen", conn, if_exists="append", index=False, chunksize=SQLITE_CHUNK_SIZE
+    )
+
+
+def finalize_sqlite(conn):
+    cursor = conn.cursor()
     logging.info("Creating indices...")
     columns_to_index_einsatzplan = [
         "Zyklus",
@@ -429,7 +482,6 @@ def df_to_sqlite(df):
     logging.info("Removing views...")
     cursor.execute("DROP VIEW IF EXISTS View_Einsatzplan_Einzelmessungen")
     logging.info("Creating views...")
-    # Create a view merging Einsatzplan and Einzelmessungen on id_standort and Zyklus
     cursor.execute("""
     CREATE VIEW IF NOT EXISTS View_Einsatzplan_Einzelmessungen AS
     SELECT 
@@ -455,10 +507,7 @@ def df_to_sqlite(df):
     FROM Einsatzplan e
     JOIN Einzelmessungen em ON e.id_standort = em.id_standort AND e.Zyklus = em.Zyklus
     """)
-
-    # Commit changes and close the connection
     conn.commit()
-    conn.close()
 
 
 def main():
