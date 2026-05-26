@@ -64,7 +64,12 @@ from paths import (
     ensure_layout_dirs,
 )
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from schema_merge import load_merged_schema_payload, resolve_schema_basename_for
+from schema_merge import (
+    load_merged_schema_payload,
+    resolve_schema_basename_for,
+    schema_orig_path,
+    schema_user_path,
+)
 
 from util import (
     clean_text,
@@ -108,6 +113,7 @@ DEFAULT_FIELD_TYPE_BY_DATATYPE = {
     "text": "text",
 }
 SCHEMA_PROCESSOR_LABEL_PREFIX = "FGI schema sync"
+_FIELD_CONFIG_PAGE_SIZE = 100
 THEME_MAP_DATA_BS_CH = {
     "arbeit, erwerb": "20bb143",
     "bau- und wohnungswesen": "c813f26",
@@ -962,6 +968,94 @@ def _normalize_datatype_family(datatype: str) -> str:
     return "text"
 
 
+def _list_all_dataset_field_configurations(dataset_id: str) -> list[dict[str, Any]]:
+    """Return all field configuration processors for a dataset (paginated API)."""
+    all_results: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        page = list_dataset_field_configurations(
+            dataset_id=dataset_id,
+            limit=_FIELD_CONFIG_PAGE_SIZE,
+            offset=offset,
+        )
+        results = page.get("results", [])
+        if isinstance(results, list):
+            all_results.extend(item for item in results if isinstance(item, dict))
+        if not results or not page.get("next"):
+            break
+        offset += _FIELD_CONFIG_PAGE_SIZE
+    return all_results
+
+
+def _is_managed_schema_processor(field: dict[str, Any]) -> bool:
+    label = clean_text(field.get("label"))
+    return bool(label.startswith(SCHEMA_PROCESSOR_LABEL_PREFIX))
+
+
+def _count_managed_processors(fields: list[dict[str, Any]]) -> int:
+    return sum(1 for field in fields if _is_managed_schema_processor(field))
+
+
+def _expected_managed_processor_count(rows: list[dict[str, str]], accepted_types: set[str]) -> int:
+    """Count processors this sync would create (mirrors the upsert create loop)."""
+    total = 0
+    for row in rows:
+        technical_name = clean_text(row.get("technical_name_huwise"))
+        if not technical_name:
+            continue
+        type_value = _build_field_type_value(row, accepted_types)
+        if type_value is None:
+            continue
+        if clean_text(row.get("column_name")):
+            total += 1
+        total += 1
+        if clean_text(row.get("description")):
+            total += 1
+        multivalued_separator = clean_text(row.get("multivalued_separator"))
+        if multivalued_separator and type_value == "text":
+            total += 1
+    return total
+
+
+def _schema_publish_tracking_paths(
+    ods_id: str,
+    dataspot_dataset_id: str,
+    geojson_file: Path | None,
+) -> list[Path]:
+    paths: list[Path] = []
+    if geojson_file is not None:
+        paths.append(geojson_file)
+    basename = resolve_schema_basename_for(ods_id, dataspot_dataset_id)
+    if basename:
+        orig = schema_orig_path(basename)
+        user = schema_user_path(basename)
+        if orig.exists():
+            paths.append(orig)
+        if user.exists():
+            paths.append(user)
+    return paths
+
+
+def _schema_publish_inputs_changed(
+    ods_id: str,
+    dataspot_dataset_id: str,
+    geojson_file: Path | None,
+) -> bool:
+    for path in _schema_publish_tracking_paths(ods_id, dataspot_dataset_id, geojson_file):
+        if change_tracking.has_changed(str(path)):
+            return True
+    return False
+
+
+def _update_schema_publish_tracking(
+    ods_id: str,
+    dataspot_dataset_id: str,
+    geojson_file: Path | None,
+) -> None:
+    for path in _schema_publish_tracking_paths(ods_id, dataspot_dataset_id, geojson_file):
+        change_tracking.update_hash_file(str(path))
+
+
 def _discover_portal_field_types(dataset_ids: list[str]) -> set[str]:
     """Discover accepted field type values from existing field configurations."""
     discovered: set[str] = set()
@@ -969,10 +1063,10 @@ def _discover_portal_field_types(dataset_ids: list[str]) -> set[str]:
         if not dataset_id:
             continue
         try:
-            payload = list_dataset_field_configurations(dataset_id=dataset_id)
+            existing_fields = _list_all_dataset_field_configurations(dataset_id)
         except Exception:
             continue
-        for field in payload.get("results", []):
+        for field in existing_fields:
             field_type = clean_text(field.get("type"))
             if field_type:
                 discovered.add(field_type)
@@ -1055,6 +1149,9 @@ def _upsert_huwise_schema(
     ods_id: str,
     rows: list[dict[str, str]],
     accepted_types: set[str],
+    *,
+    dataspot_dataset_id: str = "",
+    geojson_file: Path | None = None,
 ) -> None:
     """Upsert HUWISE field configurations from normalized schema rows."""
     if not accepted_types:
@@ -1064,8 +1161,35 @@ def _upsert_huwise_schema(
         )
         return
 
-    existing = list_dataset_field_configurations(dataset_id=ods_id)
-    existing_fields = existing.get("results", [])
+    try:
+        existing_fields = _list_all_dataset_field_configurations(ods_id)
+    except Exception as exc:
+        logging.warning("Could not list field configurations for ods_id=%s: %s", ods_id, exc)
+        return
+
+    managed_count = _count_managed_processors(existing_fields)
+    expected_count = _expected_managed_processor_count(rows, accepted_types)
+    logging.info(
+        "Listed %s field configurations for ods_id=%s (%s managed, %s expected)",
+        len(existing_fields),
+        ods_id,
+        managed_count,
+        expected_count,
+    )
+
+    inputs_changed = _schema_publish_inputs_changed(ods_id, dataspot_dataset_id, geojson_file)
+    orphan_processors = managed_count > expected_count
+    if not inputs_changed and not orphan_processors:
+        logging.info("Skipping schema upsert for ods_id=%s (unchanged)", ods_id)
+        return
+    if orphan_processors and not inputs_changed:
+        logging.info(
+            "Force schema resync for ods_id=%s: managed processors (%s) exceed expected (%s)",
+            ods_id,
+            managed_count,
+            expected_count,
+        )
+
     dataset_uid = get_uid_by_id(dataset_id=ods_id)
     client = HttpClient(HuwiseConfig.from_env())
 
@@ -1186,6 +1310,8 @@ def _upsert_huwise_schema(
                         technical_name,
                         detail,
                     )
+
+    _update_schema_publish_tracking(ods_id, dataspot_dataset_id, geojson_file)
 
 
 def _upload_geojson(local_file: Path) -> None:
@@ -1460,7 +1586,17 @@ def _process_dataset(
     )
     source_url = f"{SOURCE_URL_PREFIX}/{publish_geojson.name}"
 
-    _upload_geojson(publish_geojson)
+    geojson_changed = change_tracking.has_changed(str(geojson_file))
+    schema_inputs_changed = _schema_publish_inputs_changed(
+        context.ods_id,
+        context.dataspot_dataset_id,
+        geojson_file,
+    )
+    if geojson_changed or schema_inputs_changed:
+        _upload_geojson(publish_geojson)
+        change_tracking.update_hash_file(str(geojson_file))
+    else:
+        logging.info("Skipping FTP upload for ods_id=%s (geojson and schema unchanged)", context.ods_id)
     if dataset_created:
         _upsert_dataset_resource(context.ods_id, source_url)
     else:
@@ -1476,6 +1612,8 @@ def _process_dataset(
         context.ods_id,
         schema_records,
         accepted_types=accepted_types,
+        dataspot_dataset_id=context.dataspot_dataset_id,
+        geojson_file=geojson_file,
     )
     _publish_huwise_dataset(context.ods_id)
     logging.info("Finished ods_id=%s", context.ods_id)
