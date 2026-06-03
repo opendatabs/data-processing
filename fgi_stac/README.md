@@ -93,7 +93,7 @@ Pro Eintrag unter `fields:` (Editorial-Overrides; Dataspot-Spaltenname steht in 
 
 | Feld             | Typ                            | Bedeutung                                                                                                                                  |
 | ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `export`         | **boolean** (`true` / `false`) | Spalte in HUWISE publizieren (`true`) oder nur im Schema führen (`false`). Steuert auch `map_links` (Karten-Links nur bei `export: true`). |
+| `export`         | **boolean** (`true` / `false`) | Spalte in HUWISE publizieren (`true`) oder nur im Schema führen (`false`). `map_links` ist standardmässig `false` (GeoJSON-Anreicherung und HUWISE nur bei `export: true`). |
 | `technical_name` | string                         | Technischer Spaltenname in HUWISE / GeoJSON nach Rename                                                                                    |
 | `name`           | string                         | Anzeigename des Felds im Portal                                                                                                            |
 | `description`    | string                         | Feldbeschreibung im Portal                                                                                                                 |

@@ -54,7 +54,10 @@ def schema_export_value(value: Any, *, default: bool) -> bool:
 
 
 def _default_export(dataspot_attribute: str) -> bool:
-    return clean(dataspot_attribute).lower() != "gdh_fid"
+    name = clean(dataspot_attribute).lower()
+    if name in {"gdh_fid", "map_links"}:
+        return False
+    return True
 
 
 def _dataspot_attribute_from_field(field: dict[str, Any]) -> str:
@@ -342,10 +345,10 @@ def override_fields_for_etl(
         settings = _user_settings_from_field(item)
         row: dict[str, Any] = {
             "technical_name": ds,
-            "name": "",
-            "description": "",
-            "datentyp": "",
-            "mehrwertigkeit": "",
+            "name": clean(settings["name"]),
+            "description": clean(settings["description"]),
+            "datentyp": clean(settings["datentyp"]),
+            "mehrwertigkeit": clean(settings["mehrwertigkeit"]),
             "export": settings["export"],
             "custom": {},
         }
@@ -353,10 +356,10 @@ def override_fields_for_etl(
         if hw and hw != ds:
             row["custom"] = {
                 "technical_name": hw,
-                "name": "",
-                "description": "",
-                "datentyp": "",
-                "mehrwertigkeit": "",
+                "name": clean(settings["name"]),
+                "description": clean(settings["description"]),
+                "datentyp": clean(settings["datentyp"]),
+                "mehrwertigkeit": clean(settings["mehrwertigkeit"]),
             }
         preserved.append(row)
     return preserved or None

@@ -328,7 +328,12 @@ def _dataspot_schema(
                 continue
             if "geometr" in technical_name.lower():
                 technical_name = "geometry"
-            field_name = clean(composition.get("label")) or technical_name
+            field_name = (
+                clean(attribute_payload.get("label"))
+                or clean(attribute_payload.get("title"))
+                or clean(composition.get("label"))
+                or technical_name
+            )
             description = clean(attribute_payload.get("description")) or clean(composition.get("description"))
             multivalued_separator = _multivalued_separator_from_attribute(attribute_payload)
             rows_local.append(
@@ -483,10 +488,9 @@ def _apply_map_links_schema_field(
     The row's ``export`` flag *is* the per-dataset ``create_map_links``
     toggle. When a row already exists we preserve the user-edited
     ``export`` (so manual toggles survive an ETL refresh); when injecting
-    a fresh row, we seed ``export`` from the resolved
-    ``create_map_links`` value passed in by the caller.
+    a fresh row, we seed ``export: false`` (opt in via ``export: true``).
     """
-    _ = mapbs_url  # Kept for compatibility at call site.
+    _ = mapbs_url, create_map_links  # Kept for compatibility at call site.
     fixed_name = "Zum Objekt navigieren"
     fixed_description = "URL zur Navigation des Standorts in einer Karten-App"
     updated: list[dict[str, Any]] = []
@@ -512,10 +516,9 @@ def _apply_map_links_schema_field(
             custom.setdefault("datentyp", "")
             custom.setdefault("mehrwertigkeit", "")
             r["custom"] = custom
-            # Preserve the user-edited export flag if present; otherwise
-            # fall back to the resolved create_map_links default.
+            # Preserve the user-edited export flag if present; otherwise default off.
             if "export" not in r:
-                r["export"] = bool(create_map_links)
+                r["export"] = False
         updated.append(r)
     if has_map_links:
         return updated
@@ -525,7 +528,7 @@ def _apply_map_links_schema_field(
         "description": fixed_description,
         "mehrwertigkeit": "",
         "datentyp": "text",
-        "export": bool(create_map_links),
+        "export": False,
         "custom": {
             "technical_name": "map_links",
             "name": "",
@@ -634,8 +637,8 @@ def _coerce_create_map_links_flag(
        truth users edit).
     2. ``create_map_links`` on the previous catalog row (one-time
        migration fallback for older catalogs that still carry the key).
-    3. Truthiness of ``mapbs_url`` as the default for collections that
-       ship a MapBS link.
+    3. ``False`` when the schema has no ``map_links`` row or no explicit
+       ``export`` (opt in via ``export: true`` in the schema YAML).
     """
 
     def _coerce(raw: Any) -> bool | None:
@@ -662,7 +665,8 @@ def _coerce_create_map_links_flag(
         resolved = _coerce(legacy.get("create_map_links"))
         if resolved is not None:
             return resolved
-    return bool(clean(mapbs_url))
+    _ = mapbs_url
+    return False
 
 
 def _safe_layer_filename_stem(geo_dataset: str) -> str:

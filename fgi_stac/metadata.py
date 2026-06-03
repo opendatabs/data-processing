@@ -30,6 +30,27 @@ LICENSE_ID_BY_NAME = {
 }
 
 
+def resolve_publizierende_organisation(
+    *,
+    stored: str,
+    publisher_path: str,
+    publisher_amt: str,
+) -> str:
+    """Return the 2nd path segment (department), not the 3rd (amt).
+
+    HUWISE often prefills *Publizierende Organisation* with the same value as
+    *Publisher* (3rd segment). When that happens, or when nothing is stored yet,
+    derive the department from the Dataspot/STAC organisation path.
+    """
+    from_path = second_path_segment(publisher_path)
+    cleaned_stored = clean(stored)
+    if not cleaned_stored:
+        return from_path
+    if publisher_amt and cleaned_stored == publisher_amt:
+        return from_path or cleaned_stored
+    return cleaned_stored
+
+
 def _nested_payloads(metadata: dict[str, Any]) -> tuple[dict, dict, dict, dict]:
     default = metadata.get("default", {})
     dcat = metadata.get("dcat", {})
@@ -123,9 +144,11 @@ def build_metadata_block(
             "relation": relation_values_final,
         },
         "custom": {
-            "publizierende_organisation": clean(custom.get("publizierende_organisation"))
-            or second_path_segment(default_publisher)
-            or second_path_segment(dataspot_meta["publisher_path"]),
+            "publizierende_organisation": resolve_publizierende_organisation(
+                stored=clean(custom.get("publizierende_organisation")),
+                publisher_path=default_publisher or dataspot_meta["publisher_path"],
+                publisher_amt=publisher_from_path,
+            ),
             "geodaten_modellbeschreibung": geodaten_modellbeschreibung,
             "tags": tags,
         },
@@ -176,10 +199,10 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
     publisher_from_path = third_path_segment(raw_publisher)
     resolved_publisher = publisher_from_path or raw_publisher
     resolved_creator = publisher_from_path or clean(dcat.get("creator")) or raw_publisher
-    publizierende = (
-        clean(custom.get("publizierende_organisation"))
-        or second_path_segment(raw_publisher)
-        or resolved_publisher
+    publizierende = resolve_publizierende_organisation(
+        stored=clean(custom.get("publizierende_organisation")),
+        publisher_path=raw_publisher,
+        publisher_amt=resolved_publisher,
     )
     geodaten_modellbeschreibung = clean(custom.get("geodaten_modellbeschreibung"))
     if not geodaten_modellbeschreibung and stac_collection_id and dataspot_dataset_id:

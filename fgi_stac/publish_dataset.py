@@ -63,7 +63,7 @@ from paths import (
     PUBLISH_DATASETS_DIR,
     ensure_layout_dirs,
 )
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from schema_merge import (
     load_merged_schema_payload,
     resolve_schema_basename_for,
@@ -228,13 +228,24 @@ class _SchemaField(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    technical_name: str
+    technical_name: str = ""
+    dataspot_attribute: str = ""
     name: str = ""
     description: str = ""
     datentyp: str = "text"
     mehrwertigkeit: str = ""
     export: bool = True
     custom: _SchemaCustomBlock = Field(default_factory=_SchemaCustomBlock)
+
+    @model_validator(mode="after")
+    def _resolve_technical_name(self) -> _SchemaField:
+        if not clean_text(self.technical_name):
+            ds = clean_text(self.dataspot_attribute)
+            if ds:
+                object.__setattr__(self, "technical_name", ds)
+        if not clean_text(self.technical_name):
+            raise ValueError("schema field requires technical_name or dataspot_attribute")
+        return self
 
 
 class _SchemaFileModel(BaseModel):
@@ -630,11 +641,12 @@ def _load_schema_rows_from_yaml(huwise_id: str, dataspot_dataset_id: str) -> lis
         custom_technical = clean_text(custom.technical_name)
         technical_name_huwise = custom_technical or technical_name
         datentyp_value = clean_text(custom.datentyp) or clean_text(item.datentyp) or "text"
+        display_name = clean_text(custom.name) or clean_text(item.name)
         rows.append(
             {
                 "technical_name_dataspot": technical_name,
                 "technical_name_huwise": technical_name_huwise,
-                "column_name": clean_text(custom.name) or clean_text(item.name) or technical_name,
+                "column_name": display_name or technical_name_huwise,
                 "description": clean_text(custom.description) or clean_text(item.description),
                 "datatype": datentyp_value,
                 "multivalued_separator": clean_text(custom.mehrwertigkeit) or clean_text(item.mehrwertigkeit),
@@ -651,12 +663,12 @@ def _reconcile_schema_with_geojson(
     """Ensure schema contains all GeoJSON properties and preserve Dataspot labels."""
     by_technical_name: dict[str, dict[str, str]] = {}
     for row in schema_rows:
-        source_name = clean_text(row.get("technical_name_dataspot"))
-        if not source_name:
-            source_name = clean_text(row.get("technical_name_huwise"))
-        if not source_name:
-            continue
-        by_technical_name[source_name] = row
+        for alias in (
+            clean_text(row.get("technical_name_dataspot")),
+            clean_text(row.get("technical_name_huwise")),
+        ):
+            if alias:
+                by_technical_name[alias] = row
     for property_name in geojson_properties:
         if property_name in by_technical_name:
             continue
@@ -678,23 +690,69 @@ def _schema_rows_to_records(schema_rows: list[dict[str, str]]) -> list[dict[str,
     return frame.to_dict("records")
 
 
+def _metadata_value_for_create(value: Any) -> dict[str, Any] | None:
+    """Wrap a catalog value for the HUWISE create-dataset metadata payload."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return {"value": value}
+    if isinstance(value, list):
+        cleaned = [clean_text(item) for item in value if clean_text(item)]
+        if not cleaned:
+            return None
+        return {"value": cleaned}
+    text = clean_text(value)
+    if not text:
+        return None
+    return {"value": text}
+
+
+def _build_create_metadata_payload(ods_id: str, metadata_row: pd.Series) -> dict[str, Any]:
+    """Seed critical metadata at create time so HUWISE template defaults do not win."""
+    title = clean_text(_metadata_row_field(metadata_row, "default.title", "title")) or ods_id
+    payload: dict[str, Any] = {
+        "default": {
+            "title": {"value": title},
+            "language": {"value": "de"},
+        },
+        "internal": {
+            "metadata_source_language": {"value": "de"},
+        },
+    }
+    default_fields: dict[str, Any] = {
+        "publisher": clean_text(_metadata_row_field(metadata_row, "default.publisher", "publisher")),
+        "attributions": _coerce_string_list(metadata_row.get("default.attributions"))
+        or list(DEFAULT_ATTRIBUTIONS),
+    }
+    for field_name, raw_value in default_fields.items():
+        wrapped = _metadata_value_for_create(raw_value)
+        if wrapped:
+            payload["default"][field_name] = wrapped
+
+    creator = clean_text(metadata_row.get("dcat.creator"))
+    wrapped_creator = _metadata_value_for_create(creator)
+    if wrapped_creator:
+        payload["dcat"] = {"creator": wrapped_creator}
+
+    publizierende = clean_text(
+        _metadata_row_field(
+            metadata_row,
+            "custom.publizierende_organisation",
+            "publizierende_organisation",
+        )
+    )
+    wrapped_publizierende = _metadata_value_for_create(publizierende)
+    if wrapped_publizierende:
+        payload["custom"] = {"publizierende-organisation": wrapped_publizierende}
+    return payload
+
+
 def _ensure_huwise_dataset(ods_id: str, metadata_row: pd.Series) -> tuple[str | None, bool]:
     """Create dataset by ods_id if missing and return dataset UID + created flag."""
     try:
         return get_uid_by_id(dataset_id=ods_id), False
     except Exception:
-        # Keep create payload minimal as recommended by huwise-utils-py docs.
-        # Additional metadata is set afterwards via dedicated setter calls.
-        title = clean_text(_metadata_row_field(metadata_row, "default.title", "title")) or ods_id
-        metadata_payload = {
-            "default": {
-                "title": {"value": title},
-                "language": {"value": "de"},
-            },
-            "internal": {
-                "metadata_source_language": {"value": "de"},
-            },
-        }
+        metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
         created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
         return created.uid, True
 
@@ -729,12 +787,20 @@ def _template_field_definitions(client: HttpClient, template_name: str) -> set[s
     return names
 
 
+_METADATA_FIELDS_ALWAYS_WRITABLE = {
+    ("default", "attributions"),
+    ("custom", "publizierende_organisation"),
+    ("custom", "geodaten_modellbeschreibung"),
+}
+
+
 def _set_metadata_fields(
     ods_id: str,
     metadata_row: pd.Series,
     source_url: str,
     *,
     metadata_last_push: dict[str, dict[str, Any]] | None = None,
+    dataset_created: bool = False,
 ) -> None:
     """Set HUWISE metadata fields from the metadata table."""
     last_push_by_ods = metadata_last_push if metadata_last_push is not None else {}
@@ -795,10 +861,7 @@ def _set_metadata_fields(
 
         available_fields = template_fields.get(resolved_template, set())
         missing_in_template = (field not in available_fields) and (api_field not in available_fields)
-        allow_missing_field_write = (resolved_template, field) in {
-            ("custom", "publizierende_organisation"),
-            ("custom", "geodaten_modellbeschreibung"),
-        }
+        allow_missing_field_write = (resolved_template, field) in _METADATA_FIELDS_ALWAYS_WRITABLE
         if missing_in_template and not allow_missing_field_write:
             logging.info(
                 "Skipping metadata field '%s.%s' for ods_id=%s because field is not available in dataset template",
@@ -819,8 +882,20 @@ def _set_metadata_fields(
         matches_last_push = last_push is not None and normalized_existing == _normalize_metadata_compare_value(
             last_push
         )
+        publisher_existing = _normalize_metadata_compare_value(
+            template_payloads.get("default", {}).get("publisher")
+        )
+        prefilled_as_publisher = (
+            (resolved_template, field) == ("custom", "publizierende_organisation")
+            and normalized_existing
+            and publisher_existing
+            and normalized_existing == publisher_existing
+            and normalized_existing != normalized_new
+        )
         can_write = (
-            _is_empty_value(existing)
+            dataset_created
+            or prefilled_as_publisher
+            or _is_empty_value(existing)
             or (normalized_existing == normalized_new)
             or matches_last_push
         )
@@ -1552,6 +1627,7 @@ def _process_dataset(
             metadata_row,
             source_url="",
             metadata_last_push=metadata_last_push,
+            dataset_created=dataset_created,
         )
         _publish_huwise_dataset(context.ods_id)
         logging.info("Finished ods_id=%s (metadata only, no local GeoJSON)", context.ods_id)
@@ -1606,6 +1682,7 @@ def _process_dataset(
         metadata_row,
         source_url,
         metadata_last_push=metadata_last_push,
+        dataset_created=dataset_created,
     )
     logging.info("STEP publish_schema huwise_id=%s", context.ods_id)
     _upsert_huwise_schema(
