@@ -124,6 +124,10 @@ def build_metadata_block(
         custom_geodaten if custom_geodaten.endswith(f"#{dataspot_dataset_id}") else expected_geodaten_modellbeschreibung
     )
 
+    organisation_path = (
+        default_publisher if "/" in clean(default_publisher) else ""
+    ) or clean(dataspot_meta["publisher_path"]) or clean(producer_organization)
+
     return {
         "default": {
             "title": clean(default.get("title")) or dataspot_meta["title"] or geo_dataset,
@@ -146,7 +150,7 @@ def build_metadata_block(
         "custom": {
             "publizierende_organisation": resolve_publizierende_organisation(
                 stored=clean(custom.get("publizierende_organisation")),
-                publisher_path=default_publisher or dataspot_meta["publisher_path"],
+                publisher_path=organisation_path,
                 publisher_amt=publisher_from_path,
             ),
             "geodaten_modellbeschreibung": geodaten_modellbeschreibung,
@@ -199,9 +203,10 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
     publisher_from_path = third_path_segment(raw_publisher)
     resolved_publisher = publisher_from_path or raw_publisher
     resolved_creator = publisher_from_path or clean(dcat.get("creator")) or raw_publisher
+    producer_path = clean(collection.get("producer_organization"))
     publizierende = resolve_publizierende_organisation(
         stored=clean(custom.get("publizierende_organisation")),
-        publisher_path=raw_publisher,
+        publisher_path=producer_path or raw_publisher,
         publisher_amt=resolved_publisher,
     )
     geodaten_modellbeschreibung = clean(custom.get("geodaten_modellbeschreibung"))

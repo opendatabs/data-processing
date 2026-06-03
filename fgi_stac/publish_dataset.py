@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import re
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -118,6 +119,77 @@ DEFAULT_FIELD_TYPE_BY_DATATYPE = {
 }
 SCHEMA_PROCESSOR_LABEL_PREFIX = "FGI schema sync"
 _FIELD_CONFIG_PAGE_SIZE = 100
+_HUWISE_IDLE_POLL_SECONDS = 3
+_HUWISE_IDLE_TIMEOUT_SECONDS = 600
+
+
+def _fetch_explore_field_names(huwise_id: str) -> list[str]:
+    """Return ingested field names from the Explore API (matches Huwise processing output)."""
+    config = HuwiseConfig.from_env()
+    url = f"https://{config.domain}/api/explore/v2.1/catalog/datasets/{huwise_id}"
+    try:
+        response = httpx.get(url, headers=config.headers, timeout=HTTP_TIMEOUT)
+        response.raise_for_status()
+    except Exception as exc:
+        logging.warning("Could not fetch Explore field names for ods_id=%s: %s", huwise_id, exc)
+        return []
+    fields = response.json().get("fields", [])
+    if not isinstance(fields, list):
+        return []
+    return [clean_text(item.get("name")) for item in fields if isinstance(item, dict) and clean_text(item.get("name"))]
+
+
+def _resolve_huwise_processor_field_name(
+    technical_name: str,
+    *,
+    datatype: str,
+    explore_field_names: list[str],
+) -> str:
+    """Map schema/GeoJSON column id to the field name Huwise actually ingested."""
+    technical_name = clean_text(technical_name)
+    if not technical_name:
+        return ""
+    by_lower = {name.lower(): name for name in explore_field_names}
+    lowered = technical_name.lower()
+    if lowered in by_lower:
+        return by_lower[lowered]
+    type_value = _huwise_field_type_for_yaml_datentyp(clean_text(datatype))
+    if type_value and type_value.lower() in by_lower:
+        return by_lower[type_value.lower()]
+    return lowered
+
+
+def _processor_field_targets_stale(
+    existing_fields: list[dict[str, Any]],
+    rows: list[dict[str, str]],
+    explore_field_names: list[str],
+) -> bool:
+    """True when rename processors target wrong field ids (e.g. AnzahlPP vs anzahlpp)."""
+    rename_by_from = {
+        clean_text(field.get("from_name")).lower(): field
+        for field in existing_fields
+        if clean_text(field.get("type")) == "rename" and clean_text(field.get("from_name"))
+    }
+    for row in rows:
+        technical_name = clean_text(row.get("technical_name_huwise"))
+        if not technical_name:
+            continue
+        resolved = _resolve_huwise_processor_field_name(
+            technical_name,
+            datatype=clean_text(row.get("datatype")),
+            explore_field_names=explore_field_names,
+        )
+        if not resolved:
+            continue
+        existing = rename_by_from.get(resolved.lower()) or rename_by_from.get(technical_name.lower())
+        if existing is None:
+            return True
+        if clean_text(existing.get("from_name")) != resolved:
+            return True
+        expected_label = clean_text(row.get("column_name"))
+        if expected_label and clean_text(existing.get("field_label")) != expected_label:
+            return True
+    return False
 THEME_MAP_DATA_BS_CH = {
     "arbeit, erwerb": "20bb143",
     "bau- und wohnungswesen": "c813f26",
@@ -727,13 +799,27 @@ def _publizierende_from_metadata_row(
     if dataspot_dataset_id:
         try:
             ds_meta = dataspot_metadata(DataspotAuth(), dataspot_dataset_id)
-            publisher_path = clean_text(ds_meta.get("publisher_path")) or publisher_path
+            ds_path = clean_text(ds_meta.get("publisher_path"))
+            if ds_path:
+                publisher_path = ds_path
         except Exception as exc:
             logging.warning(
                 "Could not load Dataspot publisher path for publizierende_organisation (%s): %s",
                 dataspot_dataset_id,
                 exc,
             )
+    if not publisher_path or "/" not in publisher_path:
+        stac_id = clean_text(metadata_row.get("paket")) or _stac_collection_from_metadata_row(metadata_row)
+        if stac_id:
+            try:
+                from stac_sync import _extract_orgs, _fetch_stac_collections
+
+                for collection in _fetch_stac_collections():
+                    if clean_text(collection.get("id")) == stac_id:
+                        producer_path, _ = _extract_orgs(collection.get("providers"))
+                        break
+            except Exception as exc:
+                logging.warning("Could not load STAC producer path for %s: %s", stac_id, exc)
     return resolve_publizierende_organisation(
         stored=stored,
         publisher_path=publisher_path,
@@ -781,13 +867,16 @@ def _write_initial_metadata_after_create(
                 value,
             )
         except Exception as exc:
-            logging.warning(
+            detail = _extract_http_error_detail(exc)
+            logging.error(
                 "Initial metadata write failed for ods_id=%s %s.%s: %s",
                 ods_id,
                 template,
                 field,
-                exc,
+                detail,
             )
+            if template == "custom" and field == "publizierende_organisation":
+                raise
 
 
 def _is_empty_metadata_value(value: Any) -> bool:
@@ -1071,11 +1160,49 @@ def _set_metadata_fields(
         _safe_set("relation", lambda: _set_template_field("dcat", "relation", relation_urls))
 
 
+def _wait_for_huwise_idle(
+    huwise_id: str,
+    *,
+    reason: str = "",
+    timeout: float | None = None,
+) -> None:
+    """Wait until Huwise reports ``status == idle`` for the dataset."""
+    if timeout is None:
+        timeout = _HUWISE_IDLE_TIMEOUT_SECONDS
+    dataset_uid = get_uid_by_id(dataset_id=huwise_id)
+    client = HttpClient(HuwiseConfig.from_env())
+    deadline = time.monotonic() + timeout
+    suffix = f" ({reason})" if reason else ""
+    logging.info("STEP wait_idle huwise_id=%s%s", huwise_id, suffix)
+    while True:
+        try:
+            status_payload = client.get(f"/datasets/{dataset_uid}/status").json()
+        except Exception as exc:
+            logging.warning("Could not poll Huwise status for ods_id=%s: %s", huwise_id, exc)
+            return
+        status = clean_text(status_payload.get("status"))
+        if status == "idle":
+            logging.info("Huwise idle for ods_id=%s%s", huwise_id, suffix)
+            return
+        if time.monotonic() >= deadline:
+            logging.warning(
+                "Timed out waiting for Huwise idle for ods_id=%s%s (last status=%s)",
+                huwise_id,
+                suffix,
+                status,
+            )
+            return
+        logging.info("Waiting for Huwise idle ods_id=%s%s status=%s", huwise_id, suffix, status)
+        time.sleep(_HUWISE_IDLE_POLL_SECONDS)
+
+
 def _publish_huwise_dataset(huwise_id: str) -> None:
     """Publish the dataset on HUWISE so metadata and schema changes become visible."""
     logging.info("STEP publish_huwise huwise_id=%s", huwise_id)
+    _wait_for_huwise_idle(huwise_id, reason="before publish")
     dataset_uid = get_uid_by_id(dataset_id=huwise_id)
     HuwiseDataset(uid=dataset_uid).publish()
+    _wait_for_huwise_idle(huwise_id, reason="after publish")
 
 
 def _normalize_datatype_family(datatype: str) -> str:
@@ -1228,7 +1355,9 @@ def _discover_portal_field_types(dataset_ids: list[str]) -> set[str]:
             if discovered:
                 break
     except Exception:
-        return discovered
+        pass
+    if not discovered:
+        discovered = {"text", "int", "double", "date", "datetime", "geo_shape", "geo_point_2d", "boolean"}
     return discovered
 
 
@@ -1284,6 +1413,7 @@ def _upsert_huwise_schema(
     *,
     dataspot_dataset_id: str = "",
     geojson_file: Path | None = None,
+    force_resync: bool = False,
 ) -> None:
     """Upsert HUWISE field configurations from normalized schema rows."""
     if not accepted_types:
@@ -1311,7 +1441,13 @@ def _upsert_huwise_schema(
 
     inputs_changed = _schema_publish_inputs_changed(ods_id, dataspot_dataset_id, geojson_file)
     orphan_processors = managed_count > expected_count
-    if not inputs_changed and not orphan_processors:
+    explore_field_names = _fetch_explore_field_names(ods_id)
+    processor_targets_stale = bool(explore_field_names) and _processor_field_targets_stale(
+        existing_fields,
+        rows,
+        explore_field_names,
+    )
+    if not force_resync and not inputs_changed and not orphan_processors and not processor_targets_stale:
         logging.info("Skipping schema upsert for ods_id=%s (unchanged)", ods_id)
         return
     if orphan_processors and not inputs_changed:
@@ -1320,6 +1456,11 @@ def _upsert_huwise_schema(
             ods_id,
             managed_count,
             expected_count,
+        )
+    if processor_targets_stale and not inputs_changed:
+        logging.info(
+            "Force schema resync for ods_id=%s: processor field targets stale vs Explore ingest",
+            ods_id,
         )
 
     dataset_uid = get_uid_by_id(dataset_id=ods_id)
@@ -1341,6 +1482,18 @@ def _upsert_huwise_schema(
             logging.warning("Skipping field with empty HUWISE technical name for ods_id=%s", ods_id)
             continue
         technical_name = clean_text(row.get("technical_name_huwise"))
+        processor_field = _resolve_huwise_processor_field_name(
+            technical_name,
+            datatype=clean_text(row.get("datatype")),
+            explore_field_names=explore_field_names,
+        )
+        if explore_field_names and processor_field != technical_name:
+            logging.info(
+                "ods_id=%s resolved processor field %s -> %s",
+                ods_id,
+                technical_name,
+                processor_field,
+            )
         # GeoJSON on FTP already uses ``technical_name_huwise`` column ids
         # (:func:`_prepare_geojson_wgs84`). Identity rename (from_name == to_name)
         # only sets the portal display label via ``field_label`` — safe unlike the
@@ -1354,7 +1507,7 @@ def _upsert_huwise_schema(
             )
             continue
 
-        current_type = _existing_field_type(existing_fields, technical_name)
+        current_type = _existing_field_type(existing_fields, processor_field or technical_name)
         if current_type and current_type != type_value:
             logging.error(
                 "datentyp mismatch for ods_id=%s field=%s (current=%s, requested=%s); "
@@ -1365,6 +1518,7 @@ def _upsert_huwise_schema(
                 type_value,
             )
 
+        field_target = processor_field or technical_name
         processors: list[dict[str, Any]] = []
         field_label = clean_text(row.get("column_name"))
         if field_label:
@@ -1372,8 +1526,8 @@ def _upsert_huwise_schema(
                 {
                     "type": "rename",
                     "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: label {technical_name}",
-                    "from_name": technical_name,
-                    "to_name": technical_name,
+                    "from_name": field_target,
+                    "to_name": field_target,
                     "field_label": field_label,
                 }
             )
@@ -1381,7 +1535,7 @@ def _upsert_huwise_schema(
             {
                 "type": "type",
                 "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: type {technical_name}",
-                "field": technical_name,
+                "field": field_target,
                 "type_param": type_value,
             }
         )
@@ -1391,7 +1545,7 @@ def _upsert_huwise_schema(
                 {
                     "type": "description",
                     "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: description {technical_name}",
-                    "field": technical_name,
+                    "field": field_target,
                     "description": description,
                 }
             )
@@ -1403,7 +1557,7 @@ def _upsert_huwise_schema(
                 {
                     "type": "annotate",
                     "label": f"{SCHEMA_PROCESSOR_LABEL_PREFIX}: multivalued {technical_name}",
-                    "field": technical_name,
+                    "field": field_target,
                     "annotation": "multivalued",
                     "args": [multivalued_separator],
                 }
@@ -1416,7 +1570,7 @@ def _upsert_huwise_schema(
                 logging.info(
                     "Created schema processor for ods_id=%s field=%s uid=%s type=%s",
                     ods_id,
-                    technical_name,
+                    field_target,
                     clean_text(response.get("uid")),
                     processor_type,
                 )
@@ -1597,6 +1751,7 @@ def _guess_resource_extractor(client: HttpClient, dataset_uid: str, source_url: 
 def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
     """Create/update HUWISE resource that points to the published GeoJSON URL."""
     logging.info("STEP upsert_resource huwise_id=%s", ods_id)
+    _wait_for_huwise_idle(ods_id, reason="before resource upsert")
     dataset_uid = get_uid_by_id(dataset_id=ods_id)
     client = HttpClient(HuwiseConfig.from_env())
     try:
@@ -1734,10 +1889,12 @@ def _process_dataset(
         change_tracking.update_hash_file(str(geojson_file))
     else:
         logging.info("Skipping FTP upload for ods_id=%s (geojson and schema unchanged)", context.ods_id)
-    if dataset_created:
+    resource_touched = dataset_created or geojson_changed
+    if resource_touched:
         _upsert_dataset_resource(context.ods_id, source_url)
+        _wait_for_huwise_idle(context.ods_id, reason="after resource upsert")
     else:
-        logging.info("Skipping resource upsert for existing ods_id=%s", context.ods_id)
+        logging.info("Skipping resource upsert for existing ods_id=%s (geojson unchanged)", context.ods_id)
     _set_metadata_fields(
         context.ods_id,
         metadata_row,
@@ -1752,7 +1909,9 @@ def _process_dataset(
         accepted_types=accepted_types,
         dataspot_dataset_id=context.dataspot_dataset_id,
         geojson_file=geojson_file,
+        force_resync=dataset_created or geojson_changed,
     )
+    _wait_for_huwise_idle(context.ods_id, reason="after schema upsert")
     _publish_huwise_dataset(context.ods_id)
     logging.info("Finished ods_id=%s", context.ods_id)
 

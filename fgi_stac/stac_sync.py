@@ -968,6 +968,7 @@ def sync_catalog() -> dict[str, Any]:
                 "stac_url": GEOMETA_HTML_URL.format(collection_id=collection_id),
                 "stac_browser_url": f"https://radiantearth.github.io/stac-browser/#/external/api.geo.bs.ch/stac/v1/collections/{collection_id}",
                 "mapbs_url": mapbs_url,
+                "producer_organization": producer_organization,
                 "geo_datasets": geo_rows,
             }
         )
