@@ -255,12 +255,45 @@ def _publish_field_row(orig_field: dict[str, Any], user_field: dict[str, Any] | 
     if hw != ds:
         row["custom"] = {
             "technical_name": hw,
-            "name": "",
-            "description": "",
-            "datentyp": "",
-            "mehrwertigkeit": "",
+            "name": clean(row.get("name")),
+            "description": clean(row.get("description")),
+            "datentyp": clean(row.get("datentyp")),
+            "mehrwertigkeit": clean(row.get("mehrwertigkeit")),
         }
     return row
+
+
+def load_user_schema_publish_rows(schema_basename: str) -> list[dict[str, str]] | None:
+    """Publish rows from ``data/schema_files`` (authoritative display names)."""
+    user = load_user_schema(schema_basename)
+    if not user:
+        return None
+    fields = user.get("fields")
+    if not isinstance(fields, list):
+        return None
+    rows: list[dict[str, str]] = []
+    for item in fields:
+        if not isinstance(item, dict):
+            continue
+        ds = _dataspot_attribute_from_field(item)
+        if not ds:
+            continue
+        if not schema_export_value(item.get("export"), default=_default_export(ds)):
+            continue
+        hw = _huwise_technical_name_from_field(item, dataspot_attribute=ds)
+        display_name = clean(item.get("name"))
+        rows.append(
+            {
+                "technical_name_dataspot": ds,
+                "technical_name_huwise": hw or ds,
+                "column_name": display_name or hw or ds,
+                "description": clean(item.get("description")),
+                "datatype": clean(item.get("datentyp")) or "text",
+                "multivalued_separator": clean(item.get("mehrwertigkeit")),
+                "source": "user_schema_yaml",
+            }
+        )
+    return rows or None
 
 
 def apply_user_settings_to_fields(

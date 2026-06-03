@@ -44,6 +44,8 @@ from huwise_utils_py import (
 )
 from huwise_utils_py.config import HuwiseConfig
 from huwise_utils_py.http import HttpClient
+from dataspot_api import dataspot_metadata
+from dataspot_auth import DataspotAuth
 from metadata import (
     DEFAULT_CONTACT_EMAIL,
     DEFAULT_CONTACT_NAME,
@@ -54,6 +56,7 @@ from metadata import (
     DEFAULT_TAG,
     GEOMETA_PREVIEW_URL,
     dataspot_uuid_from_snapshot,
+    resolve_publizierende_organisation,
 )
 from paths import (
     LEGACY_CATALOG_FILE,
@@ -66,6 +69,7 @@ from paths import (
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from schema_merge import (
     load_merged_schema_payload,
+    load_user_schema_publish_rows,
     resolve_schema_basename_for,
     schema_orig_path,
     schema_user_path,
@@ -595,26 +599,19 @@ def _huwise_field_type_for_yaml_datentyp(datentyp: str) -> str:
 
 
 def _load_schema_rows_from_yaml(huwise_id: str, dataspot_dataset_id: str) -> list[dict[str, str]]:
-    """Load schema rows from merged ``data_orig/schema_files`` + ``data/schema_files``.
+    """Load schema rows for publish; ``data/schema_files`` labels win when present.
 
-    ``etl.py`` produces the orig schema; users edit ``data/schema_files`` with
-    ``dataspot_attribute``, ``technical_name`` (HUWISE), and ``export``. This
-    function emits the row shape ``publish_dataset.py`` expects.
-
-    Rules:
-
-    - ``technical_name_dataspot`` = top-level ``technical_name`` (matches the
-      column name in the locally downloaded GeoJSON).
-    - ``technical_name_huwise`` = ``custom.technical_name`` when set, else
-      the top-level ``technical_name`` (so ``custom.technical_name`` overrides
-      are taken end-to-end and the rename actually reaches the data portal).
-    - ``datatype`` carries the etl.py-normalized form. ``custom.datentyp``
-      wins when set.
-    - ``column_name`` / ``description`` / ``multivalued_separator`` follow
-      the same "``custom.*`` wins when non-empty" rule.
-    - Rows with ``export: false`` (e.g. ``gdh_fid``, ``map_links``) are
-      dropped here so the rest of the publish pipeline can stay simple.
+    Display names (``name`` in Huwise) always come from the user-edited YAML in
+    ``data/schema_files`` when that file exists. Technical names and export flags
+    are taken from the same file. The merged orig+user payload is only used when
+    no user schema file is available.
     """
+    basename = resolve_schema_basename_for(huwise_id, dataspot_dataset_id)
+    if basename:
+        user_rows = load_user_schema_publish_rows(basename)
+        if user_rows:
+            return user_rows
+
     raw_payload = _resolve_merged_schema_payload(huwise_id, dataspot_dataset_id)
     if raw_payload is None:
         logging.warning(
@@ -690,27 +687,18 @@ def _schema_rows_to_records(schema_rows: list[dict[str, str]]) -> list[dict[str,
     return frame.to_dict("records")
 
 
-def _metadata_value_for_create(value: Any) -> dict[str, Any] | None:
-    """Wrap a catalog value for the HUWISE create-dataset metadata payload."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return {"value": value}
-    if isinstance(value, list):
-        cleaned = [clean_text(item) for item in value if clean_text(item)]
-        if not cleaned:
-            return None
-        return {"value": cleaned}
-    text = clean_text(value)
-    if not text:
-        return None
-    return {"value": text}
+def _dataspot_dataset_id_from_metadata_row(metadata_row: pd.Series) -> str:
+    geodaten = clean_text(metadata_row.get("custom.geodaten_modellbeschreibung"))
+    if "#" in geodaten:
+        return geodaten.rsplit("#", 1)[-1].lower()
+    return ""
 
 
 def _build_create_metadata_payload(ods_id: str, metadata_row: pd.Series) -> dict[str, Any]:
-    """Seed critical metadata at create time so HUWISE template defaults do not win."""
+    """Minimal HUWISE create payload (full metadata is written immediately after)."""
+    _ = metadata_row
     title = clean_text(_metadata_row_field(metadata_row, "default.title", "title")) or ods_id
-    payload: dict[str, Any] = {
+    return {
         "default": {
             "title": {"value": title},
             "language": {"value": "de"},
@@ -719,41 +707,113 @@ def _build_create_metadata_payload(ods_id: str, metadata_row: pd.Series) -> dict
             "metadata_source_language": {"value": "de"},
         },
     }
-    default_fields: dict[str, Any] = {
-        "publisher": clean_text(_metadata_row_field(metadata_row, "default.publisher", "publisher")),
-        "attributions": _coerce_string_list(metadata_row.get("default.attributions"))
-        or list(DEFAULT_ATTRIBUTIONS),
-    }
-    for field_name, raw_value in default_fields.items():
-        wrapped = _metadata_value_for_create(raw_value)
-        if wrapped:
-            payload["default"][field_name] = wrapped
 
-    creator = clean_text(metadata_row.get("dcat.creator"))
-    wrapped_creator = _metadata_value_for_create(creator)
-    if wrapped_creator:
-        payload["dcat"] = {"creator": wrapped_creator}
 
-    publizierende = clean_text(
+def _publizierende_from_metadata_row(
+    metadata_row: pd.Series,
+    *,
+    dataspot_dataset_id: str = "",
+) -> str:
+    """Resolve publizierende organisation from catalog snapshot or Dataspot path."""
+    stored = clean_text(
         _metadata_row_field(
             metadata_row,
             "custom.publizierende_organisation",
             "publizierende_organisation",
         )
     )
-    wrapped_publizierende = _metadata_value_for_create(publizierende)
-    if wrapped_publizierende:
-        payload["custom"] = {"publizierende-organisation": wrapped_publizierende}
-    return payload
+    publisher_amt = clean_text(_metadata_row_field(metadata_row, "default.publisher", "publisher"))
+    publisher_path = publisher_amt
+    if dataspot_dataset_id:
+        try:
+            ds_meta = dataspot_metadata(DataspotAuth(), dataspot_dataset_id)
+            publisher_path = clean_text(ds_meta.get("publisher_path")) or publisher_path
+        except Exception as exc:
+            logging.warning(
+                "Could not load Dataspot publisher path for publizierende_organisation (%s): %s",
+                dataspot_dataset_id,
+                exc,
+            )
+    return resolve_publizierende_organisation(
+        stored=stored,
+        publisher_path=publisher_path,
+        publisher_amt=publisher_amt,
+    )
 
 
-def _ensure_huwise_dataset(ods_id: str, metadata_row: pd.Series) -> tuple[str | None, bool]:
+def _write_initial_metadata_after_create(
+    ods_id: str,
+    dataset_uid: str,
+    metadata_row: pd.Series,
+    *,
+    dataspot_dataset_id: str = "",
+) -> None:
+    """Push catalog metadata right after create (create API ignores many custom fields)."""
+    client = HttpClient(HuwiseConfig.from_env())
+    publizierende = _publizierende_from_metadata_row(
+        metadata_row,
+        dataspot_dataset_id=dataspot_dataset_id,
+    )
+    initial_fields: list[tuple[str, str, Any]] = [
+        ("default", "publisher", clean_text(_metadata_row_field(metadata_row, "default.publisher", "publisher"))),
+        (
+            "default",
+            "attributions",
+            _coerce_string_list(metadata_row.get("default.attributions")) or list(DEFAULT_ATTRIBUTIONS),
+        ),
+        ("dcat", "creator", clean_text(metadata_row.get("dcat.creator"))),
+        ("custom", "publizierende_organisation", publizierende),
+    ]
+    for template, field, value in initial_fields:
+        if _is_empty_metadata_value(value):
+            continue
+        api_field = field.replace("_", "-") if template == "custom" else field
+        try:
+            client.put(
+                f"/datasets/{dataset_uid}/metadata/{template}/{api_field}/",
+                json={"value": value},
+            )
+            logging.info(
+                "Initial metadata for ods_id=%s: %s.%s=%r",
+                ods_id,
+                template,
+                field,
+                value,
+            )
+        except Exception as exc:
+            logging.warning(
+                "Initial metadata write failed for ods_id=%s %s.%s: %s",
+                ods_id,
+                template,
+                field,
+                exc,
+            )
+
+
+def _is_empty_metadata_value(value: Any) -> bool:
+    if isinstance(value, list):
+        return len([item for item in value if clean_text(item)]) == 0
+    return clean_text(value) == ""
+
+
+def _ensure_huwise_dataset(
+    ods_id: str,
+    metadata_row: pd.Series,
+    *,
+    dataspot_dataset_id: str = "",
+) -> tuple[str | None, bool]:
     """Create dataset by ods_id if missing and return dataset UID + created flag."""
     try:
         return get_uid_by_id(dataset_id=ods_id), False
     except Exception:
         metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
         created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
+        _write_initial_metadata_after_create(
+            ods_id,
+            created.uid,
+            metadata_row,
+            dataspot_dataset_id=dataspot_dataset_id,
+        )
         return created.uid, True
 
 
@@ -958,12 +1018,9 @@ def _set_metadata_fields(
         (
             "custom",
             "publizierende_organisation",
-            clean_text(
-                _metadata_row_field(
-                    metadata_row,
-                    "custom.publizierende_organisation",
-                    "publizierende_organisation",
-                )
+            _publizierende_from_metadata_row(
+                metadata_row,
+                dataspot_dataset_id=_dataspot_dataset_id_from_metadata_row(metadata_row),
             ),
         ),
         (
@@ -1613,7 +1670,11 @@ def _process_dataset(
         logging.warning("Skipping row with missing ods_id or dataspot id")
         return
 
-    _, dataset_created = _ensure_huwise_dataset(context.ods_id, metadata_row)
+    _, dataset_created = _ensure_huwise_dataset(
+        context.ods_id,
+        metadata_row,
+        dataspot_dataset_id=context.dataspot_dataset_id,
+    )
 
     geojson_file = _resolve_geojson_file(context, geojson_files)
     if geojson_file is None:
