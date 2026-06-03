@@ -2,6 +2,7 @@ import glob
 import io
 import logging
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -146,20 +147,25 @@ def init_datasette_workdir():
 
 
 def commit_datasette_workdir():
-    """Copy updated DBs back to mounted data/datasette and remove the temp dir."""
-    global _DATASETTE_WORK_DIR
+    """Copy updated DBs from the local work copy back to mounted data/datasette."""
     if _DATASETTE_WORK_DIR is None:
         return
-    try:
-        os.makedirs(DATASETTE_DIR, exist_ok=True)
-        for final_path in (DB_100416, DB_100428):
-            work_path = _datasette_work_path(final_path)
-            if os.path.exists(work_path):
-                shutil.copy2(work_path, final_path)
-                logging.info(f"Copied SQLite DB to {final_path}")
-    finally:
+    os.makedirs(DATASETTE_DIR, exist_ok=True)
+    for final_path in (DB_100416, DB_100428):
+        work_path = _datasette_work_path(final_path)
+        if os.path.exists(work_path):
+            shutil.copy2(work_path, final_path)
+            logging.info(f"Copied SQLite DB to {final_path}")
+
+
+def _cleanup_datasette_workdir():
+    global _DATASETTE_WORK_DIR
+    if _DATASETTE_WORK_DIR is not None:
         shutil.rmtree(_DATASETTE_WORK_DIR, ignore_errors=True)
         _DATASETTE_WORK_DIR = None
+
+
+_DAILY_BEZIRKE_CSV = re.compile(r"^bezirke_stats_\d{4}-\d{2}-\d{2}\.csv$")
 
 
 def rolling_window_start(today=None) -> date:
@@ -213,6 +219,34 @@ def append_stats_to_sqlite(df_stats, db_path, table_name, dedupe_cols, output_co
     logging.info(f"SQLite {table_name}: {len(df_all)} rows in {work_path}")
 
 
+def _filter_by_rolling_window(df, is_monthly):
+    """Keep rows in the rolling window; daily and monthly tables use different date formats."""
+    window_start = rolling_window_start()
+    dates = df["date"].astype(str)
+
+    if is_monthly:
+        monthly = dates.str.match(r"^\d{4}-\d{2}$", na=False)
+        skipped = (~monthly).sum()
+        if skipped:
+            logging.warning(f"Dropping {skipped} row(s) with non-monthly date format from timerange export")
+        df = df.loc[monthly]
+        if df.empty:
+            return df
+        window_period = pd.Period(window_start.strftime("%Y-%m"), freq="M")
+        periods = pd.PeriodIndex(df["date"], freq="M")
+        return df.loc[periods >= window_period]
+
+    daily = dates.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
+    skipped = (~daily).sum()
+    if skipped:
+        logging.warning(f"Dropping {skipped} row(s) with non-daily date format from bezirke export")
+    df = df.loc[daily]
+    if df.empty:
+        return df
+    parsed = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
+    return df.loc[parsed.dt.date >= window_start]
+
+
 def build_rolling_export(db_path, table_name, output_path, output_cols, is_monthly=False):
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     work_path = _datasette_work_path(db_path)
@@ -233,13 +267,7 @@ def build_rolling_export(db_path, table_name, output_path, output_cols, is_month
         return
 
     window_start = rolling_window_start()
-    if is_monthly:
-        window_period = pd.Period(window_start.strftime("%Y-%m"), freq="M")
-        periods = pd.PeriodIndex(df["date"], freq="M")
-        df = df[periods >= window_period]
-    else:
-        df = df[pd.to_datetime(df["date"]).dt.date >= window_start]
-
+    df = _filter_by_rolling_window(df, is_monthly=is_monthly)
     df = df[[c for c in output_cols if c in df.columns]]
     df.to_csv(output_path, index=False, encoding="utf-8")
     logging.info(f"Rolling export {output_path}: {len(df)} rows (from {window_start})")
@@ -253,10 +281,16 @@ def finalize_datasette_db(db_path, table_name, index_cols):
         common.create_indices(conn, table_name, index_cols)
 
 
+def _daily_bezirke_archive_files():
+    """Daily bezirke CSVs only (YYYY-MM-DD), not timerange slices named bezirke_stats_YYYY-MM_...."""
+    pattern = os.path.join("data", "stats", "bezirke", "*", "bezirke_stats_*.csv")
+    return sorted(f for f in glob.glob(pattern) if _DAILY_BEZIRKE_CSV.match(os.path.basename(f)))
+
+
 def seed_sqlite_from_archives():
     """One-time backfill of SQLite from existing stats CSV archives when tables are empty."""
     if _table_row_count(DB_100416, TABLE_100416) == 0:
-        archive_files = sorted(glob.glob(os.path.join("data", "stats", "bezirke", "*", "bezirke_stats_*.csv")))
+        archive_files = _daily_bezirke_archive_files()
         if archive_files:
             logging.info(f"Seeding {TABLE_100416} from {len(archive_files)} archive CSV(s)...")
             frames = [pd.read_csv(f) for f in archive_files]
@@ -725,6 +759,7 @@ def main():
 
         finalize_datasette_db(DB_100416, TABLE_100416, INDEX_COLS_416)
         finalize_datasette_db(DB_100428, TABLE_100428, INDEX_COLS_428)
+        # Rolling export reads the local work copy; DBs are copied to mount in finally.
         publish_rolling_datasets()
 
         # Publish gemeinden only; bezirke 100416/100428 use rolling exports above
@@ -734,6 +769,7 @@ def main():
             common.publish_ods_dataset_by_id(config["ods_id"])
     finally:
         commit_datasette_workdir()
+        _cleanup_datasette_workdir()
 
 
 if __name__ == "__main__":
