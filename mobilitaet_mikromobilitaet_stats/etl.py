@@ -110,6 +110,12 @@ DB_100428 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Bezirke_Timerange_10042
 TABLE_100428 = "bezirke_timerange"
 ROLLING_416_PATH = os.path.join("data", "bezirke_stats_rolling.csv")
 ROLLING_428_PATH = os.path.join("data", "bezirke_timerange_stats_rolling.csv")
+ODS_SIZE_LIMIT_MB = 240
+
+
+def _ods_export_cols(output_cols):
+    """Huwise/ODS export: no geometry (full geometries stay in SQLite for Datasette)."""
+    return [c for c in output_cols if c != "geometry"]
 
 DEDUPE_COLS_416 = [
     "date",
@@ -273,6 +279,39 @@ def build_rolling_export(db_path, table_name, output_path, output_cols, is_month
     logging.info(f"Rolling export {output_path}: {len(df)} rows (from {window_start})")
 
 
+def _zip_csv_for_ods(csv_path):
+    """Zip rolling CSV for ODS upload (same approach as kapo_smileys)."""
+    zip_path = csv_path + ".zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        zipf.write(csv_path, os.path.basename(csv_path))
+    csv_mb = os.path.getsize(csv_path) / (1024 * 1024)
+    zip_mb = os.path.getsize(zip_path) / (1024 * 1024)
+    logging.info(f"File {csv_path} size is {csv_mb:.2f} MB")
+    logging.info(f"Created compressed file: {zip_path}")
+    if csv_mb > 0:
+        logging.info(
+            f"Compressed file size: {zip_mb:.2f} MB (compression ratio: {zip_mb / csv_mb * 100:.1f}%)"
+        )
+    else:
+        logging.info(f"Compressed file size: {zip_mb:.2f} MB")
+    if zip_mb > ODS_SIZE_LIMIT_MB:
+        logging.warning(
+            f"Compressed file {zip_path} exceeds the OpenDataSoft {ODS_SIZE_LIMIT_MB} MB limit! "
+            "Full history remains in data/datasette SQLite."
+        )
+        logging.warning("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
+    return zip_path
+
+
+def _publish_ods_zip(csv_path, ftp_folder, dataset_id):
+    if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
+        logging.warning(f"Skipping ODS {dataset_id} publish: {csv_path} missing or empty")
+        return
+    zip_path = _zip_csv_for_ods(csv_path)
+    logging.info(f"Publishing {zip_path} for ODS {dataset_id}...")
+    common.update_ftp_and_odsp(zip_path, ftp_folder, dataset_id)
+
+
 def finalize_datasette_db(db_path, table_name, index_cols):
     work_path = _datasette_work_path(db_path)
     if not os.path.exists(work_path):
@@ -328,36 +367,27 @@ def publish_rolling_datasets():
         DB_100416,
         TABLE_100416,
         ROLLING_416_PATH,
-        config416["output_cols"],
+        _ods_export_cols(config416["output_cols"]),
         is_monthly=False,
     )
     build_rolling_export(
         DB_100428,
         TABLE_100428,
         ROLLING_428_PATH,
-        config428["output_cols"],
+        _ods_export_cols(config428["output_cols"]),
         is_monthly=True,
     )
 
-    if os.path.exists(ROLLING_416_PATH) and os.path.getsize(ROLLING_416_PATH) > 0:
-        logging.info("Publishing rolling export for ODS 100416...")
-        common.update_ftp_and_odsp(
-            ROLLING_416_PATH,
-            "mobilitaet/mikromobilitaet/stats/bezirke",
-            "100416",
-        )
-    else:
-        logging.warning(f"Skipping ODS 100416 publish: {ROLLING_416_PATH} missing or empty")
-
-    if os.path.exists(ROLLING_428_PATH) and os.path.getsize(ROLLING_428_PATH) > 0:
-        logging.info("Publishing rolling export for ODS 100428...")
-        common.update_ftp_and_odsp(
-            ROLLING_428_PATH,
-            "mobilitaet/mikromobilitaet/stats/bezirke_timerange",
-            "100428",
-        )
-    else:
-        logging.warning(f"Skipping ODS 100428 publish: {ROLLING_428_PATH} missing or empty")
+    _publish_ods_zip(
+        ROLLING_416_PATH,
+        "mobilitaet/mikromobilitaet/stats/bezirke",
+        "100416",
+    )
+    _publish_ods_zip(
+        ROLLING_428_PATH,
+        "mobilitaet/mikromobilitaet/stats/bezirke_timerange",
+        "100428",
+    )
 
 
 def download_spatial_descriptors(ods_id):
