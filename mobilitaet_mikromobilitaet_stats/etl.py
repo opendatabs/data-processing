@@ -104,9 +104,9 @@ MONTHLY_CONFIGS = {
 }
 
 DATASETTE_DIR = os.path.join("data", "datasette")
-DB_100416 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Bezirke_100416.db")
+DB_100416 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Bezirke.db")
 TABLE_100416 = "bezirke_daily"
-DB_100428 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Bezirke_Timerange_100428.db")
+DB_100428 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Wochentage.db")
 TABLE_100428 = "bezirke_timerange"
 ROLLING_416_PATH = os.path.join("data", "bezirke_stats_rolling.csv")
 ROLLING_428_PATH = os.path.join("data", "bezirke_timerange_stats_rolling.csv")
