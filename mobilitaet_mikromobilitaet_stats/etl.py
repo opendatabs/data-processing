@@ -2,7 +2,9 @@ import glob
 import io
 import logging
 import os
+import shutil
 import sqlite3
+import tempfile
 import zipfile
 from datetime import date, datetime
 
@@ -122,6 +124,43 @@ DEDUPE_COLS_428 = DEDUPE_COLS_416 + ["weekday", "timerange_start", "timerange_en
 INDEX_COLS_416 = DEDUPE_COLS_416
 INDEX_COLS_428 = DEDUPE_COLS_428
 
+_DATASETTE_WORK_DIR = None
+
+
+def _datasette_work_path(final_db_path):
+    """Local temp copy path while the job runs (avoids SQLite locks on mounted storage)."""
+    if _DATASETTE_WORK_DIR is None:
+        return final_db_path
+    return os.path.join(_DATASETTE_WORK_DIR, os.path.basename(final_db_path))
+
+
+def init_datasette_workdir():
+    """Copy existing DBs from mounted storage into a local temp dir for this run."""
+    global _DATASETTE_WORK_DIR
+    _DATASETTE_WORK_DIR = tempfile.mkdtemp(prefix="mikromobilitaet_datasette_")
+    os.makedirs(DATASETTE_DIR, exist_ok=True)
+    for final_path in (DB_100416, DB_100428):
+        if os.path.exists(final_path):
+            shutil.copy2(final_path, _datasette_work_path(final_path))
+            logging.info(f"Copied {final_path} to local work copy for SQLite updates")
+
+
+def commit_datasette_workdir():
+    """Copy updated DBs back to mounted data/datasette and remove the temp dir."""
+    global _DATASETTE_WORK_DIR
+    if _DATASETTE_WORK_DIR is None:
+        return
+    try:
+        os.makedirs(DATASETTE_DIR, exist_ok=True)
+        for final_path in (DB_100416, DB_100428):
+            work_path = _datasette_work_path(final_path)
+            if os.path.exists(work_path):
+                shutil.copy2(work_path, final_path)
+                logging.info(f"Copied SQLite DB to {final_path}")
+    finally:
+        shutil.rmtree(_DATASETTE_WORK_DIR, ignore_errors=True)
+        _DATASETTE_WORK_DIR = None
+
 
 def rolling_window_start(today=None) -> date:
     """First day of the month two months before the current month (3 calendar months window)."""
@@ -143,17 +182,16 @@ def serialize_geometry(df):
 
 
 def _table_row_count(db_path, table_name):
-    if not os.path.exists(db_path):
+    work_path = _datasette_work_path(db_path)
+    if not os.path.exists(work_path):
         return 0
-    conn = sqlite3.connect(db_path)
-    try:
-        cur = conn.cursor()
-        cur.execute(f'SELECT COUNT(1) FROM "{table_name}"')
-        return cur.fetchone()[0]
-    except sqlite3.OperationalError:
-        return 0
-    finally:
-        conn.close()
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        try:
+            cur = conn.cursor()
+            cur.execute(f'SELECT COUNT(1) FROM "{table_name}"')
+            return cur.fetchone()[0]
+        except sqlite3.OperationalError:
+            return 0
 
 
 def append_stats_to_sqlite(df_stats, db_path, table_name, dedupe_cols, output_cols):
@@ -164,30 +202,30 @@ def append_stats_to_sqlite(df_stats, db_path, table_name, dedupe_cols, output_co
     available_cols = [c for c in output_cols if c in df.columns]
     df = df[available_cols]
 
-    os.makedirs(DATASETTE_DIR, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    df.to_sql(table_name, conn, if_exists="append", index=False)
-    df_all = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
-    df_all = df_all.drop_duplicates(subset=dedupe_cols, keep="last")
-    df_all.to_sql(table_name, conn, if_exists="replace", index=False)
-    conn.commit()
-    conn.close()
-    logging.info(f"SQLite {table_name}: {len(df_all)} rows in {db_path}")
+    work_path = _datasette_work_path(db_path)
+    os.makedirs(os.path.dirname(work_path) or ".", exist_ok=True)
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        df.to_sql(table_name, conn, if_exists="append", index=False)
+        df_all = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
+        df_all = df_all.drop_duplicates(subset=dedupe_cols, keep="last")
+        df_all.to_sql(table_name, conn, if_exists="replace", index=False)
+        conn.commit()
+    logging.info(f"SQLite {table_name}: {len(df_all)} rows in {work_path}")
 
 
 def build_rolling_export(db_path, table_name, output_path, output_cols, is_monthly=False):
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    if not os.path.exists(db_path):
-        logging.warning(f"No SQLite database at {db_path}; writing empty rolling export.")
+    work_path = _datasette_work_path(db_path)
+    if not os.path.exists(work_path):
+        logging.warning(f"No SQLite database at {work_path}; writing empty rolling export.")
         pd.DataFrame(columns=output_cols).to_csv(output_path, index=False, encoding="utf-8")
         return
 
-    conn = sqlite3.connect(db_path)
-    try:
-        df = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
-    except sqlite3.OperationalError:
-        df = pd.DataFrame()
-    conn.close()
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        try:
+            df = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
+        except sqlite3.OperationalError:
+            df = pd.DataFrame()
 
     if df.empty:
         pd.DataFrame(columns=output_cols).to_csv(output_path, index=False, encoding="utf-8")
@@ -208,11 +246,11 @@ def build_rolling_export(db_path, table_name, output_path, output_cols, is_month
 
 
 def finalize_datasette_db(db_path, table_name, index_cols):
-    if not os.path.exists(db_path):
+    work_path = _datasette_work_path(db_path)
+    if not os.path.exists(work_path):
         return
-    conn = sqlite3.connect(db_path)
-    common.create_indices(conn, table_name, index_cols)
-    conn.close()
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        common.create_indices(conn, table_name, index_cols)
 
 
 def seed_sqlite_from_archives():
@@ -665,34 +703,37 @@ def process_monthly_timerange_stats(year, month):
 
 
 def main():
-    os.makedirs(DATASETTE_DIR, exist_ok=True)
-    seed_sqlite_from_archives()
+    init_datasette_workdir()
+    try:
+        seed_sqlite_from_archives()
 
-    # Process daily stats for each day between a given start and end date.
-    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        # Process daily stats for each day between a given start and end date.
+        date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
-    for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
-        logging.info(f"Processing daily stats for {date_str}...")
-        process_daily_stats(date_str)
+        for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
+            logging.info(f"Processing daily stats for {date_str}...")
+            process_daily_stats(date_str)
 
-    # If today is the first of the month, process the previous month for timerange stats.
-    if datetime.now().day == 1:
-        logging.info(
-            f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})..."
-        )
-        last_month_date = datetime.now() - relativedelta(months=1)
-        process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
+        # If today is the first of the month, process the previous month for timerange stats.
+        if datetime.now().day == 1:
+            logging.info(
+                f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})..."
+            )
+            last_month_date = datetime.now() - relativedelta(months=1)
+            process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
 
-    finalize_datasette_db(DB_100416, TABLE_100416, INDEX_COLS_416)
-    finalize_datasette_db(DB_100428, TABLE_100428, INDEX_COLS_428)
-    publish_rolling_datasets()
+        finalize_datasette_db(DB_100416, TABLE_100416, INDEX_COLS_416)
+        finalize_datasette_db(DB_100428, TABLE_100428, INDEX_COLS_428)
+        publish_rolling_datasets()
 
-    # Publish gemeinden only; bezirke 100416/100428 use rolling exports above
-    for _, config in CONFIGS.items():
-        if config["ods_id"] in ("100416",):
-            continue
-        common.publish_ods_dataset_by_id(config["ods_id"])
+        # Publish gemeinden only; bezirke 100416/100428 use rolling exports above
+        for _, config in CONFIGS.items():
+            if config["ods_id"] in ("100416",):
+                continue
+            common.publish_ods_dataset_by_id(config["ods_id"])
+    finally:
+        commit_datasette_workdir()
 
 
 if __name__ == "__main__":
