@@ -42,7 +42,7 @@ __pycache__/
 **/*.docx
 **/*.doc
 **/*.txt
-**/*.
+**/*.jpg
 
 # Shapefiles and related GIS data
 **/*.cpg
