@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import shutil
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin, urlparse
@@ -13,7 +14,9 @@ from bs4 import BeautifulSoup
 
 DATA_ORIG_PATH = "data_orig"
 DOKUMENTE_PATH = os.path.join(DATA_ORIG_PATH, "Dokumente")
-RUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Rueckmeldungen")
+TEXTRUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Textrueckmeldungen")
+RUECKMELDUNGEN_PATH_LEGACY = os.path.join(DATA_ORIG_PATH, "Rueckmeldungen")
+BRIEFRUECKMELDUNGEN_URL_BASE = "https://data-bs.ch/stata/staka/vernehmlassungen/briefrueckmeldungen/"
 
 BASE_URL = "https://www.bs.ch"
 VERNEHMLASSUNGEN_URL = "https://www.bs.ch/regierungsrat/vernehmlassungen#abgeschlossene-vernehmlassungen"
@@ -27,6 +30,15 @@ VERNEHMLASSUNGEN_PAGES = [
     "https://www.bs.ch/regierungsrat/vernehmlassungen/abgeschlossene-vernehmlassungen-2017-2019",
     "https://www.bs.ch/regierungsrat/vernehmlassungen/abgeschlossene-vernehmlassungen-2014-2016",
 ]
+
+
+def _get_textrueckmeldungen_path() -> str:
+    """Return Textrueckmeldungen input folder (legacy Rueckmeldungen fallback)."""
+    if os.path.isdir(TEXTRUECKMELDUNGEN_PATH):
+        return TEXTRUECKMELDUNGEN_PATH
+    if os.path.isdir(RUECKMELDUNGEN_PATH_LEGACY):
+        return RUECKMELDUNGEN_PATH_LEGACY
+    return TEXTRUECKMELDUNGEN_PATH
 
 
 def _normalize_column_name(value: str) -> str:
@@ -107,8 +119,11 @@ def _infer_vernehmlassung_from_filename(filename: str, available_names: list[str
     """Best-effort mapping from Rueckmeldungen filename to Vernehmlassung name."""
     if not available_names:
         return ""
+    if len(available_names) == 1:
+        return available_names[0]
 
-    stem_norm = _normalize_column_name(Path(filename).stem)
+    stem = Path(filename).stem
+    stem_norm = _normalize_column_name(stem)
     stop_tokens = {
         "befragung",
         "textrueckmeldungen",
@@ -124,14 +139,35 @@ def _infer_vernehmlassung_from_filename(filename: str, available_names: list[str
         "erlass",
         "aenderung",
         "anderung",
+        "rueckmeldung",
+        "zustimmungsmessung",
     }
-    stem_tokens = {tok for tok in re.findall(r"[a-z0-9]+", stem_norm) if len(tok) >= 4 and tok not in stop_tokens}
+
+    for name in available_names:
+        name_norm = _normalize_column_name(name)
+        if name_norm and (name_norm in stem_norm or stem_norm in name_norm):
+            return name
+
+    stem_tokens = set()
+    for part in re.split(r"[_\-\s]+", stem):
+        part_norm = _normalize_column_name(part)
+        for tok in re.findall(r"[a-z0-9]+", part_norm):
+            if len(tok) >= 4 and tok not in stop_tokens:
+                stem_tokens.add(tok)
 
     best_name = ""
     best_score = -1
     for name in available_names:
         name_norm = _normalize_column_name(name)
-        name_tokens = {tok for tok in re.findall(r"[a-z0-9]+", name_norm) if len(tok) >= 4 and tok not in stop_tokens}
+        name_tokens = set()
+        for part in re.split(r"[_\-\s]+", name):
+            part_norm = _normalize_column_name(part)
+            for tok in re.findall(r"[a-z0-9]+", part_norm):
+                if len(tok) >= 4 and tok not in stop_tokens:
+                    name_tokens.add(tok)
+        for tok in re.findall(r"[a-z0-9]+", name_norm):
+            if len(tok) >= 4 and tok not in stop_tokens:
+                name_tokens.add(tok)
         score = len(stem_tokens.intersection(name_tokens))
         if "wahlgesetz" in stem_norm and "wahlgesetz" in name_norm:
             score += 5
@@ -156,12 +192,38 @@ def _classify_rueckmeldung_type(filename: str) -> str:
     return "Textrückmeldungen Vernehmlassung"
 
 
-def sanitize_filename(name: str) -> str:
-    """Sanitize filename for FTP upload."""
+def _transliterate_german_chars(value: str) -> str:
+    """Replace German umlauts (e.g. ü -> ue) for ASCII-safe text."""
     transl_table = str.maketrans({"ä": "ae", "Ä": "Ae", "ö": "oe", "Ö": "Oe", "ü": "ue", "Ü": "Ue", "ß": "ss"})
-    name = name.translate(transl_table).replace(" ", "_")
+    return unicodedata.normalize("NFC", str(value)).translate(transl_table)
+
+
+def sanitize_filename(name: str) -> str:
+    """Sanitize filename for FTP upload (ü -> ue, spaces -> underscores)."""
+    name = _transliterate_german_chars(name).replace(" ", "_")
     allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
     return "".join(c for c in name if c in allowed)
+
+
+def _resolve_document_source_path(orig_name: str) -> str | None:
+    """Resolve source PDF in data_orig/Dokumente (handles Unicode normalization)."""
+    base = Path(DOKUMENTE_PATH)
+    direct = base / orig_name
+    if direct.is_file():
+        return str(direct)
+
+    target_ftp = sanitize_filename(orig_name)
+    for candidate in base.iterdir():
+        if candidate.is_file() and sanitize_filename(candidate.name) == target_ftp:
+            return str(candidate)
+
+    name_part = Path(orig_name).stem
+    ext_part = Path(orig_name).suffix
+    for suffix in ["", "_1", "_2", "_3", "_4", "_5"]:
+        try_path = base / f"{name_part}{suffix}{ext_part}"
+        if try_path.is_file():
+            return str(try_path)
+    return None
 
 
 def parse_german_date(date_str: str) -> str:
@@ -170,11 +232,18 @@ def parse_german_date(date_str: str) -> str:
     if pd.isna(date_str) or date_str is None:
         return ""
 
+    if isinstance(date_str, (pd.Timestamp, datetime)):
+        return pd.Timestamp(date_str).strftime("%Y-%m-%d")
+
     # Convert to string if not already
     date_str = str(date_str)
 
     if not date_str or not date_str.strip() or date_str.lower() in ["nan", "none", ""]:
         return ""
+
+    parsed_dt = pd.to_datetime(date_str, errors="coerce", dayfirst=True)
+    if not pd.isna(parsed_dt):
+        return parsed_dt.strftime("%Y-%m-%d")
 
     # German month names mapping
     german_months = {
@@ -608,6 +677,7 @@ def load_vernehmlassungen_from_excel() -> pd.DataFrame:
         "Name": "name_vernehmlassung",
         "Startdatum": "startdatum",
         "Enddatum": "enddatum",
+        "Vernehmlassungsende": "enddatum",
         "Beschreibung": "beschreibung",
     }
     df = df.rename(columns=rename_map)
@@ -828,14 +898,14 @@ def scrape_and_process_documents() -> pd.DataFrame:
 def process_documents_for_ftp(df: pd.DataFrame) -> pd.DataFrame:
     """Process documents for FTP upload: sanitize filenames, copy to data/dokumente, upload to FTP."""
     df = df.copy()
-    df["Dateiname"] = df["Dateiname"].astype(str)
+    df["Dateiname_orig"] = df["Dateiname"].astype(str)
 
     # Create data/dokumente directory
     data_dokumente_path = os.path.join("data", "dokumente")
     os.makedirs(data_dokumente_path, exist_ok=True)
 
-    # Sanitize filename for FTP
-    df["Dateiname_ftp"] = df["Dateiname"].apply(sanitize_filename)
+    # Sanitize filename for FTP (ü -> ue, etc.)
+    df["Dateiname_ftp"] = df["Dateiname_orig"].apply(sanitize_filename)
 
     # Ensure PDFs keep/get the .pdf suffix
     def ensure_pdf_suffix(orig_name: str, ftp_name: str) -> str:
@@ -845,7 +915,7 @@ def process_documents_for_ftp(df: pd.DataFrame) -> pd.DataFrame:
             return str(ftp_path.with_suffix(".pdf"))
         return ftp_name
 
-    df["Dateiname_ftp"] = [ensure_pdf_suffix(o, f) for o, f in zip(df["Dateiname"], df["Dateiname_ftp"])]
+    df["Dateiname_ftp"] = [ensure_pdf_suffix(o, f) for o, f in zip(df["Dateiname_orig"], df["Dateiname_ftp"])]
 
     # Handle duplicate sanitized filenames
     seen_ftp_names = {}
@@ -864,6 +934,11 @@ def process_documents_for_ftp(df: pd.DataFrame) -> pd.DataFrame:
 
     df["Dateiname_ftp"] = ftp_names_final
 
+    # Published CSV uses ASCII-safe filenames (ü -> ue)
+    df["Dateiname"] = df["Dateiname_ftp"]
+    if "Name" in df.columns:
+        df["Name"] = df["Name"].map(_transliterate_german_chars)
+
     # Create FTP URL
     base_url = "https://data-bs.ch/stata/staka/vernehmlassungen/dokumente/"
     df["URL_Datei"] = base_url + df["Dateiname_ftp"]
@@ -881,29 +956,11 @@ def upload_documents_to_ftp(df: pd.DataFrame):
     data_dokumente_path = os.path.join("data", "dokumente")
     os.makedirs(data_dokumente_path, exist_ok=True)
 
-    for orig_name, ftp_name in zip(df["Dateiname"], df["Dateiname_ftp"]):
-        # Source: original file in data_orig/Dokumente
-        # The orig_name might have _1, _2 suffixes from duplicate handling, or might not
-        src_path = os.path.join(DOKUMENTE_PATH, orig_name)
-
-        # If file doesn't exist with exact name, try to find it with _1, _2, etc. suffixes
-        if not os.path.exists(src_path):
-            # Try to find file with suffix
-            name_part = Path(orig_name).stem
-            ext_part = Path(orig_name).suffix
-            found = False
-            for suffix in ["", "_1", "_2", "_3", "_4", "_5"]:
-                try_name = f"{name_part}{suffix}{ext_part}"
-                try_path = os.path.join(DOKUMENTE_PATH, try_name)
-                if os.path.exists(try_path):
-                    src_path = try_path
-                    found = True
-                    logging.info(f"Found file with suffix: {try_name} (looking for {orig_name})")
-                    break
-
-            if not found:
-                logging.warning(f"File not found: {orig_name} (tried with suffixes), skipping")
-                continue
+    for orig_name, ftp_name in zip(df["Dateiname_orig"], df["Dateiname_ftp"]):
+        src_path = _resolve_document_source_path(orig_name)
+        if not src_path:
+            logging.warning(f"File not found: {orig_name} (tried with suffixes), skipping")
+            continue
 
         # Destination: sanitized file in data/dokumente
         dst_path = os.path.join(data_dokumente_path, ftp_name)
@@ -917,16 +974,90 @@ def upload_documents_to_ftp(df: pd.DataFrame):
     # Save CSV with URL_Datei column
     csv_filename = "100515_dokumente_vernehmlassungen.csv"
     csv_file_path = os.path.join("data", csv_filename)
-    df_out = df.drop(columns=["Dateiname_ftp"])
+    df_out = df.drop(columns=["Dateiname_ftp", "Dateiname_orig"])
     df_out.to_csv(csv_file_path, index=False)
     common.update_ftp_and_odsp(csv_file_path, remote_dir, dataset_id="100515")
     logging.info(f"Saved and uploaded {csv_filename}")
 
 
+def _process_briefrueckmeldung_pdfs(
+    textrueckmeldungen_path: str,
+    vernehmlassung_names: list[str],
+    columns_of_interest: list[str],
+) -> pd.DataFrame:
+    """Upload Briefrückmeldung PDFs to FTP and build metadata rows for dataset 100514."""
+    remote_dir = "staka/vernehmlassungen/briefrueckmeldungen/"
+    data_path = os.path.join("data", "briefrueckmeldungen")
+    os.makedirs(data_path, exist_ok=True)
+
+    if not os.path.isdir(textrueckmeldungen_path):
+        return pd.DataFrame(columns=columns_of_interest)
+
+    records = []
+    seen_ftp_names: dict[str, int] = {}
+    for src_path in sorted(Path(textrueckmeldungen_path).glob("*.pdf"), key=lambda p: p.name.lower()):
+        if not src_path.is_file():
+            continue
+
+        filename = src_path.name
+        ftp_name = sanitize_filename(filename)
+        if Path(filename).suffix.lower() == ".pdf" and Path(ftp_name).suffix.lower() != ".pdf":
+            ftp_name = str(Path(ftp_name).with_suffix(".pdf"))
+
+        if ftp_name in seen_ftp_names:
+            seen_ftp_names[ftp_name] += 1
+            counter = seen_ftp_names[ftp_name]
+            ftp_name = f"{Path(ftp_name).stem}_{counter}{Path(ftp_name).suffix}"
+        else:
+            seen_ftp_names[ftp_name] = 0
+
+        dst_path = os.path.join(data_path, ftp_name)
+        try:
+            shutil.copy2(src_path, dst_path)
+        except OSError as e:
+            logging.error(f"Could not copy Briefrückmeldung PDF {filename}: {e}")
+            continue
+
+        try:
+            common.upload_ftp(dst_path, remote_path=remote_dir)
+            logging.info(f"Uploaded Briefrückmeldung PDF {filename} as {ftp_name}")
+        except Exception as e:
+            logging.error(f"FTP upload failed for {filename}: {e}")
+
+        vernehmlassung = _infer_vernehmlassung_from_filename(filename, vernehmlassung_names)
+        records.append(
+            {
+                "Typ": "Briefrückmeldung",
+                "vernehmlassung": vernehmlassung,
+                "URL_Vernehmlassung": _build_dataset_filter_url(
+                    DATASET_100516_URL, "name_vernehmlassung", vernehmlassung
+                ),
+                "Bereich": _collapse_whitespace(Path(filename).stem.replace("_", " ")),
+                "Kapitel": "",
+                "Antrag/Bemerkung": "",
+                "Begründung": "",
+                "Anhänge": BRIEFRUECKMELDUNGEN_URL_BASE + ftp_name,
+                "Erfassungsdatum": "",
+                "Briefrückmeldung": "ja",
+                "Organisation": "",
+                "Teilnehmerkategorie": "",
+                "Teilnehmer/in": "",
+                "PLZ": "",
+                "Ort": "",
+            }
+        )
+
+    if not records:
+        return pd.DataFrame(columns=columns_of_interest)
+    logging.info(f"Processed {len(records)} Briefrückmeldung PDF(s)")
+    return pd.DataFrame(records, columns=columns_of_interest)
+
+
 def process_textrueckmeldungen():
-    """Concatenate and normalize Rueckmeldungen Excel files."""
-    if not os.path.exists(RUECKMELDUNGEN_PATH):
-        logging.warning(f"Rueckmeldungen folder not found: {RUECKMELDUNGEN_PATH}")
+    """Concatenate and normalize Textrueckmeldungen Excel files and Briefrückmeldung PDFs."""
+    textrueckmeldungen_path = _get_textrueckmeldungen_path()
+    if not os.path.isdir(textrueckmeldungen_path):
+        logging.warning(f"Textrueckmeldungen folder not found: {textrueckmeldungen_path}")
         return
 
     columns_of_interest = [
@@ -965,9 +1096,14 @@ def process_textrueckmeldungen():
     vernehmlassung_names = _load_vernehmlassung_names()
     all_dataframes = []
 
-    for filename in os.listdir(RUECKMELDUNGEN_PATH):
+    for filename in os.listdir(textrueckmeldungen_path):
         if filename.endswith((".xlsx", ".xls")):
-            file_path = os.path.join(RUECKMELDUNGEN_PATH, filename)
+            if "zustimmungsmessung" in _normalize_column_name(Path(filename).stem):
+                logging.warning(
+                    f"Skipping Zustimmungsmessung file (aggregate format not supported): {filename}"
+                )
+                continue
+            file_path = os.path.join(textrueckmeldungen_path, filename)
             try:
                 df = pd.read_excel(file_path)
                 normalized_source = {_normalize_column_name(c): c for c in df.columns}
@@ -1129,8 +1265,13 @@ def process_textrueckmeldungen():
             except Exception as e:
                 logging.error(f"Error reading {filename}: {e}")
 
-    if all_dataframes:
-        combined_df = pd.concat(all_dataframes, ignore_index=True)
+    pdf_df = _process_briefrueckmeldung_pdfs(textrueckmeldungen_path, vernehmlassung_names, columns_of_interest)
+    frames = list(all_dataframes)
+    if not pdf_df.empty:
+        frames.append(pdf_df)
+
+    if frames:
+        combined_df = pd.concat(frames, ignore_index=True)
 
         csv_filename = "100514_textrueckmeldungen_vernehmlassungen.csv"
         csv_file_path = os.path.join("data", csv_filename)
@@ -1143,7 +1284,7 @@ def process_textrueckmeldungen():
         common.update_ftp_and_odsp(csv_file_path, remote_dir, dataset_id="100514")
         logging.info(f"Uploaded {csv_filename} to FTP")
     else:
-        logging.warning("No Excel files found in Rueckmeldungen folder")
+        logging.warning("No Textrueckmeldungen Excel or Briefrückmeldung PDF files processed")
 
 
 def main():
@@ -1152,7 +1293,7 @@ def main():
 
     # Ensure directories exist
     os.makedirs(DOKUMENTE_PATH, exist_ok=True)
-    os.makedirs(RUECKMELDUNGEN_PATH, exist_ok=True)
+    os.makedirs(TEXTRUECKMELDUNGEN_PATH, exist_ok=True)
     os.makedirs("data", exist_ok=True)
 
     # 1. Load Vernehmlassungen from Excel
