@@ -1,12 +1,20 @@
+import glob
 import io
+import json
 import logging
 import os
+import re
+import shutil
+import sqlite3
+import tempfile
 import zipfile
-from datetime import datetime
+from datetime import date, datetime
 
 import common
 import geopandas as gpd
 import pandas as pd
+from shapely import wkt
+from shapely.geometry import mapping
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 from dateutil.relativedelta import relativedelta
 
@@ -97,6 +105,394 @@ MONTHLY_CONFIGS = {
         ],
     }
 }
+
+DATASETTE_DIR = os.path.join("data", "datasette")
+DB_100416 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Bezirke.db")
+TABLE_100416 = "bezirke_daily"
+DB_100428 = os.path.join(DATASETTE_DIR, "Mikromobilitaet_Wochentage.db")
+TABLE_100428 = "bezirke_timerange"
+TABLE_BEZIRKE = "bezirke"
+VIEW_DAILY = "View_bezirke_daily"
+VIEW_TIMERANGE = "View_bezirke_timerange"
+BEZIRKE_ATTR_COLS = ["bez_id", "bez_name", "wov_id", "wov_name", "gemeinde_na"]
+BEZIRKE_DIM_ONLY_COLS = ["bez_name", "wov_id", "wov_name", "gemeinde_na"]
+ROLLING_416_PATH = os.path.join("data", "bezirke_stats_rolling.csv")
+ROLLING_428_PATH = os.path.join("data", "bezirke_timerange_stats_rolling.csv")
+ODS_SIZE_LIMIT_MB = 240
+
+
+def _ods_export_cols(output_cols):
+    """Huwise/ODS export: no geometry (full geometries stay in SQLite for Datasette)."""
+    return [c for c in output_cols if c != "geometry"]
+
+DEDUPE_COLS_416 = [
+    "date",
+    "bez_id",
+    "xs_provider_name",
+    "xs_vehicle_type_name",
+    "xs_form_factor",
+    "xs_propulsion_type",
+    "xs_max_range_meters",
+]
+DEDUPE_COLS_428 = DEDUPE_COLS_416 + ["weekday", "timerange_start", "timerange_end"]
+
+INDEX_COLS_416 = DEDUPE_COLS_416
+INDEX_COLS_428 = DEDUPE_COLS_428
+
+_DATASETTE_WORK_DIR = None
+
+
+def _datasette_work_path(final_db_path):
+    """Local temp copy path while the job runs (avoids SQLite locks on mounted storage)."""
+    if _DATASETTE_WORK_DIR is None:
+        return final_db_path
+    return os.path.join(_DATASETTE_WORK_DIR, os.path.basename(final_db_path))
+
+
+def init_datasette_workdir():
+    """Copy existing DBs from mounted storage into a local temp dir for this run."""
+    global _DATASETTE_WORK_DIR
+    _DATASETTE_WORK_DIR = tempfile.mkdtemp(prefix="mikromobilitaet_datasette_")
+    os.makedirs(DATASETTE_DIR, exist_ok=True)
+    for final_path in (DB_100416, DB_100428):
+        if os.path.exists(final_path):
+            shutil.copy2(final_path, _datasette_work_path(final_path))
+            logging.info(f"Copied {final_path} to local work copy for SQLite updates")
+
+
+def commit_datasette_workdir():
+    """Copy updated DBs from the local work copy back to mounted data/datasette."""
+    if _DATASETTE_WORK_DIR is None:
+        return
+    os.makedirs(DATASETTE_DIR, exist_ok=True)
+    for final_path in (DB_100416, DB_100428):
+        work_path = _datasette_work_path(final_path)
+        if os.path.exists(work_path):
+            shutil.copy2(work_path, final_path)
+            logging.info(f"Copied SQLite DB to {final_path}")
+
+
+def _cleanup_datasette_workdir():
+    global _DATASETTE_WORK_DIR
+    if _DATASETTE_WORK_DIR is not None:
+        shutil.rmtree(_DATASETTE_WORK_DIR, ignore_errors=True)
+        _DATASETTE_WORK_DIR = None
+
+
+_DAILY_BEZIRKE_CSV = re.compile(r"^bezirke_stats_\d{4}-\d{2}-\d{2}\.csv$")
+
+
+def rolling_window_start(today=None) -> date:
+    """First day of the month two months before the current month (3 calendar months window)."""
+    today = today or datetime.now().date()
+    first_of_current = today.replace(day=1)
+    return first_of_current - relativedelta(months=2)
+
+
+def _geometry_to_geojson(value):
+    """GeoJSON in WGS84 for Datasette maps (same pattern as kapo_smileys / geschwindigkeitsmonitoring)."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+        if not value or value.lower() == "none":
+            return None
+        if value.startswith("{"):
+            return value
+        geom = wkt.loads(value)
+    else:
+        geom = value
+    geom_wgs84 = gpd.GeoSeries([geom], crs="EPSG:2056").to_crs("EPSG:4326").iloc[0]
+    if geom_wgs84 is None or geom_wgs84.is_empty:
+        return None
+    return json.dumps(mapping(geom_wgs84))
+
+
+def _fact_columns(output_cols):
+    exclude = set(BEZIRKE_DIM_ONLY_COLS) | {"geometry"}
+    return [c for c in output_cols if c not in exclude]
+
+
+def _prepare_sqlite_frames(df_stats, output_cols):
+    """Split stats into bezirke dimension (GeoJSON geometry) and fact rows without geometry."""
+    df = df_stats.copy()
+    dim_cols = [c for c in BEZIRKE_ATTR_COLS + ["geometry"] if c in df.columns]
+    df_bezirke = df[dim_cols].drop_duplicates(subset=["bez_id"]).copy()
+    df_bezirke["geometry"] = df_bezirke["geometry"].apply(_geometry_to_geojson)
+
+    fact_cols = [c for c in _fact_columns(output_cols) if c in df.columns]
+    df_facts = df[fact_cols].copy()
+    return df_bezirke, df_facts
+
+
+def _table_exists(conn, table_name):
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+        (table_name,),
+    )
+    return cur.fetchone() is not None
+
+
+def _table_has_column(conn, table_name, column):
+    cur = conn.cursor()
+    cur.execute(f'PRAGMA table_info("{table_name}")')
+    return column in [row[1] for row in cur.fetchall()]
+
+
+def _upsert_bezirke(conn, df_bezirke):
+    if df_bezirke.empty:
+        return
+    conn.execute(f"""
+    CREATE TABLE IF NOT EXISTS {TABLE_BEZIRKE} (
+        bez_id INTEGER PRIMARY KEY,
+        bez_name TEXT,
+        wov_id INTEGER,
+        wov_name TEXT,
+        gemeinde_na TEXT,
+        geometry TEXT
+    )
+    """)
+    if _table_exists(conn, TABLE_BEZIRKE):
+        existing = pd.read_sql_query(f'SELECT * FROM "{TABLE_BEZIRKE}"', conn)
+        combined = pd.concat([existing, df_bezirke], ignore_index=True)
+    else:
+        combined = df_bezirke
+    combined = combined.drop_duplicates(subset=["bez_id"], keep="last")
+    combined.to_sql(TABLE_BEZIRKE, conn, if_exists="replace", index=False)
+
+
+def _migrate_legacy_flat_table(conn, facts_table, output_cols):
+    """One-time migration from denormalized table with WKT geometry to bezirke + facts."""
+    if not _table_exists(conn, facts_table) or not _table_has_column(conn, facts_table, "geometry"):
+        return
+    if _table_exists(conn, TABLE_BEZIRKE):
+        return
+    logging.info(f"Migrating legacy flat table {facts_table} to normalized schema...")
+    df = pd.read_sql_query(f'SELECT * FROM "{facts_table}"', conn)
+    df_bezirke, df_facts = _prepare_sqlite_frames(df, output_cols)
+    _upsert_bezirke(conn, df_bezirke)
+    df_facts.to_sql(facts_table, conn, if_exists="replace", index=False)
+    conn.commit()
+
+
+def _table_row_count(db_path, table_name):
+    work_path = _datasette_work_path(db_path)
+    if not os.path.exists(work_path):
+        return 0
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        try:
+            cur = conn.cursor()
+            cur.execute(f'SELECT COUNT(1) FROM "{table_name}"')
+            return cur.fetchone()[0]
+        except sqlite3.OperationalError:
+            return 0
+
+
+def append_stats_to_sqlite(df_stats, db_path, table_name, dedupe_cols, output_cols):
+    if df_stats.empty:
+        return
+
+    df_bezirke, df_facts = _prepare_sqlite_frames(df_stats, output_cols)
+    work_path = _datasette_work_path(db_path)
+    os.makedirs(os.path.dirname(work_path) or ".", exist_ok=True)
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        _migrate_legacy_flat_table(conn, table_name, output_cols)
+        _upsert_bezirke(conn, df_bezirke)
+        df_facts.to_sql(table_name, conn, if_exists="append", index=False)
+        df_all = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
+        df_all = df_all.drop_duplicates(subset=dedupe_cols, keep="last")
+        df_all.to_sql(table_name, conn, if_exists="replace", index=False)
+        conn.commit()
+    logging.info(
+        f"SQLite {table_name}: {len(df_all)} fact rows, "
+        f"{len(df_bezirke)} bezirke update(s) in {work_path}"
+    )
+
+
+def _filter_by_rolling_window(df, is_monthly):
+    """Keep rows in the rolling window; daily and monthly tables use different date formats."""
+    window_start = rolling_window_start()
+    dates = df["date"].astype(str)
+
+    if is_monthly:
+        monthly = dates.str.match(r"^\d{4}-\d{2}$", na=False)
+        skipped = (~monthly).sum()
+        if skipped:
+            logging.warning(f"Dropping {skipped} row(s) with non-monthly date format from timerange export")
+        df = df.loc[monthly]
+        if df.empty:
+            return df
+        window_period = pd.Period(window_start.strftime("%Y-%m"), freq="M")
+        periods = pd.PeriodIndex(df["date"], freq="M")
+        return df.loc[periods >= window_period]
+
+    daily = dates.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
+    skipped = (~daily).sum()
+    if skipped:
+        logging.warning(f"Dropping {skipped} row(s) with non-daily date format from bezirke export")
+    df = df.loc[daily]
+    if df.empty:
+        return df
+    parsed = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
+    return df.loc[parsed.dt.date >= window_start]
+
+
+def build_rolling_export(db_path, table_name, output_path, output_cols, is_monthly=False):
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    work_path = _datasette_work_path(db_path)
+    if not os.path.exists(work_path):
+        logging.warning(f"No SQLite database at {work_path}; writing empty rolling export.")
+        pd.DataFrame(columns=output_cols).to_csv(output_path, index=False, encoding="utf-8")
+        return
+
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        try:
+            df = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
+        except sqlite3.OperationalError:
+            df = pd.DataFrame()
+
+    if df.empty:
+        pd.DataFrame(columns=output_cols).to_csv(output_path, index=False, encoding="utf-8")
+        logging.info(f"Rolling export {output_path}: 0 rows (empty table)")
+        return
+
+    window_start = rolling_window_start()
+    df = _filter_by_rolling_window(df, is_monthly=is_monthly)
+    df = df[[c for c in output_cols if c in df.columns]]
+    df.to_csv(output_path, index=False, encoding="utf-8")
+    logging.info(f"Rolling export {output_path}: {len(df)} rows (from {window_start})")
+
+
+def _zip_csv_for_ods(csv_path):
+    """Zip rolling CSV for ODS upload (same approach as kapo_smileys)."""
+    zip_path = csv_path + ".zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        zipf.write(csv_path, os.path.basename(csv_path))
+    csv_mb = os.path.getsize(csv_path) / (1024 * 1024)
+    zip_mb = os.path.getsize(zip_path) / (1024 * 1024)
+    logging.info(f"File {csv_path} size is {csv_mb:.2f} MB")
+    logging.info(f"Created compressed file: {zip_path}")
+    if csv_mb > 0:
+        logging.info(
+            f"Compressed file size: {zip_mb:.2f} MB (compression ratio: {zip_mb / csv_mb * 100:.1f}%)"
+        )
+    else:
+        logging.info(f"Compressed file size: {zip_mb:.2f} MB")
+    if zip_mb > ODS_SIZE_LIMIT_MB:
+        logging.warning(
+            f"Compressed file {zip_path} exceeds the OpenDataSoft {ODS_SIZE_LIMIT_MB} MB limit! "
+            "Full history remains in data/datasette SQLite."
+        )
+        logging.warning("See https://userguide.opendatasoft.com/en/articles/2248706 for more information.")
+    return zip_path
+
+
+def _publish_ods_zip(csv_path, ftp_folder, dataset_id):
+    if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
+        logging.warning(f"Skipping ODS {dataset_id} publish: {csv_path} missing or empty")
+        return
+    zip_path = _zip_csv_for_ods(csv_path)
+    logging.info(f"Publishing {zip_path} for ODS {dataset_id}...")
+    common.update_ftp_and_odsp(zip_path, ftp_folder, dataset_id)
+
+
+def _create_datasette_view(conn, view_name, facts_table, fact_metric_cols):
+    """Join facts to bezirke so Datasette can render geometry (kapo_smileys pattern)."""
+    f_select = ", ".join(f'f."{c}"' if c == "date" else f"f.{c}" for c in fact_metric_cols)
+    b_select = ", ".join(f"b.{c}" for c in BEZIRKE_ATTR_COLS if c != "bez_id") + ", b.geometry"
+    conn.execute(f"DROP VIEW IF EXISTS {view_name}")
+    conn.execute(f"""
+    CREATE VIEW {view_name} AS
+    SELECT {f_select}, {b_select}
+    FROM "{facts_table}" f
+    LEFT JOIN {TABLE_BEZIRKE} b ON f.bez_id = b.bez_id
+    """)
+    conn.commit()
+
+
+def finalize_datasette_db(db_path, facts_table, dedupe_cols, index_cols, output_cols, view_name):
+    work_path = _datasette_work_path(db_path)
+    if not os.path.exists(work_path):
+        return
+    fact_metric_cols = _fact_columns(output_cols)
+    with sqlite3.connect(work_path, timeout=60) as conn:
+        _migrate_legacy_flat_table(conn, facts_table, output_cols)
+        common.create_indices(conn, facts_table, index_cols)
+        common.create_indices(conn, TABLE_BEZIRKE, ["bez_id", "bez_name", "wov_id", "gemeinde_na"])
+        if _table_exists(conn, TABLE_BEZIRKE) and _table_exists(conn, facts_table):
+            logging.info(f"Creating Datasette view {view_name}...")
+            _create_datasette_view(conn, view_name, facts_table, fact_metric_cols)
+
+
+def _daily_bezirke_archive_files():
+    """Daily bezirke CSVs only (YYYY-MM-DD), not timerange slices named bezirke_stats_YYYY-MM_...."""
+    pattern = os.path.join("data", "stats", "bezirke", "*", "bezirke_stats_*.csv")
+    return sorted(f for f in glob.glob(pattern) if _DAILY_BEZIRKE_CSV.match(os.path.basename(f)))
+
+
+def seed_sqlite_from_archives():
+    """One-time backfill of SQLite from existing stats CSV archives when tables are empty."""
+    if _table_row_count(DB_100416, TABLE_100416) == 0:
+        archive_files = _daily_bezirke_archive_files()
+        if archive_files:
+            logging.info(f"Seeding {TABLE_100416} from {len(archive_files)} archive CSV(s)...")
+            frames = [pd.read_csv(f) for f in archive_files]
+            df = pd.concat(frames, ignore_index=True)
+            append_stats_to_sqlite(
+                df,
+                DB_100416,
+                TABLE_100416,
+                DEDUPE_COLS_416,
+                CONFIGS["bezirke"]["output_cols"],
+            )
+
+    if _table_row_count(DB_100428, TABLE_100428) == 0:
+        archive_files = sorted(
+            glob.glob(os.path.join("data", "stats", "bezirke_timerange", "*", "bezirke_timerange_stats_*.csv"))
+        )
+        if archive_files:
+            logging.info(f"Seeding {TABLE_100428} from {len(archive_files)} archive CSV(s)...")
+            frames = [pd.read_csv(f) for f in archive_files]
+            df = pd.concat(frames, ignore_index=True)
+            append_stats_to_sqlite(
+                df,
+                DB_100428,
+                TABLE_100428,
+                DEDUPE_COLS_428,
+                MONTHLY_CONFIGS["bezirke"]["output_cols"],
+            )
+
+
+def publish_rolling_datasets():
+    config416 = CONFIGS["bezirke"]
+    config428 = MONTHLY_CONFIGS["bezirke"]
+
+    build_rolling_export(
+        DB_100416,
+        TABLE_100416,
+        ROLLING_416_PATH,
+        _ods_export_cols(config416["output_cols"]),
+        is_monthly=False,
+    )
+    build_rolling_export(
+        DB_100428,
+        TABLE_100428,
+        ROLLING_428_PATH,
+        _ods_export_cols(config428["output_cols"]),
+        is_monthly=True,
+    )
+
+    _publish_ods_zip(
+        ROLLING_416_PATH,
+        "mobilitaet/mikromobilitaet/stats/bezirke",
+        "100416",
+    )
+    _publish_ods_zip(
+        ROLLING_428_PATH,
+        "mobilitaet/mikromobilitaet/stats/bezirke_timerange",
+        "100428",
+    )
 
 
 def download_spatial_descriptors(ods_id):
@@ -392,6 +788,14 @@ def process_daily_stats(date_str):
         )
         df_stats["date"] = date_str
         save_stats(df_stats, stats_type, date_str, config["output_cols"])
+        if stats_type == "bezirke":
+            append_stats_to_sqlite(
+                df_stats,
+                DB_100416,
+                TABLE_100416,
+                DEDUPE_COLS_416,
+                config["output_cols"],
+            )
 
 
 def process_monthly_timerange_stats(year, month):
@@ -458,29 +862,63 @@ def process_monthly_timerange_stats(year, month):
                 config["output_cols"],
                 timerange_label=timerange_label,
             )
+            append_stats_to_sqlite(
+                df_stats,
+                DB_100428,
+                TABLE_100428,
+                DEDUPE_COLS_428,
+                config["output_cols"],
+            )
 
 
 def main():
-    # Process daily stats for each day between a given start and end date.
-    date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    init_datasette_workdir()
+    try:
+        seed_sqlite_from_archives()
 
-    for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
-        logging.info(f"Processing daily stats for {date_str}...")
-        process_daily_stats(date_str)
+        # Process daily stats for each day between a given start and end date.
+        date_str_start = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        date_str_end = (datetime.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # If today is the first of the month, process the previous month for timerange stats.
-    if datetime.now().day == 1:
-        logging.info(
-            f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})..."
+        for date_str in pd.date_range(date_str_start, date_str_end, freq="D").strftime("%Y-%m-%d"):
+            logging.info(f"Processing daily stats for {date_str}...")
+            process_daily_stats(date_str)
+
+        # If today is the first of the month, process the previous month for timerange stats.
+        if datetime.now().day == 1:
+            logging.info(
+                f"Processing monthly timerange stats for the previous month ({datetime.now().strftime('%Y-%m')})..."
+            )
+            last_month_date = datetime.now() - relativedelta(months=1)
+            process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
+
+        finalize_datasette_db(
+            DB_100416,
+            TABLE_100416,
+            DEDUPE_COLS_416,
+            INDEX_COLS_416,
+            CONFIGS["bezirke"]["output_cols"],
+            VIEW_DAILY,
         )
-        last_month_date = datetime.now() - relativedelta(months=1)
-        process_monthly_timerange_stats(last_month_date.year, last_month_date.month)
+        finalize_datasette_db(
+            DB_100428,
+            TABLE_100428,
+            DEDUPE_COLS_428,
+            INDEX_COLS_428,
+            MONTHLY_CONFIGS["bezirke"]["output_cols"],
+            VIEW_TIMERANGE,
+        )
+        # Rolling export reads the local work copy; DBs are copied to mount in finally.
+        publish_rolling_datasets()
 
-    # Publish datasets after processing
-    for _, config in CONFIGS.items():
-        common.publish_ods_dataset_by_id(config["ods_id"])
-    common.publish_ods_dataset_by_id(MONTHLY_CONFIGS["bezirke"]["ods_id"])
+        # Publish gemeinden only; bezirke 100416/100428 use rolling exports above
+        for _, config in CONFIGS.items():
+            if config["ods_id"] in ("100416",):
+                continue
+            common.publish_ods_dataset_by_id(config["ods_id"])
+    finally:
+        commit_datasette_workdir()
+        _cleanup_datasette_workdir()
 
 
 if __name__ == "__main__":

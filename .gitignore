@@ -41,6 +41,7 @@ __pycache__/
 **/*.geojson
 **/*.docx
 **/*.doc
+**/*.txt
 **/*.jpg
 
 # Shapefiles and related GIS data

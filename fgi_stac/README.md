@@ -2,6 +2,15 @@
 
 Pipeline: STAC/Dataspot → Katalog/Schema/GeoJSON → HUWISE (FTP).
 
+## Neuen Datensatz veröffentlichen
+
+**Voraussetzung:** HUWISE-ID vorhanden und Exchange-Ordner geöffnet (`Exchange-Ordner/StatA/FGI/STAC`).
+
+1. **STAC-Datensatz wählen** — Im Excel `data/huwise_bindings.xlsx` (Exchange-Ordner) und/oder im [STAC Browser (api.geo.bs.ch)](https://radiantearth.github.io/stac-browser/#/external/api.geo.bs.ch/stac/v1/?.language=de) einen passenden Datensatz finden.
+2. **HUWISE-ID eintragen** — Im Excel die `huwise_id` in die Zeile des STAC-Eintrags eintragen. Danach den nächsten automatischen Lauf abwarten (Airflow: **51 Minuten nach jeder vollen Stunde**) oder `fgi_stac` in Airflow manuell starten.
+3. **Metadaten anpassen** — Datensatz-Metadaten (Titel, Beschreibung, Lizenz usw.) bei Bedarf im **HUWISE-Datenportal** am Datensatz pflegen (nicht im Excel).
+4. **Schema anpassen** — Feld-Schema bei Bedarf in `data/schema_files/*.yaml` im Exchange-Ordner anpassen (nicht im Portal; siehe Abschnitt Feld-Schema).
+
 ## Ablauf
 
 ```mermaid
@@ -84,7 +93,7 @@ Pro Eintrag unter `fields:` (Editorial-Overrides; Dataspot-Spaltenname steht in 
 
 | Feld             | Typ                            | Bedeutung                                                                                                                                  |
 | ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `export`         | **boolean** (`true` / `false`) | Spalte in HUWISE publizieren (`true`) oder nur im Schema führen (`false`). Steuert auch `map_links` (Karten-Links nur bei `export: true`). |
+| `export`         | **boolean** (`true` / `false`) | Spalte in HUWISE publizieren (`true`) oder nur im Schema führen (`false`). `map_links` ist standardmässig `false` (GeoJSON-Anreicherung und HUWISE nur bei `export: true`). |
 | `technical_name` | string                         | Technischer Spaltenname in HUWISE / GeoJSON nach Rename                                                                                    |
 | `name`           | string                         | Anzeigename des Felds im Portal                                                                                                            |
 | `description`    | string                         | Feldbeschreibung im Portal                                                                                                                 |
