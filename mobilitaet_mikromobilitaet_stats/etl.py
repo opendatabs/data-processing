@@ -2,6 +2,7 @@ import glob
 import io
 import json
 import logging
+import numbers
 import os
 import re
 import shutil
@@ -213,9 +214,44 @@ def _fact_columns(output_cols):
     return [c for c in output_cols if c not in exclude]
 
 
+def _format_bez_id(value):
+    """Bezirk IDs must be strings in Datasette and Huwise (not float/double)."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    if isinstance(value, numbers.Integral) and not isinstance(value, bool):
+        return str(value)
+    text = str(value).strip()
+    if text.endswith(".0"):
+        try:
+            return str(int(float(text)))
+        except ValueError:
+            pass
+    return text
+
+
+def _cast_bez_id_column(df):
+    if "bez_id" in df.columns:
+        df = df.copy()
+        df["bez_id"] = df["bez_id"].map(_format_bez_id)
+    return df
+
+
+def _ensure_bez_id_text_in_table(conn, table_name):
+    """Migrate existing rows so bez_id is stored as TEXT (not INTEGER/REAL)."""
+    if not _table_exists(conn, table_name) or not _table_has_column(conn, table_name, "bez_id"):
+        return
+    df = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
+    if df.empty:
+        return
+    df = _cast_bez_id_column(df)
+    df.to_sql(table_name, conn, if_exists="replace", index=False)
+
+
 def _prepare_sqlite_frames(df_stats, output_cols):
     """Split stats into bezirke dimension (GeoJSON geometry) and fact rows without geometry."""
-    df = df_stats.copy()
+    df = _cast_bez_id_column(df_stats.copy())
     dim_cols = [c for c in BEZIRKE_ATTR_COLS + ["geometry"] if c in df.columns]
     df_bezirke = df[dim_cols].drop_duplicates(subset=["bez_id"]).copy()
     df_bezirke["geometry"] = df_bezirke["geometry"].apply(_geometry_to_geojson)
@@ -245,7 +281,7 @@ def _upsert_bezirke(conn, df_bezirke):
         return
     conn.execute(f"""
     CREATE TABLE IF NOT EXISTS {TABLE_BEZIRKE} (
-        bez_id INTEGER PRIMARY KEY,
+        bez_id TEXT PRIMARY KEY,
         bez_name TEXT,
         wov_id INTEGER,
         wov_name TEXT,
@@ -253,8 +289,10 @@ def _upsert_bezirke(conn, df_bezirke):
         geometry TEXT
     )
     """)
+    df_bezirke = _cast_bez_id_column(df_bezirke)
     if _table_exists(conn, TABLE_BEZIRKE):
         existing = pd.read_sql_query(f'SELECT * FROM "{TABLE_BEZIRKE}"', conn)
+        existing = _cast_bez_id_column(existing)
         combined = pd.concat([existing, df_bezirke], ignore_index=True)
     else:
         combined = df_bezirke
@@ -300,8 +338,10 @@ def append_stats_to_sqlite(df_stats, db_path, table_name, dedupe_cols, output_co
         _migrate_legacy_flat_table(conn, table_name, output_cols)
         _upsert_bezirke(conn, df_bezirke)
         df_facts.to_sql(table_name, conn, if_exists="append", index=False)
+        _ensure_bez_id_text_in_table(conn, TABLE_BEZIRKE)
         df_all = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
         df_all = df_all.drop_duplicates(subset=dedupe_cols, keep="last")
+        df_all = _cast_bez_id_column(df_all)
         df_all.to_sql(table_name, conn, if_exists="replace", index=False)
         conn.commit()
     logging.info(
@@ -338,6 +378,20 @@ def _filter_by_rolling_window(df, is_monthly):
     return df.loc[parsed.dt.date >= window_start]
 
 
+def _read_facts_with_bezirke_attrs(conn, facts_table):
+    """Join fact rows to bezirke dimension for Huwise exports (names without geometry)."""
+    dim_select = ", ".join(f"b.{c}" for c in BEZIRKE_DIM_ONLY_COLS)
+    if _table_exists(conn, TABLE_BEZIRKE):
+        query = f"""
+        SELECT f.*, {dim_select}
+        FROM "{facts_table}" f
+        LEFT JOIN {TABLE_BEZIRKE} b ON f.bez_id = b.bez_id
+        """
+    else:
+        query = f'SELECT * FROM "{facts_table}"'
+    return pd.read_sql_query(query, conn)
+
+
 def build_rolling_export(db_path, table_name, output_path, output_cols, is_monthly=False):
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     work_path = _datasette_work_path(db_path)
@@ -348,7 +402,7 @@ def build_rolling_export(db_path, table_name, output_path, output_cols, is_month
 
     with sqlite3.connect(work_path, timeout=60) as conn:
         try:
-            df = pd.read_sql_query(f'SELECT * FROM "{table_name}"', conn)
+            df = _read_facts_with_bezirke_attrs(conn, table_name)
         except sqlite3.OperationalError:
             df = pd.DataFrame()
 
@@ -359,7 +413,12 @@ def build_rolling_export(db_path, table_name, output_path, output_cols, is_month
 
     window_start = rolling_window_start()
     df = _filter_by_rolling_window(df, is_monthly=is_monthly)
-    df = df[[c for c in output_cols if c in df.columns]]
+    df = _cast_bez_id_column(df)
+    export_cols = [c for c in output_cols if c in df.columns]
+    missing = [c for c in output_cols if c not in df.columns and c != "geometry"]
+    if missing:
+        logging.warning(f"Rolling export missing columns (not in DB): {missing}")
+    df = df[export_cols]
     df.to_csv(output_path, index=False, encoding="utf-8")
     logging.info(f"Rolling export {output_path}: {len(df)} rows (from {window_start})")
 
@@ -418,6 +477,8 @@ def finalize_datasette_db(db_path, facts_table, dedupe_cols, index_cols, output_
     fact_metric_cols = _fact_columns(output_cols)
     with sqlite3.connect(work_path, timeout=60) as conn:
         _migrate_legacy_flat_table(conn, facts_table, output_cols)
+        _ensure_bez_id_text_in_table(conn, TABLE_BEZIRKE)
+        _ensure_bez_id_text_in_table(conn, facts_table)
         common.create_indices(conn, facts_table, index_cols)
         common.create_indices(conn, TABLE_BEZIRKE, ["bez_id", "bez_name", "wov_id", "gemeinde_na"])
         if _table_exists(conn, TABLE_BEZIRKE) and _table_exists(conn, facts_table):
