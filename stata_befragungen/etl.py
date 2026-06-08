@@ -58,8 +58,8 @@ def main():
             "ods_id": "100205",
         },
         {
-            "data_file": os.path.join("data_orig", "Bevoelkerung/2015/Bevölkerungsbefragung_2011_OGD.xlsx"),
-            "var_file": os.path.join("data_orig", "Bevoelkerung/2015/Variablen_BevBef_2011_OGD.xlsx"),
+            "data_file": os.path.join("data_orig", "Bevoelkerung/2011/Bevölkerungsbefragung_2011_OGD.xlsx"),
+            "var_file": os.path.join("data_orig", "Bevoelkerung/2011/Variablen_BevBef_2011_OGD.xlsx"),
             "export_folder": "Bevoelkerung/2011",
             "export_file": "Befragung_Bevoelkerung_2011.csv",
             "ftp_folder": "bevoelkerung",
