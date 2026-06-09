@@ -41,6 +41,9 @@ jobs:
             aue_grundwasser:
               - 'Dockerfile'
               - 'aue_grundwasser/**'
+            aue_luft_klybeck:
+              - 'Dockerfile'
+              - 'aue_luft_klybeck/**'
             aue_rues:
               - 'Dockerfile'
               - 'aue_rues/**'
