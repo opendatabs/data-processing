@@ -337,7 +337,7 @@ def main() -> None:
     os.makedirs("data", exist_ok=True)
     output_path = os.path.join("data", "100520_staka_verz_verf_persdat.csv")
     combined.to_csv(output_path, index=False)
-    common.update_ftp_and_odsp(output_path, "staka/verzeichnis_verfahren_personendaten", "100520")
+    common.update_ftp_and_odsp(output_path, "staka/verzeichnis_verfahren_personendaten", "100520_deprecated")
 
     logging.info("ETL completed successfully, wrote %d rows to %s", len(combined), output_path)
 
