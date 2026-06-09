@@ -113,7 +113,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/docker_bui
 **Important:** When adding a new ETL job folder, you must add it to the workflow file (`.github/workflows/docker_build.yaml`) in the `filters` section so that changes to the folder trigger Docker image builds. 
 **Also Important:** After the first push, you must set the Docker image visibility to **Public** on GitHub Container Registry:
 
-1. Go to the repository's "Packages" section on GitHub.
+1. Go to the repository's "Packages" section on GitHub: https://github.com/orgs/opendatabs/packages
 2. Click on the image (under "Packages") corresponding to your ETL job (e.g., `data-processing/your_job_folder`).
 3. Click the "Package settings" or gear icon.
 4. Under "Package visibility", change it from "Private" to "Public".
