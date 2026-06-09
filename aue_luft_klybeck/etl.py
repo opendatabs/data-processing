@@ -1,15 +1,29 @@
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import common
 import common.change_tracking as ct
+import msal
 import pandas as pd
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
-SOURCE_FILE = Path("data_orig") / "Tabelle_KlybeckDaten_Dashboard.xlsx"
+TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
+CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID")
+SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
+SITE_NAME = os.getenv("SHAREPOINT_SITE_NAME_AUE_LUFT_KLYBECK")
+CERT_PATH = os.getenv("SHAREPOINT_CERT_PATH")
+THUMBPRINT = os.getenv("SHAREPOINT_THUMBPRINT")
+
+SHAREPOINT_ROOT = "KLYBECK"
+SHAREPOINT_FOLDER = f"{SHAREPOINT_ROOT}/Immisssionsüberwachung/OGD-Daten"
+DATA_ORIG_PATH = Path("data_orig")
+
+SOURCE_FILE = DATA_ORIG_PATH / "Tabelle_KlybeckDaten_Dashboard.xlsx"
 OUTPUT_DIR = Path("data")
 
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
@@ -167,6 +181,119 @@ def _send_exceedance_email_if_changed(
     logging.info("Sent exceedance e-mail with attachment %s", EXCEEDANCE_OUTPUT_FILE)
 
 
+def get_graph_token() -> str:
+    with open(CERT_PATH, "r") as f:
+        private_key = f.read()
+
+    app = msal.ConfidentialClientApplication(
+        client_id=CLIENT_ID,
+        authority=f"https://login.microsoftonline.com/{TENANT_ID}",
+        client_credential={
+            "thumbprint": THUMBPRINT,
+            "private_key": private_key,
+        },
+    )
+
+    result = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+
+    if "access_token" not in result:
+        raise RuntimeError(f"Auth failed: {result.get('error_description')}")
+
+    return result["access_token"]
+
+
+def get_site_id(token: str) -> str:
+    url = f"https://graph.microsoft.com/v1.0/sites/{SHAREPOINT_HOST}:/sites/{SITE_NAME}"
+
+    r = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    r.raise_for_status()
+
+    return r.json()["id"]
+
+
+def get_drive_id(token: str, site_id: str) -> str:
+    url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives?$select=name,id"
+
+    r = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    r.raise_for_status()
+
+    drives = r.json()["value"]
+
+    drive = next(
+        (d for d in drives if d["name"] == "Documents"),
+        drives[0],
+    )
+
+    return drive["id"]
+
+
+def download_folder(
+    token: str,
+    drive_id: str,
+    sharepoint_folder: str,
+    local_dir: Path,
+) -> None:
+    """Download all files from a SharePoint folder recursively."""
+    headers = {"Authorization": f"Bearer {token}"}
+
+    local_dir.mkdir(parents=True, exist_ok=True)
+
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_folder}:/children"
+
+    r = requests.get(url, headers=headers)
+    r.raise_for_status()
+
+    items = r.json().get("value", [])
+
+    for item in items:
+        name = item["name"]
+
+        if "folder" in item:
+            sub_sp_path = f"{sharepoint_folder}/{name}"
+            sub_local_dir = local_dir / name
+
+            download_folder(
+                token,
+                drive_id,
+                sub_sp_path,
+                sub_local_dir,
+            )
+
+            continue
+
+        if "file" not in item:
+            continue
+
+        download_url = item["@microsoft.graph.downloadUrl"]
+        dest_path = local_dir / name
+
+        logging.info("Downloading %s/%s", sharepoint_folder, name)
+
+        file_r = requests.get(download_url, stream=True)
+        file_r.raise_for_status()
+
+        with open(dest_path, "wb") as f:
+            for chunk in file_r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+
+def download_sharepoint_files(token: str, site_id: str) -> None:
+    drive_id = get_drive_id(token, site_id)
+
+    download_folder(
+        token=token,
+        drive_id=drive_id,
+        sharepoint_folder=SHAREPOINT_FOLDER,
+        local_dir=DATA_ORIG_PATH,
+    )
+
+
 def _to_long_schema(df: pd.DataFrame) -> pd.DataFrame:
     records: list[dict[str, str]] = []
 
@@ -212,6 +339,10 @@ def _to_long_schema(df: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     """Create two Klybeck pollutant CSV files with the target schema."""
     logging.info("ETL job started")
+
+    token = get_graph_token()
+    site_id = get_site_id(token)
+    download_sharepoint_files(token, site_id)
 
     if not SOURCE_FILE.exists():
         raise FileNotFoundError(f"Source file not found: {SOURCE_FILE}")
