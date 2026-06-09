@@ -57,7 +57,6 @@ EXCEEDANCE_COLUMNS = [
     "Info / Massnahmen",
 ]
 
-
 def _normalize_parameter(value: Any) -> str:
     parameter = str(value).strip()
     if parameter == "PM 10":
