@@ -68,6 +68,9 @@ jobs:
             dcc_dataspot_schemes:
               - 'Dockerfile'
               - 'dcc_dataspot_schemes/**'
+            dcc_verzeichnis_personendaten:
+              - 'Dockerfile'
+              - 'dcc_verzeichnis_personendaten/**'
             dcc_ki_faq:
               - 'Dockerfile'
               - 'dcc_ki_faq/**'
