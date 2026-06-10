@@ -55,9 +55,16 @@ def _format_status_dates(df: pd.DataFrame) -> pd.DataFrame:
     return formatted
 
 
-def _drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
-    non_empty = df.fillna("").astype(str).apply(lambda col: col.str.strip()).ne("").any(axis=1)
-    return df[non_empty].reset_index(drop=True)
+def _drop_rows_without_status(df: pd.DataFrame) -> pd.DataFrame:
+    has_status = (
+        df[STATUS_COLUMNS]
+        .fillna("")
+        .astype(str)
+        .apply(lambda col: col.str.strip())
+        .ne("")
+        .any(axis=1)
+    )
+    return df[has_status].reset_index(drop=True)
 
 
 def _extract_onboarding_df(source_path: Path) -> pd.DataFrame:
@@ -69,7 +76,7 @@ def _extract_onboarding_df(source_path: Path) -> pd.DataFrame:
     df = source_df[SOURCE_COLUMNS].rename(columns={"Posten ": "Posten"})
     df["Posten"] = df["Posten"].str.removeprefix("Data Owner ")
     df = _format_status_dates(df)[OUTPUT_COLUMNS]
-    return _drop_empty_rows(df)
+    return _drop_rows_without_status(df)
 
 
 def main() -> None:
