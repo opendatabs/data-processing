@@ -46,7 +46,7 @@ def main():
 
     logging.info("Reading Webtabelle for dogs at Gemeinde level...")
     url = "https://statistik.bs.ch/files/webtabellen/t16-2-03.xlsx"
-    
+
     df_webtabelle = pd.read_excel(
         url,
         sheet_name="Gemeinde",
