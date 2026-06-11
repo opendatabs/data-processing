@@ -14,10 +14,10 @@ from datetime import date, datetime
 import common
 import geopandas as gpd
 import pandas as pd
-from shapely import wkt
-from shapely.geometry import mapping
 from common import FTP_PASS, FTP_SERVER, FTP_USER
 from dateutil.relativedelta import relativedelta
+from shapely import wkt
+from shapely.geometry import mapping
 
 CONFIGS = {
     "bezirke": {
@@ -126,6 +126,7 @@ ODS_SIZE_LIMIT_MB = 240
 def _ods_export_cols(output_cols):
     """Huwise/ODS export: no geometry (full geometries stay in SQLite for Datasette)."""
     return [c for c in output_cols if c != "geometry"]
+
 
 DEDUPE_COLS_416 = [
     "date",
@@ -348,10 +349,7 @@ def append_stats_to_sqlite(df_stats, db_path, table_name, dedupe_cols, output_co
         df_all = _cast_id_columns(df_all)
         df_all.to_sql(table_name, conn, if_exists="replace", index=False)
         conn.commit()
-    logging.info(
-        f"SQLite {table_name}: {len(df_all)} fact rows, "
-        f"{len(df_bezirke)} bezirke update(s) in {work_path}"
-    )
+    logging.info(f"SQLite {table_name}: {len(df_all)} fact rows, {len(df_bezirke)} bezirke update(s) in {work_path}")
 
 
 def _filter_by_rolling_window(df, is_monthly):
@@ -437,9 +435,7 @@ def _zip_csv_for_ods(csv_path):
     logging.info(f"File {csv_path} size is {csv_mb:.2f} MB")
     logging.info(f"Created compressed file: {zip_path}")
     if csv_mb > 0:
-        logging.info(
-            f"Compressed file size: {zip_mb:.2f} MB (compression ratio: {zip_mb / csv_mb * 100:.1f}%)"
-        )
+        logging.info(f"Compressed file size: {zip_mb:.2f} MB (compression ratio: {zip_mb / csv_mb * 100:.1f}%)")
     else:
         logging.info(f"Compressed file size: {zip_mb:.2f} MB")
     if zip_mb > ODS_SIZE_LIMIT_MB:

@@ -54,11 +54,7 @@ def download_processing_records() -> list[dict[str, Any]]:
     logging.info("Downloaded Dataspot scheme export from %s.", DATASPOT_VVP_URL)
 
     entries = normalize_export_entries(data)
-    records = [
-        entry
-        for entry in entries
-        if entry.get("_type") == "Processing" and entry.get("status") == "PUBLISHED"
-    ]
+    records = [entry for entry in entries if entry.get("_type") == "Processing" and entry.get("status") == "PUBLISHED"]
     logging.info("Filtered %d published Processing records from %d export entries.", len(records), len(entries))
     return records
 

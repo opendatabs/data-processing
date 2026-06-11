@@ -35,6 +35,7 @@ from catalog import (
     write_metadata_snapshot_file,
 )
 from common import change_tracking
+from dataspot_api import dataspot_metadata
 from dataspot_auth import DataspotAuth
 from http_client import HTTP_LIMITS, HTTP_TIMEOUT, with_http_retry
 from huwise_utils_py import (
@@ -45,12 +46,10 @@ from huwise_utils_py import (
 )
 from huwise_utils_py.config import HuwiseConfig
 from huwise_utils_py.http import HttpClient
-from dataspot_api import dataspot_metadata
-from dataspot_auth import DataspotAuth
 from metadata import (
+    DEFAULT_ATTRIBUTIONS,
     DEFAULT_CONTACT_EMAIL,
     DEFAULT_CONTACT_NAME,
-    DEFAULT_ATTRIBUTIONS,
     DEFAULT_GEOGRAPHIC_REFERENCE,
     DEFAULT_LICENSE,
     DEFAULT_RIGHTS,
@@ -190,6 +189,8 @@ def _processor_field_targets_stale(
         if expected_label and clean_text(existing.get("field_label")) != expected_label:
             return True
     return False
+
+
 THEME_MAP_DATA_BS_CH = {
     "arbeit, erwerb": "20bb143",
     "bau- und wohnungswesen": "c813f26",
@@ -1031,9 +1032,7 @@ def _set_metadata_fields(
         matches_last_push = last_push is not None and normalized_existing == _normalize_metadata_compare_value(
             last_push
         )
-        publisher_existing = _normalize_metadata_compare_value(
-            template_payloads.get("default", {}).get("publisher")
-        )
+        publisher_existing = _normalize_metadata_compare_value(template_payloads.get("default", {}).get("publisher"))
         prefilled_as_publisher = (
             (resolved_template, field) == ("custom", "publizierende_organisation")
             and normalized_existing
