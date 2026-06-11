@@ -45,8 +45,10 @@ def main():
     df_hunde.to_csv(path_hunde, index_label="id", encoding="utf-8-sig")
 
     logging.info("Reading Webtabelle for dogs at Gemeinde level...")
+    url = "https://statistik.bs.ch/files/webtabellen/t16-2-03.xlsx"
+    
     df_webtabelle = pd.read_excel(
-        os.path.join("data", "t16-2-03_Webtabelle_Hunde_seit_1970.xlsx"),
+        url,
         sheet_name="Gemeinde",
         skiprows=7,
         usecols="B, D:F",
