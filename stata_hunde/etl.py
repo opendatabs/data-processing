@@ -62,32 +62,50 @@ def main():
     df_hunde.to_csv(path_hunde, index_label="id", encoding="utf-8-sig")
 
     df_webtabelle = df_webtabelle.dropna(how="all")
-    df_melted = df_webtabelle.melt(id_vars="Gemeinde", var_name="gemeinde_name", value_name="anzahl_hunde")
-    df_melted["Gemeinde"] = pd.to_numeric(df_melted["Gemeinde"], errors="coerce")
-    df_melted["anzahl_hunde"] = pd.to_numeric(df_melted["anzahl_hunde"], errors="coerce")
-    df_webtabelle_2008plus = df_melted[df_melted["Gemeinde"] >= 2008].rename(columns={"Gemeinde": "jahr"})
 
-    df_hbl = df_hbl_raw.copy()
-    df_hbl = df_hbl.dropna(how="all")
-    df_hbl = df_hbl[df_hbl["Gemeinde"].isin(["Basel", "Riehen", "Bettingen"])]
-    df_hbl_long = df_hbl.melt(id_vars="Gemeinde", var_name="jahr", value_name="anzahl_total")
-    df_hbl_long["jahr"] = pd.to_numeric(df_hbl_long["jahr"], errors="coerce")
-    df_hbl_long = df_hbl_long[df_hbl_long["jahr"] >= 2008].rename(columns={"Gemeinde": "gemeinde_name"})
+    # Extract the Kanton Basel-Stadt total row
+    df_kanton = df_webtabelle[df_webtabelle["Gemeinde, Wohnviertel"] == "Kanton Basel-Stadt"].copy()
+    df_kanton = df_kanton.drop(columns=["Unnamed: 0", "Unnamed: 2"]).melt(
+        id_vars="Gemeinde, Wohnviertel", var_name="jahr", value_name="anzahl_webtabelle"
+    )
+    df_kanton["jahr"] = pd.to_numeric(df_kanton["jahr"], errors="coerce")
+    df_kanton["anzahl_webtabelle"] = pd.to_numeric(df_kanton["anzahl_webtabelle"], errors="coerce")
+    df_kanton = df_kanton[df_kanton["jahr"] >= 2008][["jahr", "anzahl_webtabelle"]]
 
-    # Difference = dogs with unknown Wohnviertel ("unbekannt")
-    df_diff = df_hbl_long.merge(df_webtabelle_2008plus, on=["jahr", "gemeinde_name"], how="inner")
-    df_diff["anzahl_hunde"] = df_diff["anzahl_total"] - df_diff["anzahl_hunde"]
-    df_unbekannt = df_diff[df_diff["anzahl_hunde"] > 0][["jahr", "gemeinde_name", "anzahl_hunde"]].copy()
+    # Kanton total from Hundebestandsliste
+    df_hbl_kanton = df_hbl_raw[df_hbl_raw["Gemeinde"] == "Kanton Basel-Stadt"].drop(columns=["Gemeinde"])
+    df_hbl_kanton = df_hbl_kanton.melt(var_name="jahr", value_name="anzahl_total")
+    df_hbl_kanton["jahr"] = pd.to_numeric(df_hbl_kanton["jahr"], errors="coerce")
+    df_hbl_kanton = df_hbl_kanton[df_hbl_kanton["jahr"] >= 2008]
+
+    # One "unbekannt" row per year: difference between official total and Webtabelle total
+    df_diff = df_hbl_kanton.merge(df_kanton, on="jahr", how="inner")
+    df_diff["anzahl_hunde"] = df_diff["anzahl_total"] - df_diff["anzahl_webtabelle"]
+    df_unbekannt = df_diff[df_diff["anzahl_hunde"] > 0][["jahr", "anzahl_hunde"]].copy()
     df_unbekannt["wohnviertel_aktuell"] = "unbekannt"
+    df_unbekannt["gemeinde_name"] = "unbekannt"
+
+    # Wohnviertel ID → name mapping (verified against Webtabelle counts)
+    wov_name_map = {
+        1: "Altstadt Grossbasel", 2: "Vorstädte", 3: "Am Ring", 4: "Breite",
+        5: "St. Alban", 6: "Gundeldingen", 7: "Bruderholz", 8: "Bachletten",
+        9: "Gotthelf", 10: "Iselin", 11: "St. Johann", 12: "Altstadt Kleinbasel",
+        13: "Clara", 14: "Wettstein", 15: "Hirzbrunnen", 16: "Rosental",
+        17: "Matthäus", 18: "Klybeck", 19: "Kleinhüningen", 20: "Riehen",
+        30: "Bettingen",
+    }
 
     logging.info("Counting number of dogs per year, Wohnviertel and gemeinde...")
     df_hundebestand = (
         df.groupby(["jahr", "wohnviertel_aktuell", "gemeinde_name"]).size().reset_index(name="anzahl_hunde")
     )
+    df_hundebestand["wov_name"] = df_hundebestand["wohnviertel_aktuell"].map(wov_name_map)
+    df_unbekannt["wov_name"] = "unbekannt"
+
     df_hundebestand = pd.concat([df_hundebestand, df_unbekannt], ignore_index=True)
     path_hundestand = os.path.join("data", "100445_hundebestand.csv")
     df_hundebestand.to_csv(path_hundestand, index=False, encoding="utf-8-sig")
-    
+
     logging.info("Counting number of occurences of a dog name per year")
     # First replace NaN, -, ?, 3, 4 with "unbekannt"
     df["hund_name"] = df["hund_name"].replace(["-", "?", "3", "4"], "unbekannt")
