@@ -98,12 +98,12 @@ def main():
         ["jahr", "gemeinde_name", "wohnviertel_aktuell", "anzahl_hunde"]
     ]
 
-    df_webtabelle_2008plus = (
-        df_melted[df_melted["Gemeinde"] >= 2008]
+    # Pre-2008: only Gemeinde-level totals are available (no Wohnviertel breakdown)
+    df_webtabelle_pre2008 = (
+        df_melted[df_melted["Gemeinde"] <= 2007]
         .rename(columns={"Gemeinde": "jahr"})
     )
 
-    
     # Hundebestand by year, Wohnviertel and municipality
     logging.info("Counting number of dogs per year, Wohnviertel and Gemeinde...")
 
@@ -119,9 +119,9 @@ def main():
         .reset_index(name="anzahl_hunde")
     )
 
-    # Add unknown Wohnviertel rows
+    # Add unknown Wohnviertel rows (2008+) and historical Gemeinde totals (≤2007)
     df_hundebestand = pd.concat(
-        [df_hundebestand, df_unbekannt],
+        [df_hundebestand, df_unbekannt, df_webtabelle_pre2008],
         ignore_index=True,
     )
     df_hundebestand["jahr"] = pd.to_numeric(df_hundebestand["jahr"], errors="coerce").astype(int)
