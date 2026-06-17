@@ -4,7 +4,11 @@ import os
 import pandas as pd
 
 DATA_DIR = "data"
+SOURCE_FILE = "Hunde_alle.csv"
 WEBTABELLE_URL = "https://statistik.bs.ch/files/webtabellen/t16-2-03.xlsx"
+
+VALID_GEMEINDE = {"Basel", "Riehen", "Bettingen"}
+TEXT_WOV_PREFIX = "Wohnviertel in "
 
 WOV_NAME_MAP = {
     1: "Altstadt Grossbasel",
@@ -35,9 +39,28 @@ def data_path(filename: str) -> str:
     return os.path.join(DATA_DIR, filename)
 
 
-def load_ogd() -> pd.DataFrame:
+def normalize_wohnviertel(value) -> int | None:
+    try:
+        wov = int(float(value))
+    except (ValueError, TypeError):
+        return None
+    if wov in range(1, 20) or wov in (20, 30):
+        return wov
+    return None
+
+
+def is_groupable_dog(row: pd.Series) -> bool:
+    wov_str = str(row["wohnviertel_aktuell"])
+    if wov_str.startswith(TEXT_WOV_PREFIX):
+        return False
+    if row["gemeinde_name"] not in VALID_GEMEINDE:
+        return False
+    return normalize_wohnviertel(row["wohnviertel_aktuell"]) is not None
+
+
+def load_source() -> pd.DataFrame:
     logging.info("Reading data from source...")
-    return pd.read_csv(data_path("Hunde für OGD.csv"), sep=";")
+    return pd.read_csv(data_path(SOURCE_FILE), sep=";", low_memory=False)
 
 
 def load_hundebestandsliste() -> pd.DataFrame:
@@ -65,13 +88,48 @@ def load_webtabelle_gemeinde() -> pd.DataFrame:
     return df
 
 
-def load_unbekannt_wohnviertel() -> pd.DataFrame:
-    """Hardcoded counts for dogs with unknown Wohnviertel (2008+)."""
-    df = pd.read_excel(data_path("Hunde_Wohniertel_unbekannt.xlsx"))
-    df = df.rename(columns={"Jahr": "jahr", "unbekannt": "anzahl_hunde"})
-    df["gemeinde_name"] = "unbekannt"
-    df["wohnviertel_aktuell"] = "unbekannt"
-    return df[["jahr", "gemeinde_name", "wohnviertel_aktuell", "anzahl_hunde"]]
+def load_webtabelle_kanton() -> pd.DataFrame:
+    """Webtabelle dog counts by year for Kanton Basel-Stadt."""
+    df = pd.read_excel(
+        WEBTABELLE_URL,
+        sheet_name="Gemeinde",
+        skiprows=7,
+        usecols="B, G",
+    )
+    df = df.dropna(how="all")
+    df.columns = ["jahr", "anzahl_hunde"]
+    df["jahr"] = pd.to_numeric(df["jahr"], errors="coerce")
+    df["anzahl_hunde"] = pd.to_numeric(df["anzahl_hunde"], errors="coerce")
+    return df.dropna(subset=["jahr", "anzahl_hunde"])
+
+
+def webtabelle_totals_by_year(df_webtabelle: pd.DataFrame) -> pd.Series:
+    return (
+        df_webtabelle.groupby("Gemeinde")["anzahl_hunde"]
+        .sum()
+        .rename("anzahl_webtabelle")
+    )
+
+
+def calculate_unbekannt(df: pd.DataFrame, df_webtabelle: pd.DataFrame) -> pd.DataFrame:
+    """Dogs with unknown Wohnviertel: source total minus Webtabelle total per year."""
+    totals = df.groupby("jahr").size().rename("anzahl_source")
+    web = webtabelle_totals_by_year(df_webtabelle)
+
+    df_unbekannt = (
+        pd.concat([totals, web], axis=1)
+        .dropna(subset=["anzahl_webtabelle"])
+        .reset_index(names="jahr")
+    )
+    df_unbekannt["jahr"] = df_unbekannt["jahr"].astype(int)
+    df_unbekannt["anzahl_hunde"] = (
+        df_unbekannt["anzahl_source"] - df_unbekannt["anzahl_webtabelle"]
+    )
+    df_unbekannt = df_unbekannt[df_unbekannt["anzahl_hunde"] > 0]
+
+    df_unbekannt["gemeinde_name"] = "unbekannt"
+    df_unbekannt["wohnviertel_aktuell"] = "unbekannt"
+    return df_unbekannt[["jahr", "gemeinde_name", "wohnviertel_aktuell", "anzahl_hunde"]]
 
 
 def add_wov_names(df: pd.DataFrame) -> pd.DataFrame:
@@ -120,19 +178,54 @@ def write_hunde(df: pd.DataFrame) -> None:
     df_hunde.to_csv(data_path("100444_hunde.csv"), index_label="id", encoding="utf-8-sig")
 
 
+def build_kanton_rows(
+    df_kanton: pd.DataFrame,
+    df_unbekannt: pd.DataFrame,
+) -> pd.DataFrame:
+    """Kanton total per year: Webtabelle value (≤2007), plus unbekannt from 2008."""
+    df_pre2008 = df_kanton[df_kanton["jahr"] <= 2007].copy()
+
+    df_2008plus = df_kanton[df_kanton["jahr"] >= 2008].merge(
+        df_unbekannt[["jahr", "anzahl_hunde"]].rename(
+            columns={"anzahl_hunde": "anzahl_unbekannt"}
+        ),
+        on="jahr",
+        how="inner",
+    )
+    df_2008plus["anzahl_hunde"] = (
+        df_2008plus["anzahl_hunde"] + df_2008plus["anzahl_unbekannt"]
+    )
+    df_2008plus = df_2008plus[["jahr", "anzahl_hunde"]]
+
+    df_kanton_rows = pd.concat([df_pre2008, df_2008plus], ignore_index=True)
+    df_kanton_rows["gemeinde_name"] = "Kanton Basel-Stadt"
+    return df_kanton_rows[["jahr", "gemeinde_name", "anzahl_hunde"]]
+
+
 def write_hundebestand(
     df: pd.DataFrame,
     df_webtabelle: pd.DataFrame,
-    df_unbekannt: pd.DataFrame,
+    df_kanton: pd.DataFrame,
 ) -> None:
     logging.info("Counting number of dogs per year, Wohnviertel and Gemeinde...")
 
-    # 2008+: individual records grouped by Wohnviertel and Gemeinde
+    df_groupable = df[df.apply(is_groupable_dog, axis=1)].copy()
+    df_groupable["wohnviertel_aktuell"] = df_groupable["wohnviertel_aktuell"].apply(
+        normalize_wohnviertel
+    )
+
+    # 2008+: dogs with known Wohnviertel, plus calculated unknown Wohnviertel rows
     df_2008plus = (
-        df.groupby(["jahr", "wohnviertel_aktuell", "gemeinde_name"])
+        df_groupable[df_groupable["jahr"] >= 2008]
+        .groupby(["jahr", "wohnviertel_aktuell", "gemeinde_name"])
         .size()
         .reset_index(name="anzahl_hunde")
     )
+    df_unbekannt = calculate_unbekannt(
+        df[df["jahr"] >= 2008],
+        df_webtabelle[df_webtabelle["Gemeinde"] >= 2008],
+    )
+    df_kanton_rows = build_kanton_rows(df_kanton, df_unbekannt)
 
     # ≤2007: only Gemeinde-level totals are available (no Wohnviertel breakdown)
     df_pre2008 = (
@@ -141,7 +234,7 @@ def write_hundebestand(
     )
 
     df_hundebestand = pd.concat(
-        [df_2008plus, df_unbekannt, df_pre2008],
+        [df_2008plus, df_unbekannt, df_pre2008, df_kanton_rows],
         ignore_index=True,
     )
     df_hundebestand["jahr"] = pd.to_numeric(df_hundebestand["jahr"], errors="coerce").astype(int)
@@ -174,13 +267,13 @@ def write_hundehalter(df_hbl_raw: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    df = load_ogd()
+    df = load_source()
     df_hbl_raw = load_hundebestandsliste()
     df_webtabelle = load_webtabelle_gemeinde()
-    df_unbekannt = load_unbekannt_wohnviertel()
+    df_kanton = load_webtabelle_kanton()
 
     write_hunde(df)
-    write_hundebestand(df, df_webtabelle, df_unbekannt)
+    write_hundebestand(df, df_webtabelle, df_kanton)
     write_hundenamen(df)
     write_hundehalter(df_hbl_raw)
 
