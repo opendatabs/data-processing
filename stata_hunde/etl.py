@@ -103,6 +103,33 @@ def load_webtabelle_kanton() -> pd.DataFrame:
     return df.dropna(subset=["jahr", "anzahl_hunde"])
 
 
+def load_webtabelle_wohnviertel() -> pd.DataFrame:
+    """Webtabelle dog counts by year and Wohnviertel (2008+)."""
+    df = pd.read_excel(
+        WEBTABELLE_URL,
+        sheet_name="Wohnviertel",
+        skiprows=7,
+    )
+    df = df.dropna(how="all")
+    df = df.rename(columns={"Gemeinde, Wohnviertel": "wov_name"})
+    df = df[df["wov_name"].isin(set(WOV_NAME_MAP.values()))]
+
+    year_cols = [col for col in df.columns if isinstance(col, int)]
+    df = df[["wov_name", *year_cols]]
+    df = df.melt(id_vars="wov_name", var_name="jahr", value_name="anzahl_hunde")
+    df["jahr"] = pd.to_numeric(df["jahr"], errors="coerce")
+    df["anzahl_hunde"] = pd.to_numeric(df["anzahl_hunde"], errors="coerce")
+
+    name_to_wov = {name: wov for wov, name in WOV_NAME_MAP.items()}
+    df["wohnviertel_aktuell"] = df["wov_name"].map(name_to_wov)
+    df["gemeinde_name"] = df["wohnviertel_aktuell"].apply(
+        lambda wov: "Basel" if wov in range(1, 20) else ("Riehen" if wov == 20 else "Bettingen")
+    )
+    return df.dropna(subset=["jahr", "anzahl_hunde", "wohnviertel_aktuell"])[
+        ["jahr", "wohnviertel_aktuell", "gemeinde_name", "anzahl_hunde"]
+    ]
+
+
 def webtabelle_totals_by_year(df_webtabelle: pd.DataFrame) -> pd.Series:
     return (
         df_webtabelle.groupby("Gemeinde")["anzahl_hunde"]
@@ -209,21 +236,12 @@ def write_hundebestand(
     df: pd.DataFrame,
     df_webtabelle: pd.DataFrame,
     df_kanton: pd.DataFrame,
+    df_webtabelle_wohnviertel: pd.DataFrame,
 ) -> None:
     logging.info("Counting number of dogs per year, Wohnviertel and Gemeinde...")
 
-    df_groupable = df[df.apply(is_groupable_dog, axis=1)].copy()
-    df_groupable["wohnviertel_aktuell"] = df_groupable["wohnviertel_aktuell"].apply(
-        normalize_wohnviertel
-    )
-
-    # 2008+: dogs with known Wohnviertel, plus calculated unknown Wohnviertel rows
-    df_2008plus = (
-        df_groupable[df_groupable["jahr"] >= 2008]
-        .groupby(["jahr", "wohnviertel_aktuell", "gemeinde_name"])
-        .size()
-        .reset_index(name="anzahl_hunde")
-    )
+    # 2008+: use Wohnviertel counts directly from Webtabelle.
+    df_2008plus = df_webtabelle_wohnviertel.copy()
     df_unbekannt = calculate_unbekannt(
         df[df["jahr"] >= 2008],
         df_webtabelle[df_webtabelle["Gemeinde"] >= 2008],
@@ -274,9 +292,10 @@ def main() -> None:
     df_hbl_raw = load_hundebestandsliste()
     df_webtabelle = load_webtabelle_gemeinde()
     df_kanton = load_webtabelle_kanton()
+    df_webtabelle_wohnviertel = load_webtabelle_wohnviertel()
 
     write_hunde(df)
-    write_hundebestand(df, df_webtabelle, df_kanton)
+    write_hundebestand(df, df_webtabelle, df_kanton, df_webtabelle_wohnviertel)
     write_hundenamen(df)
     write_hundehalter(df_hbl_raw)
 
