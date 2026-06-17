@@ -159,6 +159,9 @@ def write_hunde(df: pd.DataFrame) -> None:
         ]
     ].copy()
 
+    # Keep only official Gemeinden in this field; everything else becomes empty.
+    df_hunde.loc[~df_hunde["gemeinde_name"].isin(VALID_GEMEINDE), "gemeinde_name"] = ""
+
     df_hunde["hund_geburtsjahr"] = df_hunde["hund_geburtsjahr"].astype(str)
     df_hunde["hund_geschlecht"] = df_hunde["hund_geschlecht"].replace("?", "unbekannt")
     df_hunde.loc[df_hunde["hund_alter"] == 888, "hund_geburtsjahr"] = "unbekannt"
