@@ -656,10 +656,7 @@ def build_change_email_text(changes: list[ValueChange], removed: list[RemovedVal
             text += f" - ... und {len(changes) - 200} weitere.\n"
 
     if removed:
-        text += (
-            f"\nWerte, welche die API nicht mehr liefert, aber bewusst erhalten bleiben "
-            f"– {len(removed)} Stück:\n"
-        )
+        text += f"\nWerte, welche die API nicht mehr liefert, aber bewusst erhalten bleiben – {len(removed)} Stück:\n"
         for item in removed[:200]:
             text += (
                 f" - {_format_ts(item.timestamp)} | {item.attribute}: "
