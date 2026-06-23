@@ -1,5 +1,6 @@
 import io
 import logging
+import math
 import os
 import re
 import zipfile
@@ -21,8 +22,10 @@ load_dotenv()
 LOGGER = logging.getLogger(__name__)
 
 DASHBOARD_BASEL = "Basel"
-TARGET_ATTRIBUTE_NAMES = frozenset({"Ecoli", "Entero", "Transmission", "Gehalt"})
+TARGET_ATTRIBUTE_NAMES = frozenset({"Ecoli", "Ecoli_2", "Entero", "Transmission", "Gehalt"})
 TARGET_ATTRIBUTE_NAMES_LOWER = {n.lower() for n in TARGET_ATTRIBUTE_NAMES}
+# Stable column order for the wide Coliminder frame and the persisted Excel file.
+COLIMINDER_VALUE_COLUMNS = ["Ecoli", "Ecoli_2", "Entero", "Transmission", "Gehalt"]
 EXPORT_FROM_DATE = date(2026, 4, 28)
 COLIMINDER_EXPORT_FROM = date(2026, 1, 1)
 
@@ -444,9 +447,9 @@ def fetch_coliminder_long(
 
 
 def pivot_coliminder_wide(df_long: pd.DataFrame) -> pd.DataFrame:
-    """Pivot long Coliminder rows to wide: Messzeitpunkt + Ecoli, Entero, Transmission, Gehalt."""
+    """Pivot long Coliminder rows to wide: Messzeitpunkt + Ecoli, Ecoli_2, Entero, Transmission, Gehalt."""
     if df_long.empty:
-        return pd.DataFrame(columns=["Messzeitpunkt", "Ecoli", "Entero", "Transmission", "Gehalt"])
+        return pd.DataFrame(columns=["Messzeitpunkt", *COLIMINDER_VALUE_COLUMNS])
 
     ts = pd.to_datetime(df_long["timestamp_ms"], unit="ms", utc=True, errors="coerce")
     mess = ts.dt.tz_convert(TZ)
@@ -463,9 +466,236 @@ def pivot_coliminder_wide(df_long: pd.DataFrame) -> pd.DataFrame:
         columns="attribute_name",
         values="value",
         aggfunc="last",
-    ).reindex(columns=["Ecoli", "Entero", "Transmission", "Gehalt"])
+    ).reindex(columns=COLIMINDER_VALUE_COLUMNS)
     wide = wide.reset_index().rename(columns={"MesszeitpunktSekunde": "Messzeitpunkt"}).sort_values("Messzeitpunkt")
     return wide
+
+
+@dataclass(frozen=True)
+class ValueChange:
+    """A Coliminder value that the API reports differently than the persisted file."""
+
+    timestamp: pd.Timestamp
+    attribute: str
+    old_value: Any
+    new_value: Any
+
+
+@dataclass(frozen=True)
+class RemovedValue:
+    """A Coliminder value the API no longer returns but that we keep on disk."""
+
+    timestamp: pd.Timestamp
+    attribute: str
+    old_value: Any
+
+
+@dataclass(frozen=True)
+class MergeResult:
+    wide: pd.DataFrame
+    changes: list["ValueChange"]
+    removed: list["RemovedValue"]
+
+
+def _coerce_messzeitpunkt(series: pd.Series) -> pd.Series:
+    """Return a tz-aware (Europe/Zurich), second-floored Messzeitpunkt series."""
+    ts = pd.to_datetime(series, errors="coerce")
+    if getattr(ts.dtype, "tz", None) is None:
+        ts = ts.dt.tz_localize(TZ, ambiguous="infer", nonexistent="shift_forward")
+    else:
+        ts = ts.dt.tz_convert(TZ)
+    return ts.dt.floor("s")
+
+
+def load_existing_coliminder_wide(path: Path | str = COLIMINDER_XLSX) -> pd.DataFrame:
+    """
+    Load the previously persisted ``Coliminder.xlsx`` so we can merge instead of overwrite.
+
+    The persisted file stores timezone-naive Europe/Zurich wall time; re-localize it so the
+    timestamps line up with the freshly fetched, tz-aware frame. Missing files or unreadable
+    content yield an empty frame (the merge then behaves like a first run).
+    """
+    path = Path(path)
+    empty = pd.DataFrame(columns=["Messzeitpunkt", *COLIMINDER_VALUE_COLUMNS])
+    if not path.exists():
+        return empty
+    try:
+        df = pd.read_excel(path)
+    except (OSError, ValueError, zipfile.BadZipFile, KeyError) as exc:
+        LOGGER.warning("Existing %s could not be read (%s); treating as empty.", path, exc)
+        return empty
+
+    df.columns = [str(c).strip() for c in df.columns]
+    if "Messzeitpunkt" not in df.columns:
+        LOGGER.warning("Existing %s has no 'Messzeitpunkt' column; treating as empty.", path)
+        return empty
+
+    df["Messzeitpunkt"] = _coerce_messzeitpunkt(df["Messzeitpunkt"])
+    df = df.dropna(subset=["Messzeitpunkt"])
+    for col in COLIMINDER_VALUE_COLUMNS:
+        df[col] = pd.to_numeric(df[col], errors="coerce") if col in df.columns else pd.NA
+    return df[["Messzeitpunkt", *COLIMINDER_VALUE_COLUMNS]]
+
+
+def _values_differ(old_value: Any, new_value: Any) -> bool:
+    """True only when both values are present and meaningfully different.
+
+    Adding a brand-new value (old missing) or losing one (new missing) is handled separately,
+    so this returns ``False`` in those cases to avoid noisy "changed" notifications.
+    """
+    old_na = pd.isna(old_value)
+    new_na = pd.isna(new_value)
+    if old_na or new_na:
+        return False
+    try:
+        return not math.isclose(float(old_value), float(new_value), rel_tol=1e-9, abs_tol=1e-9)
+    except (TypeError, ValueError):
+        return str(old_value) != str(new_value)
+
+
+def merge_coliminder_wide(
+    existing: pd.DataFrame,
+    fetched: pd.DataFrame,
+    *,
+    from_date: date,
+) -> MergeResult:
+    """
+    Merge freshly fetched Coliminder data into the persisted history without ever losing data.
+
+    Rules:
+    - Every timestamp/attribute value that was on disk is kept, even if the API no longer returns it.
+    - When the API provides a value, it wins over the stored one (the source of truth for live data).
+    - A value present in both but different is recorded as a change (-> e-mail).
+    - A value that existed on disk inside the fetch window but is now missing from the API is recorded
+      as a removed value that we deliberately preserve (-> e-mail), since this is exactly the data-loss
+      situation we want to be warned about.
+    """
+    value_cols = COLIMINDER_VALUE_COLUMNS
+
+    def _indexed(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return pd.DataFrame(columns=value_cols, index=pd.DatetimeIndex([], tz=TZ, name="Messzeitpunkt"))
+        tmp = df.copy()
+        tmp["Messzeitpunkt"] = _coerce_messzeitpunkt(tmp["Messzeitpunkt"])
+        tmp = tmp.dropna(subset=["Messzeitpunkt"]).set_index("Messzeitpunkt")
+        tmp = tmp[~tmp.index.duplicated(keep="last")]
+        for col in value_cols:
+            if col not in tmp.columns:
+                tmp[col] = pd.NA
+        return tmp[value_cols]
+
+    old = _indexed(existing)
+    new = _indexed(fetched)
+    all_index = old.index.union(new.index).sort_values()
+
+    cutoff = pd.Timestamp(datetime.combine(from_date, datetime.min.time()), tz=TZ)
+    in_window = all_index >= cutoff
+
+    merged = pd.DataFrame(index=all_index)
+    changes: list[ValueChange] = []
+    removed: list[RemovedValue] = []
+
+    for col in value_cols:
+        old_col = old[col].reindex(all_index)
+        new_col = new[col].reindex(all_index)
+        # API value wins where present; otherwise keep what we already had.
+        merged[col] = new_col.where(new_col.notna(), old_col)
+
+        changed_mask = (old_col.notna() & new_col.notna()).to_numpy()
+        for ts in all_index[changed_mask]:
+            if _values_differ(old_col[ts], new_col[ts]):
+                changes.append(ValueChange(ts, col, old_col[ts], new_col[ts]))
+
+        removed_mask = (old_col.notna() & new_col.isna()).to_numpy() & in_window
+        for ts in all_index[removed_mask]:
+            removed.append(RemovedValue(ts, col, old_col[ts]))
+
+    merged = merged.reset_index().rename(columns={"index": "Messzeitpunkt"})
+    if "Messzeitpunkt" not in merged.columns and "level_0" in merged.columns:
+        merged = merged.rename(columns={"level_0": "Messzeitpunkt"})
+    merged = merged.sort_values("Messzeitpunkt").reset_index(drop=True)
+    return MergeResult(wide=merged, changes=changes, removed=removed)
+
+
+def _format_ts(ts: pd.Timestamp) -> str:
+    try:
+        return pd.Timestamp(ts).tz_convert(TZ).strftime("%d.%m.%Y %H:%M:%S")
+    except (TypeError, ValueError):
+        return str(ts)
+
+
+def _format_value(value: Any) -> str:
+    if pd.isna(value):
+        return "(leer)"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if number == int(number):
+        return str(int(number))
+    return f"{number:g}"
+
+
+def build_change_email_text(changes: list[ValueChange], removed: list[RemovedValue]) -> str:
+    """Human-readable German notification body, mirroring the staka_kantonsblatt style."""
+    text = (
+        "Beim ETL-Lauf für die Coliminder-Daten (Badewasserqualität, Dataset 100530) "
+        "wurden Abweichungen zwischen der API und den bereits gespeicherten Daten festgestellt.\n\n"
+        "Die gespeicherten Daten werden NICHT gelöscht: Werte aus der API werden ergänzt bzw. "
+        "aktualisiert, bereits vorhandene Werte bleiben erhalten.\n"
+    )
+
+    if changes:
+        text += f"\nGeänderte Werte (API weicht vom gespeicherten Wert ab) – {len(changes)} Stück:\n"
+        for change in changes[:200]:
+            text += (
+                f" - {_format_ts(change.timestamp)} | {change.attribute}: "
+                f"{_format_value(change.old_value)} -> {_format_value(change.new_value)}\n"
+            )
+        if len(changes) > 200:
+            text += f" - ... und {len(changes) - 200} weitere.\n"
+
+    if removed:
+        text += (
+            f"\nWerte, welche die API nicht mehr liefert, aber bewusst erhalten bleiben "
+            f"– {len(removed)} Stück:\n"
+        )
+        for item in removed[:200]:
+            text += (
+                f" - {_format_ts(item.timestamp)} | {item.attribute}: "
+                f"{_format_value(item.old_value)} (in der API nicht mehr vorhanden)\n"
+            )
+        if len(removed) > 200:
+            text += f" - ... und {len(removed) - 200} weitere.\n"
+
+    text += f"\nDie Daten liegen hier:\n {COLIMINDER_XLSX}\n"
+    text += "\nFreundliche Grüsse, \nEuer automatisierter Open Data Basel-Stadt Python Job"
+    return text
+
+
+def notify_coliminder_changes(changes: list[ValueChange], removed: list[RemovedValue]) -> None:
+    """Send a notification e-mail when the API changed or dropped values. Never fails the ETL."""
+    if not changes and not removed:
+        LOGGER.info("No Coliminder value changes or removals detected; no e-mail sent.")
+        return
+
+    LOGGER.info(
+        "Detected %s changed and %s removed Coliminder value(s); sending notification e-mail.",
+        len(changes),
+        len(removed),
+    )
+    text = build_change_email_text(changes, removed)
+    try:
+        msg = common.email_message(
+            subject="Coliminder (100530): API hat Werte geändert/gelöscht – Daten wurden bewahrt.",
+            text=text,
+            img=None,
+            attachment=None,
+        )
+        common.send_email(msg)
+        LOGGER.info("Change-notification e-mail sent.")
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        LOGGER.warning("Could not send Coliminder change-notification e-mail: %s", exc)
 
 
 def _is_zip_xlsx(content: bytes) -> bool:
@@ -774,7 +1004,13 @@ def _attach_coliminder_per_measurement(
 ) -> pd.DataFrame:
     """Join each Coliminder measurement independently to nearest timestamp."""
     if df_coli_wide.empty:
-        for c in ("coliminder_e_coli", "coliminder_entero", "coliminder_transimission", "coliminder_gehalt"):
+        for c in (
+            "coliminder_e_coli",
+            "coliminder_e_coli_2",
+            "coliminder_entero",
+            "coliminder_transimission",
+            "coliminder_gehalt",
+        ):
             if c not in base.columns:
                 base[c] = pd.NA
         return base
@@ -783,6 +1019,7 @@ def _attach_coliminder_per_measurement(
     coli["Messzeitpunkt"] = _normalize_ts_series(coli["Messzeitpunkt"])
     mappings = [
         ("Ecoli", "coliminder_e_coli"),
+        ("Ecoli_2", "coliminder_e_coli_2"),
         ("Entero", "coliminder_entero"),
         ("Transmission", "coliminder_transimission"),
         ("Gehalt", "coliminder_gehalt"),
@@ -875,6 +1112,7 @@ def build_joined_sheets(
         "enterokokken",
         "badewasserqualitaet",
         "coliminder_e_coli",
+        "coliminder_e_coli_2",
         "coliminder_entero",
         "coliminder_transimission",
         "coliminder_gehalt",
@@ -924,6 +1162,7 @@ def build_joined_sheets(
         columns={
             "Messzeitpunkt": "messzeitpunkt",
             "Ecoli": "coliminder_e_coli",
+            "Ecoli_2": "coliminder_e_coli_2",
             "Entero": "coliminder_entero",
             "Transmission": "coliminder_transimission",
             "Gehalt": "coliminder_gehalt",
@@ -939,6 +1178,7 @@ def build_joined_sheets(
     coli_cols = [
         "messzeitpunkt",
         "coliminder_e_coli",
+        "coliminder_e_coli_2",
         "coliminder_entero",
         "coliminder_transimission",
         "coliminder_gehalt",
@@ -963,6 +1203,7 @@ def build_joined_sheets(
         legacy["messzeitpunkt"] = _normalize_ts_series(legacy["Messzeitpunkt_Labor"])
         legacy = legacy[legacy["messzeitpunkt"].notna()].copy()
         legacy = legacy[pd.to_datetime(legacy["messzeitpunkt"]).dt.year == 2025].copy()
+        legacy["coliminder_e_coli_2"] = pd.NA
         legacy["coliminder_transimission"] = pd.NA
         legacy["coliminder_gehalt"] = pd.NA
         legacy["abflussmenge"] = pd.NA
@@ -1036,7 +1277,23 @@ def main() -> None:
 
     coliminder_from = COLIMINDER_EXPORT_FROM
     df_long = fetch_coliminder_long(client, from_date=coliminder_from)
-    df_coli_wide = pivot_coliminder_wide(df_long)
+    df_fetched_wide = pivot_coliminder_wide(df_long)
+
+    # Never overwrite blindly: merge the freshly fetched data into the persisted history so that
+    # data the API may have dropped (as happened before 22 May) is preserved on disk.
+    df_existing_wide = load_existing_coliminder_wide(COLIMINDER_XLSX)
+    merge_result = merge_coliminder_wide(df_existing_wide, df_fetched_wide, from_date=coliminder_from)
+    df_coli_wide = merge_result.wide
+    LOGGER.info(
+        "Coliminder merge: existing=%s rows, fetched=%s rows, merged=%s rows, "
+        "changed values=%s, preserved (API-removed) values=%s.",
+        len(df_existing_wide),
+        len(df_fetched_wide),
+        len(df_coli_wide),
+        len(merge_result.changes),
+        len(merge_result.removed),
+    )
+
     _write_human_readable_excel(df_coli_wide, COLIMINDER_XLSX)
     LOGGER.info(
         "Wrote Coliminder wide to %s (%s rows, from %s).",
@@ -1044,6 +1301,8 @@ def main() -> None:
         len(df_coli_wide),
         coliminder_from.isoformat(),
     )
+
+    notify_coliminder_changes(merge_result.changes, merge_result.removed)
 
     oldest = oldest_date_iso(df_lab, df_coli_wide)
     LOGGER.info("Huwise download lower bound (date): %s", oldest)
