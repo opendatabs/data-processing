@@ -1,3 +1,5 @@
+import csv
+import io
 import logging
 import os
 from typing import Any
@@ -106,7 +108,11 @@ def map_processing_to_row(processing: dict[str, Any]) -> dict[str, str]:
 
 
 def _parse_in_collection(in_collection: str) -> tuple[str, str, str, str]:
-    segments = [segment.strip() for segment in in_collection.split("/") if segment.strip()]
+    if not in_collection:
+        return "", "", "", ""
+
+    reader = csv.reader(io.StringIO(in_collection), delimiter="/", quotechar='"')
+    segments = [segment.strip() for segment in next(reader) if segment.strip()]
     departement = segments[1] if len(segments) > 1 else ""
     abteilung = segments[2] if len(segments) > 2 else ""
     verantwortliches_oeffentliches_organ = segments[-1] if segments else ""
