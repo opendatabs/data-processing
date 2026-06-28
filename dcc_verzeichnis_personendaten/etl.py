@@ -14,6 +14,7 @@ DATASPOT_VVP_URL = (
 )
 ODS_DATASET_ID = "100520"
 FTP_REMOTE_PATH = "dcc/verzeichnis_personendaten"
+DATASPOT_TIMEZONE = "Europe/Zurich"
 
 CSV_COLUMNS = [
     "departement",
@@ -24,6 +25,7 @@ CSV_COLUMNS = [
     "verantwortliches_oeffentliches_organ",
     "internetauftritt",
     "zweck_der_datenbearbeitung",
+    "stand",
     "source_url",
     "datenkatalog_url",
     "path",
@@ -96,6 +98,7 @@ def map_processing_to_row(processing: dict[str, Any]) -> dict[str, str]:
         "verantwortliches_oeffentliches_organ": verantwortliches_oeffentliches_organ,
         "internetauftritt": _clean_value(processing.get("website")),
         "zweck_der_datenbearbeitung": _clean_value(processing.get("dataProcessingPurpose")),
+        "stand": _format_dataspot_date(processing.get("currentAsOf")),
         "source_url": "",
         "datenkatalog_url": _dataspot_url(_clean_value(processing.get("href"))),
         "path": path,
@@ -121,6 +124,16 @@ def _clean_value(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _format_dataspot_date(value: Any) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text or not text.isdigit():
+        return ""
+    parsed = pd.to_datetime(int(text), unit="ms", utc=True).tz_convert(DATASPOT_TIMEZONE)
+    return parsed.strftime("%Y-%m-%d")
 
 
 if __name__ == "__main__":
