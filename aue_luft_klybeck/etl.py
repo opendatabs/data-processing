@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -24,12 +25,15 @@ SHAREPOINT_FOLDER = f"{SHAREPOINT_ROOT}/Immisssionsüberwachung/OGD-Daten"
 DATA_ORIG_PATH = Path("data_orig")
 
 SOURCE_FILE = DATA_ORIG_PATH / "Tabelle_KlybeckDaten_Dashboard.xlsx"
+SOURCE_SHEET = "DUMMIE-D2_Abfrage-Dashboard (2)"
+PLANNED_SOURCE_FILE = DATA_ORIG_PATH / "Geplante Messungen.xlsx"
 OUTPUT_DIR = Path("data")
 
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
 VOLATILE_OUTPUT_FILE = OUTPUT_DIR / "100525_fluechtige_schadstoffe_klybeck.csv"
 EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck.xlsx"
 EXCEEDANCE_TRACKING_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck_tracking.csv"
+PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
@@ -336,20 +340,53 @@ def _to_long_schema(df: pd.DataFrame) -> pd.DataFrame:
     ].reset_index(drop=True)
 
 
+def fetch_source_file() -> None:
+    """Download the source file from SharePoint, falling back to the local copy.
+
+    SharePoint writes into ``DATA_ORIG_PATH`` (the same folder we read the source
+    file from). If the download fails for any reason, we keep using the file that
+    is already present in ``data_orig``.
+    """
+    try:
+        token = get_graph_token()
+        site_id = get_site_id(token)
+        download_sharepoint_files(token, site_id)
+    except Exception:
+        logging.exception("SharePoint download failed. Falling back to local file in %s", DATA_ORIG_PATH)
+        if not SOURCE_FILE.exists():
+            raise FileNotFoundError(
+                f"SharePoint download failed and no local fallback file found: {SOURCE_FILE}"
+            )
+        logging.warning("Using existing local source file %s", SOURCE_FILE)
+
+
+def _publish_planned_measurements() -> None:
+    """Copy the planned measurements workbook from data_orig and publish it.
+
+    The file is downloaded from SharePoint into ``data_orig`` (with the local
+    fallback handled in ``fetch_source_file``). Here we simply copy it to the
+    output folder under its OGD name and upload/publish it via FTP and ODS.
+    """
+    if not PLANNED_SOURCE_FILE.exists():
+        raise FileNotFoundError(f"Planned measurements file not found: {PLANNED_SOURCE_FILE}")
+
+    shutil.copyfile(PLANNED_SOURCE_FILE, PLANNED_OUTPUT_FILE)
+    logging.info("Copied %s to %s", PLANNED_SOURCE_FILE, PLANNED_OUTPUT_FILE)
+    common.update_ftp_and_odsp(str(PLANNED_OUTPUT_FILE), "aue/luft/", "100527")
+
+
 def main() -> None:
     """Create two Klybeck pollutant CSV files with the target schema."""
     logging.info("ETL job started")
 
-    token = get_graph_token()
-    site_id = get_site_id(token)
-    download_sharepoint_files(token, site_id)
+    fetch_source_file()
 
     if not SOURCE_FILE.exists():
         raise FileNotFoundError(f"Source file not found: {SOURCE_FILE}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    source_df = pd.read_excel(SOURCE_FILE)
+    source_df = pd.read_excel(SOURCE_FILE, sheet_name=SOURCE_SHEET)
     long_df = _to_long_schema(source_df)
     warn_exceedances, intervention_exceedances = _build_exceedance_df(long_df)
     attachment_df = _build_excel_attachment(intervention_exceedances)
@@ -377,6 +414,7 @@ def main() -> None:
     logging.info("Wrote %s rows to %s", len(dust_df), DUST_OUTPUT_FILE)
     common.update_ftp_and_odsp(str(DUST_OUTPUT_FILE), "aue/luft/", "100524")
     _send_exceedance_email_if_changed(attachment_df, warn_exceedances, intervention_exceedances)
+    _publish_planned_measurements()
     logging.info("ETL job completed")
 
 
