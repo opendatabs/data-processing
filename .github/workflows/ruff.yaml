@@ -40,4 +40,5 @@ jobs:
             This PR contains automatic formatting and lint fixes applied by Ruff.
             Please review and merge if acceptable.
           branch: ruff/auto-fix
+          base: main
           delete-branch: true
