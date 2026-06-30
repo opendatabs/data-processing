@@ -223,9 +223,16 @@ def process_data():
 
 
 def main():
-    token = get_graph_token()
-    site_id = get_site_id(token)
-    download_sharepoint_files(token, site_id)
+    try:
+        token = get_graph_token()
+        site_id = get_site_id(token)
+        download_sharepoint_files(token, site_id)
+    except Exception as e:
+        logging.warning(
+            "SharePoint download failed (%s). Falling back to existing files in '%s'.",
+            e,
+            DATA_ORIG_PATH,
+        )
     process_data()
 
 
