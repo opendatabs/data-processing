@@ -20,20 +20,42 @@ SITE_NAME = os.getenv("SHAREPOINT_SITE_NAME_AUE_LUFT_KLYBECK")
 CERT_PATH = os.getenv("SHAREPOINT_CERT_PATH")
 THUMBPRINT = os.getenv("SHAREPOINT_THUMBPRINT")
 
-SHAREPOINT_ROOT = "KLYBECK"
-SHAREPOINT_FOLDER = f"{SHAREPOINT_ROOT}/Immisssionsüberwachung/OGD-Daten"
+SHAREPOINT_ROOT = "Klybeck"
+SHAREPOINT_BASE = f"{SHAREPOINT_ROOT}/Immissionsüberwachung/Dashboard_Klybeck"
 DATA_ORIG_PATH = Path("data_orig")
 
-SOURCE_FILE = DATA_ORIG_PATH / "Tabelle_KlybeckDaten_Dashboard.xlsx"
+SOURCE_LOCAL_NAME = "Tabelle_KlybeckDaten_Dashboard.xlsx"
+PLANNED_LOCAL_NAME = "Geplante_Messungen.xlsx"
+COORDINATES_LOCAL_NAME = "Koordinaten_Messstandorte_Klybeck.xlsx"
+EXCEEDANCE_LOCAL_NAME = "Gemessene_Ueberschreitungen.xlsx"
+
+# Map of SharePoint file paths to the local file names we store them under.
+SHAREPOINT_FILES = {
+    f"{SHAREPOINT_BASE}/Entwicklung Tabelle/ENTWURF_Auswertungstabelle_Klybeck_NEU.xlsx": SOURCE_LOCAL_NAME,
+    f"{SHAREPOINT_BASE}/Planung Messungen/Geplante_Messungen.xlsx": PLANNED_LOCAL_NAME,
+    f"{SHAREPOINT_BASE}/Planung Messungen/Koordinaten_Messstandorte_Klybeck.xlsx": COORDINATES_LOCAL_NAME,
+    f"{SHAREPOINT_BASE}/Ueberschreitungen/Gemessene_Ueberschreitungen.xlsx": EXCEEDANCE_LOCAL_NAME,
+}
+
+# Public SharePoint location of the maintained exceedance workbook (linked in e-mails).
+EXCEEDANCE_SHAREPOINT_URL = (
+    "https://baselstadt.sharepoint.com/sites/ArG-Transformations-Areale/"
+    "Freigegebene%20Dokumente/Forms/AllItems.aspx?id=%2Fsites%2FArG-Transformations-Areale"
+    "%2FFreigegebene%20Dokumente%2FKlybeck%2FImmissions%C3%BCberwachung"
+    "%2FDashboard_Klybeck%2FUeberschreitungen"
+)
+
+SOURCE_FILE = DATA_ORIG_PATH / SOURCE_LOCAL_NAME
 SOURCE_SHEET = "DUMMIE-D2_Abfrage-Dashboard (2)"
-PLANNED_SOURCE_FILE = DATA_ORIG_PATH / "Geplante Messungen.xlsx"
+PLANNED_SOURCE_FILE = DATA_ORIG_PATH / PLANNED_LOCAL_NAME
+COORDINATES_SOURCE_FILE = DATA_ORIG_PATH / COORDINATES_LOCAL_NAME
 OUTPUT_DIR = Path("data")
 
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
 VOLATILE_OUTPUT_FILE = OUTPUT_DIR / "100525_fluechtige_schadstoffe_klybeck.csv"
-EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck.xlsx"
 EXCEEDANCE_TRACKING_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck_tracking.csv"
 PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
+COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
@@ -163,14 +185,14 @@ def _send_exceedance_email_if_changed(
     tracking_df.to_csv(EXCEEDANCE_TRACKING_FILE, sep=";", index=False, encoding="utf-8")
 
     if not ct.has_changed(str(EXCEEDANCE_TRACKING_FILE)):
-        logging.info("No change in exceedance content. Skipping workbook update and e-mail.")
+        logging.info("No change in exceedance content. Skipping e-mail.")
         return
 
-    attachment_df.to_excel(EXCEEDANCE_OUTPUT_FILE, index=False)
     text = "Das Klybeck Luftmessungs-ETL hat neue/veraenderte Ueberschreitungen erkannt.\n\n"
     text += f"Warnwert-Ueberschreitungen (>=): {len(warn_exceedances)}\n"
     text += f"Interventionswert-Ueberschreitungen (>=): {len(intervention_exceedances)}\n\n"
-    text += "Im Anhang finden Sie die Datei mit Interventionswert-Ueberschreitungen.\n"
+    text += "Die Datei mit den gemessenen Ueberschreitungen finden Sie auf SharePoint:\n"
+    text += f"{EXCEEDANCE_SHAREPOINT_URL}\n\n"
     text += "Spalte 'Info / Massnahmen' ist fuer manuelle Ergaenzungen vorgesehen.\n\n"
     text += "Kind regards,\nYour automated Open Data Basel-Stadt Python Job"
 
@@ -178,11 +200,11 @@ def _send_exceedance_email_if_changed(
         subject="Klybeck Luft: Ueberschreitungen Warnwert/Interventionswert",
         text=text,
         img=None,
-        attachment=str(EXCEEDANCE_OUTPUT_FILE),
+        attachment=None,
     )
     common.send_email(msg)
     ct.update_hash_file(str(EXCEEDANCE_TRACKING_FILE))
-    logging.info("Sent exceedance e-mail with attachment %s", EXCEEDANCE_OUTPUT_FILE)
+    logging.info("Sent exceedance e-mail with SharePoint link %s", EXCEEDANCE_SHAREPOINT_URL)
 
 
 def get_graph_token() -> str:
@@ -237,65 +259,46 @@ def get_drive_id(token: str, site_id: str) -> str:
     return drive["id"]
 
 
-def download_folder(
+def download_file(
     token: str,
     drive_id: str,
-    sharepoint_folder: str,
-    local_dir: Path,
+    sharepoint_path: str,
+    dest_path: Path,
 ) -> None:
-    """Download all files from a SharePoint folder recursively."""
+    """Download a single file from SharePoint to ``dest_path``."""
     headers = {"Authorization": f"Bearer {token}"}
 
-    local_dir.mkdir(parents=True, exist_ok=True)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_folder}:/children"
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}"
 
     r = requests.get(url, headers=headers)
     r.raise_for_status()
 
-    items = r.json().get("value", [])
+    download_url = r.json()["@microsoft.graph.downloadUrl"]
 
-    for item in items:
-        name = item["name"]
+    logging.info("Downloading %s", sharepoint_path)
 
-        if "folder" in item:
-            sub_sp_path = f"{sharepoint_folder}/{name}"
-            sub_local_dir = local_dir / name
+    file_r = requests.get(download_url, stream=True)
+    file_r.raise_for_status()
 
-            download_folder(
-                token,
-                drive_id,
-                sub_sp_path,
-                sub_local_dir,
-            )
-
-            continue
-
-        if "file" not in item:
-            continue
-
-        download_url = item["@microsoft.graph.downloadUrl"]
-        dest_path = local_dir / name
-
-        logging.info("Downloading %s/%s", sharepoint_folder, name)
-
-        file_r = requests.get(download_url, stream=True)
-        file_r.raise_for_status()
-
-        with open(dest_path, "wb") as f:
-            for chunk in file_r.iter_content(chunk_size=8192):
-                f.write(chunk)
+    with open(dest_path, "wb") as f:
+        for chunk in file_r.iter_content(chunk_size=8192):
+            f.write(chunk)
 
 
 def download_sharepoint_files(token: str, site_id: str) -> None:
     drive_id = get_drive_id(token, site_id)
 
-    download_folder(
-        token=token,
-        drive_id=drive_id,
-        sharepoint_folder=SHAREPOINT_FOLDER,
-        local_dir=DATA_ORIG_PATH,
-    )
+    DATA_ORIG_PATH.mkdir(parents=True, exist_ok=True)
+
+    for sharepoint_path, local_name in SHAREPOINT_FILES.items():
+        download_file(
+            token=token,
+            drive_id=drive_id,
+            sharepoint_path=sharepoint_path,
+            dest_path=DATA_ORIG_PATH / local_name,
+        )
 
 
 def _to_long_schema(df: pd.DataFrame) -> pd.DataFrame:
@@ -375,6 +378,21 @@ def _publish_planned_measurements() -> None:
     common.update_ftp_and_odsp(str(PLANNED_OUTPUT_FILE), "aue/luft/", "100527")
 
 
+def _publish_coordinates() -> None:
+    """Copy the measurement location coordinates workbook and publish it.
+
+    The file is downloaded from SharePoint into ``data_orig`` (with the local
+    fallback handled in ``fetch_source_file``). Here we copy it to the output
+    folder under its OGD name, upload it via FTP and trigger an ODS reload.
+    """
+    if not COORDINATES_SOURCE_FILE.exists():
+        raise FileNotFoundError(f"Coordinates file not found: {COORDINATES_SOURCE_FILE}")
+
+    shutil.copyfile(COORDINATES_SOURCE_FILE, COORDINATES_OUTPUT_FILE)
+    logging.info("Copied %s to %s", COORDINATES_SOURCE_FILE, COORDINATES_OUTPUT_FILE)
+    common.update_ftp_and_odsp(str(COORDINATES_OUTPUT_FILE), "aue/luft/", "100528")
+
+
 def main() -> None:
     """Create two Klybeck pollutant CSV files with the target schema."""
     logging.info("ETL job started")
@@ -415,6 +433,7 @@ def main() -> None:
     common.update_ftp_and_odsp(str(DUST_OUTPUT_FILE), "aue/luft/", "100524")
     _send_exceedance_email_if_changed(attachment_df, warn_exceedances, intervention_exceedances)
     _publish_planned_measurements()
+    _publish_coordinates()
     logging.info("ETL job completed")
 
 
