@@ -29,12 +29,15 @@ PLANNED_LOCAL_NAME = "Geplante_Messungen.xlsx"
 COORDINATES_LOCAL_NAME = "Koordinaten_Messstandorte_Klybeck.xlsx"
 EXCEEDANCE_LOCAL_NAME = "Gemessene_Ueberschreitungen.xlsx"
 
+# SharePoint location of the maintained exceedance workbook we read from and write back to.
+EXCEEDANCE_SHAREPOINT_PATH = f"{SHAREPOINT_BASE}/Ueberschreitungen/Gemessene_Ueberschreitungen.xlsx"
+
 # Map of SharePoint file paths to the local file names we store them under.
 SHAREPOINT_FILES = {
     f"{SHAREPOINT_BASE}/Entwicklung Tabelle/ENTWURF_Auswertungstabelle_Klybeck_NEU.xlsx": SOURCE_LOCAL_NAME,
     f"{SHAREPOINT_BASE}/Planung Messungen/Geplante_Messungen.xlsx": PLANNED_LOCAL_NAME,
     f"{SHAREPOINT_BASE}/Planung Messungen/Koordinaten_Messstandorte_Klybeck.xlsx": COORDINATES_LOCAL_NAME,
-    f"{SHAREPOINT_BASE}/Ueberschreitungen/Gemessene_Ueberschreitungen.xlsx": EXCEEDANCE_LOCAL_NAME,
+    EXCEEDANCE_SHAREPOINT_PATH: EXCEEDANCE_LOCAL_NAME,
 }
 
 # Public SharePoint location of the maintained exceedance workbook (linked in e-mails).
@@ -49,6 +52,7 @@ SOURCE_FILE = DATA_ORIG_PATH / SOURCE_LOCAL_NAME
 SOURCE_SHEET = "DUMMIE-D2_Abfrage-Dashboard (2)"
 PLANNED_SOURCE_FILE = DATA_ORIG_PATH / PLANNED_LOCAL_NAME
 COORDINATES_SOURCE_FILE = DATA_ORIG_PATH / COORDINATES_LOCAL_NAME
+EXCEEDANCE_SOURCE_FILE = DATA_ORIG_PATH / EXCEEDANCE_LOCAL_NAME
 OUTPUT_DIR = Path("data")
 
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
@@ -82,6 +86,11 @@ EXCEEDANCE_COLUMNS = [
     "interventionswert_ug_m3",
     "Info / Massnahmen",
 ]
+
+# Natural key identifying a single exceedance event (one measurement period at one
+# location for one parameter). Used to carry over manually maintained "Info /
+# Massnahmen" entries when refreshing the exceedance workbook.
+EXCEEDANCE_KEY_COLUMNS = ["Messbeginn", "Messende", "Standort", "parameter"]
 
 
 def _normalize_parameter(value: Any) -> str:
@@ -165,6 +174,90 @@ def _build_excel_attachment(intervention_exceedances: pd.DataFrame) -> pd.DataFr
     )
     attachment["Info / Massnahmen"] = ""
     return attachment.reindex(columns=EXCEEDANCE_COLUMNS)
+
+
+def _load_existing_exceedances() -> pd.DataFrame:
+    """Read the existing exceedance workbook from ``data_orig``.
+
+    SharePoint writes the maintained workbook into ``data_orig`` (with the local
+    fallback handled in ``fetch_source_file``), so here we only read the local
+    copy. If no file is present yet, we start with an empty frame.
+    """
+    if not EXCEEDANCE_SOURCE_FILE.exists():
+        logging.warning(
+            "No existing exceedance file found at %s. Starting with an empty workbook.",
+            EXCEEDANCE_SOURCE_FILE,
+        )
+        return pd.DataFrame(columns=EXCEEDANCE_COLUMNS)
+
+    existing = pd.read_excel(EXCEEDANCE_SOURCE_FILE)
+    for column in EXCEEDANCE_COLUMNS:
+        if column not in existing.columns:
+            existing[column] = ""
+    return existing[EXCEEDANCE_COLUMNS]
+
+
+def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.DataFrame:
+    """Combine freshly detected exceedances with the maintained workbook.
+
+    New exceedances are added with an empty ``Info / Massnahmen`` column, while
+    manually maintained ``Info / Massnahmen`` entries for already known
+    exceedances are carried over and never overwritten.
+    """
+    new_df = new_df.copy()
+    existing_df = existing_df.copy()
+
+    for frame in (new_df, existing_df):
+        for date_col in ("Messbeginn", "Messende"):
+            frame[date_col] = frame[date_col].apply(_format_date)
+        frame["Standort"] = frame["Standort"].astype(str).str.strip()
+        frame["parameter"] = frame["parameter"].astype(str).str.strip()
+
+    existing_info: dict[tuple, str] = {}
+    for _, row in existing_df.iterrows():
+        key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
+        info = row.get("Info / Massnahmen", "")
+        info = "" if pd.isna(info) else str(info).strip()
+        # Keep the first non-empty info entry if duplicate keys exist.
+        if key not in existing_info or (not existing_info[key] and info):
+            existing_info[key] = info
+
+    merged_rows = []
+    for _, row in new_df.iterrows():
+        key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
+        new_row = row.copy()
+        new_row["Info / Massnahmen"] = existing_info.get(key, "")
+        merged_rows.append(new_row)
+
+    return pd.DataFrame(merged_rows, columns=EXCEEDANCE_COLUMNS).reset_index(drop=True)
+
+
+def _publish_exceedances(attachment_df: pd.DataFrame) -> None:
+    """Refresh the exceedance workbook and write it back to SharePoint.
+
+    The maintained workbook is merged with the freshly detected exceedances
+    (keeping existing ``Info / Massnahmen``), saved to ``data_orig`` and then
+    uploaded to SharePoint. If the upload fails, the local copy in ``data_orig``
+    is kept as the fallback.
+    """
+    existing_df = _load_existing_exceedances()
+    merged_df = _merge_exceedances(attachment_df, existing_df)
+
+    DATA_ORIG_PATH.mkdir(parents=True, exist_ok=True)
+    merged_df.to_excel(EXCEEDANCE_SOURCE_FILE, index=False)
+    logging.info("Wrote %s exceedance rows to %s", len(merged_df), EXCEEDANCE_SOURCE_FILE)
+
+    try:
+        token = get_graph_token()
+        site_id = get_site_id(token)
+        drive_id = get_drive_id(token, site_id)
+        upload_file(token, drive_id, EXCEEDANCE_SHAREPOINT_PATH, EXCEEDANCE_SOURCE_FILE)
+        logging.info("Uploaded exceedance workbook to SharePoint: %s", EXCEEDANCE_SHAREPOINT_PATH)
+    except Exception:
+        logging.exception(
+            "SharePoint upload of exceedance workbook failed. Kept local copy in %s",
+            EXCEEDANCE_SOURCE_FILE,
+        )
 
 
 def _send_exceedance_email_if_changed(
@@ -285,6 +378,27 @@ def download_file(
     with open(dest_path, "wb") as f:
         for chunk in file_r.iter_content(chunk_size=8192):
             f.write(chunk)
+
+
+def upload_file(
+    token: str,
+    drive_id: str,
+    sharepoint_path: str,
+    src_path: Path,
+) -> None:
+    """Upload a single local file to ``sharepoint_path`` on SharePoint."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/octet-stream",
+    }
+
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
+
+    logging.info("Uploading %s to %s", src_path, sharepoint_path)
+
+    with open(src_path, "rb") as f:
+        r = requests.put(url, headers=headers, data=f)
+    r.raise_for_status()
 
 
 def download_sharepoint_files(token: str, site_id: str) -> None:
@@ -431,6 +545,7 @@ def main() -> None:
     dust_df.to_csv(DUST_OUTPUT_FILE, sep=";", index=False, encoding="utf-8")
     logging.info("Wrote %s rows to %s", len(dust_df), DUST_OUTPUT_FILE)
     common.update_ftp_and_odsp(str(DUST_OUTPUT_FILE), "aue/luft/", "100524")
+    _publish_exceedances(attachment_df)
     _send_exceedance_email_if_changed(attachment_df, warn_exceedances, intervention_exceedances)
     _publish_planned_measurements()
     _publish_coordinates()
