@@ -76,17 +76,13 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
                 messdaten_columns = df_all_pro_standort.columns
 
             total_all_rows += len(df_all_pro_standort)
-            df_all_pro_standort.to_csv(
-                export_file_all_unfiltered, mode="a", header=first_all_csv, index=False
-            )
+            df_all_pro_standort.to_csv(export_file_all_unfiltered, mode="a", header=first_all_csv, index=False)
             first_all_csv = False
 
             df_filtered = df_all_pro_standort[df_all_pro_standort["Zyklus"].isin(zyklus_filter)]
             if not df_filtered.empty:
                 total_filtered_rows += len(df_filtered)
-                df_filtered.to_csv(
-                    export_file_filtered, mode="a", header=first_filtered_csv, index=False
-                )
+                df_filtered.to_csv(export_file_filtered, mode="a", header=first_filtered_csv, index=False)
                 first_filtered_csv = False
             del df_filtered
 
@@ -102,14 +98,11 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
 
         if first_filtered_csv:
             logging.warning(
-                f"No datapoints for cycles {previous_zyklus} and {current_zyklus}; "
-                f"writing empty {export_file_filtered}"
+                f"No datapoints for cycles {previous_zyklus} and {current_zyklus}; writing empty {export_file_filtered}"
             )
             pd.DataFrame(columns=messdaten_columns).to_csv(export_file_filtered, index=False)
 
-        logging.info(
-            f"Saved unfiltered data with {total_all_rows} datapoints to {export_file_all_unfiltered}"
-        )
+        logging.info(f"Saved unfiltered data with {total_all_rows} datapoints to {export_file_all_unfiltered}")
         logging.info(f"Extracting data for cycles {previous_zyklus} and {current_zyklus}")
         logging.info(
             f"Filtered data contains {total_filtered_rows} datapoints out of {total_all_rows} total "
@@ -456,9 +449,7 @@ def init_sqlite(conn):
 def append_to_sqlite(df, conn):
     df_einsatzplan, df_einzelmessungen = _prepare_sqlite_frames(df)
     df_einsatzplan.to_sql("Einsatzplan", conn, if_exists="append", index=False)
-    df_einzelmessungen.to_sql(
-        "Einzelmessungen", conn, if_exists="append", index=False, chunksize=SQLITE_CHUNK_SIZE
-    )
+    df_einzelmessungen.to_sql("Einzelmessungen", conn, if_exists="append", index=False, chunksize=SQLITE_CHUNK_SIZE)
 
 
 def finalize_sqlite(conn):
