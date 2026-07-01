@@ -56,14 +56,7 @@ def _format_status_dates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _drop_rows_without_status(df: pd.DataFrame) -> pd.DataFrame:
-    has_status = (
-        df[STATUS_COLUMNS]
-        .fillna("")
-        .astype(str)
-        .apply(lambda col: col.str.strip())
-        .ne("")
-        .any(axis=1)
-    )
+    has_status = df[STATUS_COLUMNS].fillna("").astype(str).apply(lambda col: col.str.strip()).ne("").any(axis=1)
     return df[has_status].reset_index(drop=True)
 
 

@@ -485,9 +485,7 @@ def fetch_source_file() -> None:
     except Exception:
         logging.exception("SharePoint download failed. Falling back to local file in %s", DATA_ORIG_PATH)
         if not SOURCE_FILE.exists():
-            raise FileNotFoundError(
-                f"SharePoint download failed and no local fallback file found: {SOURCE_FILE}"
-            )
+            raise FileNotFoundError(f"SharePoint download failed and no local fallback file found: {SOURCE_FILE}")
         logging.warning("Using existing local source file %s", SOURCE_FILE)
 
 
