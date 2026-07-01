@@ -65,7 +65,7 @@ EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybec
 PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
 COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
 
-PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin"}
+PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin", "Quecksilber"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
 DUST_PARAMS = {"PM10", "∑PAK", "Benzo(a)pyren"}
 
@@ -541,7 +541,16 @@ def main() -> None:
     volatile_df = long_df[long_df["parameter"].isin(volatile_params)].copy()
     dust_df = long_df[long_df["parameter"].isin(DUST_PARAMS)].copy()
 
-    expected_volatile = {"Benzol", "∑CKW", "Naphthalin", "∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
+    expected_volatile = {
+        "Benzol",
+        "∑CKW",
+        "Naphthalin",
+        "Quecksilber",
+        "∑Aniline",
+        "Nitrobenzol",
+        "Phenol",
+        "Methylphenole",
+    }
     expected_dust = DUST_PARAMS
 
     missing_volatile = expected_volatile - set(volatile_df["parameter"].unique())
