@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Set LOCAL_RUN=true in .env to skip exceedance e-mail only (offline dev on Mac).
+LOCAL_RUN = os.getenv("LOCAL_RUN", "false").lower() in ("1", "true", "yes", "y")
+
 TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
 CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID")
 SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
@@ -58,6 +61,7 @@ OUTPUT_DIR = Path("data")
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
 VOLATILE_OUTPUT_FILE = OUTPUT_DIR / "100525_fluechtige_schadstoffe_klybeck.csv"
 EXCEEDANCE_TRACKING_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck_tracking.csv"
+EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck.xlsx"
 PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
 COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
 
@@ -233,19 +237,25 @@ def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.Da
 
 
 def _publish_exceedances(attachment_df: pd.DataFrame) -> None:
-    """Refresh the exceedance workbook and write it back to SharePoint.
+    """Refresh the exceedance workbook and publish it to OGD and SharePoint.
 
     The maintained workbook is merged with the freshly detected exceedances
-    (keeping existing ``Info / Massnahmen``), saved to ``data_orig`` and then
-    uploaded to SharePoint. If the upload fails, the local copy in ``data_orig``
-    is kept as the fallback.
+    (keeping existing ``Info / Massnahmen``), saved to ``data_orig``, copied to
+    the OGD output folder and uploaded via FTP/ODS. It is then uploaded to
+    SharePoint. If the SharePoint upload fails, the local copies are kept as the
+    fallback.
     """
     existing_df = _load_existing_exceedances()
     merged_df = _merge_exceedances(attachment_df, existing_df)
 
     DATA_ORIG_PATH.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     merged_df.to_excel(EXCEEDANCE_SOURCE_FILE, index=False)
     logging.info("Wrote %s exceedance rows to %s", len(merged_df), EXCEEDANCE_SOURCE_FILE)
+
+    shutil.copyfile(EXCEEDANCE_SOURCE_FILE, EXCEEDANCE_OUTPUT_FILE)
+    logging.info("Copied %s to %s", EXCEEDANCE_SOURCE_FILE, EXCEEDANCE_OUTPUT_FILE)
+    common.update_ftp_and_odsp(str(EXCEEDANCE_OUTPUT_FILE), "aue/luft/", "100526")
 
     try:
         token = get_graph_token()
@@ -279,6 +289,10 @@ def _send_exceedance_email_if_changed(
 
     if not ct.has_changed(str(EXCEEDANCE_TRACKING_FILE)):
         logging.info("No change in exceedance content. Skipping e-mail.")
+        return
+
+    if LOCAL_RUN:
+        logging.info("LOCAL_RUN=true: skipping exceedance e-mail.")
         return
 
     text = "Das Klybeck Luftmessungs-ETL hat neue/veraenderte Ueberschreitungen erkannt.\n\n"
