@@ -22,7 +22,7 @@ SHAREPOINT_ROOT = "General"
 
 DATA_ORIG_PATH = "data_orig"
 
-DEPARTEMENTS = ["BVD", "ED", "FD", "GD", "JSD", "PD", "WSU"]
+DEPARTEMENTS = ["BVD", "ED", "FD", "GD", "JSD", "PD", "WSU", "Staatskanzlei"]
 
 
 def get_graph_token() -> str:
