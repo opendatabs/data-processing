@@ -133,7 +133,7 @@ def main():
             f"DTSTAMP:{dtstamp}",
             f"DTSTART:{start_date}",
             f"DTEND:{end_date_exclusive}",
-            f"SUMMARY:{name}",
+            f"SUMMARY:Schulen BS: {name}",
             f"UID:{event_uid}",
             "LOCATION:Basel-Stadt, Schweiz",
             "END:VEVENT",
