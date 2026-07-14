@@ -1099,9 +1099,7 @@ def process_textrueckmeldungen():
     for filename in os.listdir(textrueckmeldungen_path):
         if filename.endswith((".xlsx", ".xls")):
             if "zustimmungsmessung" in _normalize_column_name(Path(filename).stem):
-                logging.warning(
-                    f"Skipping Zustimmungsmessung file (aggregate format not supported): {filename}"
-                )
+                logging.warning(f"Skipping Zustimmungsmessung file (aggregate format not supported): {filename}")
                 continue
             file_path = os.path.join(textrueckmeldungen_path, filename)
             try:
