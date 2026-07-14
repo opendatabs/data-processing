@@ -131,11 +131,7 @@ def load_webtabelle_wohnviertel() -> pd.DataFrame:
 
 
 def webtabelle_totals_by_year(df_webtabelle: pd.DataFrame) -> pd.Series:
-    return (
-        df_webtabelle.groupby("Gemeinde")["anzahl_hunde"]
-        .sum()
-        .rename("anzahl_webtabelle")
-    )
+    return df_webtabelle.groupby("Gemeinde")["anzahl_hunde"].sum().rename("anzahl_webtabelle")
 
 
 def calculate_unbekannt(df: pd.DataFrame, df_webtabelle: pd.DataFrame) -> pd.DataFrame:
@@ -143,15 +139,9 @@ def calculate_unbekannt(df: pd.DataFrame, df_webtabelle: pd.DataFrame) -> pd.Dat
     totals = df.groupby("jahr").size().rename("anzahl_source")
     web = webtabelle_totals_by_year(df_webtabelle)
 
-    df_unbekannt = (
-        pd.concat([totals, web], axis=1)
-        .dropna(subset=["anzahl_webtabelle"])
-        .reset_index(names="jahr")
-    )
+    df_unbekannt = pd.concat([totals, web], axis=1).dropna(subset=["anzahl_webtabelle"]).reset_index(names="jahr")
     df_unbekannt["jahr"] = df_unbekannt["jahr"].astype(int)
-    df_unbekannt["anzahl_hunde"] = (
-        df_unbekannt["anzahl_source"] - df_unbekannt["anzahl_webtabelle"]
-    )
+    df_unbekannt["anzahl_hunde"] = df_unbekannt["anzahl_source"] - df_unbekannt["anzahl_webtabelle"]
     df_unbekannt = df_unbekannt[df_unbekannt["anzahl_hunde"] > 0]
 
     df_unbekannt["gemeinde_name"] = "unbekannt"
@@ -161,17 +151,14 @@ def calculate_unbekannt(df: pd.DataFrame, df_webtabelle: pd.DataFrame) -> pd.Dat
 
 def add_wov_names(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["wov_name"] = (
-        pd.to_numeric(df["wohnviertel_aktuell"], errors="coerce").map(WOV_NAME_MAP)
-    )
+    df["wov_name"] = pd.to_numeric(df["wohnviertel_aktuell"], errors="coerce").map(WOV_NAME_MAP)
     df.loc[df["wohnviertel_aktuell"] == "unbekannt", "wov_name"] = "unbekannt"
     return df
 
 
 def write_hunde(df: pd.DataFrame) -> None:
     logging.info(
-        "Extracting jahr, gemeinde_name, hund_geschlecht, "
-        "hund_geburtsjahr, hund_alter, hund_rasse, hund_farbe..."
+        "Extracting jahr, gemeinde_name, hund_geschlecht, hund_geburtsjahr, hund_alter, hund_rasse, hund_farbe..."
     )
     df_hunde = df[
         [
@@ -216,15 +203,11 @@ def build_kanton_rows(
     df_pre2008 = df_kanton[df_kanton["jahr"] <= 2007].copy()
 
     df_2008plus = df_kanton[df_kanton["jahr"] >= 2008].merge(
-        df_unbekannt[["jahr", "anzahl_hunde"]].rename(
-            columns={"anzahl_hunde": "anzahl_unbekannt"}
-        ),
+        df_unbekannt[["jahr", "anzahl_hunde"]].rename(columns={"anzahl_hunde": "anzahl_unbekannt"}),
         on="jahr",
         how="inner",
     )
-    df_2008plus["anzahl_hunde"] = (
-        df_2008plus["anzahl_hunde"] + df_2008plus["anzahl_unbekannt"]
-    )
+    df_2008plus["anzahl_hunde"] = df_2008plus["anzahl_hunde"] + df_2008plus["anzahl_unbekannt"]
     df_2008plus = df_2008plus[["jahr", "anzahl_hunde"]]
 
     df_kanton_rows = pd.concat([df_pre2008, df_2008plus], ignore_index=True)
@@ -249,10 +232,7 @@ def write_hundebestand(
     df_kanton_rows = build_kanton_rows(df_kanton, df_unbekannt)
 
     # ≤2007: only Gemeinde-level totals are available (no Wohnviertel breakdown)
-    df_pre2008 = (
-        df_webtabelle[df_webtabelle["Gemeinde"] <= 2007]
-        .rename(columns={"Gemeinde": "jahr"})
-    )
+    df_pre2008 = df_webtabelle[df_webtabelle["Gemeinde"] <= 2007].rename(columns={"Gemeinde": "jahr"})
 
     df_hundebestand = pd.concat(
         [df_2008plus, df_unbekannt, df_pre2008, df_kanton_rows],
@@ -278,9 +258,9 @@ def write_hundehalter(df_hbl_raw: pd.DataFrame) -> None:
     df_hundehalter = df_hbl_raw.transpose()
     df_hundehalter.columns = df_hundehalter.iloc[0]
     df_hundehalter = df_hundehalter[1:]
-    df_hundehalter = df_hundehalter.rename(
-        columns={"Total Hundehalter (neu erhoben ab 2018)": "anzahl_hundehalter"}
-    )[["anzahl_hundehalter"]]
+    df_hundehalter = df_hundehalter.rename(columns={"Total Hundehalter (neu erhoben ab 2018)": "anzahl_hundehalter"})[
+        ["anzahl_hundehalter"]
+    ]
     df_hundehalter = df_hundehalter.dropna(subset=["anzahl_hundehalter"]).reset_index()
     df_hundehalter = df_hundehalter.rename(columns={"index": "jahr"})
 

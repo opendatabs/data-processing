@@ -1,8 +1,10 @@
-import os
-import requests
 import logging
-from dotenv import load_dotenv
+import os
 from datetime import datetime, timedelta
+
+import requests
+from dotenv import load_dotenv
+
 
 class DataspotAuth:
     """Handles M2M authentication for Dataspot API using Azure AD."""
@@ -12,7 +14,7 @@ class DataspotAuth:
 
         # M2M authentication against Entra ID
         exposed_client_id = os.getenv("DATASPOT_EXPOSED_CLIENT_ID")
-        self.scope = f'api://{exposed_client_id}/.default'
+        self.scope = f"api://{exposed_client_id}/.default"
         self.tenant_id = os.getenv("DATASPOT_TENANT_ID")
         self.client_id = os.getenv("DATASPOT_CLIENT_ID")
         self.client_secret = os.getenv("DATASPOT_CLIENT_SECRET")
@@ -44,10 +46,10 @@ class DataspotAuth:
     def _request_new_bearer_token(self):
         """Request a new bearer token using M2M authentication."""
         data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'grant_type': 'client_credentials',
-            'scope': self.scope
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "grant_type": "client_credentials",
+            "scope": self.scope,
         }
 
         try:
@@ -55,15 +57,15 @@ class DataspotAuth:
             response_bearer.raise_for_status()
 
             token_data = response_bearer.json()
-            self.token = token_data['access_token']
+            self.token = token_data["access_token"]
             # Calculate token expiration time
-            expires_in = int(token_data.get('expires_in', 3600))
+            expires_in = int(token_data.get("expires_in", 3600))
             self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
 
             return self.token
 
         except requests.exceptions.RequestException as e:
-            if hasattr(e, 'response') and e.response.status_code == 401:
+            if hasattr(e, "response") and e.response.status_code == 401:
                 logging.error("\n" + "!" * 80)
                 logging.error("AUTHENTICATION FAILED: Your DATASPOT_CLIENT_SECRET has likely expired!")
                 logging.error("Please create a new client secret in the Azure portal:")
@@ -106,9 +108,9 @@ class DataspotAuth:
 
         bearer_access_token = self.get_bearer_access_token()
         return {
-            'Authorization': f'Bearer {bearer_access_token}',
-            'dataspot-access-key': self.dataspot_access_key,
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {bearer_access_token}",
+            "dataspot-access-key": self.dataspot_access_key,
+            "Content-Type": "application/json",
         }
 
 

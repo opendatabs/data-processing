@@ -125,8 +125,10 @@ def build_metadata_block(
     )
 
     organisation_path = (
-        default_publisher if "/" in clean(default_publisher) else ""
-    ) or clean(dataspot_meta["publisher_path"]) or clean(producer_organization)
+        (default_publisher if "/" in clean(default_publisher) else "")
+        or clean(dataspot_meta["publisher_path"])
+        or clean(producer_organization)
+    )
 
     return {
         "default": {
