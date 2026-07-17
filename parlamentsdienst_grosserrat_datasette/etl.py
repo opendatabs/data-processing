@@ -505,6 +505,8 @@ def main():
             method,
             Path("data/text") / f"gr_dokumente_text_{method}.zip",
             "dok_laufnr",
+            max_failures=3,
+            shuffle=True,
         )
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
@@ -514,6 +516,8 @@ def main():
             method,
             Path("data/text") / f"gr_vollprotokoll_text_{method}.zip",
             "tag1",
+            max_failures=3,
+            shuffle=True,
         )
 
     for method in ["docling", "pymupdf", "pymupdf4llm", "docling-serve"]:
@@ -524,6 +528,8 @@ def main():
             method,
             Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
             "dok_laufnr",
+            max_failures=3,
+            shuffle=True,
         )
     for method in ["docling", "pymupdf", "pymupdf4llm", "docling-serve"]:
         safe_converter(
@@ -533,6 +539,8 @@ def main():
             method,
             Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
             "tag1",
+            max_failures=3,
+            shuffle=True,
         )
 
 
