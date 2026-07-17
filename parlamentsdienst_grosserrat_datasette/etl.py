@@ -530,6 +530,7 @@ def main():
             "dok_laufnr",
             max_failures=3,
             shuffle=True,
+            max_workers=2 if method == "docling-serve" else 1,
         )
     for method in ["docling", "pymupdf", "pymupdf4llm", "docling-serve"]:
         safe_converter(
@@ -541,6 +542,7 @@ def main():
             "tag1",
             max_failures=3,
             shuffle=True,
+            max_workers=2 if method == "docling-serve" else 1,
         )
 
 
