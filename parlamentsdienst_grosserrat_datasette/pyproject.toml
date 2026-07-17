@@ -13,4 +13,4 @@ dependencies = [
 
 [tool.uv.sources]
 common = { git = "https://github.com/opendatabs/common", rev = "b2d26f48a7cc43ce823b2763d87c41201e131b40" }
-pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "c8cda1af80c0b45a95e1ec9ea547a5a7a8b52d2b" }
+pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "17695eea8f197ed9602237a37401420dca175940" }
