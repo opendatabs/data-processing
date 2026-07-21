@@ -41,7 +41,7 @@ def get_graph_token() -> str:
 
     if "access_token" not in result:
         raise RuntimeError(f"Auth failed: {result.get('error_description')}")
-
+    print("Acess Token: ", result["access_token"])
     return result["access_token"]
 
 
