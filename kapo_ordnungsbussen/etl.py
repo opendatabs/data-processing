@@ -325,7 +325,7 @@ def get_street_shapes():
 
 def get_coordinates_from_gwr(df, df_geb_eing):
     df_geb_eing["address"] = (
-        df_geb_eing["strname"]
+        df_geb_eing["strassenname"]
         + " "
         + df_geb_eing["deinr"].astype(str)
         + ", "
@@ -402,7 +402,7 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 
     # Last resort: Find closest street in Gebäudeeingänge (https://data.bs.ch/explore/dataset/100231)
     # with help of rapidfuzz and then get coordinates from Nominatim
-    street_series = df_geb_eing["strname"]
+    street_series = df_geb_eing["strassenname"]
     df, cached_coordinates = get_coordinates_from_nominatim(
         df, cached_coordinates, use_rapidfuzz=True, street_series=street_series
     )
@@ -425,9 +425,9 @@ def get_shapes_for_streets(df, gdf_streets):
     street_names = df["Ü-Ort STR"].unique()
     for street_name in street_names:
         # Find closest street name
-        closest_street = find_closest_streetname(street_name, gdf_streets["strname"])
+        closest_street = find_closest_streetname(street_name, gdf_streets["strassenname"])
         # Get shape of closest street
-        street_shape = gdf_streets[gdf_streets["strname"] == closest_street].geometry
+        street_shape = gdf_streets[gdf_streets["strassenname"] == closest_street].geometry
         # Append shape and closest street name to df
         df.loc[df["Ü-Ort STR"] == street_name, "street_shape"] = street_shape
         df.loc[df["Ü-Ort STR"] == street_name, "closest_streetname"] = closest_street
