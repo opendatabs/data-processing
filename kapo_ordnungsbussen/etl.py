@@ -425,9 +425,9 @@ def get_shapes_for_streets(df, gdf_streets):
     street_names = df["Ü-Ort STR"].unique()
     for street_name in street_names:
         # Find closest street name
-        closest_street = find_closest_streetname(street_name, gdf_streets["strassenname"])
+        closest_street = find_closest_streetname(street_name, gdf_streets["strassennam"])
         # Get shape of closest street
-        street_shape = gdf_streets[gdf_streets["strassenname"] == closest_street].geometry
+        street_shape = gdf_streets[gdf_streets["strassennam"] == closest_street].geometry
         # Append shape and closest street name to df
         df.loc[df["Ü-Ort STR"] == street_name, "street_shape"] = street_shape
         df.loc[df["Ü-Ort STR"] == street_name, "closest_streetname"] = closest_street
