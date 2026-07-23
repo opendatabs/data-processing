@@ -415,8 +415,14 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 
 def find_closest_streetname(street, street_series):
     if street:
-        closest_address, _, _ = process.extractOne(str(street), street_series)
-        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
+        street_series = street_series.dropna().astype(str).tolist()
+        result = process.extractOne(str(street), street_series)
+        if result is None:
+            return street
+        closest_address, score, _ = result
+        logging.info(
+            f"Closest address for {street} according to fuzzy matching is: {closest_address}"
+        )
         return closest_address
     return street
 
@@ -425,9 +431,9 @@ def get_shapes_for_streets(df, gdf_streets):
     street_names = df["Ü-Ort STR"].unique()
     for street_name in street_names:
         # Find closest street name
-        closest_street = find_closest_streetname(street_name, gdf_streets["strname"])
+        closest_street = find_closest_streetname(street_name, gdf_streets["strassennam"])
         # Get shape of closest street
-        street_shape = gdf_streets[gdf_streets["strname"] == closest_street].geometry
+        street_shape = gdf_streets[gdf_streets["strassennam"] == closest_street].geometry
         # Append shape and closest street name to df
         df.loc[df["Ü-Ort STR"] == street_name, "street_shape"] = street_shape
         df.loc[df["Ü-Ort STR"] == street_name, "closest_streetname"] = closest_street
