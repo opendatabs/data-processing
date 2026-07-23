@@ -73,29 +73,15 @@ def main():
     local_folder = f"data/csv/val/{folder}"
     pathlib.Path(local_folder).mkdir(parents=True, exist_ok=True)
     filename_val = f"{local_folder}/stations--{now.strftime('%Y-%m-%dT%H-%M-%S%z')}.csv"
-    logging.info("Ensuring columns exist...")
-    column_names = [
-        "name.original",
-        "name.custom",
-        "dates.min_date",
-        "dates.max_date",
-        "config.timezone_offset",
-        "meta.time",
-        "meta.rh",
-        "meta.airTemp",
-        "meta.rain24h.vals",
-        "meta.rain24h.sum",
-        "meta.rain48h.sum",
-    ]
-    for column_name in column_names:
-        if column_name not in live_df.columns:
-            live_df[column_name] = None
     logging.info(f"Saving live stations to {filename_val}...")
-    live_val = live_df[column_names]
+    live_val = live_df.copy()
     logging.info("Getting last hour's precipitation...")
     pd.options.mode.chained_assignment = None  # Switch off warnings, see https://stackoverflow.com/a/53954986
     # make sure we have a list present, otherwise return None, see https://stackoverflow.com/a/12709152/5005585
-    live_val["meta.rain.1h.val"] = live_df["meta.rain24h.vals"].apply(lambda x: x[23] if isinstance(x, list) else None)
+    if "meta.rain24h.vals" in live_val.columns:
+        live_val["meta.rain.1h.val"] = live_val["meta.rain24h.vals"].apply(
+            lambda x: x[23] if isinstance(x, list) else None
+        )
     live_val.to_csv(filename_val, index=False)
     map_df = live_df[
         [
@@ -134,23 +120,11 @@ def main():
     #     # get last data point from each station. See https://api.fieldclimate.com/v1/docs/#info-understanding-your-device
     #     (pretty_resp, station_df) = call_fieldclimate_api('/data/normal/' + station + '/hourly/last/1h',
     #                                                       publicKey, privateKey, f'station--{station}--{datetime.now()}')
-    common.upload_ftp(filename_stations_map, FTP_SERVER, FTP_USER, FTP_PASS, "map")
-    common.ensure_ftp_dir(FTP_SERVER, FTP_USER, FTP_PASS, f"val/{folder}")
-    common.upload_ftp(filename_val, FTP_SERVER, FTP_USER, FTP_PASS, f"val/{folder}")
+    # common.upload_ftp(filename_stations_map, FTP_SERVER, FTP_USER, FTP_PASS, "map")
+    # common.ensure_ftp_dir(FTP_SERVER, FTP_USER, FTP_PASS, f"val/{folder}")
+    # common.upload_ftp(filename_val, FTP_SERVER, FTP_USER, FTP_PASS, f"val/{folder}")
 
     # Iterate over all json files in the json folder and upload them to the FTP server deleting them afterward
-    for json_file in os.listdir(os.path.join("data", "json")):
-        if not json_file.endswith(".json"):
-            continue
-        jahr = json_file.split("-")[1]
-        common.upload_ftp(
-            os.path.join("data", "json", json_file),
-            FTP_SERVER,
-            FTP_USER,
-            FTP_PASS,
-            f"json/{jahr}",
-        )
-        os.remove(os.path.join("data", "json", json_file))
     logging.info("Job successful!")
 
 
