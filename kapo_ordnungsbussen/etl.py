@@ -325,7 +325,7 @@ def get_street_shapes():
 
 def get_coordinates_from_gwr(df, df_geb_eing):
     df_geb_eing["address"] = (
-        df_geb_eing["strassenname"]
+        df_geb_eing["strname"]
         + " "
         + df_geb_eing["deinr"].astype(str)
         + ", "
@@ -402,7 +402,7 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 
     # Last resort: Find closest street in Gebäudeeingänge (https://data.bs.ch/explore/dataset/100231)
     # with help of rapidfuzz and then get coordinates from Nominatim
-    street_series = df_geb_eing["strassenname"]
+    street_series = df_geb_eing["strname"]
     df, cached_coordinates = get_coordinates_from_nominatim(
         df, cached_coordinates, use_rapidfuzz=True, street_series=street_series
     )
