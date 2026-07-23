@@ -313,13 +313,20 @@ def get_gebaeudeeingaenge():
 
 
 def get_street_shapes():
-    path_to_folder = os.path.join("data", "streets")
-    logging.info(f"Downloading street shapes from ods to file {path_to_folder}...")
-    r = common.requests_get("https://data.bs.ch/explore/dataset/100189/download/?format=shp")
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall(path_to_folder)
-    path_to_shp = os.path.join(path_to_folder, "100189.shp")
-    gdf = gpd.read_file(path_to_shp, encoding="utf-8")
+    path = os.path.join("data", "streets.geojson")
+    logging.info(f"Downloading street shapes from ODS to file {path}...")
+
+    r = common.requests_get(
+        "https://data.bs.ch/explore/dataset/100189/download/?format=geojson"
+    )
+
+    with open(path, "wb") as f:
+        f.write(r.content)
+
+    gdf = gpd.read_file(path)
+
+    logging.info(f"Street columns: {gdf.columns.tolist()}")
+
     return gdf
 
 
@@ -429,14 +436,23 @@ def find_closest_streetname(street, street_series):
 
 def get_shapes_for_streets(df, gdf_streets):
     street_names = df["Ü-Ort STR"].unique()
+
+    street_series = gdf_streets["strassenname"]
+
     for street_name in street_names:
         # Find closest street name
-        closest_street = find_closest_streetname(street_name, gdf_streets["strassennam"])
+        closest_street = find_closest_streetname(street_name, street_series)
+
         # Get shape of closest street
-        street_shape = gdf_streets[gdf_streets["strassennam"] == closest_street].geometry
+        street_shape = gdf_streets.loc[
+            gdf_streets["strassenname"] == closest_street,
+            "geometry",
+        ]
+
         # Append shape and closest street name to df
         df.loc[df["Ü-Ort STR"] == street_name, "street_shape"] = street_shape
         df.loc[df["Ü-Ort STR"] == street_name, "closest_streetname"] = closest_street
+
     return df
 
 
