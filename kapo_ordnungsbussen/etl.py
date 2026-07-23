@@ -415,8 +415,14 @@ def get_coordinates_from_nomatim_and_gwr(df, df_geb_eing):
 
 def find_closest_streetname(street, street_series):
     if street:
-        closest_address, _, _ = process.extractOne(str(street), street_series)
-        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
+        street_series = street_series.dropna().astype(str).tolist()
+        result = process.extractOne(str(street), street_series)
+        if result is None:
+            return street
+        closest_address, score, _ = result
+        logging.info(
+            f"Closest address for {street} according to fuzzy matching is: {closest_address}"
+        )
         return closest_address
     return street
 
