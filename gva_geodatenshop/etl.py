@@ -210,7 +210,8 @@ for index, row in joined_data.iterrows():
                 geocat_url = f"https://www.geocat.ch/geonetwork/srv/api/records/{geocat_uid}"
                 logging.info(f"Getting metadata from {geocat_url}...")
                 # todo: Locally save geocat metadata file and use this if the https request fails (which seems to happen often)
-                r = common.requests_get(geocat_url, headers={"accept": "application/xml, application/json"})
+                # Request JSON explicitly; listing XML first makes geocat return XML and r.json() fails.
+                r = common.requests_get(geocat_url, headers={"accept": "application/json"})
                 r.raise_for_status()
                 metadata = r.json()
 
@@ -252,14 +253,14 @@ for index, row in joined_data.iterrows():
                     if row["schema_file"] == "True":
                         schema_file = f"{ods_id}.csv"
 
-                # Geocat dataset descriptions are in lists if given in multiple languages. Let's assume that the German text is always the first element in the list.
-                geocat_description_textgroup = metadata["gmd:identificationInfo"]["che:CHE_MD_DataIdentification"][
-                    "gmd:abstract"
-                ]["gmd:PT_FreeText"]["gmd:textGroup"]
-                geocat_description = (
-                    geocat_description_textgroup[0]["gmd:LocalisedCharacterString"]["#text"]
-                    if isinstance(geocat_description_textgroup, list)
-                    else geocat_description_textgroup["gmd:LocalisedCharacterString"]["#text"]
+                # Geocat moved to ISO 19115-3 (mdb/mri/lan); keep ISO 19139 (gmd) paths as fallback.
+                geocat_description = geocat_try(
+                    [
+                        "mdb:identificationInfo.che:CHE_MD_DataIdentification.mri:abstract.gco:CharacterString.#text",
+                        "mdb:identificationInfo.che:CHE_MD_DataIdentification.mri:abstract.lan:PT_FreeText.lan:textGroup.lan:LocalisedCharacterString.#text",
+                        "gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:abstract.gco:CharacterString.#text",
+                        "gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:abstract.gmd:PT_FreeText.gmd:textGroup.gmd:LocalisedCharacterString.#text",
+                    ]
                 )
                 # Check if a description to the current shape is given in Metadata.csv
                 description_list = str(row["beschreibung"]).split(";")
@@ -299,12 +300,18 @@ for index, row in joined_data.iterrows():
                         # 'dcat.created': geocat_value('geocat_created'),
                         "dcat.created": geocat_try(
                             [
+                                "mdb:identificationInfo.che:CHE_MD_DataIdentification.mri:citation.cit:CI_Citation.cit:date.cit:CI_Date.cit:date.gco:DateTime.#text",
+                                "mdb:identificationInfo.che:CHE_MD_DataIdentification.mri:citation.cit:CI_Citation.cit:date.cit:CI_Date.cit:date.gco:Date.#text",
                                 "gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:DateTime.#text",
                                 "gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:citation.gmd:CI_Citation.gmd:date.gmd:CI_Date.gmd:date.gco:Date.#text",
                             ]
                         ),
                         "dcat.creator": geocat_try(
                             [
+                                "mdb:contact.cit:CI_Responsibility.cit:party.che:CHE_CI_Organisation.cit:individual.cit:CI_Individual.cit:name.gco:CharacterString.#text",
+                                "mdb:distributionInfo.mrd:MD_Distribution.mrd:distributor.mrd:MD_Distributor.mrd:distributorContact.cit:CI_Responsibility.cit:party.che:CHE_CI_Organisation.cit:individual.cit:CI_Individual.cit:name.gco:CharacterString.#text",
+                                "mdb:contact.cit:CI_Responsibility.cit:party.che:CHE_CI_Organisation.cit:name.gco:CharacterString.#text",
+                                "mdb:distributionInfo.mrd:MD_Distribution.mrd:distributor.mrd:MD_Distributor.mrd:distributorContact.cit:CI_Responsibility.cit:party.che:CHE_CI_Organisation.cit:name.gco:CharacterString.#text",
                                 "gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text",
                                 "gmd:identificationInfo.che:CHE_MD_DataIdentification.gmd:pointOfContact.1.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text",
                                 "gmd:distributionInfo.gmd:MD_Distribution.gmd:distributor.gmd:MD_Distributor.gmd:distributorContact.che:CHE_CI_ResponsibleParty.che:individualFirstName.gco:CharacterString.#text",
