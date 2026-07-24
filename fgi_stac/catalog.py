@@ -394,6 +394,7 @@ def enrich_snapshot_from_dataspot(
         {
             "dcat.created": meta.get("created", ""),
             "dcat.issued": meta.get("issued", ""),
+            "default.modified": meta.get("modified", ""),
             "dcat.accrualperiodicity": meta.get("accrualperiodicity", ""),
         },
     )
