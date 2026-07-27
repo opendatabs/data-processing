@@ -497,6 +497,31 @@ def main():
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
 
+    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
+        safe_converter(
+            pdf_converter.create_markdown_from_column,
+            df_dok_copy,
+            "url_dok",
+            method,
+            Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
+            "dok_laufnr",
+            max_failures=3,
+            shuffle=True,
+            max_workers=1
+        )
+    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
+        safe_converter(
+            pdf_converter.create_markdown_from_column,
+            df_sessionen_src,
+            "url_vollprotokoll",
+            method,
+            Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
+            "tag1",
+            max_failures=3,
+            shuffle=True,
+            max_workers=1
+        )
+
     for method in ["pdfplumber", "pymupdf"]:
         safe_converter(
             pdf_converter.create_text_from_column,
@@ -518,31 +543,6 @@ def main():
             "tag1",
             max_failures=3,
             shuffle=True,
-        )
-
-    for method in ["docling", "pymupdf", "pymupdf4llm", "docling-serve"]:
-        safe_converter(
-            pdf_converter.create_markdown_from_column,
-            df_dok_copy,
-            "url_dok",
-            method,
-            Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
-            "dok_laufnr",
-            max_failures=3,
-            shuffle=True,
-            max_workers=1
-        )
-    for method in ["docling", "pymupdf", "pymupdf4llm", "docling-serve"]:
-        safe_converter(
-            pdf_converter.create_markdown_from_column,
-            df_sessionen_src,
-            "url_vollprotokoll",
-            method,
-            Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
-            "tag1",
-            max_failures=3,
-            shuffle=True,
-            max_workers=1
         )
 
 
