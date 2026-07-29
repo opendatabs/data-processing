@@ -497,7 +497,7 @@ def main():
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
 
-    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
+    for method in ["docling-serve", "pymupdf", "pymupdf4llm"]:
         safe_converter(
             pdf_converter.create_markdown_from_column,
             df_dok_copy,
@@ -509,7 +509,7 @@ def main():
             shuffle=True,
             max_workers=1
         )
-    for method in ["docling-serve", "docling", "pymupdf", "pymupdf4llm"]:
+    for method in ["docling-serve", "pymupdf", "pymupdf4llm"]:
         safe_converter(
             pdf_converter.create_markdown_from_column,
             df_sessionen_src,
