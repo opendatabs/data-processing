@@ -187,6 +187,8 @@ def process_data():
     df_zeitraum_info["Text_HTML"] = df_zeitraum_info["Text"].apply(
         lambda x: markdown.markdown(x, extensions=["nl2br", NewTabExtension()]) if pd.notna(x) else x
     )
+    df_erwartete_besucherzahl = pd.read_excel(file_path, sheet_name="Erwartete_Besucherzahl")
+    df_erwartete_besucherzahl = df_erwartete_besucherzahl[["Datum", "Kategorie"]]
     # Remove the original columns that are no longer needed
     df_anreiseempf.drop(columns=["Bilder", "Weiterfuehrende Links", "Text"], inplace=True)
     df_eventliste.drop(columns=["Info_Text"], inplace=True)
@@ -197,12 +199,15 @@ def process_data():
     path_eventliste = os.path.join("data", "eventliste_stjakob.csv")
     path_anreiseempf = os.path.join("data", "anreiseempfehlung_stjakob.csv")
     path_zeitraum_info = os.path.join("data", "zeitraum_info_stjakob.csv")
+    path_erwartete_besucherzahl = os.path.join("data", "erwartete_besucherzahl_stjakob.csv")
     df_eventliste.to_csv(path_eventliste, index=False)
     df_anreiseempf.to_csv(path_anreiseempf, index=False)
     df_zeitraum_info.to_csv(path_zeitraum_info, index=False)
+    df_erwartete_besucherzahl.to_csv(path_erwartete_besucherzahl, index=False)
     common.update_ftp_and_odsp(path_eventliste, "kapo/eventverkehr_st.jakob", "100419")
     common.update_ftp_and_odsp(path_anreiseempf, "kapo/eventverkehr_st.jakob", "100429")
     common.update_ftp_and_odsp(path_zeitraum_info, "kapo/eventverkehr_st.jakob", "100464")
+    common.update_ftp_and_odsp(path_erwartete_besucherzahl, "kapo/eventverkehr_st.jakob", "100418")
 
     # Upload PNG images to FTP
     png_dir = os.path.join(DATA_ORIG_PATH, "PNG_Anfahrtsempfehlungen")
