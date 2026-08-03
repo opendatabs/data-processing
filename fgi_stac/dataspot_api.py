@@ -36,8 +36,10 @@ def dataspot_metadata(auth: DataspotAuth, dataspot_dataset_id: str) -> dict[str,
         "description": clean(payload.get("description")),
         "keyword_values": keywords,
         "publisher_path": publisher_path,
+        # creationDate is the product creation date (often empty); never use system dateCreated.
         "created": normalize_optional_date(custom.get("creationDate")),
-        "modified": normalize_optional_date(payload.get("lastUpdate") or payload.get("modified")),
+        # Manually maintained Dataspot field customProperties.lastUpdate → HUWISE Letzte Aktualisierung.
+        "modified": normalize_optional_date(custom.get("lastUpdate") or payload.get("lastUpdate")),
         "issued": normalize_optional_date(custom.get("publicationDate")),
         "accrualperiodicity": clean(payload.get("accrualPeriodicity")),
     }

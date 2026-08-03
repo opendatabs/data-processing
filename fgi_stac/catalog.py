@@ -389,7 +389,7 @@ def enrich_snapshot_from_dataspot(
         return entry
     client = auth if auth is not None else DataspotAuth()
     meta = dataspot_metadata(client, ds_id)
-    # Dates are Dataspot-authoritative: overwrite stale catalog/last_push values when present.
+    # Dates are Dataspot-authoritative: overwrite stale values; drop keys when Dataspot is empty.
     dated = dict(entry)
     for key, value in (
         ("dcat.created", meta.get("created", "")),
@@ -398,6 +398,8 @@ def enrich_snapshot_from_dataspot(
     ):
         if not _is_empty_snapshot_value(value):
             dated[key] = value
+        else:
+            dated.pop(key, None)
     return merge_snapshot_fill_gaps(
         dated,
         {

@@ -138,14 +138,15 @@ def build_metadata_block(
             "language": "de",
             "publisher": publisher_from_path,
             "attributions": list(DEFAULT_ATTRIBUTIONS),
-            "modified": clean(default.get("modified")) or dataspot_meta["modified"],
+            # Dataspot dates are authoritative (creationDate / lastUpdate).
+            "modified": dataspot_meta["modified"],
             "modified_updates_on_data_change": False,
         },
         "internal": {"license": "CC BY 4.0"},
         "dcat": {
             "creator": publisher_from_path,
-            "created": clean(dcat.get("created")) or dataspot_meta["created"],
-            "issued": clean(dcat.get("issued")) or dataspot_meta["issued"],
+            "created": dataspot_meta["created"],
+            "issued": dataspot_meta["issued"],
             "accrualperiodicity": clean(dcat.get("accrualperiodicity")) or dataspot_meta["accrualperiodicity"],
             "relation": relation_values_final,
         },
