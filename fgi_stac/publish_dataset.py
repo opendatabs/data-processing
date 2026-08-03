@@ -29,6 +29,7 @@ import yaml
 from catalog import (
     load_active_dataset_rows,
     load_flat_publish_catalog,
+    load_metadata_snapshot_document,
     merge_snapshot_entries,
     order_snapshot_entry,
     prune_all_publish_artifacts,
@@ -59,6 +60,7 @@ from metadata import (
     resolve_publizierende_organisation,
 )
 from paths import (
+    GEOMETA_DATASET_HTML_URL,
     LEGACY_CATALOG_FILE,
     LEGACY_METADATA_LAST_PUSH_FILE,
     ORIG_CATALOG_FILE,
@@ -335,6 +337,15 @@ def snapshot_fields_only(entry: dict[str, Any]) -> dict[str, Any]:
     return order_snapshot_entry(entry)
 
 
+def _rewrite_geometa_preview_urls(value: Any) -> Any:
+    """Replace legacy Geometa ``/preview/`` links with ``/published/``."""
+    if isinstance(value, list):
+        return [_rewrite_geometa_preview_urls(item) for item in value]
+    if isinstance(value, str):
+        return value.replace("/dataset/preview/", "/dataset/published/")
+    return value
+
+
 def _metadata_row_field(metadata_row: pd.Series, snapshot_key: str, legacy_key: str = "") -> Any:
     value = metadata_row.get(snapshot_key)
     if value is None or (isinstance(value, str) and not clean_text(value)):
@@ -391,6 +402,18 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         metadata_row = dict(snapshot)
         metadata_row["ods_id"] = ods_id
+        metadata_row["paket"] = stac_collection_id
+        if dataspot_id:
+            metadata_row["custom.geodaten_modellbeschreibung"] = GEOMETA_DATASET_HTML_URL.format(
+                collection_id=stac_collection_id,
+                dataspot_dataset_id=dataspot_id.lower(),
+            ) if stac_collection_id else _rewrite_geometa_preview_urls(
+                metadata_row.get("custom.geodaten_modellbeschreibung", "")
+            )
+        else:
+            metadata_row["custom.geodaten_modellbeschreibung"] = _rewrite_geometa_preview_urls(
+                metadata_row.get("custom.geodaten_modellbeschreibung", "")
+            )
         metadata_rows.append(metadata_row)
 
     return pd.DataFrame(pub_rows), pd.DataFrame(metadata_rows)
@@ -440,20 +463,19 @@ def _metadata_snapshot_path() -> Path:
 
 
 def _load_last_push_snapshot(path: Path | None = None) -> dict[str, dict[str, Any]]:
-    """Load last successful metadata push per ods_id and logical field key ``template.field``."""
-    path = path or _metadata_snapshot_path()
-    if not path.exists():
-        return {}
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict):
-        return {}
-    out: dict[str, dict[str, Any]] = {}
-    for ods_raw, fields in raw.items():
-        ods_id = clean_text(str(ods_raw))
-        if not ods_id or not isinstance(fields, dict):
+    """Load last successful metadata push per ods_id; rewrite legacy Geometa preview URLs."""
+    snapshot_path = path or _metadata_snapshot_path()
+    document = load_metadata_snapshot_document(snapshot_path) if snapshot_path.is_file() else {}
+    sanitized: dict[str, dict[str, Any]] = {}
+    for ods_id, entry in document.items():
+        if not isinstance(entry, dict):
             continue
-        out[ods_id] = {str(k): v for k, v in fields.items()}
-    return out
+        cleaned_entry = {
+            key: _rewrite_geometa_preview_urls(value) if isinstance(value, (str, list)) else value
+            for key, value in entry.items()
+        }
+        sanitized[ods_id] = order_snapshot_entry(cleaned_entry)
+    return sanitized
 
 
 def _save_last_push_snapshot(snapshot: dict[str, dict[str, Any]], path: Path = PUBLISH_METADATA_LAST_PUSH_FILE) -> None:
@@ -838,6 +860,14 @@ def _write_initial_metadata_after_create(
         ),
         ("dcat", "creator", clean_text(metadata_row.get("dcat.creator"))),
         ("custom", "publizierende_organisation", publizierende),
+        (
+            "custom",
+            "geodaten_modellbeschreibung",
+            _canonical_geodaten_modellbeschreibung(
+                metadata_row,
+                dataspot_dataset_id=dataspot_dataset_id,
+            ),
+        ),
     ]
     for template, field, value in initial_fields:
         if _is_empty_metadata_value(value):
@@ -931,6 +961,30 @@ _METADATA_FIELDS_ALWAYS_WRITABLE = {
     ("custom", "geodaten_modellbeschreibung"),
 }
 
+# Pipeline-owned Geometa links must always replace stale portal values (e.g. /preview/).
+_METADATA_FIELDS_FORCE_OVERWRITE = {
+    ("custom", "geodaten_modellbeschreibung"),
+}
+
+
+def _canonical_geodaten_modellbeschreibung(
+    metadata_row: pd.Series,
+    *,
+    dataspot_dataset_id: str = "",
+) -> str:
+    """Build the published Geometa HTML URL for Geodaten Modellbeschreibung."""
+    collection_id = clean_text(metadata_row.get("paket")) or _stac_collection_from_metadata_row(metadata_row)
+    uuid = clean_text(dataspot_dataset_id) or _dataspot_dataset_id_from_metadata_row(metadata_row)
+    if collection_id and uuid and is_uuid(uuid):
+        return GEOMETA_DATASET_HTML_URL.format(
+            collection_id=collection_id,
+            dataspot_dataset_id=uuid.lower(),
+        )
+    raw = clean_text(metadata_row.get("custom.geodaten_modellbeschreibung")) or clean_text(
+        metadata_row.get("geodaten_modellbeschreibung")
+    )
+    return _rewrite_geometa_preview_urls(raw)
+
 
 def _set_metadata_fields(
     ods_id: str,
@@ -939,9 +993,11 @@ def _set_metadata_fields(
     *,
     metadata_last_push: dict[str, dict[str, Any]] | None = None,
     dataset_created: bool = False,
+    dataspot_dataset_id: str = "",
 ) -> None:
     """Set HUWISE metadata fields from the metadata table."""
     last_push_by_ods = metadata_last_push if metadata_last_push is not None else {}
+    resolved_dataspot_id = clean_text(dataspot_dataset_id) or _dataspot_dataset_id_from_metadata_row(metadata_row)
 
     def _safe_set(action: str, callback: Any) -> None:
         try:
@@ -1011,6 +1067,7 @@ def _set_metadata_fields(
         existing = template_payloads.get(resolved_template, {}).get(field)
         if existing is None and api_field != field:
             existing = template_payloads.get(resolved_template, {}).get(api_field)
+        value = _rewrite_geometa_preview_urls(value)
         if _is_empty_value(value):
             return
         snapshot_key = f"{resolved_template}.{field}"
@@ -1028,8 +1085,19 @@ def _set_metadata_fields(
             and normalized_existing == publisher_existing
             and normalized_existing != normalized_new
         )
+        existing_text = clean_text(_extract_metadata_value(existing))
+        force_overwrite = (resolved_template, field) in _METADATA_FIELDS_FORCE_OVERWRITE
+        preview_migration = "/dataset/preview/" in existing_text and "/dataset/published/" in clean_text(
+            value if isinstance(value, str) else ""
+        )
+        if isinstance(value, list):
+            preview_migration = "/dataset/preview/" in existing_text and any(
+                "/dataset/published/" in clean_text(item) for item in value
+            )
         can_write = (
             dataset_created
+            or force_overwrite
+            or preview_migration
             or prefilled_as_publisher
             or _is_empty_value(existing)
             or (normalized_existing == normalized_new)
@@ -1037,6 +1105,16 @@ def _set_metadata_fields(
         )
         if not can_write:
             return
+        if force_overwrite or preview_migration:
+            if normalized_existing != normalized_new:
+                logging.info(
+                    "Updating ods_id=%s %s.%s (force/migrate): %r -> %r",
+                    ods_id,
+                    resolved_template,
+                    field,
+                    normalized_existing,
+                    normalized_new,
+                )
         payload = {"value": value}
         client.put(f"/datasets/{dataset_uid}/metadata/{resolved_template}/{api_field}/", json=payload)
         entry = last_push_by_ods.setdefault(ods_id, {})
@@ -1096,14 +1174,16 @@ def _set_metadata_fields(
             "publizierende_organisation",
             _publizierende_from_metadata_row(
                 metadata_row,
-                dataspot_dataset_id=_dataspot_dataset_id_from_metadata_row(metadata_row),
+                dataspot_dataset_id=resolved_dataspot_id,
             ),
         ),
         (
             "custom",
             "geodaten_modellbeschreibung",
-            clean_text(metadata_row.get("custom.geodaten_modellbeschreibung"))
-            or clean_text(metadata_row.get("geodaten_modellbeschreibung")),
+            _canonical_geodaten_modellbeschreibung(
+                metadata_row,
+                dataspot_dataset_id=resolved_dataspot_id,
+            ),
         ),
         ("dcat", "contact_name", DEFAULT_CONTACT_NAME),
         ("dcat", "contact_email", DEFAULT_CONTACT_EMAIL),
@@ -1831,6 +1911,7 @@ def _process_dataset(
             source_url="",
             metadata_last_push=metadata_last_push,
             dataset_created=dataset_created,
+            dataspot_dataset_id=context.dataspot_dataset_id,
         )
         _publish_huwise_dataset(context.ods_id)
         logging.info("Finished ods_id=%s (metadata only, no local GeoJSON)", context.ods_id)
@@ -1888,6 +1969,7 @@ def _process_dataset(
         source_url,
         metadata_last_push=metadata_last_push,
         dataset_created=dataset_created,
+        dataspot_dataset_id=context.dataspot_dataset_id,
     )
     logging.info("STEP publish_schema huwise_id=%s", context.ods_id)
     _upsert_huwise_schema(
@@ -1954,7 +2036,11 @@ def run(*, huwise_id_filter: str = "") -> None:
     for ods_id in active_ids:
         catalog_entry = catalog_snapshots.get(ods_id, {})
         pushed_entry = metadata_last_push.get(ods_id, {})
-        metadata_last_push[ods_id] = merge_snapshot_entries(catalog_entry, pushed_entry)
+        merged = merge_snapshot_entries(catalog_entry, pushed_entry)
+        metadata_last_push[ods_id] = {
+            key: _rewrite_geometa_preview_urls(value) if isinstance(value, (str, list)) else value
+            for key, value in merged.items()
+        }
     prune_all_publish_artifacts(active_ids)
     _save_last_push_snapshot(metadata_last_push)
     logging.info("STEP publish done")

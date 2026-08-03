@@ -389,12 +389,18 @@ def enrich_snapshot_from_dataspot(
         return entry
     client = auth if auth is not None else DataspotAuth()
     meta = dataspot_metadata(client, ds_id)
+    # Dates are Dataspot-authoritative: overwrite stale catalog/last_push values when present.
+    dated = dict(entry)
+    for key, value in (
+        ("dcat.created", meta.get("created", "")),
+        ("dcat.issued", meta.get("issued", "")),
+        ("default.modified", meta.get("modified", "")),
+    ):
+        if not _is_empty_snapshot_value(value):
+            dated[key] = value
     return merge_snapshot_fill_gaps(
-        entry,
+        dated,
         {
-            "dcat.created": meta.get("created", ""),
-            "dcat.issued": meta.get("issued", ""),
-            "default.modified": meta.get("modified", ""),
             "dcat.accrualperiodicity": meta.get("accrualperiodicity", ""),
         },
     )
@@ -428,6 +434,11 @@ def write_flat_publish_catalog(
         ds_id = dataspot_by_huwise.get(huwise_id, "")
         if ds_id:
             merged = enrich_snapshot_from_dataspot(merged, ds_id, auth=auth)
+        geodaten = clean(merged.get("custom.geodaten_modellbeschreibung"))
+        if "/dataset/preview/" in geodaten:
+            merged["custom.geodaten_modellbeschreibung"] = geodaten.replace(
+                "/dataset/preview/", "/dataset/published/"
+            )
         enriched[huwise_id] = merged
     flat = enriched
     write_metadata_snapshot_file(path, flat)
