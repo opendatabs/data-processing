@@ -185,7 +185,7 @@ def _fetch_geometa_collection_json(collection_id: str) -> dict[str, Any]:
 def _discover_instances_for_collection(collection_id: str, collection_title: str) -> list[dict[str, str]]:
     """Return ``[{dataspot_uuid, geo_dataset}]`` for every dataset instance in a collection.
 
-    Reads the Geometa JSON document (the structured twin of the HTML preview).
+    Reads the Geometa JSON document (the structured twin of the published HTML metadata).
     Fails loudly when STAC announces a collection but Geometa lists zero datasets,
     so that silent drops from upstream API regressions become visible.
     """

@@ -54,7 +54,7 @@ from metadata import (
     DEFAULT_LICENSE,
     DEFAULT_RIGHTS,
     DEFAULT_TAG,
-    GEOMETA_PREVIEW_URL,
+    GEOMETA_PUBLISHED_URL,
     dataspot_uuid_from_snapshot,
     resolve_publizierende_organisation,
 )
@@ -235,29 +235,17 @@ class DatasetContext:
 
 def _dataspot_uuid_from_catalog(dataset: dict[str, Any]) -> str:
     """Return Dataspot REST dataset UUID (not STAC collection code like AFBA)."""
-    raw_id = clean_text(dataset.get("dataspot_dataset_id"))
-    if is_uuid(raw_id):
-        return raw_id
-    preview = clean_text(dataset.get("html_preview"))
-    if "#" in preview:
-        frag = preview.split("#")[-1].strip()
-        if is_uuid(frag):
-            return frag
-    return raw_id
+    return clean_text(dataset.get("dataspot_dataset_id"))
 
 
 def _resolve_dataspot_dataset_id(dataset: dict[str, Any]) -> str:
     """Resolve id for Dataspot compositions/schema: UUID when present, else legacy short code."""
-    resolved = _dataspot_uuid_from_catalog(dataset)
-    if resolved and is_uuid(resolved):
-        return resolved
-    raw_id = clean_text(dataset.get("dataspot_dataset_id"))
+    raw_id = _dataspot_uuid_from_catalog(dataset)
+    if raw_id and is_uuid(raw_id):
+        return raw_id
     short_from_id = extract_stac_code(raw_id)
     if short_from_id:
         return short_from_id
-    short_from_preview = extract_stac_code(dataset.get("html_preview"))
-    if short_from_preview:
-        return short_from_preview
     return raw_id
 
 
@@ -531,8 +519,8 @@ def _resolve_geojson_file(context: DatasetContext, candidates: list[Path]) -> Pa
 
 def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
     relation_urls = split_semicolon_list(metadata_row.get("relation_urls"))
+    marker = "/metadata_details/dataset/published/html/"
     for url in relation_urls:
-        marker = "/metadata_details/dataset/preview/html/"
         if marker in url:
             tail = url.split(marker, 1)[-1]
             code = tail.split("#", 1)[0].strip().strip("/")
@@ -542,9 +530,9 @@ def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
 
 
 @with_http_retry
-def _fetch_geometa_preview_html(collection_id: str) -> str:
+def _fetch_geometa_published_html(collection_id: str) -> str:
     with httpx.Client(timeout=HTTP_TIMEOUT, limits=HTTP_LIMITS) as client:
-        response = client.get(GEOMETA_PREVIEW_URL.format(collection_id=collection_id))
+        response = client.get(GEOMETA_PUBLISHED_URL.format(collection_id=collection_id))
     response.raise_for_status()
     return response.text
 
@@ -552,7 +540,7 @@ def _fetch_geometa_preview_html(collection_id: str) -> str:
 def _fetch_geometa_attribute_technical_names(collection_id: str, dataspot_uuid: str) -> set[str]:
     if not collection_id or not dataspot_uuid:
         return set()
-    html = _fetch_geometa_preview_html(collection_id)
+    html = _fetch_geometa_published_html(collection_id)
     start_marker = f'id="{dataspot_uuid}"'
     start_idx = html.find(start_marker)
     if start_idx < 0:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from paths import GEOMETA_DATASET_HTML_URL
 from util import (
     clean,
     description_to_html,
@@ -13,7 +14,7 @@ from util import (
     third_path_segment,
 )
 
-GEOMETA_PREVIEW_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/preview/html/{collection_id}"
+GEOMETA_PUBLISHED_URL = "https://api.geo.bs.ch/geometa/v1/metadata_details/dataset/published/html/{collection_id}"
 DEFAULT_RIGHTS = "NonCommercialAllowed-CommercialAllowed-ReferenceRequired"
 DEFAULT_LICENSE = "terms_by"
 DEFAULT_CONTACT_NAME = "Open Data Basel-Stadt"
@@ -118,10 +119,9 @@ def build_metadata_block(
     keyword_values = [item for item in keyword_values if clean(item).lower() != clean(stac_collection_id).lower()]
 
     tags = [item for item in ["opendata.swiss", stac_collection_id] if clean(item)]
-    expected_geodaten_modellbeschreibung = f"{stac_url}#{dataspot_dataset_id}"
-    custom_geodaten = clean(custom.get("geodaten_modellbeschreibung"))
+    base_stac_url = clean(stac_url) or GEOMETA_PUBLISHED_URL.format(collection_id=stac_collection_id)
     geodaten_modellbeschreibung = (
-        custom_geodaten if custom_geodaten.endswith(f"#{dataspot_dataset_id}") else expected_geodaten_modellbeschreibung
+        f"{base_stac_url}#{dataspot_dataset_id}" if base_stac_url and dataspot_dataset_id else ""
     )
 
     organisation_path = (
@@ -174,9 +174,6 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
     stac_browser = clean(collection.get("stac_browser_url"))
     mapbs_url = clean(collection.get("mapbs_url"))
     dataspot_dataset_id = clean(geo.get("dataspot_dataset_id")).lower()
-    stac_url = clean(collection.get("stac_url"))
-    if not stac_url and stac_collection_id:
-        stac_url = GEOMETA_PREVIEW_URL.format(collection_id=stac_collection_id).replace("/preview/", "/published/")
 
     relation_values: list[str] = []
     relation_raw = dcat.get("relation", [])
@@ -211,10 +208,11 @@ def flatten_to_snapshot(geo: dict[str, Any], collection: dict[str, Any]) -> dict
         publisher_path=producer_path or raw_publisher,
         publisher_amt=resolved_publisher,
     )
-    geodaten_modellbeschreibung = clean(custom.get("geodaten_modellbeschreibung"))
-    if not geodaten_modellbeschreibung and stac_collection_id and dataspot_dataset_id:
-        geodaten_modellbeschreibung = (
-            f"{GEOMETA_PREVIEW_URL.format(collection_id=stac_collection_id)}#{dataspot_dataset_id}"
+    geodaten_modellbeschreibung = ""
+    if stac_collection_id and dataspot_dataset_id:
+        geodaten_modellbeschreibung = GEOMETA_DATASET_HTML_URL.format(
+            collection_id=stac_collection_id,
+            dataspot_dataset_id=dataspot_dataset_id,
         )
 
     snapshot: dict[str, Any] = {
