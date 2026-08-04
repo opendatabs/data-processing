@@ -236,6 +236,9 @@ jobs:
             staka_verz_verf_persdat:
               - 'Dockerfile'
               - 'staka_verz_verf_persdat/**'
+            stata_baselvotes:
+              - 'Dockerfile'
+              - 'stata_baselvotes/**'
             stata_befragungen:
               - 'Dockerfile'
               - 'stata_befragungen/**'
