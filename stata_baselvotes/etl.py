@@ -11,7 +11,7 @@ BASE_URL = "https://baselvotes.ch/abstimmungen/"
 HEADERS = {"User-Agent": "stata-baselvotes-etl/1.0"}
 SHEET_NAME = "Abstimmungen"
 # Duplicate empty Abstimmungsergebnis becomes Abstimmungsergebnis.1 via pandas.
-DROP_COLUMNS = ["Weiteres Bildmaterial", "Abstimmungsergebnis.1", "Result"]
+DROP_COLUMNS = ["Weiteres Bildmaterial", "Abstimmungsergebnis.1", "Result", "Beschreibung der Vorlag"]
 
 # Configure logging
 logging.basicConfig(
