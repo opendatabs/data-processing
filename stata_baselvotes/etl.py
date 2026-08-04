@@ -33,7 +33,7 @@ def parse_stichfrage(text: str) -> dict[str, int | None]:
         "gegenvorschlag": None,
     }
 
-    # Pattern: "Initiative: 11'311, Gegenvorschlag:29'213"
+    # Pattern: "Initiative: 11'311, Gegenvorschlag: 29'213"
     init_match = re.search(r"Initiative:\s*([\d']+)", text)
     if init_match:
         init_value = init_match.group(1).replace("'", "")
