@@ -10,6 +10,8 @@ import requests
 BASE_URL = "https://baselvotes.ch/abstimmungen/"
 HEADERS = {"User-Agent": "stata-baselvotes-etl/1.0"}
 SHEET_NAME = "Abstimmungen"
+# Duplicate empty Abstimmungsergebnis becomes Abstimmungsergebnis.1 via pandas.
+DROP_COLUMNS = ["Weiteres Bildmaterial", "Abstimmungsergebnis.1"]
 
 # Configure logging
 logging.basicConfig(
@@ -99,6 +101,11 @@ def export_csv(output_path: str | Path) -> None:
     logger.info(f"Reading Excel sheet '{SHEET_NAME}' into DataFrame")
     df = pd.read_excel(BytesIO(xlsx_response.content), sheet_name=SHEET_NAME)
     logger.info(f"Loaded {len(df)} rows and {len(df.columns)} columns from Excel")
+
+    drop_cols = [c for c in DROP_COLUMNS if c in df.columns]
+    if drop_cols:
+        logger.info(f"Dropping columns: {drop_cols}")
+        df = df.drop(columns=drop_cols)
 
     logger.info("Adding parsed columns")
     df = add_parsed_columns(df)
