@@ -394,14 +394,14 @@ dependencies = [
 requires-dist = [
     { name = "common", git = "https://github.com/opendatabs/common?rev=b2d26f48a7cc43ce823b2763d87c41201e131b40" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pdf-converter", extras = ["docling-serve", "pdfplumber", "pymupdf", "pymupdf4llm"], git = "https://github.com/opendatabs/pdf_converter?rev=54fb8868c7c5deaf3e170cd91ce64a3388462cbd" },
+    { name = "pdf-converter", extras = ["docling-serve", "pdfplumber", "pymupdf", "pymupdf4llm"], git = "https://github.com/opendatabs/pdf_converter?rev=b2113d9e9b6b6d79365cdd4c225e92aa470fab87" },
     { name = "truststore", specifier = ">=0.10.4" },
 ]
 
 [[package]]
 name = "pdf-converter"
 version = "0.2.0"
-source = { git = "https://github.com/opendatabs/pdf_converter?rev=54fb8868c7c5deaf3e170cd91ce64a3388462cbd#54fb8868c7c5deaf3e170cd91ce64a3388462cbd" }
+source = { git = "https://github.com/opendatabs/pdf_converter?rev=b2113d9e9b6b6d79365cdd4c225e92aa470fab87#b2113d9e9b6b6d79365cdd4c225e92aa470fab87" }
 dependencies = [
     { name = "pandas" },
     { name = "python-dotenv" },
