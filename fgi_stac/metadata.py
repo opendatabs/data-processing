@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from paths import GEOMETA_DATASET_HTML_URL
+
 from util import (
     clean,
     description_to_html,

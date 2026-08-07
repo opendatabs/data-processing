@@ -25,7 +25,6 @@ import common
 import geopandas as gpd
 import httpx
 import pandas as pd
-import yaml
 from catalog import (
     load_active_dataset_rows,
     load_flat_publish_catalog,
@@ -404,11 +403,13 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
         metadata_row["ods_id"] = ods_id
         metadata_row["paket"] = stac_collection_id
         if dataspot_id:
-            metadata_row["custom.geodaten_modellbeschreibung"] = GEOMETA_DATASET_HTML_URL.format(
-                collection_id=stac_collection_id,
-                dataspot_dataset_id=dataspot_id.lower(),
-            ) if stac_collection_id else _rewrite_geometa_preview_urls(
-                metadata_row.get("custom.geodaten_modellbeschreibung", "")
+            metadata_row["custom.geodaten_modellbeschreibung"] = (
+                GEOMETA_DATASET_HTML_URL.format(
+                    collection_id=stac_collection_id,
+                    dataspot_dataset_id=dataspot_id.lower(),
+                )
+                if stac_collection_id
+                else _rewrite_geometa_preview_urls(metadata_row.get("custom.geodaten_modellbeschreibung", ""))
             )
         else:
             metadata_row["custom.geodaten_modellbeschreibung"] = _rewrite_geometa_preview_urls(
@@ -1322,6 +1323,7 @@ def _set_metadata_fields(
         "default.modified",
         lambda: _set_template_field("default", "modified", dataspot_dates["modified"]),
     )
+
 
 def _wait_for_huwise_idle(
     huwise_id: str,
