@@ -17,7 +17,7 @@ load_dotenv()
 LOCAL_RUN = os.getenv("LOCAL_RUN", "false").lower() in ("1", "true", "yes", "y")
 
 TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
-CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID_KLYBECKLUFT_AND_EVENTVERKEHR")
+CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID")
 SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
 SITE_NAME = os.getenv("SHAREPOINT_SITE_NAME_AUE_LUFT_KLYBECK")
 CERT_PATH = os.getenv("SHAREPOINT_CERT_PATH")
