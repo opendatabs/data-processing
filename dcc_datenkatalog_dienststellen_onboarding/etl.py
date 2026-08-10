@@ -17,8 +17,8 @@ SITE_NAME = os.getenv("SHAREPOINT_SITE_NAME_DCC")
 CERT_PATH = os.getenv("SHAREPOINT_CERT_PATH")
 THUMBPRINT = os.getenv("SHAREPOINT_THUMBPRINT")
 
-SOURCE_LOCAL_NAME = "Uebersichtsliste Dienststellen und Data Owner.xlsx"
-SHAREPOINT_FILE_PATH = f"Datenkatalog/1-Dienststellen/{SOURCE_LOCAL_NAME}"
+SOURCE_LOCAL_NAME = "Übersichtsliste Dienststellen und Data Owner.xlsx"
+SHAREPOINT_FOLDER = "Datenkatalog/1-Dienststellen"
 
 DATA_ORIG_DIR = Path("data_orig")
 SOURCE_FILE = DATA_ORIG_DIR / SOURCE_LOCAL_NAME
@@ -26,6 +26,9 @@ OUTPUT_DIR = Path("data")
 ODS_DATASET_ID = "100537"
 FTP_REMOTE_PATH = "dcc/datenkatalog"
 OUTPUT_FILE = OUTPUT_DIR / f"{ODS_DATASET_ID}_datenkatalog_dienststellen_onboarding.csv"
+
+# Prefer the shared documents library; German sites often use these names.
+DRIVE_NAME_CANDIDATES = ("Documents", "Dokumente", "Freigegebene Dokumente")
 
 SOURCE_COLUMNS = [
     "Departement",
@@ -95,51 +98,82 @@ def get_drive_id(token: str, site_id: str) -> str:
     r.raise_for_status()
 
     drives = r.json()["value"]
+    drive_names = [d["name"] for d in drives]
+    logging.info("Available SharePoint drives: %s", drive_names)
 
-    drive = next(
-        (d for d in drives if d["name"] == "Documents"),
-        drives[0],
-    )
+    for candidate in DRIVE_NAME_CANDIDATES:
+        drive = next((d for d in drives if d["name"] == candidate), None)
+        if drive is not None:
+            logging.info("Using SharePoint drive '%s'", drive["name"])
+            return drive["id"]
 
-    return drive["id"]
+    if not drives:
+        raise RuntimeError(f"No drives found for site {site_id}")
+
+    logging.warning("No preferred drive found; falling back to '%s'", drives[0]["name"])
+    return drives[0]["id"]
 
 
-def download_file(
-    token: str,
-    drive_id: str,
-    sharepoint_path: str,
-    dest_path: Path,
-) -> None:
-    """Download a single file from SharePoint to ``dest_path``."""
+def _normalize_filename(name: str) -> str:
+    """Compare filenames ignoring umlaut spelling variants and case."""
+    replacements = {
+        "ä": "ae",
+        "ö": "oe",
+        "ü": "ue",
+        "Ä": "Ae",
+        "Ö": "Oe",
+        "Ü": "Ue",
+        "ß": "ss",
+    }
+    normalized = name
+    for src, dst in replacements.items():
+        normalized = normalized.replace(src, dst)
+    return normalized.casefold().strip()
+
+
+def _list_folder_children(token: str, drive_id: str, folder_path: str) -> list[dict]:
     headers = {"Authorization": f"Bearer {token}"}
-
-    dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}"
-
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{folder_path}:/children"
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-
-    download_url = r.json()["@microsoft.graph.downloadUrl"]
-
-    logging.info("Downloading %s", sharepoint_path)
-
-    file_r = requests.get(download_url, stream=True)
-    file_r.raise_for_status()
-
-    with open(dest_path, "wb") as f:
-        for chunk in file_r.iter_content(chunk_size=8192):
-            f.write(chunk)
+    return r.json().get("value", [])
 
 
 def download_sharepoint_file(token: str, site_id: str) -> None:
+    """Download the Excel by listing the folder, then using the item download URL.
+
+    Path-based Graph lookups for this filename returned 404 even with correct
+    percent-encoding; resolving via folder children is more reliable.
+    """
     drive_id = get_drive_id(token, site_id)
-    download_file(
-        token=token,
-        drive_id=drive_id,
-        sharepoint_path=SHAREPOINT_FILE_PATH,
-        dest_path=SOURCE_FILE,
+    items = _list_folder_children(token, drive_id, SHAREPOINT_FOLDER)
+    item_names = [item.get("name") for item in items]
+    logging.info("Files in SharePoint folder '%s': %s", SHAREPOINT_FOLDER, item_names)
+
+    target_normalized = _normalize_filename(SOURCE_LOCAL_NAME)
+    match = next(
+        (
+            item
+            for item in items
+            if "file" in item and _normalize_filename(item.get("name", "")) == target_normalized
+        ),
+        None,
     )
+    if match is None:
+        raise FileNotFoundError(
+            f"File '{SOURCE_LOCAL_NAME}' not found in SharePoint folder '{SHAREPOINT_FOLDER}'. "
+            f"Available items: {item_names}"
+        )
+
+    download_url = match["@microsoft.graph.downloadUrl"]
+    SOURCE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    logging.info("Downloading %s/%s", SHAREPOINT_FOLDER, match["name"])
+
+    file_r = requests.get(download_url, stream=True)
+    file_r.raise_for_status()
+    with open(SOURCE_FILE, "wb") as f:
+        for chunk in file_r.iter_content(chunk_size=8192):
+            f.write(chunk)
 
 
 def fetch_source_file() -> Path:
