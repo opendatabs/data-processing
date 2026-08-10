@@ -961,63 +961,6 @@ _METADATA_FIELDS_ALWAYS_WRITABLE = {
     ("custom", "geodaten_modellbeschreibung"),
 }
 
-# Pipeline-owned fields must always replace stale portal values.
-_METADATA_FIELDS_FORCE_OVERWRITE = {
-    ("custom", "geodaten_modellbeschreibung"),
-    # Dataspot-sourced dates (creationDate / publicationDate / lastUpdate).
-    ("dcat", "created"),
-    ("dcat", "issued"),
-    ("default", "modified"),
-    # Keep Dataspot lastUpdate authoritative; do not let HUWISE auto-bump modified.
-    ("default", "modified_updates_on_data_change"),
-    ("default", "modified_updates_on_metadata_change"),
-}
-
-_DATASPOT_DATE_FIELDS = {
-    ("dcat", "created"): "created",
-    ("dcat", "issued"): "issued",
-    ("default", "modified"): "modified",
-}
-
-
-def _force_dataspot_last_update(
-    ods_id: str,
-    dataspot_dataset_id: str,
-    *,
-    metadata_last_push: dict[str, dict[str, Any]] | None = None,
-) -> None:
-    """Force HUWISE ``default.modified`` from Dataspot ``customProperties.lastUpdate``.
-
-    Must run after other metadata/schema writes so portal auto-bumps cannot stick.
-    """
-    ds_id = clean_text(dataspot_dataset_id)
-    if not ods_id or not ds_id:
-        return
-    try:
-        modified = clean_text(dataspot_metadata(DataspotAuth(), ds_id).get("modified"))
-    except Exception as exc:
-        logging.warning("Could not load Dataspot lastUpdate for ods_id=%s: %s", ods_id, exc)
-        return
-    if not modified:
-        return
-    dataset_uid = get_uid_by_id(dataset_id=ods_id)
-    client = HttpClient(HuwiseConfig.from_env())
-    for template, field, value in (
-        ("default", "modified_updates_on_data_change", False),
-        ("default", "modified_updates_on_metadata_change", False),
-        ("default", "modified", modified),
-    ):
-        try:
-            client.put(f"/datasets/{dataset_uid}/metadata/{template}/{field}/", json={"value": value})
-        except Exception as exc:
-            logging.warning("Failed forcing %s.%s for ods_id=%s: %s", template, field, ods_id, exc)
-            continue
-        if metadata_last_push is not None and field == "modified":
-            entry = metadata_last_push.setdefault(ods_id, {})
-            entry["default.modified"] = modified
-            metadata_last_push[ods_id] = order_snapshot_entry(entry)
-    logging.info("Forced default.modified=%s from Dataspot lastUpdate for ods_id=%s", modified, ods_id)
-
 
 def _canonical_geodaten_modellbeschreibung(
     metadata_row: pd.Series,
@@ -1137,24 +1080,9 @@ def _set_metadata_fields(
         if existing is None and api_field != field:
             existing = template_payloads.get(resolved_template, {}).get(api_field)
         value = _rewrite_geometa_preview_urls(value)
-        snapshot_key = f"{resolved_template}.{field}"
-        force_overwrite = (resolved_template, field) in _METADATA_FIELDS_FORCE_OVERWRITE
-        is_dataspot_date = (resolved_template, field) in _DATASPOT_DATE_FIELDS
-        # Empty Dataspot dates must clear stale portal values (e.g. wrong dcat.created).
         if _is_empty_value(value):
-            if is_dataspot_date and force_overwrite and not _is_empty_value(existing):
-                logging.info(
-                    "Clearing ods_id=%s %s.%s (Dataspot empty): was %r",
-                    ods_id,
-                    resolved_template,
-                    field,
-                    _normalize_metadata_compare_value(existing),
-                )
-                client.delete(f"/datasets/{dataset_uid}/metadata/{resolved_template}/{api_field}/")
-                entry = last_push_by_ods.setdefault(ods_id, {})
-                entry.pop(snapshot_key, None)
-                last_push_by_ods[ods_id] = order_snapshot_entry(entry)
             return
+        snapshot_key = f"{resolved_template}.{field}"
         last_push = last_push_by_ods.get(ods_id, {}).get(snapshot_key)
         normalized_existing = _normalize_metadata_compare_value(existing)
         normalized_new = _normalize_metadata_compare_value(value)
@@ -1169,18 +1097,8 @@ def _set_metadata_fields(
             and normalized_existing == publisher_existing
             and normalized_existing != normalized_new
         )
-        existing_text = clean_text(_extract_metadata_value(existing))
-        preview_migration = "/dataset/preview/" in existing_text and "/dataset/published/" in clean_text(
-            value if isinstance(value, str) else ""
-        )
-        if isinstance(value, list):
-            preview_migration = "/dataset/preview/" in existing_text and any(
-                "/dataset/published/" in clean_text(item) for item in value
-            )
         can_write = (
             dataset_created
-            or force_overwrite
-            or preview_migration
             or prefilled_as_publisher
             or _is_empty_value(existing)
             or (normalized_existing == normalized_new)
@@ -1188,16 +1106,6 @@ def _set_metadata_fields(
         )
         if not can_write:
             return
-        if force_overwrite or preview_migration:
-            if normalized_existing != normalized_new:
-                logging.info(
-                    "Updating ods_id=%s %s.%s (force/migrate): %r -> %r",
-                    ods_id,
-                    resolved_template,
-                    field,
-                    normalized_existing,
-                    normalized_new,
-                )
         payload = {"value": value}
         client.put(f"/datasets/{dataset_uid}/metadata/{resolved_template}/{api_field}/", json=payload)
         entry = last_push_by_ods.setdefault(ods_id, {})
@@ -1245,6 +1153,7 @@ def _set_metadata_fields(
             "modified_updates_on_data_change",
             False,
         ),
+        ("default", "modified", dataspot_dates["modified"]),
         ("default", "modified_updates_on_metadata_change", False),
         (
             "default",
@@ -1308,20 +1217,6 @@ def _set_metadata_fields(
     if relation_urls:
         _safe_set("relation", lambda: _set_template_field("dcat", "relation", relation_urls))
 
-    # Always write Letzte Aktualisierung last from Dataspot customProperties.lastUpdate,
-    # after other metadata writes so HUWISE auto-bump cannot replace it.
-    _safe_set(
-        "default.modified_updates_on_data_change",
-        lambda: _set_template_field("default", "modified_updates_on_data_change", False),
-    )
-    _safe_set(
-        "default.modified_updates_on_metadata_change",
-        lambda: _set_template_field("default", "modified_updates_on_metadata_change", False),
-    )
-    _safe_set(
-        "default.modified",
-        lambda: _set_template_field("default", "modified", dataspot_dates["modified"]),
-    )
 
 def _wait_for_huwise_idle(
     huwise_id: str,
@@ -2009,11 +1904,6 @@ def _process_dataset(
             dataset_created=dataset_created,
             dataspot_dataset_id=context.dataspot_dataset_id,
         )
-        _force_dataspot_last_update(
-            context.ods_id,
-            context.dataspot_dataset_id,
-            metadata_last_push=metadata_last_push,
-        )
         _publish_huwise_dataset(context.ods_id)
         logging.info("Finished ods_id=%s (metadata only, no local GeoJSON)", context.ods_id)
         return
@@ -2082,11 +1972,6 @@ def _process_dataset(
         force_resync=dataset_created or geojson_changed,
     )
     _wait_for_huwise_idle(context.ods_id, reason="after schema upsert")
-    _force_dataspot_last_update(
-        context.ods_id,
-        context.dataspot_dataset_id,
-        metadata_last_push=metadata_last_push,
-    )
     _publish_huwise_dataset(context.ods_id)
     logging.info("Finished ods_id=%s", context.ods_id)
 
@@ -2139,18 +2024,10 @@ def run(*, huwise_id_filter: str = "") -> None:
             logging.error("Failed ods_id=%s: %s", ods_id, exc)
 
     catalog_snapshots = load_flat_publish_catalog()
-    date_snapshot_keys = ("dcat.created", "dcat.issued", "default.modified")
     for ods_id in active_ids:
         catalog_entry = catalog_snapshots.get(ods_id, {})
         pushed_entry = metadata_last_push.get(ods_id, {})
         merged = merge_snapshot_entries(catalog_entry, pushed_entry)
-        # Date fields are managed by live Dataspot writes; do not reintroduce stale catalog values
-        # after a successful clear (key removed from last_push).
-        for key in date_snapshot_keys:
-            if key in pushed_entry:
-                merged[key] = pushed_entry[key]
-            else:
-                merged.pop(key, None)
         metadata_last_push[ods_id] = {
             key: _rewrite_geometa_preview_urls(value) if isinstance(value, (str, list)) else value
             for key, value in merged.items()
