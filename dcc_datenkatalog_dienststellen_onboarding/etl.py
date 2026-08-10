@@ -23,7 +23,7 @@ SHAREPOINT_FILE_PATH = f"Datenkatalog/1-Dienststellen/{SOURCE_LOCAL_NAME}"
 DATA_ORIG_DIR = Path("data_orig")
 SOURCE_FILE = DATA_ORIG_DIR / SOURCE_LOCAL_NAME
 OUTPUT_DIR = Path("data")
-ODS_DATASET_ID = "100542"
+ODS_DATASET_ID = "100537"
 FTP_REMOTE_PATH = "dcc/datenkatalog"
 OUTPUT_FILE = OUTPUT_DIR / f"{ODS_DATASET_ID}_datenkatalog_dienststellen_onboarding.csv"
 
