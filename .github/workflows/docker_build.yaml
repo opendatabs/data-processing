@@ -71,6 +71,9 @@ jobs:
             dcc_dataspot_schemes:
               - 'Dockerfile'
               - 'dcc_dataspot_schemes/**'
+            dcc_datenkatalog_dienststellen_onboarding:
+              - 'Dockerfile'
+              - 'dcc_datenkatalog_dienststellen_onboarding/**'
             dcc_verzeichnis_personendaten:
               - 'Dockerfile'
               - 'dcc_verzeichnis_personendaten/**'
