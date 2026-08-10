@@ -1806,8 +1806,122 @@ def _guess_resource_extractor(client: HttpClient, dataset_uid: str, source_url: 
     return "geojson"
 
 
+def _resource_matches_source(item: dict[str, Any], *, source_url: str, resource_title: str) -> bool:
+    """Return True when a HUWISE resource points at the same GeoJSON source."""
+    title = clean_text(item.get("title"))
+    datasource = item.get("datasource", {}) if isinstance(item.get("datasource"), dict) else {}
+    relative_url = clean_text(datasource.get("relative_url"))
+    connection = datasource.get("connection", {}) if isinstance(datasource.get("connection"), dict) else {}
+    connection_url = clean_text(connection.get("url"))
+    full_url = f"{connection_url}{relative_url}" if connection_url and relative_url else ""
+    source_path = urlparse(source_url).path
+    return title == resource_title or full_url == source_url or relative_url == source_path
+
+
+def _matching_resource_uids(
+    existing: list[dict[str, Any]],
+    *,
+    source_url: str,
+    resource_title: str,
+) -> list[str]:
+    """Return UIDs of all resources that match the published GeoJSON source."""
+    matched: list[str] = []
+    for item in existing:
+        if not isinstance(item, dict):
+            continue
+        if not _resource_matches_source(item, source_url=source_url, resource_title=resource_title):
+            continue
+        uid = clean_text(item.get("uid"))
+        if uid:
+            matched.append(uid)
+    return matched
+
+
+def _delete_duplicate_resources(
+    client: HttpClient,
+    *,
+    dataset_uid: str,
+    ods_id: str,
+    keep_uid: str,
+    duplicate_uids: list[str],
+) -> int:
+    """Delete all but one matching resource so the source exists only once.
+
+    Returns the number of resources successfully deleted.
+    """
+    deleted = 0
+    for resource_uid in duplicate_uids:
+        if resource_uid == keep_uid:
+            continue
+        try:
+            client.delete(f"/datasets/{dataset_uid}/resources/{resource_uid}/")
+            deleted += 1
+            logging.info(
+                "Deleted duplicate resource for ods_id=%s uid=%s (kept uid=%s)",
+                ods_id,
+                resource_uid,
+                keep_uid,
+            )
+        except Exception as exc:
+            logging.warning(
+                "Failed to delete duplicate resource for ods_id=%s uid=%s: %s",
+                ods_id,
+                resource_uid,
+                exc,
+            )
+    return deleted
+
+
+def _ensure_unique_dataset_resource(
+    client: HttpClient,
+    *,
+    dataset_uid: str,
+    ods_id: str,
+    source_url: str,
+    resource_title: str,
+    existing: list[dict[str, Any]] | None = None,
+) -> tuple[list[str], int]:
+    """Keep at most one matching source resource; delete any duplicates.
+
+    Returns ``(remaining_matching_uids, deleted_count)``. Remaining UIDs are
+    empty or a single kept resource UID.
+    """
+    if existing is None:
+        try:
+            existing = client.get(f"/datasets/{dataset_uid}/resources/").json().get("results", [])
+        except Exception as exc:
+            logging.warning("Could not list resources for ods_id=%s: %s", ods_id, exc)
+            return [], 0
+    if not isinstance(existing, list):
+        existing = []
+
+    matched_uids = _matching_resource_uids(existing, source_url=source_url, resource_title=resource_title)
+    if len(matched_uids) <= 1:
+        return matched_uids, 0
+
+    keep_uid = matched_uids[0]
+    duplicate_uids = matched_uids[1:]
+    deleted = _delete_duplicate_resources(
+        client,
+        dataset_uid=dataset_uid,
+        ods_id=ods_id,
+        keep_uid=keep_uid,
+        duplicate_uids=duplicate_uids,
+    )
+    logging.info(
+        "Deduped resources for ods_id=%s: kept 1, deleted %s duplicate(s)",
+        ods_id,
+        deleted,
+    )
+    return [keep_uid], deleted
+
+
 def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
-    """Create/update HUWISE resource that points to the published GeoJSON URL."""
+    """Create/update HUWISE resource that points to the published GeoJSON URL.
+
+    Ensures the GeoJSON source exists only once: if multiple matching resources
+    are present, the first is kept/updated and the remaining duplicates are deleted.
+    """
     logging.info("STEP upsert_resource huwise_id=%s", ods_id)
     _wait_for_huwise_idle(ods_id, reason="before resource upsert")
     dataset_uid = get_uid_by_id(dataset_id=ods_id)
@@ -1817,50 +1931,44 @@ def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
     except Exception as exc:
         logging.warning("Could not list resources for ods_id=%s: %s", ods_id, exc)
         existing = []
+    if not isinstance(existing, list):
+        existing = []
 
     resource_title = f"{ods_id}.geojson"
+    matched_uids, _deleted = _ensure_unique_dataset_resource(
+        client,
+        dataset_uid=dataset_uid,
+        ods_id=ods_id,
+        source_url=source_url,
+        resource_title=resource_title,
+        existing=existing,
+    )
+
     extractor_type = _guess_resource_extractor(client, dataset_uid=dataset_uid, source_url=source_url)
     payload = _resource_payload(source_url=source_url, title=resource_title, extractor_type=extractor_type)
     payload["title"] = resource_title
 
-    matched_uid = ""
-    for item in existing:
-        title = clean_text(item.get("title"))
-        datasource = item.get("datasource", {})
-        relative_url = clean_text(datasource.get("relative_url"))
-        connection_url = clean_text(datasource.get("connection", {}).get("url"))
-        full_url = f"{connection_url}{relative_url}" if connection_url and relative_url else ""
-        if title == resource_title or full_url == source_url or relative_url == urlparse(source_url).path:
-            matched_uid = clean_text(item.get("uid"))
-            break
-
-    if matched_uid:
+    if matched_uids:
+        matched_uid = matched_uids[0]
         try:
             client.put(f"/datasets/{dataset_uid}/resources/{matched_uid}/", json=payload)
             logging.info("Updated resource for ods_id=%s uid=%s", ods_id, matched_uid)
         except Exception as exc:
+            # Do not create a second resource on update failure — that is how
+            # duplicate sources accumulate across publishes.
             logging.warning(
-                "Failed to update resource for ods_id=%s uid=%s: %s. Trying create fallback.",
+                "Failed to update resource for ods_id=%s uid=%s: %s",
                 ods_id,
                 matched_uid,
                 exc,
             )
-            try:
-                response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
-                logging.info("Created fallback resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
-            except Exception as create_exc:
-                logging.warning(
-                    "Failed fallback resource create for ods_id=%s source=%s: %s",
-                    ods_id,
-                    source_url,
-                    create_exc,
-                )
-    else:
-        try:
-            response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
-            logging.info("Created resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
-        except Exception as exc:
-            logging.warning("Failed to create resource for ods_id=%s source=%s: %s", ods_id, source_url, exc)
+        return
+
+    try:
+        response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
+        logging.info("Created resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
+    except Exception as exc:
+        logging.warning("Failed to create resource for ods_id=%s source=%s: %s", ods_id, source_url, exc)
 
 
 def _process_dataset(
@@ -1953,7 +2061,22 @@ def _process_dataset(
         _upsert_dataset_resource(context.ods_id, source_url)
         _wait_for_huwise_idle(context.ods_id, reason="after resource upsert")
     else:
+        # Still remove duplicate sources even when the GeoJSON itself is unchanged.
         logging.info("Skipping resource upsert for existing ods_id=%s (geojson unchanged)", context.ods_id)
+        try:
+            dataset_uid = get_uid_by_id(dataset_id=context.ods_id)
+            client = HttpClient(HuwiseConfig.from_env())
+            _kept, deleted = _ensure_unique_dataset_resource(
+                client,
+                dataset_uid=dataset_uid,
+                ods_id=context.ods_id,
+                source_url=source_url,
+                resource_title=f"{context.ods_id}.geojson",
+            )
+            if deleted:
+                _wait_for_huwise_idle(context.ods_id, reason="after resource dedupe")
+        except Exception as exc:
+            logging.warning("Resource dedupe skipped for ods_id=%s: %s", context.ods_id, exc)
     _set_metadata_fields(
         context.ods_id,
         metadata_row,
