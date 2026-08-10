@@ -17,7 +17,7 @@ SITE_NAME = os.getenv("SHAREPOINT_SITE_NAME_DCC")
 CERT_PATH = os.getenv("SHAREPOINT_CERT_PATH")
 THUMBPRINT = os.getenv("SHAREPOINT_THUMBPRINT")
 
-SOURCE_LOCAL_NAME = "Übersichtsliste Dienststellen und Data Owner.xlsx"
+SOURCE_LOCAL_NAME = "Uebersichtsliste Dienststellen und Data Owner.xlsx"
 SHAREPOINT_FILE_PATH = f"Datenkatalog/1-Dienststellen/{SOURCE_LOCAL_NAME}"
 
 DATA_ORIG_DIR = Path("data_orig")
