@@ -37,8 +37,8 @@ SOURCE_COLUMNS = [
     "Status: Info",
     "Status: Kick-Off",
     "Status: Metadatenerfassung",
-    "Status: Review und Abnahme",
-    "Status: Abgeschlossen",
+    "Status: Review",
+    "Status: Abnahme (Freigabe Data Owner)",
 ]
 
 OUTPUT_COLUMNS = [
@@ -48,8 +48,8 @@ OUTPUT_COLUMNS = [
     "Status: Info",
     "Status: Kick-Off",
     "Status: Metadatenerfassung",
-    "Status: Review und Abnahme",
-    "Status: Abgeschlossen",
+    "Status: Review",
+    "Status: Abnahme (Freigabe Data Owner)",
 ]
 
 STATUS_COLUMNS = OUTPUT_COLUMNS[2:]
