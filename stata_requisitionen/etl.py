@@ -1,10 +1,19 @@
 import logging
+from io import StringIO
 from pathlib import Path
 
 import common
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+
+
+def download_spatial_descriptors(ods_id: str) -> gpd.GeoDataFrame:
+    """Download a GeoJSON spatial dataset from data.bs.ch and return it in EPSG:2056."""
+    url = f"https://data.bs.ch/api/explore/v2.1/catalog/datasets/{ods_id}/exports/geojson"
+    r = common.requests_get(url)
+    gdf = gpd.read_file(StringIO(r.text))
+    return gdf.to_crs("EPSG:2056")
 
 
 def main():
@@ -43,10 +52,9 @@ def main():
     # Keep only rows with usable XY (recommended for spatial ops)
     df = df[df["OriginalKoordinateX"].notna() & df["OriginalKoordinateY"].notna()].copy()
 
-    # --- your existing hex join in EPSG:2056 ---
-    shp_path = base / "hexagonalraster" / "hexaraster_kanton_100.shp"
-    hex_gdf = gpd.read_file(shp_path)
-    hex_gdf = hex_gdf.set_crs("EPSG:2056") if hex_gdf.crs is None else hex_gdf.to_crs("EPSG:2056")
+    logging.info("Downloading Wohnviertel (100042) and Bezirke (100039)...")
+    viertel_gdf = download_spatial_descriptors("100042")
+    bez_gdf = download_spatial_descriptors("100039")
 
     pts_gdf = gpd.GeoDataFrame(
         df,
@@ -54,13 +62,26 @@ def main():
         crs="EPSG:2056",
     )
 
-    joined = gpd.sjoin(pts_gdf, hex_gdf[["geometry"]], how="left", predicate="within")
-    joined["hex_geometry"] = hex_gdf.geometry.reindex(joined["index_right"]).values
-    joined = joined.drop(columns=["index_right"]).set_geometry("hex_geometry")
+    logging.info("Joining Requisitionen coordinates with Wohnviertel and Bezirke...")
+    joined = gpd.sjoin(
+        pts_gdf,
+        viertel_gdf[["wov_id", "wov_name", "geometry"]],
+        how="left",
+        predicate="within",
+    ).drop(columns=["index_right"])
+
+    joined = gpd.sjoin(
+        joined,
+        bez_gdf[["bez_id", "bez_name", "geometry"]],
+        how="left",
+        predicate="within",
+    )
+    joined["bez_geometry"] = bez_gdf.geometry.reindex(joined["index_right"]).values
+    joined = joined.drop(columns=["index_right"]).set_geometry("bez_geometry")
 
     out = (
         joined.drop(columns=["geometry"])
-        .rename(columns={"hex_geometry": "geometry"})
+        .rename(columns={"bez_geometry": "geometry"})
         .set_geometry("geometry")
         .set_crs("EPSG:2056")
     )
@@ -75,6 +96,10 @@ def main():
         "EinsatzDatum",
         "Einsatzzeit",
         "Lichtverhaeltnisse",
+        "wov_id",
+        "wov_name",
+        "bez_id",
+        "bez_name",
         "geometry",
     ]
     out = out[columns_of_interest]
