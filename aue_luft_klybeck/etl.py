@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Set LOCAL_RUN=true in .env to skip exceedance e-mail only (offline dev on Mac).
+# Set LOCAL_RUN=true in .env to skip SharePoint download and exceedance e-mail (offline dev on Mac).
 LOCAL_RUN = os.getenv("LOCAL_RUN", "false").lower() in ("1", "true", "yes", "y")
 
 TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
@@ -115,11 +115,38 @@ def _normalize_parameter(value: Any) -> str:
 
 
 def _format_date(value: Any) -> str:
-    if pd.isna(value):
+    """Normalize dates to ``YYYY-MM-DD``.
+
+    SharePoint cells may be real Excel datetimes, ISO ``YYYY-MM-DD`` strings, or
+    German ``DD.MM.YYYY`` strings. ISO strings must be parsed as year-month-day:
+    ``dayfirst=True`` on ``2026-07-04`` would silently turn 4 July into 7 April
+    and break exceedance key matching against the local workbook.
+    """
+    if value is None or value == "":
         return ""
-    ts = pd.to_datetime(value, errors="coerce", format="mixed", dayfirst=True)
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+
+    if hasattr(value, "strftime") and not isinstance(value, str):
+        try:
+            return value.strftime("%Y-%m-%d")
+        except (TypeError, ValueError, OverflowError):
+            pass
+
+    text = str(value).strip()
+    if not text or text.lower() == "nan":
+        return ""
+
+    ts = pd.to_datetime(text, errors="coerce", format="%Y-%m-%d")
     if pd.isna(ts):
-        return str(value).strip()
+        ts = pd.to_datetime(text, errors="coerce", format="%d.%m.%Y")
+    if pd.isna(ts):
+        ts = pd.to_datetime(text, errors="coerce", dayfirst=True)
+    if pd.isna(ts):
+        return text
     return ts.strftime("%Y-%m-%d")
 
 
@@ -203,9 +230,10 @@ def _load_existing_exceedances() -> pd.DataFrame:
 def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.DataFrame:
     """Combine freshly detected exceedances with the maintained workbook.
 
-    New exceedances are added with an empty ``Info / Massnahmen`` column, while
-    manually maintained ``Info / Massnahmen`` entries for already known
-    exceedances are carried over and never overwritten.
+    The local/SharePoint workbook is the source of ``Info / Massnahmen``. New
+    exceedances are added with an empty info column. Already known rows keep
+    their info (never overwritten) and are not dropped just because they are
+    not in the current detection set.
     """
     new_df = new_df.copy()
     existing_df = existing_df.copy()
@@ -217,6 +245,7 @@ def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.Da
         frame["parameter"] = frame["parameter"].astype(str).str.strip()
 
     existing_info: dict[tuple, str] = {}
+    existing_rows: dict[tuple, pd.Series] = {}
     for _, row in existing_df.iterrows():
         key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
         info = row.get("Info / Massnahmen", "")
@@ -224,13 +253,22 @@ def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.Da
         # Keep the first non-empty info entry if duplicate keys exist.
         if key not in existing_info or (not existing_info[key] and info):
             existing_info[key] = info
+            kept = row.copy()
+            kept["Info / Massnahmen"] = info
+            existing_rows[key] = kept
 
     merged_rows = []
+    seen_keys: set[tuple] = set()
     for _, row in new_df.iterrows():
         key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
         new_row = row.copy()
         new_row["Info / Massnahmen"] = existing_info.get(key, "")
         merged_rows.append(new_row)
+        seen_keys.add(key)
+
+    for key, row in existing_rows.items():
+        if key not in seen_keys:
+            merged_rows.append(row)
 
     return pd.DataFrame(merged_rows, columns=EXCEEDANCE_COLUMNS).reset_index(drop=True)
 
@@ -548,7 +586,10 @@ def main() -> None:
     """Create and publish the Klybeck air-quality datasets."""
     logging.info("ETL job started")
 
-    fetch_source_file()
+    if LOCAL_RUN:
+        logging.info("LOCAL_RUN=true: skipping SharePoint download, using local files in %s", DATA_ORIG_PATH)
+    else:
+        fetch_source_file()
 
     if not SOURCE_FILE.exists():
         raise FileNotFoundError(f"Source file not found: {SOURCE_FILE}")
