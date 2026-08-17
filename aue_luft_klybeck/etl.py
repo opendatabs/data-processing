@@ -71,7 +71,14 @@ COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
 
 DECENTLAB_DOMAIN = "bl-lufthygieneamt.decentlab.com"
 DECENTLAB_API_KEY = os.getenv("API_KEY_DECENTLAB")
-FEINSTAUB_DEVICES = ["16300", "16303"]
+FEINSTAUB_STANDORTE = {
+    "16300": "KLYBECK 1",
+    "16301": "KLYBECK 2",
+    "16302": "KLYBECK 3",
+    "16303": "KLYBECK 4",
+    "16304": "KLYBECK 5",
+    "16305": "KLYBECK 6",
+}
 FEINSTAUB_COLUMNS = ["timestamp", "standort", "sensirion-sps30-pm2_5"]
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin", "Quecksilber"}
@@ -530,7 +537,7 @@ def _transform_feinstaub_device_df(df: pd.DataFrame, device: str) -> pd.DataFram
     transformed = df.copy()
     transformed.columns = [_normalize_feinstaub_column_name(col, device) for col in transformed.columns]
     transformed = transformed.reset_index().rename(columns={"time": "timestamp"})
-    transformed.insert(0, "standort", device)
+    transformed.insert(0, "standort", FEINSTAUB_STANDORTE[device])
     missing = [column for column in FEINSTAUB_COLUMNS if column not in transformed.columns]
     if missing:
         raise ValueError(f"Device {device} is missing Feinstaub columns: {missing}")
@@ -543,7 +550,7 @@ def _extract_feinstaub_metadata_rows(df: pd.DataFrame, device: str) -> list[dict
     for source_column, metadata in tags.items():
         rows.append(
             {
-                "standort": device,
+                "standort": FEINSTAUB_STANDORTE[device],
                 "column": _normalize_feinstaub_column_name(source_column, device),
                 "unit": metadata.get("unit"),
                 "sensor": metadata.get("sensor"),
@@ -562,13 +569,19 @@ def _publish_feinstaub() -> None:
     transformed_frames: list[pd.DataFrame] = []
     metadata_rows: list[dict[str, Any]] = []
 
-    for device in FEINSTAUB_DEVICES:
+    for device in FEINSTAUB_STANDORTE:
         df_device = query(
             domain=DECENTLAB_DOMAIN,
             api_key=DECENTLAB_API_KEY,
             device=f"/^{device}$/",
         )
-        logging.info("Device %s: %s rows, columns: %s", device, len(df_device), list(df_device.columns))
+        logging.info(
+            "Device %s (%s): %s rows, columns: %s",
+            device,
+            FEINSTAUB_STANDORTE[device],
+            len(df_device),
+            list(df_device.columns),
+        )
         transformed_frames.append(_transform_feinstaub_device_df(df_device, device))
         metadata_rows.extend(_extract_feinstaub_metadata_rows(df_device, device))
 
