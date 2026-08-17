@@ -158,6 +158,65 @@ def _format_date(value: Any) -> str:
     return ts.strftime("%Y-%m-%d")
 
 
+def _month_day_swapped(date_str: str) -> str | None:
+    """Return ``YYYY-MM-DD`` with month and day swapped, if that is a valid date.
+
+    Used to attach ``Info / Massnahmen`` when the workbook stored ``07.04.2026``
+    as the ISO string ``2026-07-04`` (4 July) instead of ``2026-04-07`` (7 April).
+    """
+    parts = str(date_str).split("-")
+    if len(parts) != 3:
+        return None
+    year, month, day = parts
+    try:
+        month_n = int(month)
+        day_n = int(day)
+    except ValueError:
+        return None
+    if month_n == day_n or month_n > 12 or day_n > 12:
+        return None
+    swapped = f"{year}-{day}-{month}"
+    ts = pd.to_datetime(swapped, errors="coerce", format="%Y-%m-%d")
+    if pd.isna(ts):
+        return None
+    return swapped
+
+
+def _info_for_exceedance(key: tuple, existing_info: dict[tuple, str]) -> str:
+    """Find ``Info / Massnahmen`` for a detected exceedance.
+
+    Tries an exact key match, then a month/day-swapped ``Messende``/``Messbeginn``
+    (faulty ISO strings in the workbook), then a unique match on Messbeginn +
+    Standort + parameter.
+    """
+    exact = existing_info.get(key, "")
+    if exact:
+        return exact
+
+    messbeginn, messende, standort, parameter = key
+    swapped_ende = _month_day_swapped(messende)
+    swapped_beginn = _month_day_swapped(messbeginn)
+    for candidate in (
+        (messbeginn, swapped_ende, standort, parameter) if swapped_ende else None,
+        (swapped_beginn, messende, standort, parameter) if swapped_beginn else None,
+        (swapped_beginn, swapped_ende, standort, parameter) if swapped_beginn and swapped_ende else None,
+    ):
+        if candidate is None:
+            continue
+        info = existing_info.get(candidate, "")
+        if info:
+            return info
+
+    prefix_matches = [
+        info
+        for (beginn, _ende, loc, param), info in existing_info.items()
+        if beginn == messbeginn and loc == standort and param == parameter and info
+    ]
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
+    return ""
+
+
 def _format_number(value: Any, decimals: int | None = None) -> str:
     if pd.isna(value) or value == "":
         return ""
@@ -238,10 +297,10 @@ def _load_existing_exceedances() -> pd.DataFrame:
 def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.DataFrame:
     """Combine freshly detected exceedances with the maintained workbook.
 
-    The local/SharePoint workbook is the source of ``Info / Massnahmen``. New
-    exceedances are added with an empty info column. Already known rows keep
-    their info (never overwritten) and are not dropped just because they are
-    not in the current detection set.
+    The dataset is the current detections. ``Info / Massnahmen`` is copied from
+    the workbook and never overwritten. Workbook rows that are not a current
+    detection (including entries with a swapped month/day in Messende) are not
+    published.
     """
     new_df = new_df.copy()
     existing_df = existing_df.copy()
@@ -253,30 +312,19 @@ def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.Da
         frame["parameter"] = frame["parameter"].astype(str).str.strip()
 
     existing_info: dict[tuple, str] = {}
-    existing_rows: dict[tuple, pd.Series] = {}
     for _, row in existing_df.iterrows():
         key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
         info = row.get("Info / Massnahmen", "")
         info = "" if pd.isna(info) else str(info).strip()
-        # Keep the first non-empty info entry if duplicate keys exist.
         if key not in existing_info or (not existing_info[key] and info):
             existing_info[key] = info
-            kept = row.copy()
-            kept["Info / Massnahmen"] = info
-            existing_rows[key] = kept
 
     merged_rows = []
-    seen_keys: set[tuple] = set()
     for _, row in new_df.iterrows():
         key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
         new_row = row.copy()
-        new_row["Info / Massnahmen"] = existing_info.get(key, "")
+        new_row["Info / Massnahmen"] = _info_for_exceedance(key, existing_info)
         merged_rows.append(new_row)
-        seen_keys.add(key)
-
-    for key, row in existing_rows.items():
-        if key not in seen_keys:
-            merged_rows.append(row)
 
     return pd.DataFrame(merged_rows, columns=EXCEEDANCE_COLUMNS).reset_index(drop=True)
 
