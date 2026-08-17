@@ -110,7 +110,7 @@ def _normalize_parameter(value: Any) -> str:
 def _format_date(value: Any) -> str:
     if pd.isna(value):
         return ""
-    ts = pd.to_datetime(value, errors="coerce")
+    ts = pd.to_datetime(value, errors="coerce", format="mixed", dayfirst=True)
     if pd.isna(ts):
         return str(value).strip()
     return ts.strftime("%Y-%m-%d")
