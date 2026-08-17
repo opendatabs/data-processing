@@ -177,17 +177,10 @@ def download_sharepoint_file(token: str, site_id: str) -> None:
 
 
 def fetch_source_file() -> Path:
-    """Download the source Excel from SharePoint, falling back to the local copy."""
-    try:
-        token = get_graph_token()
-        site_id = get_site_id(token)
-        download_sharepoint_file(token, site_id)
-    except Exception:
-        logging.exception("SharePoint download failed. Falling back to local file in %s", DATA_ORIG_DIR)
-        if not SOURCE_FILE.exists():
-            raise FileNotFoundError(f"SharePoint download failed and no local fallback file found: {SOURCE_FILE}")
-        logging.warning("Using existing local source file %s", SOURCE_FILE)
-
+    """Download the source Excel from SharePoint."""
+    token = get_graph_token()
+    site_id = get_site_id(token)
+    download_sharepoint_file(token, site_id)
     return SOURCE_FILE
 
 

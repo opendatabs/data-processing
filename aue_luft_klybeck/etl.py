@@ -182,18 +182,9 @@ def _build_excel_attachment(intervention_exceedances: pd.DataFrame) -> pd.DataFr
 
 
 def _load_existing_exceedances() -> pd.DataFrame:
-    """Read the existing exceedance workbook from ``data_orig``.
-
-    SharePoint writes the maintained workbook into ``data_orig`` (with the local
-    fallback handled in ``fetch_source_file``), so here we only read the local
-    copy. If no file is present yet, we start with an empty frame.
-    """
+    """Read the existing exceedance workbook downloaded from SharePoint."""
     if not EXCEEDANCE_SOURCE_FILE.exists():
-        logging.warning(
-            "No existing exceedance file found at %s. Starting with an empty workbook.",
-            EXCEEDANCE_SOURCE_FILE,
-        )
-        return pd.DataFrame(columns=EXCEEDANCE_COLUMNS)
+        raise FileNotFoundError(f"Exceedance file not found: {EXCEEDANCE_SOURCE_FILE}")
 
     existing = pd.read_excel(EXCEEDANCE_SOURCE_FILE)
     for column in EXCEEDANCE_COLUMNS:
@@ -448,29 +439,17 @@ def _to_long_schema(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fetch_source_file() -> None:
-    """Download the source file from SharePoint, falling back to the local copy.
-
-    SharePoint writes into ``DATA_ORIG_PATH`` (the same folder we read the source
-    file from). If the download fails for any reason, we keep using the file that
-    is already present in ``data_orig``.
-    """
-    try:
-        token = get_graph_token()
-        site_id = get_site_id(token)
-        download_sharepoint_files(token, site_id)
-    except Exception:
-        logging.exception("SharePoint download failed. Falling back to local file in %s", DATA_ORIG_PATH)
-        if not SOURCE_FILE.exists():
-            raise FileNotFoundError(f"SharePoint download failed and no local fallback file found: {SOURCE_FILE}")
-        logging.warning("Using existing local source file %s", SOURCE_FILE)
+    """Download the source files from SharePoint into ``DATA_ORIG_PATH``."""
+    token = get_graph_token()
+    site_id = get_site_id(token)
+    download_sharepoint_files(token, site_id)
 
 
 def _publish_planned_measurements() -> None:
     """Copy the planned measurements workbook from data_orig and publish it.
 
-    The file is downloaded from SharePoint into ``data_orig`` (with the local
-    fallback handled in ``fetch_source_file``). Here we simply copy it to the
-    output folder under its OGD name and upload/publish it via FTP and ODS.
+    The file is downloaded from SharePoint into ``data_orig``. Here we copy it
+    to the output folder under its OGD name and upload/publish it via FTP and ODS.
     """
     if not PLANNED_SOURCE_FILE.exists():
         raise FileNotFoundError(f"Planned measurements file not found: {PLANNED_SOURCE_FILE}")
@@ -483,9 +462,8 @@ def _publish_planned_measurements() -> None:
 def _publish_coordinates() -> None:
     """Copy the measurement location coordinates workbook and publish it.
 
-    The file is downloaded from SharePoint into ``data_orig`` (with the local
-    fallback handled in ``fetch_source_file``). Here we copy it to the output
-    folder under its OGD name, upload it via FTP and trigger an ODS reload.
+    The file is downloaded from SharePoint into ``data_orig``. Here we copy it
+    to the output folder under its OGD name, upload it via FTP and trigger an ODS reload.
     """
     if not COORDINATES_SOURCE_FILE.exists():
         raise FileNotFoundError(f"Coordinates file not found: {COORDINATES_SOURCE_FILE}")
