@@ -32,8 +32,9 @@ PLANNED_LOCAL_NAME = "Geplante_Messungen.xlsx"
 COORDINATES_LOCAL_NAME = "Koordinaten_Messstandorte_Klybeck.xlsx"
 EXCEEDANCE_LOCAL_NAME = "Gemessene_Ueberschreitungen.xlsx"
 
-# SharePoint location of the maintained exceedance workbook we read from and write back to.
-EXCEEDANCE_SHAREPOINT_PATH = f"{SHAREPOINT_BASE}/Ueberschreitungen/Gemessene_Ueberschreitungen.xlsx"
+# SharePoint location of the maintained exceedance workbook (read-only; we cannot write back).
+EXCEEDANCE_SHAREPOINT_FOLDER = f"{SHAREPOINT_BASE}/Ueberschreitungen"
+EXCEEDANCE_SHAREPOINT_PATH = f"{EXCEEDANCE_SHAREPOINT_FOLDER}/{EXCEEDANCE_LOCAL_NAME}"
 
 # Map of SharePoint file paths to the local file names we store them under.
 SHAREPOINT_FILES = {
@@ -237,13 +238,12 @@ def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.Da
 
 
 def _publish_exceedances(attachment_df: pd.DataFrame) -> None:
-    """Refresh the exceedance workbook and publish it to OGD and SharePoint.
+    """Refresh the exceedance workbook and publish it to OGD.
 
     The maintained workbook is merged with the freshly detected exceedances
     (keeping existing ``Info / Massnahmen``), saved to ``data_orig``, copied to
-    the OGD output folder and uploaded via FTP/ODS. It is then uploaded to
-    SharePoint. If the SharePoint upload fails, the local copies are kept as the
-    fallback.
+    the OGD output folder and uploaded via FTP/ODS. SharePoint is read-only for
+    this job; the workbook is sent by e-mail for manual upload.
     """
     existing_df = _load_existing_exceedances()
     merged_df = _merge_exceedances(attachment_df, existing_df)
@@ -256,18 +256,6 @@ def _publish_exceedances(attachment_df: pd.DataFrame) -> None:
     shutil.copyfile(EXCEEDANCE_SOURCE_FILE, EXCEEDANCE_OUTPUT_FILE)
     logging.info("Copied %s to %s", EXCEEDANCE_SOURCE_FILE, EXCEEDANCE_OUTPUT_FILE)
     common.update_ftp_and_odsp(str(EXCEEDANCE_OUTPUT_FILE), "aue/luft/", "100526")
-
-    try:
-        token = get_graph_token()
-        site_id = get_site_id(token)
-        drive_id = get_drive_id(token, site_id)
-        upload_file(token, drive_id, EXCEEDANCE_SHAREPOINT_PATH, EXCEEDANCE_SOURCE_FILE)
-        logging.info("Uploaded exceedance workbook to SharePoint: %s", EXCEEDANCE_SHAREPOINT_PATH)
-    except Exception:
-        logging.exception(
-            "SharePoint upload of exceedance workbook failed. Kept local copy in %s",
-            EXCEEDANCE_SOURCE_FILE,
-        )
 
 
 def _send_exceedance_email_if_changed(
@@ -295,23 +283,32 @@ def _send_exceedance_email_if_changed(
         logging.info("LOCAL_RUN=true: skipping exceedance e-mail.")
         return
 
-    text = "Das Klybeck Luftmessungs-ETL hat neue/veraenderte Ueberschreitungen erkannt.\n\n"
-    text += f"Warnwert-Ueberschreitungen (>=): {len(warn_exceedances)}\n"
-    text += f"Interventionswert-Ueberschreitungen (>=): {len(intervention_exceedances)}\n\n"
-    text += "Die Datei mit den gemessenen Ueberschreitungen finden Sie auf SharePoint:\n"
-    text += f"{EXCEEDANCE_SHAREPOINT_URL}\n\n"
-    text += "Spalte 'Info / Massnahmen' ist fuer manuelle Ergaenzungen vorgesehen.\n\n"
-    text += "Kind regards,\nYour automated Open Data Basel-Stadt Python Job"
+    text = "Das Klybeck Luftmessungs-ETL hat neue/veränderte Überschreitungen erkannt.\n\n"
+    text += f"Warnwert-Überschreitungen (>=): {len(warn_exceedances)}\n"
+    text += f"Interventionswert-Überschreitungen (>=): {len(intervention_exceedances)}\n\n"
+    text += (
+        f"Die aktualisierte Datei «{EXCEEDANCE_LOCAL_NAME}» ist dieser E-Mail beigefügt.\n\n"
+        "Bitte ergänzen Sie die Spalte «Info / Massnahmen» und laden Sie die Datei "
+        "anschliessend in den folgenden SharePoint-Ordner hoch:\n\n"
+        f"{EXCEEDANCE_SHAREPOINT_FOLDER}\n"
+        f"{EXCEEDANCE_SHAREPOINT_URL}\n\n"
+        "Freundliche Grüsse\n"
+        "Ihr automatisierter Open Data Basel-Stadt Python-Job"
+    )
 
     msg = common.email_message(
-        subject="Klybeck Luft: Ueberschreitungen Warnwert/Interventionswert",
+        subject="Klybeck Luft: Überschreitungen Warnwert/Interventionswert",
         text=text,
         img=None,
-        attachment=None,
+        attachment=str(EXCEEDANCE_SOURCE_FILE),
     )
     common.send_email(msg)
     ct.update_hash_file(str(EXCEEDANCE_TRACKING_FILE))
-    logging.info("Sent exceedance e-mail with SharePoint link %s", EXCEEDANCE_SHAREPOINT_URL)
+    logging.info(
+        "Sent exceedance e-mail with attachment %s (SharePoint folder %s)",
+        EXCEEDANCE_SOURCE_FILE,
+        EXCEEDANCE_SHAREPOINT_FOLDER,
+    )
 
 
 def get_graph_token() -> str:
@@ -392,27 +389,6 @@ def download_file(
     with open(dest_path, "wb") as f:
         for chunk in file_r.iter_content(chunk_size=8192):
             f.write(chunk)
-
-
-def upload_file(
-    token: str,
-    drive_id: str,
-    sharepoint_path: str,
-    src_path: Path,
-) -> None:
-    """Upload a single local file to ``sharepoint_path`` on SharePoint."""
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/octet-stream",
-    }
-
-    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
-
-    logging.info("Uploading %s to %s", src_path, sharepoint_path)
-
-    with open(src_path, "rb") as f:
-        r = requests.put(url, headers=headers, data=f)
-    r.raise_for_status()
 
 
 def download_sharepoint_files(token: str, site_id: str) -> None:
