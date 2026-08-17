@@ -9,6 +9,7 @@ import common.change_tracking as ct
 import msal
 import pandas as pd
 import requests
+from decentlab import query
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -59,12 +60,18 @@ COORDINATES_SOURCE_FILE = DATA_ORIG_PATH / COORDINATES_LOCAL_NAME
 EXCEEDANCE_SOURCE_FILE = DATA_ORIG_PATH / EXCEEDANCE_LOCAL_NAME
 OUTPUT_DIR = Path("data")
 
+FEINSTAUB_OUTPUT_FILE = OUTPUT_DIR / "100523_feinstaub.csv"
+FEINSTAUB_METADATA_FILE = OUTPUT_DIR / "metadata_feinstaub.csv"
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
 VOLATILE_OUTPUT_FILE = OUTPUT_DIR / "100525_fluechtige_schadstoffe_klybeck.csv"
 EXCEEDANCE_TRACKING_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck_tracking.csv"
 EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck.xlsx"
 PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
 COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
+
+DECENTLAB_DOMAIN = "bl-lufthygieneamt.decentlab.com"
+DECENTLAB_API_KEY = os.getenv("API_KEY_DECENTLAB")
+FEINSTAUB_DEVICES = ["16300", "16303"]
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin", "Quecksilber"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
@@ -473,8 +480,72 @@ def _publish_coordinates() -> None:
     common.update_ftp_and_odsp(str(COORDINATES_OUTPUT_FILE), "aue/luft/", "100528")
 
 
+def _normalize_feinstaub_column_name(column_name: str, device: str) -> str:
+    prefix = f"{device}."
+    if column_name.startswith(prefix):
+        return column_name[len(prefix) :]
+    return column_name
+
+
+def _transform_feinstaub_device_df(df: pd.DataFrame, device: str) -> pd.DataFrame:
+    transformed = df.copy()
+    transformed.columns = [_normalize_feinstaub_column_name(col, device) for col in transformed.columns]
+    transformed = transformed.reset_index().rename(columns={"time": "timestamp"})
+    transformed.insert(0, "standort", device)
+    return transformed
+
+
+def _extract_feinstaub_metadata_rows(df: pd.DataFrame, device: str) -> list[dict[str, Any]]:
+    rows = []
+    tags = getattr(df, "tags", {})
+    for source_column, metadata in tags.items():
+        rows.append(
+            {
+                "standort": device,
+                "column": _normalize_feinstaub_column_name(source_column, device),
+                "unit": metadata.get("unit"),
+                "sensor": metadata.get("sensor"),
+                "channel": metadata.get("channel"),
+                "title": metadata.get("title"),
+            }
+        )
+    return rows
+
+
+def _publish_feinstaub() -> None:
+    """Query Decentlab PM sensors, write CSVs, and publish the Feinstaub dataset."""
+    if not DECENTLAB_API_KEY:
+        raise RuntimeError("API_KEY_DECENTLAB is not set")
+
+    transformed_frames: list[pd.DataFrame] = []
+    metadata_rows: list[dict[str, Any]] = []
+
+    for device in FEINSTAUB_DEVICES:
+        df_device = query(
+            domain=DECENTLAB_DOMAIN,
+            api_key=DECENTLAB_API_KEY,
+            device=f"/^{device}$/",
+        )
+        logging.info("Device %s: %s rows, columns: %s", device, len(df_device), list(df_device.columns))
+        transformed_frames.append(_transform_feinstaub_device_df(df_device, device))
+        metadata_rows.extend(_extract_feinstaub_metadata_rows(df_device, device))
+
+    combined_df = pd.concat(transformed_frames, ignore_index=True, sort=False)
+    combined_df = combined_df.sort_values(["timestamp", "standort"]).reset_index(drop=True)
+
+    metadata_df = pd.DataFrame(metadata_rows)
+    metadata_df = metadata_df.drop_duplicates().sort_values(["column", "standort"]).reset_index(drop=True)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    combined_df.to_csv(FEINSTAUB_OUTPUT_FILE, index=False)
+    logging.info("Wrote %s rows to %s", len(combined_df), FEINSTAUB_OUTPUT_FILE)
+    metadata_df.to_csv(FEINSTAUB_METADATA_FILE, index=False)
+    logging.info("Wrote %s metadata rows to %s", len(metadata_df), FEINSTAUB_METADATA_FILE)
+    common.update_ftp_and_odsp(str(FEINSTAUB_OUTPUT_FILE), "aue/luft/", "100523")
+
+
 def main() -> None:
-    """Create two Klybeck pollutant CSV files with the target schema."""
+    """Create and publish the Klybeck air-quality datasets."""
     logging.info("ETL job started")
 
     fetch_source_file()
@@ -524,6 +595,7 @@ def main() -> None:
     _send_exceedance_email_if_changed(attachment_df, warn_exceedances, intervention_exceedances)
     _publish_planned_measurements()
     _publish_coordinates()
+    _publish_feinstaub()
     logging.info("ETL job completed")
 
 
