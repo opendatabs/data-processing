@@ -72,6 +72,7 @@ COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
 DECENTLAB_DOMAIN = "bl-lufthygieneamt.decentlab.com"
 DECENTLAB_API_KEY = os.getenv("API_KEY_DECENTLAB")
 FEINSTAUB_DEVICES = ["16300", "16303"]
+FEINSTAUB_COLUMNS = ["timestamp", "standort", "sensirion-sps30-pm2_5"]
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin", "Quecksilber"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
@@ -530,7 +531,10 @@ def _transform_feinstaub_device_df(df: pd.DataFrame, device: str) -> pd.DataFram
     transformed.columns = [_normalize_feinstaub_column_name(col, device) for col in transformed.columns]
     transformed = transformed.reset_index().rename(columns={"time": "timestamp"})
     transformed.insert(0, "standort", device)
-    return transformed
+    missing = [column for column in FEINSTAUB_COLUMNS if column not in transformed.columns]
+    if missing:
+        raise ValueError(f"Device {device} is missing Feinstaub columns: {missing}")
+    return transformed[FEINSTAUB_COLUMNS]
 
 
 def _extract_feinstaub_metadata_rows(df: pd.DataFrame, device: str) -> list[dict[str, Any]]:
@@ -572,6 +576,7 @@ def _publish_feinstaub() -> None:
     combined_df = combined_df.sort_values(["timestamp", "standort"]).reset_index(drop=True)
 
     metadata_df = pd.DataFrame(metadata_rows)
+    metadata_df = metadata_df[metadata_df["column"].isin(FEINSTAUB_COLUMNS)]
     metadata_df = metadata_df.drop_duplicates().sort_values(["column", "standort"]).reset_index(drop=True)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
