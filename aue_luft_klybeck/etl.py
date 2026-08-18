@@ -79,7 +79,8 @@ FEINSTAUB_STANDORTE = {
     "16304": "KLYBECK 5",
     "16305": "KLYBECK 6",
 }
-FEINSTAUB_COLUMNS = ["timestamp", "standort", "sensirion-sps30-pm2_5"]
+FEINSTAUB_PM_COLUMN = "sensirion-sps30-pm2_5"
+FEINSTAUB_COLUMNS = ["timestamp", "standort", FEINSTAUB_PM_COLUMN]
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin", "Quecksilber"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
@@ -634,7 +635,12 @@ def _publish_feinstaub() -> None:
         metadata_rows.extend(_extract_feinstaub_metadata_rows(df_device, device))
 
     combined_df = pd.concat(transformed_frames, ignore_index=True, sort=False)
-    combined_df = combined_df.sort_values(["timestamp", "standort"]).reset_index(drop=True)
+    combined_df[FEINSTAUB_PM_COLUMN] = pd.to_numeric(combined_df[FEINSTAUB_PM_COLUMN], errors="coerce")
+    zero_or_empty = combined_df[FEINSTAUB_PM_COLUMN].isna() | combined_df[FEINSTAUB_PM_COLUMN].eq(0)
+    dropped = int(zero_or_empty.sum())
+    if dropped:
+        logging.info("Dropped %s Feinstaub rows with empty or 0.0000 %s", dropped, FEINSTAUB_PM_COLUMN)
+    combined_df = combined_df.loc[~zero_or_empty].sort_values(["timestamp", "standort"]).reset_index(drop=True)
 
     metadata_df = pd.DataFrame(metadata_rows)
     metadata_df = metadata_df[metadata_df["column"].isin(FEINSTAUB_COLUMNS)]
