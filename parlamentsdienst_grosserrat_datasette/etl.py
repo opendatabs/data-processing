@@ -507,7 +507,7 @@ def main():
             "dok_laufnr",
             max_failures=3,
             shuffle=True,
-            max_workers=1
+            max_workers=1,
         )
     for method in ["docling-serve", "pymupdf", "pymupdf4llm"]:
         safe_converter(
@@ -519,7 +519,7 @@ def main():
             "tag1",
             max_failures=3,
             shuffle=True,
-            max_workers=1
+            max_workers=1,
         )
 
     for method in ["pdfplumber", "pymupdf"]:
