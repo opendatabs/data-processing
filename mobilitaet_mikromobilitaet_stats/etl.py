@@ -558,21 +558,17 @@ def publish_rolling_datasets():
 
 def download_spatial_descriptors(ods_id):
     """
-    Download and extract a shapefile from data.bs.ch for a given ODS dataset ID.
-    Returns a GeoDataFrame in EPSG:2056.
+    Download GeoJSON from data.bs.ch for a given ODS dataset ID.
+    Returns a GeoDataFrame in EPSG:2056 with full field names
+    (shapefile exports truncate names to 10 characters).
     """
-    url_to_shp = f"https://data.bs.ch/explore/dataset/{ods_id}/download/?format=shp"
-    r = common.requests_get(url_to_shp)
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    extract_folder = os.path.join("data", ods_id)
-    if not os.path.exists(extract_folder):
-        os.makedirs(extract_folder)
-
-    z.extractall(extract_folder)
-    path_to_shp = os.path.join(extract_folder, f"{ods_id}.shp")
-
-    gdf = gpd.read_file(path_to_shp, encoding="utf-8")
-    return gdf.to_crs("EPSG:2056")
+    url = f"https://data.bs.ch/api/explore/v2.1/catalog/datasets/{ods_id}/exports/geojson"
+    r = common.requests_get(url)
+    gdf = gpd.read_file(io.BytesIO(r.content))
+    gdf = gdf.to_crs("EPSG:2056")
+    if "gemeinde_name" in gdf.columns and "gemeinde_na" not in gdf.columns:
+        gdf = gdf.rename(columns={"gemeinde_name": "gemeinde_na"})
+    return gdf
 
 
 def combine_files_to_gdf(dates, start_hour=0, end_hour=24):

@@ -1,8 +1,6 @@
 import datetime
-import io
 import logging
 import os
-import zipfile
 from io import StringIO
 
 import common
@@ -23,7 +21,15 @@ def download_spatial_descriptors(ods_id):
     url = f"https://data.bs.ch/api/explore/v2.1/catalog/datasets/{ods_id}/exports/geojson"
     r = common.requests_get(url)
     gdf = gpd.read_file(StringIO(r.text))
-    return gdf.to_crs("EPSG:4326")
+    return gdf.to_crs("EPSG:2056")
+
+
+def get_first_value(x, gdf, column_name):
+    matches = gdf[gdf.contains(x)][column_name]
+    if not matches.empty:
+        return matches.iloc[0]
+    return None
+
 
 def create_diff_files(path_to_new):
     logging.info("Creating diff files...")
@@ -81,17 +87,17 @@ def main():
         logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid...")
         gdf["centroid"] = gdf["geometry"].centroid
         gdf_plz = download_spatial_descriptors("100016")
-        gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["postleitzahl"].values[0])
         gdf_plz = gdf_plz.dissolve(by="postleitzahl").reset_index()
+        gdf["plz"] = gdf["centroid"].apply(lambda x: get_first_value(x, gdf_plz, "postleitzahl"))
         gdf_viertel = download_spatial_descriptors("100042")
-        gdf["wov_id"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_id"].values[0])
-        gdf["wov_name"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_name"].values[0])
+        gdf["wov_id"] = gdf["centroid"].apply(lambda x: get_first_value(x, gdf_viertel, "wov_id"))
+        gdf["wov_name"] = gdf["centroid"].apply(lambda x: get_first_value(x, gdf_viertel, "wov_name"))
         gdf_bezirke = download_spatial_descriptors("100039")
-        gdf["bez_id"] = gdf["centroid"].apply(lambda x: gdf_bezirke[gdf_bezirke.contains(x)]["bez_id"].values[0])
-        gdf["bez_name"] = gdf["centroid"].apply(lambda x: gdf_bezirke[gdf_bezirke.contains(x)]["bez_name"].values[0])
+        gdf["bez_id"] = gdf["centroid"].apply(lambda x: get_first_value(x, gdf_bezirke, "bez_id"))
+        gdf["bez_name"] = gdf["centroid"].apply(lambda x: get_first_value(x, gdf_bezirke, "bez_name"))
 
         # Filter on PLZ that start with 40 (Basel)
-        gdf = gdf[gdf["plz"].str.startswith("40")]
+        gdf = gdf[gdf["plz"].fillna("").astype(str).str.startswith("40")]
 
         gdf["geometry"] = gdf["geometry"].to_crs("EPSG:4326")
         gdf["centroid"] = gdf["centroid"].to_crs("EPSG:4326")
