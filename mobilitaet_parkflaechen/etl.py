@@ -82,6 +82,7 @@ def main():
         gdf["centroid"] = gdf["geometry"].centroid
         gdf_plz = download_spatial_descriptors("100016")
         gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["postleitzahl"].values[0])
+        gdf_plz = gdf_plz.dissolve(by="postleitzahl").reset_index()
         gdf_viertel = download_spatial_descriptors("100042")
         gdf["wov_id"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_id"].values[0])
         gdf["wov_name"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_name"].values[0])
