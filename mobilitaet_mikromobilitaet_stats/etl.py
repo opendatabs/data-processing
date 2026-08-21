@@ -55,10 +55,10 @@ CONFIGS = {
         "ods_id_shapes": "100017",
         "ods_id": "100422",
         "fill_empty_polygon_column": None,
-        "group_cols": ["xs_provider_name", "objid"],
+        "group_cols": ["xs_provider_name", "id"],
         "output_cols": [
             "date",
-            "objid",
+            "id",
             "name",
             "geometry",
             "xs_provider_name",
