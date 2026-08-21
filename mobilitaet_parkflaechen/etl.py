@@ -87,7 +87,7 @@ def main():
         logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid...")
         gdf["centroid"] = gdf["geometry"].centroid
         gdf_plz = download_spatial_descriptors("100016")
-        gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["plz"].values[0])
+        gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["postleitzahl"].values[0])
         gdf_viertel = download_spatial_descriptors("100042")
         gdf["wov_id"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_id"].values[0])
         gdf["wov_name"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_name"].values[0])
