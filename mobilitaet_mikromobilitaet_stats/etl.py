@@ -59,7 +59,7 @@ CONFIGS = {
         "output_cols": [
             "date",
             "id",
-            "name",
+            "gemeindename",
             "geometry",
             "xs_provider_name",
             "num_measures",
