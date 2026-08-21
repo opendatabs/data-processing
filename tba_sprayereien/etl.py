@@ -25,7 +25,7 @@ def main():
         gdf = gdf.to_crs("EPSG:4326")
         logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each spraying based on centroid...")
         gdf_plz = download_spatial_descriptors("100016")
-        gdf["plz"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_plz, "plz"))
+        gdf["plz"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_plz, "postleitzahl"))
         gdf_viertel = download_spatial_descriptors("100042")
         gdf["wov_id"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_viertel, "wov_id"))
         gdf["wov_name"] = gdf["geometry"].apply(lambda x: get_first_value(x, gdf_viertel, "wov_name"))
