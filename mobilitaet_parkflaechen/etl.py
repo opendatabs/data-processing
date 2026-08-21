@@ -20,16 +20,10 @@ PASS = os.getenv("HTTPS_PASS_TBA")
 
 
 def download_spatial_descriptors(ods_id):
-    url_to_shp = f"https://data.bs.ch/explore/dataset/{ods_id}/download/?format=shp"
-    r = common.requests_get(url_to_shp)
-    # Unpack zip file
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall(os.path.join("data", ods_id))
-    # Read shapefile
-    path_to_shp = os.path.join("data", ods_id, f"{ods_id}.shp")
-    gdf = gpd.read_file(path_to_shp, encoding="utf-8")
-    return gdf.to_crs("EPSG:2056")  # Change to a suitable projected CRS
-
+    url = f"https://data.bs.ch/api/explore/v2.1/catalog/datasets/{ods_id}/exports/geojson"
+    r = common.requests_get(url)
+    gdf = gpd.read_file(StringIO(r.text))
+    return gdf.to_crs("EPSG:4326")
 
 def create_diff_files(path_to_new):
     logging.info("Creating diff files...")
@@ -87,7 +81,7 @@ def main():
         logging.info("Calculate PLZ, Wohnviertel and Wohnbezirk for each parking lot based on centroid...")
         gdf["centroid"] = gdf["geometry"].centroid
         gdf_plz = download_spatial_descriptors("100016")
-        gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["postleitza"].values[0])
+        gdf["plz"] = gdf["centroid"].apply(lambda x: gdf_plz[gdf_plz.contains(x)]["postleitzahl"].values[0])
         gdf_viertel = download_spatial_descriptors("100042")
         gdf["wov_id"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_id"].values[0])
         gdf["wov_name"] = gdf["centroid"].apply(lambda x: gdf_viertel[gdf_viertel.contains(x)]["wov_name"].values[0])
