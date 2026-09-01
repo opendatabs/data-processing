@@ -43,20 +43,6 @@ WAHLLOKAL_TO_GEMEINDE = {
     "Total Kanton": "Kanton Basel-Stadt",
 }
 
-PHYSICAL_URNE = {
-    "Bahnhof SBB",
-    "Rathaus",
-    "Kleinbasel",
-    "Riehen Gemeindehaus",
-    "Bettingen Gemeindehaus",
-}
-
-BRIEFLICH_CHANNELS = {
-    "Basel briefl. & elektr. Stimmende (Total)",
-    "Riehen briefl. & elektr. Stimmende (Total)",
-    "Bettingen briefl. & elektr. Stimmende (Total)",
-}
-
 GEMEINDE_TOTALS = {
     "Total Basel": "Stadt Basel",
     "Total Riehen": "Gemeinde Riehen",
@@ -66,81 +52,93 @@ GEMEINDE_TOTALS = {
 
 SKIP_WAHLLOKALE_PREFIXES = ("Stimmenanteil",)
 
-INT_COLUMNS = [
-    "anzahl_sitze",
-    "stimmberechtigte_manner",
-    "stimmberechtigte_frauen",
-    "stimmberechtigte",
-    "stimmberechtigte_auslandschweizer",
-    "stimmrechtsausweise",
-    "wahlzettel",
-    "briefliche_stimmabgaben",
-    "ungestempelte_wahlzettel",
-    "ungultige_wahlzettel",
-    "leere_wahlzettel",
-    "leere_stimmen",
-    "ungultige_stimmen",
-    "vereinzelte_stimmen",
-    "stimmen",
-    "stimmen_prasident",
-    "total_gultige_wahlzettel",
-    "absolutes_mehr",
-    "jahrgang",
-    "plz",
+# Exact T0012MAKA.TXT header, including capitalization.
+MAKA_COLUMNS = [
+    "Wahlbezeichnung",
+    "Amtsdauer",
+    "Wahltermin",
+    "Anzahl Sitze",
+    "Präsident",
+    "Wahlkreis-Nr.",
+    "Wahlkreis-Code",
+    "Bezeichnung Wahlkreis",
+    "Stimmberechtigte Männer",
+    "Stimmberechtigte Frauen",
+    "Stimmberechtigte",
+    "Stimmberechtigte Auslandschweizer",
+    "Wahlzettel",
+    "Briefliche Stimmabgaben",
+    "Ungestempelte Wahlzettel",
+    "Ungültige Wahlzettel",
+    "Leere Wahlzettel",
+    "Leere Stimmen",
+    "Ungültige Stimmen",
+    "Vereinzelte Stimmen",
+    "Leere Stimmen Präsident",
+    "Ungültige Stimmen Präsident",
+    "Vereinzelte Stimmen Präsident",
+    "Kandidaten-Nr",
+    "Personen-ID",
+    "Bisher",
+    "Gewählt",
+    "Name",
+    "Vorname",
+    "Geschlecht",
+    "Jahrgang",
+    "Anrede",
+    "Beruf",
+    "Heimatort",
+    "Strasse",
+    "PLZ",
+    "Ort",
+    "Stimmen",
+    "Stimmen Präsident",
+    "Gewählt Präsident",
+    "Total gültige Wahlzettel",
+    "Stimmbeteiligung",
+    "Anteil brieflich Wählende",
+    "Absolutes Mehr",
 ]
 
-EXPORT_COLUMNS = [
-    "wahlbezeichnung",
-    "amtsdauer",
-    "wahltermin",
-    "anzahl_sitze",
-    "resultats_typ",
-    "wahllokal",
-    "wahlkreis_nr",
-    "wahlkreis_code",
-    "bezeichnung_wahlkreis",
-    "stimmberechtigte_manner",
-    "stimmberechtigte_frauen",
-    "stimmberechtigte",
-    "stimmberechtigte_auslandschweizer",
-    "stimmrechtsausweise",
-    "wahlzettel",
-    "briefliche_stimmabgaben",
-    "ungestempelte_wahlzettel",
-    "ungultige_wahlzettel",
-    "leere_wahlzettel",
-    "leere_stimmen",
-    "ungultige_stimmen",
-    "vereinzelte_stimmen",
-    "kandidaten_nr",
-    "personen_id",
-    "bisher",
-    "gewahlt",
-    "ganzer_name",
-    "name",
-    "vorname",
-    "geschlecht",
-    "jahrgang",
-    "anrede",
-    "beruf",
-    "heimatort",
-    "strasse",
-    "plz",
-    "ort",
-    "stimmen",
-    "stimmen_prasident",
-    "gewahlt_prasident",
-    "total_gultige_wahlzettel",
-    "stimmbeteiligung",
-    "anteil_brieflich_wahlende",
-    "absolutes_mehr",
+INT_COLUMNS = [
+    "Anzahl Sitze",
+    "Stimmberechtigte Männer",
+    "Stimmberechtigte Frauen",
+    "Stimmberechtigte",
+    "Stimmberechtigte Auslandschweizer",
+    "Wahlzettel",
+    "Briefliche Stimmabgaben",
+    "Ungestempelte Wahlzettel",
+    "Ungültige Wahlzettel",
+    "Leere Wahlzettel",
+    "Leere Stimmen",
+    "Ungültige Stimmen",
+    "Vereinzelte Stimmen",
+    "Leere Stimmen Präsident",
+    "Ungültige Stimmen Präsident",
+    "Vereinzelte Stimmen Präsident",
+    "Jahrgang",
+    "PLZ",
+    "Stimmen",
+    "Stimmen Präsident",
+    "Total gültige Wahlzettel",
+    "Absolutes Mehr",
 ]
+
+EXCEL_TO_MAKA_NUMBERS = {
+    "wahlzettel": "Wahlzettel",
+    "leere_wahlzettel": "Leere Wahlzettel",
+    "ungultige_wahlzettel": "Ungültige Wahlzettel",
+    "total_gultige_wahlzettel": "Total gültige Wahlzettel",
+    "vereinzelte_stimmen": "Vereinzelte Stimmen",
+    "stimmen": "Stimmen",
+}
 
 
 def main():
     logging.info("Building Ersatzwahl resultate from Excel + MAKA files...")
     df = calculate_resultate()
-    wahltermin = df["wahltermin"].iloc[0]
+    wahltermin = parse_date_for_filename(df["Wahltermin"].iloc[0])
     os.makedirs(DATA_DIR, exist_ok=True)
     export_path = os.path.join(DATA_DIR, CSV_NAME_TEMPLATE.format(date=wahltermin))
     logging.info(f"Writing {export_path} ({len(df)} rows)...")
@@ -153,10 +151,20 @@ def calculate_resultate(data_orig=DATA_ORIG):
     df_maka = read_maka(data_orig)
     excel_path = find_excel_with_results(data_orig)
     logging.info(f"Using Excel results from {excel_path}")
-    df_excel, meta = read_excel_dat1(excel_path)
-    df = combine_excel_and_maka(df_excel, df_maka, meta)
-    validate_totals(df)
+    df_excel, _meta = read_excel_dat1(excel_path)
+    df = combine_excel_and_maka(df_excel, df_maka)
+    validate_totals(df_excel)
     return df
+
+
+def parse_date_for_filename(value):
+    text = str(value).strip()
+    for fmt in ("%d.%m.%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return text.replace(".", "-")
 
 
 def find_excel_with_results(data_orig=DATA_ORIG):
@@ -199,71 +207,10 @@ def read_maka(data_orig=DATA_ORIG):
         df = df.dropna(how="all")
         frames.append(df)
     df = pd.concat(frames, ignore_index=True)
-    df = df.rename(
-        columns={
-            "Wahlbezeichnung": "wahlbezeichnung",
-            "Amtsdauer": "amtsdauer",
-            "Wahltermin": "wahltermin_raw",
-            "Anzahl Sitze": "anzahl_sitze",
-            "Präsident": "prasident",
-            "Wahlkreis-Nr.": "wahlkreis_nr",
-            "Wahlkreis-Nr": "wahlkreis_nr",
-            "Wahlkreis-Code": "wahlkreis_code",
-            "Bezeichnung Wahlkreis": "bezeichnung_wahlkreis",
-            "Stimmberechtigte Männer": "stimmberechtigte_manner",
-            "Stimmberechtigte Frauen": "stimmberechtigte_frauen",
-            "Stimmberechtigte": "stimmberechtigte",
-            "Stimmberechtigte Auslandschweizer": "stimmberechtigte_auslandschweizer",
-            "Wahlzettel": "wahlzettel",
-            "Briefliche Stimmabgaben": "briefliche_stimmabgaben",
-            "Ungestempelte Wahlzettel": "ungestempelte_wahlzettel",
-            "Ungültige Wahlzettel": "ungultige_wahlzettel",
-            "Leere Wahlzettel": "leere_wahlzettel",
-            "Leere Stimmen": "leere_stimmen",
-            "Ungültige Stimmen": "ungultige_stimmen",
-            "Vereinzelte Stimmen": "vereinzelte_stimmen",
-            "Leere Stimmen Präsident": "leere_stimmen_prasident",
-            "Ungültige Stimmen Präsident": "ungultige_stimmen_prasident",
-            "Vereinzelte Stimmen Präsident": "vereinzelte_stimmen_prasident",
-            "Kandidaten-Nr": "kandidaten_nr",
-            "Personen-ID": "personen_id",
-            "Bisher": "bisher",
-            "Gewählt": "gewahlt",
-            "Name": "name",
-            "Vorname": "vorname",
-            "Geschlecht": "geschlecht",
-            "Jahrgang": "jahrgang",
-            "Anrede": "anrede",
-            "Beruf": "beruf",
-            "Heimatort": "heimatort",
-            "Strasse": "strasse",
-            "PLZ": "plz",
-            "Ort": "ort",
-            "Stimmen": "stimmen",
-            "Stimmen Präsident": "stimmen_prasident",
-            "Gewählt Präsident": "gewahlt_prasident",
-            "Total gültige Wahlzettel": "total_gultige_wahlzettel",
-            "Stimmbeteiligung": "stimmbeteiligung",
-            "Anteil brieflich Wählende": "anteil_brieflich_wahlende",
-            "Absolutes Mehr": "absolutes_mehr",
-        }
-    )
-    df["kandidaten_nr"] = df["kandidaten_nr"].astype(str).str.strip().str.zfill(2)
-    df["wahltermin"] = df["wahltermin_raw"].map(parse_wahltermin)
-    df["ganzer_name"] = df["name"].str.strip() + ", " + df["vorname"].str.strip()
+    if "Absolutes Mehr" not in df.columns:
+        df["Absolutes Mehr"] = pd.NA
+    df["Kandidaten-Nr"] = df["Kandidaten-Nr"].astype(str).str.strip().str.zfill(2)
     return df
-
-
-def parse_wahltermin(value):
-    if pd.isna(value) or str(value).strip() == "":
-        return pd.NA
-    text = str(value).strip()
-    for fmt in ("%d.%m.%Y", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(text, fmt).strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-    return text
 
 
 def read_excel_dat1(path):
@@ -298,18 +245,15 @@ def read_excel_dat1(path):
 
         base = {
             "wahllokal": wahllokal,
-            "stimmrechtsausweise": to_number(row.iloc[2]),
             "wahlzettel": to_number(row.iloc[3]),
             "leere_wahlzettel": to_number(row.iloc[4]),
             "ungultige_wahlzettel": to_number(row.iloc[5]),
             "total_gultige_wahlzettel": to_number(row.iloc[6]),
             "vereinzelte_stimmen": to_number(row.iloc[9]) if len(row) > 9 else pd.NA,
-            "absolutes_mehr_excel": to_number(row.iloc[10]) if len(row) > 10 else pd.NA,
         }
         for col_idx, cand in candidate_cols.items():
             rec = dict(base)
             rec["kandidaten_nr"] = cand["kandidaten_nr"]
-            rec["header_name"] = cand["header_name"]
             rec["stimmen"] = to_number(row.iloc[col_idx]) if col_idx < len(row) else pd.NA
             records.append(rec)
 
@@ -348,129 +292,60 @@ def _first_non_null(values):
     return None
 
 
-def combine_excel_and_maka(df_excel, df_maka, meta):
-    maka_by_gemeinde = df_maka.drop_duplicates(subset=["bezeichnung_wahlkreis", "kandidaten_nr"])
-    maka_candidates = df_maka.drop_duplicates(subset=["kandidaten_nr"]).set_index("kandidaten_nr")
-    maka_kanton = df_maka[df_maka["bezeichnung_wahlkreis"] == "Kanton Basel-Stadt"]
-    absolutes_mehr_kanton = pd.NA
-    if "absolutes_mehr" in maka_kanton.columns and not maka_kanton.empty:
-        absolutes_mehr_kanton = maka_kanton["absolutes_mehr"].dropna().iloc[0] if maka_kanton["absolutes_mehr"].notna().any() else pd.NA
+def combine_excel_and_maka(df_excel, df_maka):
+    """Gemeinde + Kanton rows in T0012MAKA schema; Excel supplies the result numbers."""
+    excel_totals = df_excel[df_excel["wahllokal"].isin(GEMEINDE_TOTALS)].copy()
+    excel_totals["Bezeichnung Wahlkreis"] = excel_totals["wahllokal"].map(GEMEINDE_TOTALS)
+    excel_totals["Kandidaten-Nr"] = excel_totals["kandidaten_nr"]
 
-    wahlbezeichnung = meta["wahlbezeichnung_excel"]
-    if not wahlbezeichnung or wahlbezeichnung.endswith("vom"):
-        wahlbezeichnung = maka_candidates["wahlbezeichnung"].iloc[0]
+    maka = df_maka.copy()
+    for col in MAKA_COLUMNS:
+        if col not in maka.columns:
+            maka[col] = pd.NA
 
-    rows = []
-    for rec in df_excel.to_dict(orient="records"):
-        wahllokal = rec["wahllokal"]
-        gemeinde = WAHLLOKAL_TO_GEMEINDE[wahllokal]
-        kandidaten_nr = rec["kandidaten_nr"]
-        maka_row = maka_by_gemeinde[
-            (maka_by_gemeinde["bezeichnung_wahlkreis"] == gemeinde) & (maka_by_gemeinde["kandidaten_nr"] == kandidaten_nr)
-        ]
-        if maka_row.empty:
-            raise ValueError(f"No MAKA row for {gemeinde} / candidate {kandidaten_nr}")
-        maka = maka_row.iloc[0]
-        cand = maka_candidates.loc[kandidaten_nr]
+    maka = maka.drop_duplicates(subset=["Bezeichnung Wahlkreis", "Kandidaten-Nr"], keep="last")
+    merged = maka.merge(
+        excel_totals[["Bezeichnung Wahlkreis", "Kandidaten-Nr", *EXCEL_TO_MAKA_NUMBERS.keys()]],
+        on=["Bezeichnung Wahlkreis", "Kandidaten-Nr"],
+        how="inner",
+        suffixes=("_maka", ""),
+    )
+    if merged.empty:
+        raise ValueError("Could not match Excel Gemeinde/Kanton totals to MAKA rows.")
 
-        is_gemeinde_total = wahllokal in GEMEINDE_TOTALS
-        is_kanton = wahllokal == "Total Kanton"
-        briefliche = briefliche_for_wahllokal(wahllokal, rec, maka)
+    for excel_col, maka_col in EXCEL_TO_MAKA_NUMBERS.items():
+        merged[maka_col] = merged[excel_col]
 
-        out = {
-            "wahlbezeichnung": wahlbezeichnung,
-            "amtsdauer": cand["amtsdauer"],
-            "wahltermin": cand["wahltermin"],
-            "anzahl_sitze": cand["anzahl_sitze"],
-            "resultats_typ": meta["resultats_typ"],
-            "wahllokal": wahllokal,
-            "wahlkreis_nr": maka["wahlkreis_nr"],
-            "wahlkreis_code": maka["wahlkreis_code"],
-            "bezeichnung_wahlkreis": gemeinde,
-            "stimmberechtigte_manner": maka["stimmberechtigte_manner"] if is_gemeinde_total else pd.NA,
-            "stimmberechtigte_frauen": maka["stimmberechtigte_frauen"] if is_gemeinde_total else pd.NA,
-            "stimmberechtigte": maka["stimmberechtigte"] if is_gemeinde_total else pd.NA,
-            "stimmberechtigte_auslandschweizer": maka["stimmberechtigte_auslandschweizer"] if is_gemeinde_total else pd.NA,
-            "stimmrechtsausweise": rec["stimmrechtsausweise"],
-            "wahlzettel": rec["wahlzettel"],
-            "briefliche_stimmabgaben": briefliche,
-            "ungestempelte_wahlzettel": maka["ungestempelte_wahlzettel"] if is_gemeinde_total else 0,
-            "ungultige_wahlzettel": rec["ungultige_wahlzettel"],
-            "leere_wahlzettel": rec["leere_wahlzettel"],
-            "leere_stimmen": maka["leere_stimmen"] if is_gemeinde_total else 0,
-            "ungultige_stimmen": maka["ungultige_stimmen"] if is_gemeinde_total else 0,
-            "vereinzelte_stimmen": rec["vereinzelte_stimmen"],
-            "kandidaten_nr": kandidaten_nr,
-            "personen_id": cand["personen_id"],
-            "bisher": empty_to_na(cand.get("bisher")),
-            "gewahlt": cand["gewahlt"],
-            "ganzer_name": cand["ganzer_name"],
-            "name": cand["name"],
-            "vorname": cand["vorname"],
-            "geschlecht": cand["geschlecht"],
-            "jahrgang": cand["jahrgang"],
-            "anrede": cand["anrede"],
-            "beruf": cand["beruf"],
-            "heimatort": empty_to_na(cand.get("heimatort")),
-            "strasse": empty_to_na(cand.get("strasse")),
-            "plz": empty_to_na(cand.get("plz")),
-            "ort": empty_to_na(cand.get("ort")),
-            "stimmen": rec["stimmen"],
-            "stimmen_prasident": cand.get("stimmen_prasident", pd.NA),
-            "gewahlt_prasident": cand.get("gewahlt_prasident", pd.NA),
-            "total_gultige_wahlzettel": rec["total_gultige_wahlzettel"],
-            "stimmbeteiligung": maka["stimmbeteiligung"] if is_gemeinde_total else pd.NA,
-            "anteil_brieflich_wahlende": anteil_brieflich(wahllokal, rec, maka, briefliche),
-            "absolutes_mehr": to_number(absolutes_mehr_kanton) if is_kanton else pd.NA,
-        }
-        rows.append(out)
+    # Briefliche Stimmabgaben stay at Gemeinde/Kanton from MAKA (Excel has no gender/berechtigte).
+    # Excel totals already equal the three Basel Wahllokale + brieflich, not «Persönlich an der Urne».
+    kanton_mehr = maka.loc[maka["Bezeichnung Wahlkreis"] == "Kanton Basel-Stadt", "Absolutes Mehr"]
+    kanton_mehr = kanton_mehr.dropna()
+    merged["Absolutes Mehr"] = pd.NA
+    if not kanton_mehr.empty:
+        merged.loc[merged["Bezeichnung Wahlkreis"] == "Kanton Basel-Stadt", "Absolutes Mehr"] = kanton_mehr.iloc[0]
 
-    df = pd.DataFrame(rows)
+    df = merged[MAKA_COLUMNS].copy()
+    gemeinde_order = ["Stadt Basel", "Gemeinde Bettingen", "Gemeinde Riehen", "Kanton Basel-Stadt"]
+    df["Bezeichnung Wahlkreis"] = pd.Categorical(df["Bezeichnung Wahlkreis"], categories=gemeinde_order, ordered=True)
+    df = df.sort_values(["Bezeichnung Wahlkreis", "Kandidaten-Nr"]).reset_index(drop=True)
+    df["Bezeichnung Wahlkreis"] = df["Bezeichnung Wahlkreis"].astype(str)
+
     for col in INT_COLUMNS:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
-    return df[EXPORT_COLUMNS]
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+    return df
 
 
-def briefliche_for_wahllokal(wahllokal, rec, maka):
-    if wahllokal in PHYSICAL_URNE:
-        return 0
-    if wahllokal in BRIEFLICH_CHANNELS:
-        return rec["wahlzettel"]
-    if wahllokal in GEMEINDE_TOTALS:
-        return to_number(maka["briefliche_stimmabgaben"])
-    return pd.NA
-
-
-def anteil_brieflich(wahllokal, rec, maka, briefliche):
-    if wahllokal in GEMEINDE_TOTALS:
-        return empty_to_na(maka.get("anteil_brieflich_wahlende"))
-    eingelegte = rec["wahlzettel"]
-    if pd.isna(eingelegte) or eingelegte in (0, "0"):
-        return pd.NA
-    if pd.isna(briefliche):
-        return pd.NA
-    ratio = float(briefliche) / float(eingelegte)
-    return f"{ratio * 100:.2f}%"
-
-
-def empty_to_na(value):
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return pd.NA
-    text = str(value).strip()
-    return pd.NA if text == "" or text.lower() == "nan" else value
-
-
-def validate_totals(df):
-    """Gemeinde totals in Excel/MAKA must equal the sum of the remaining Wahllokale."""
+def validate_totals(df_excel):
+    """Excel Gemeinde totals must equal the sum of Wahllokale (3 Basel urne kept separate)."""
     for gemeinde, total_name in (
         ("Stadt Basel", "Total Basel"),
         ("Gemeinde Riehen", "Total Riehen"),
         ("Gemeinde Bettingen", "Total Bettingen"),
     ):
-        for kandidaten_nr, group in df[df["bezeichnung_wahlkreis"] == gemeinde].groupby("kandidaten_nr"):
-            total_row = group[group["wahllokal"] == total_name]
-            parts = group[~group["wahllokal"].isin(GEMEINDE_TOTALS)]
+        group = df_excel[df_excel["wahllokal"].map(WAHLLOKAL_TO_GEMEINDE) == gemeinde]
+        for kandidaten_nr, cand_group in group.groupby("kandidaten_nr"):
+            total_row = cand_group[cand_group["wahllokal"] == total_name]
+            parts = cand_group[~cand_group["wahllokal"].isin(GEMEINDE_TOTALS)]
             if total_row.empty or parts.empty:
                 continue
             for col in ("wahlzettel", "stimmen", "total_gultige_wahlzettel", "vereinzelte_stimmen"):
