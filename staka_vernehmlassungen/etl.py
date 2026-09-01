@@ -14,8 +14,8 @@ from bs4 import BeautifulSoup
 
 DATA_ORIG_PATH = "data_orig"
 DOKUMENTE_PATH = os.path.join(DATA_ORIG_PATH, "Dokumente")
-TEXTRUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Textrueckmeldungen")
-RUECKMELDUNGEN_PATH_LEGACY = os.path.join(DATA_ORIG_PATH, "Rueckmeldungen")
+RUECKMELDUNGEN_PATH = os.path.join(DATA_ORIG_PATH, "Rueckmeldungen")
+TEXTRUECKMELDUNGEN_PATH_LEGACY = os.path.join(DATA_ORIG_PATH, "Textrueckmeldungen")
 BRIEFRUECKMELDUNGEN_URL_BASE = "https://data-bs.ch/stata/staka/vernehmlassungen/briefrueckmeldungen/"
 
 BASE_URL = "https://www.bs.ch"
@@ -32,13 +32,13 @@ VERNEHMLASSUNGEN_PAGES = [
 ]
 
 
-def _get_textrueckmeldungen_path() -> str:
-    """Return Textrueckmeldungen input folder (legacy Rueckmeldungen fallback)."""
-    if os.path.isdir(TEXTRUECKMELDUNGEN_PATH):
-        return TEXTRUECKMELDUNGEN_PATH
-    if os.path.isdir(RUECKMELDUNGEN_PATH_LEGACY):
-        return RUECKMELDUNGEN_PATH_LEGACY
-    return TEXTRUECKMELDUNGEN_PATH
+def _get_rueckmeldungen_path() -> str:
+    """Return Rueckmeldungen input folder (legacy Textrueckmeldungen fallback)."""
+    if os.path.isdir(RUECKMELDUNGEN_PATH):
+        return RUECKMELDUNGEN_PATH
+    if os.path.isdir(TEXTRUECKMELDUNGEN_PATH_LEGACY):
+        return TEXTRUECKMELDUNGEN_PATH_LEGACY
+    return RUECKMELDUNGEN_PATH
 
 
 def _normalize_column_name(value: str) -> str:
@@ -56,6 +56,15 @@ def _clean_cell_value(value) -> str:
     if text.lower() in {"", "nan", "none"}:
         return ""
     return text
+
+
+def _format_geo_point_2d(lat, lon) -> str:
+    """Build ODS geo_point_2d (lat,lon) from Kartenkoordinate-X/Y."""
+    lat_text = _clean_cell_value(lat)
+    lon_text = _clean_cell_value(lon)
+    if not lat_text or not lon_text:
+        return ""
+    return f"{lat_text},{lon_text}"
 
 
 def _collapse_whitespace(value: str) -> str:
@@ -1044,6 +1053,7 @@ def _process_briefrueckmeldung_pdfs(
                 "Teilnehmer/in": "",
                 "PLZ": "",
                 "Ort": "",
+                "geo_point_2d": "",
             }
         )
 
@@ -1054,12 +1064,12 @@ def _process_briefrueckmeldung_pdfs(
 
 
 def process_textrueckmeldungen():
-    """Concatenate and normalize Textrueckmeldungen Excel files and Briefrückmeldung PDFs."""
-    textrueckmeldungen_path = _get_textrueckmeldungen_path()
-    if not os.path.isdir(textrueckmeldungen_path):
-        logging.warning(f"Textrueckmeldungen folder not found: {textrueckmeldungen_path}")
+    """Concatenate and normalize Rueckmeldungen Excel files and Briefrückmeldung PDFs."""
+    rueckmeldungen_path = _get_rueckmeldungen_path()
+    if not os.path.isdir(rueckmeldungen_path):
+        logging.warning(f"Rueckmeldungen folder not found: {rueckmeldungen_path}")
         return
-
+    
     columns_of_interest = [
         "Typ",
         "vernehmlassung",
@@ -1076,6 +1086,7 @@ def process_textrueckmeldungen():
         "Teilnehmer/in",
         "PLZ",
         "Ort",
+        "geo_point_2d",
     ]
     alias_map = {
         "Bereich": ["Bereich"],
@@ -1092,178 +1103,195 @@ def process_textrueckmeldungen():
         "Vorname": ["Vorname"],
         "Nachname": ["Nachname"],
         "Teilnehmer/in": ["Teilnehmer/in"],
+        "Kartenkoordinate-X": ["Kartenkoordinate-X", "Kartenkoordinate X"],
+        "Kartenkoordinate-Y": ["Kartenkoordinate-Y", "Kartenkoordinate Y"],
     }
     vernehmlassung_names = _load_vernehmlassung_names()
     all_dataframes = []
 
-    for filename in os.listdir(textrueckmeldungen_path):
-        if filename.endswith((".xlsx", ".xls")):
-            if "zustimmungsmessung" in _normalize_column_name(Path(filename).stem):
-                logging.warning(f"Skipping Zustimmungsmessung file (aggregate format not supported): {filename}")
-                continue
-            file_path = os.path.join(textrueckmeldungen_path, filename)
-            try:
-                df = pd.read_excel(file_path)
-                normalized_source = {_normalize_column_name(c): c for c in df.columns}
-                typ = _classify_rueckmeldung_type(filename)
-                vernehmlassung = _infer_vernehmlassung_from_filename(filename, vernehmlassung_names)
-                url_vernehmlassung = _build_dataset_filter_url(
-                    DATASET_100516_URL, "name_vernehmlassung", vernehmlassung
-                )
+    for filename in os.listdir(rueckmeldungen_path):
+        if not filename.endswith((".xlsx", ".xls")):
+            continue
+        if "zustimmungsmessung" in _normalize_column_name(Path(filename).stem):
+            logging.warning(f"Skipping Zustimmungsmessung file (aggregate format not supported): {filename}")
+            continue
+        file_path = os.path.join(rueckmeldungen_path, filename)
+        try:
+            df = pd.read_excel(file_path)
+            normalized_source = {_normalize_column_name(c): c for c in df.columns}
+            typ = _classify_rueckmeldung_type(filename)
+            vernehmlassung = _infer_vernehmlassung_from_filename(filename, vernehmlassung_names)
+            url_vernehmlassung = _build_dataset_filter_url(
+                DATASET_100516_URL, "name_vernehmlassung", vernehmlassung
+            )
 
-                selected_columns = {}
-                for key, candidates in alias_map.items():
-                    for candidate in candidates:
-                        normalized_candidate = _normalize_column_name(candidate)
-                        if normalized_candidate in normalized_source:
-                            selected_columns[key] = normalized_source[normalized_candidate]
-                            break
+            selected_columns = {}
+            for key, candidates in alias_map.items():
+                for candidate in candidates:
+                    normalized_candidate = _normalize_column_name(candidate)
+                    if normalized_candidate in normalized_source:
+                        selected_columns[key] = normalized_source[normalized_candidate]
+                        break
 
-                if typ == "Umfrage/Befragung":
-                    base_bereich = _collapse_whitespace(Path(filename).stem.replace("_", " "))
-                    meta_cols = {
-                        _normalize_column_name("Organisation"),
-                        _normalize_column_name("Teilnehmerkategorie"),
-                        _normalize_column_name("ID Teilnehmer/in"),
-                        _normalize_column_name("Teilnehmer/in"),
-                        _normalize_column_name("PLZ"),
-                        _normalize_column_name("Ort"),
-                        _normalize_column_name("Erfassungsdatum"),
-                        _normalize_column_name("ID"),
-                    }
+            if typ == "Umfrage/Befragung":
+                base_bereich = _collapse_whitespace(Path(filename).stem.replace("_", " "))
+                meta_cols = {
+                    _normalize_column_name("Organisation"),
+                    _normalize_column_name("Teilnehmerkategorie"),
+                    _normalize_column_name("ID Teilnehmer/in"),
+                    _normalize_column_name("Teilnehmer/in"),
+                    _normalize_column_name("PLZ"),
+                    _normalize_column_name("Ort"),
+                    _normalize_column_name("Erfassungsdatum"),
+                    _normalize_column_name("ID"),
+                }
 
-                    records = []
-                    column_list = list(df.columns)
-                    for idx, kapitel_col in enumerate(column_list):
-                        kapitel_norm = _normalize_column_name(kapitel_col)
-                        if kapitel_norm in meta_cols or kapitel_norm.startswith("bemerkung"):
+                records = []
+                column_list = list(df.columns)
+                for idx, kapitel_col in enumerate(column_list):
+                    kapitel_norm = _normalize_column_name(kapitel_col)
+                    if kapitel_norm in meta_cols or kapitel_norm.startswith("bemerkung"):
+                        continue
+
+                    begruendung_col = ""
+                    if idx + 1 < len(column_list):
+                        next_col = column_list[idx + 1]
+                        if _normalize_column_name(next_col).startswith("bemerkung"):
+                            begruendung_col = next_col
+
+                    kapitel_value = _collapse_whitespace(kapitel_col)
+                    for _, row in df.iterrows():
+                        antrag_value = _clean_cell_value(row.get(kapitel_col, ""))
+                        begruendung_value = (
+                            _clean_cell_value(row.get(begruendung_col, "")) if begruendung_col else ""
+                        )
+                        if not antrag_value and not begruendung_value:
                             continue
 
-                        begruendung_col = ""
-                        if idx + 1 < len(column_list):
-                            next_col = column_list[idx + 1]
-                            if _normalize_column_name(next_col).startswith("bemerkung"):
-                                begruendung_col = next_col
+                        records.append(
+                            {
+                                "Typ": typ,
+                                "vernehmlassung": vernehmlassung,
+                                "URL_Vernehmlassung": url_vernehmlassung,
+                                "Bereich": base_bereich,
+                                "Kapitel": kapitel_value,
+                                "Antrag/Bemerkung": antrag_value,
+                                "Begründung": begruendung_value,
+                                "Anhänge": "",
+                                "Erfassungsdatum": _normalize_to_iso_date(
+                                    row.get(selected_columns.get("Erfassungsdatum", ""), "")
+                                ),
+                                "Briefrückmeldung": "",
+                                "Organisation": _clean_cell_value(
+                                    row.get(selected_columns.get("Organisation", ""), "")
+                                ),
+                                "Teilnehmerkategorie": _clean_cell_value(
+                                    row.get(selected_columns.get("Teilnehmerkategorie", ""), "")
+                                ),
+                                "Teilnehmer/in": _clean_cell_value(
+                                    row.get(selected_columns.get("Teilnehmer/in", ""), "")
+                                ),
+                                "PLZ": _clean_cell_value(row.get(selected_columns.get("PLZ", ""), "")),
+                                "Ort": _clean_cell_value(row.get(selected_columns.get("Ort", ""), "")),
+                                "geo_point_2d": _format_geo_point_2d(
+                                    row.get(selected_columns.get("Kartenkoordinate-X", ""), ""),
+                                    row.get(selected_columns.get("Kartenkoordinate-Y", ""), ""),
+                                ),
+                            }
+                        )
 
-                        kapitel_value = _collapse_whitespace(kapitel_col)
-                        for _, row in df.iterrows():
-                            antrag_value = _clean_cell_value(row.get(kapitel_col, ""))
-                            begruendung_value = (
-                                _clean_cell_value(row.get(begruendung_col, "")) if begruendung_col else ""
-                            )
-                            if not antrag_value and not begruendung_value:
-                                continue
-
-                            records.append(
-                                {
-                                    "Typ": typ,
-                                    "vernehmlassung": vernehmlassung,
-                                    "URL_Vernehmlassung": url_vernehmlassung,
-                                    "Bereich": base_bereich,
-                                    "Kapitel": kapitel_value,
-                                    "Antrag/Bemerkung": antrag_value,
-                                    "Begründung": begruendung_value,
-                                    "Anhänge": "",
-                                    "Erfassungsdatum": _normalize_to_iso_date(
-                                        row.get(selected_columns.get("Erfassungsdatum", ""), "")
-                                    ),
-                                    "Briefrückmeldung": "",
-                                    "Organisation": _clean_cell_value(
-                                        row.get(selected_columns.get("Organisation", ""), "")
-                                    ),
-                                    "Teilnehmerkategorie": _clean_cell_value(
-                                        row.get(selected_columns.get("Teilnehmerkategorie", ""), "")
-                                    ),
-                                    "Teilnehmer/in": _clean_cell_value(
-                                        row.get(selected_columns.get("Teilnehmer/in", ""), "")
-                                    ),
-                                    "PLZ": _clean_cell_value(row.get(selected_columns.get("PLZ", ""), "")),
-                                    "Ort": _clean_cell_value(row.get(selected_columns.get("Ort", ""), "")),
-                                }
-                            )
-
-                    filtered_df = pd.DataFrame(records, columns=columns_of_interest)
+                filtered_df = pd.DataFrame(records, columns=columns_of_interest)
+            else:
+                filtered_df = pd.DataFrame(index=df.index)
+                filtered_df["Typ"] = typ
+                filtered_df["vernehmlassung"] = vernehmlassung
+                filtered_df["URL_Vernehmlassung"] = url_vernehmlassung
+                filtered_df["Bereich"] = (
+                    df[selected_columns["Bereich"]].map(_clean_cell_value) if "Bereich" in selected_columns else ""
+                )
+                filtered_df["Kapitel"] = (
+                    df[selected_columns["Kapitel"]].map(_clean_cell_value) if "Kapitel" in selected_columns else ""
+                )
+                filtered_df["Antrag/Bemerkung"] = (
+                    df[selected_columns["Antrag/Bemerkung"]].map(_clean_cell_value)
+                    if "Antrag/Bemerkung" in selected_columns
+                    else ""
+                )
+                filtered_df["Begründung"] = (
+                    df[selected_columns["Begründung"]].map(_clean_cell_value)
+                    if "Begründung" in selected_columns
+                    else ""
+                )
+                filtered_df["Anhänge"] = (
+                    df[selected_columns["Anhänge"]].map(_clean_cell_value) if "Anhänge" in selected_columns else ""
+                )
+                filtered_df["Erfassungsdatum"] = (
+                    df[selected_columns["Erfassungsdatum"]].map(_normalize_to_iso_date)
+                    if "Erfassungsdatum" in selected_columns
+                    else ""
+                )
+                filtered_df["Briefrückmeldung"] = (
+                    df[selected_columns["Briefrückmeldung"]].map(_clean_cell_value)
+                    if "Briefrückmeldung" in selected_columns
+                    else ""
+                )
+                filtered_df["Organisation"] = (
+                    df[selected_columns["Organisation"]].map(_clean_cell_value)
+                    if "Organisation" in selected_columns
+                    else ""
+                )
+                filtered_df["Teilnehmerkategorie"] = (
+                    df[selected_columns["Teilnehmerkategorie"]].map(_clean_cell_value)
+                    if "Teilnehmerkategorie" in selected_columns
+                    else ""
+                )
+                filtered_df["PLZ"] = (
+                    df[selected_columns["PLZ"]].map(_clean_cell_value) if "PLZ" in selected_columns else ""
+                )
+                filtered_df["Ort"] = (
+                    df[selected_columns["Ort"]].map(_clean_cell_value) if "Ort" in selected_columns else ""
+                )
+                if "Kartenkoordinate-X" in selected_columns and "Kartenkoordinate-Y" in selected_columns:
+                    filtered_df["geo_point_2d"] = [
+                        _format_geo_point_2d(x, y)
+                        for x, y in zip(
+                            df[selected_columns["Kartenkoordinate-X"]],
+                            df[selected_columns["Kartenkoordinate-Y"]],
+                        )
+                    ]
                 else:
-                    filtered_df = pd.DataFrame(index=df.index)
-                    filtered_df["Typ"] = typ
-                    filtered_df["vernehmlassung"] = vernehmlassung
-                    filtered_df["URL_Vernehmlassung"] = url_vernehmlassung
-                    filtered_df["Bereich"] = (
-                        df[selected_columns["Bereich"]].map(_clean_cell_value) if "Bereich" in selected_columns else ""
-                    )
-                    filtered_df["Kapitel"] = (
-                        df[selected_columns["Kapitel"]].map(_clean_cell_value) if "Kapitel" in selected_columns else ""
-                    )
-                    filtered_df["Antrag/Bemerkung"] = (
-                        df[selected_columns["Antrag/Bemerkung"]].map(_clean_cell_value)
-                        if "Antrag/Bemerkung" in selected_columns
-                        else ""
-                    )
-                    filtered_df["Begründung"] = (
-                        df[selected_columns["Begründung"]].map(_clean_cell_value)
-                        if "Begründung" in selected_columns
-                        else ""
-                    )
-                    filtered_df["Anhänge"] = (
-                        df[selected_columns["Anhänge"]].map(_clean_cell_value) if "Anhänge" in selected_columns else ""
-                    )
-                    filtered_df["Erfassungsdatum"] = (
-                        df[selected_columns["Erfassungsdatum"]].map(_normalize_to_iso_date)
-                        if "Erfassungsdatum" in selected_columns
-                        else ""
-                    )
-                    filtered_df["Briefrückmeldung"] = (
-                        df[selected_columns["Briefrückmeldung"]].map(_clean_cell_value)
-                        if "Briefrückmeldung" in selected_columns
-                        else ""
-                    )
-                    filtered_df["Organisation"] = (
-                        df[selected_columns["Organisation"]].map(_clean_cell_value)
-                        if "Organisation" in selected_columns
-                        else ""
-                    )
-                    filtered_df["Teilnehmerkategorie"] = (
-                        df[selected_columns["Teilnehmerkategorie"]].map(_clean_cell_value)
-                        if "Teilnehmerkategorie" in selected_columns
-                        else ""
-                    )
-                    filtered_df["PLZ"] = (
-                        df[selected_columns["PLZ"]].map(_clean_cell_value) if "PLZ" in selected_columns else ""
-                    )
-                    filtered_df["Ort"] = (
-                        df[selected_columns["Ort"]].map(_clean_cell_value) if "Ort" in selected_columns else ""
-                    )
+                    filtered_df["geo_point_2d"] = ""
 
-                    vorname_col = selected_columns.get("Vorname")
-                    nachname_col = selected_columns.get("Nachname")
-                    teilnehmer_col = selected_columns.get("Teilnehmer/in")
-                    if vorname_col or nachname_col:
-                        nachname_series = (
-                            df[nachname_col].map(_clean_cell_value)
-                            if nachname_col
-                            else pd.Series([""] * len(df), index=df.index)
-                        )
-                        vorname_series = (
-                            df[vorname_col].map(_clean_cell_value)
-                            if vorname_col
-                            else pd.Series([""] * len(df), index=df.index)
-                        )
-                        filtered_df["Teilnehmer/in"] = (
-                            (nachname_series + " " + vorname_series).str.strip().str.replace(r"\s+", " ", regex=True)
-                        )
-                    elif teilnehmer_col:
-                        filtered_df["Teilnehmer/in"] = df[teilnehmer_col].map(_clean_cell_value)
-                    else:
-                        filtered_df["Teilnehmer/in"] = ""
+                vorname_col = selected_columns.get("Vorname")
+                nachname_col = selected_columns.get("Nachname")
+                teilnehmer_col = selected_columns.get("Teilnehmer/in")
+                if vorname_col or nachname_col:
+                    nachname_series = (
+                        df[nachname_col].map(_clean_cell_value)
+                        if nachname_col
+                        else pd.Series([""] * len(df), index=df.index)
+                    )
+                    vorname_series = (
+                        df[vorname_col].map(_clean_cell_value)
+                        if vorname_col
+                        else pd.Series([""] * len(df), index=df.index)
+                    )
+                    filtered_df["Teilnehmer/in"] = (
+                        (nachname_series + " " + vorname_series).str.strip().str.replace(r"\s+", " ", regex=True)
+                    )
+                elif teilnehmer_col:
+                    filtered_df["Teilnehmer/in"] = df[teilnehmer_col].map(_clean_cell_value)
+                else:
+                    filtered_df["Teilnehmer/in"] = ""
 
-                    filtered_df = filtered_df[columns_of_interest]
+                filtered_df = filtered_df[columns_of_interest]
 
-                all_dataframes.append(filtered_df)
-                logging.info(f"Loaded {filename} with {len(filtered_df)} normalized rows")
-            except Exception as e:
-                logging.error(f"Error reading {filename}: {e}")
+            all_dataframes.append(filtered_df)
+            logging.info(f"Loaded {filename} with {len(filtered_df)} normalized rows")
+        except Exception as e:
+            logging.error(f"Error reading {filename}: {e}")
 
-    pdf_df = _process_briefrueckmeldung_pdfs(textrueckmeldungen_path, vernehmlassung_names, columns_of_interest)
+    pdf_df = _process_briefrueckmeldung_pdfs(rueckmeldungen_path, vernehmlassung_names, columns_of_interest)
     frames = list(all_dataframes)
     if not pdf_df.empty:
         frames.append(pdf_df)
@@ -1291,7 +1319,7 @@ def main():
 
     # Ensure directories exist
     os.makedirs(DOKUMENTE_PATH, exist_ok=True)
-    os.makedirs(TEXTRUECKMELDUNGEN_PATH, exist_ok=True)
+    os.makedirs(RUECKMELDUNGEN_PATH, exist_ok=True)
     os.makedirs("data", exist_ok=True)
 
     # 1. Load Vernehmlassungen from Excel
