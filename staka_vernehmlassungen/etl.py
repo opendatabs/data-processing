@@ -63,7 +63,7 @@ def _format_geo_point_2d(lat, lon) -> str:
     lat_text = _clean_cell_value(lat)
     lon_text = _clean_cell_value(lon)
     if not lat_text or not lon_text:
-        return ""
+        return "NaN"
     return f"{lat_text},{lon_text}"
 
 
@@ -1053,7 +1053,7 @@ def _process_briefrueckmeldung_pdfs(
                 "Teilnehmer/in": "",
                 "PLZ": "",
                 "Ort": "",
-                "geo_point_2d": "",
+                "geo_point_2d": "NaN",
             }
         )
 
@@ -1069,7 +1069,7 @@ def process_textrueckmeldungen():
     if not os.path.isdir(rueckmeldungen_path):
         logging.warning(f"Rueckmeldungen folder not found: {rueckmeldungen_path}")
         return
-    
+
     columns_of_interest = [
         "Typ",
         "vernehmlassung",
@@ -1260,7 +1260,7 @@ def process_textrueckmeldungen():
                         )
                     ]
                 else:
-                    filtered_df["geo_point_2d"] = ""
+                    filtered_df["geo_point_2d"] = "NaN"
 
                 vorname_col = selected_columns.get("Vorname")
                 nachname_col = selected_columns.get("Nachname")
