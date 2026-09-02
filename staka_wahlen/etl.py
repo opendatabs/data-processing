@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATA_ORIG = "data_orig"
+DATA_ORIG = "data_orig/Gerichtswahlen/2026-09"
 DATA_DIR = "data"
 ODS_ID = "100549"
 FTP_REMOTE_PATH = "wahlen_abstimmungen/wahlen/gericht/2026-09"
