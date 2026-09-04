@@ -32,7 +32,7 @@ def main():
     df_all.to_csv(path_export_file, index=False)
 
     # make public dataset, remove empty rows
-    df_public = df_all[["SC2_pro100000_loess", "7t_median_BS+BL"]].dropna(how="all")
+    df_public = df_all[["SC2_pro100000", "SC2_pro100000_loess", "7t_median_BS+BL"]].dropna(how="all")
     df_datum = df_all[["Datum", "Saison", "Tag der Saison"]]
     df_public = df_datum.join(df_public, how="right")
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
