@@ -152,11 +152,7 @@ def download_sharepoint_file(token: str, site_id: str) -> None:
 
     target_normalized = _normalize_filename(SOURCE_LOCAL_NAME)
     match = next(
-        (
-            item
-            for item in items
-            if "file" in item and _normalize_filename(item.get("name", "")) == target_normalized
-        ),
+        (item for item in items if "file" in item and _normalize_filename(item.get("name", "")) == target_normalized),
         None,
     )
     if match is None:

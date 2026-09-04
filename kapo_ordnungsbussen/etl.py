@@ -316,9 +316,7 @@ def get_street_shapes():
     path = os.path.join("data", "streets.geojson")
     logging.info(f"Downloading street shapes from ODS to file {path}...")
 
-    r = common.requests_get(
-        "https://data.bs.ch/explore/dataset/100189/download/?format=geojson"
-    )
+    r = common.requests_get("https://data.bs.ch/explore/dataset/100189/download/?format=geojson")
 
     with open(path, "wb") as f:
         f.write(r.content)
@@ -427,9 +425,7 @@ def find_closest_streetname(street, street_series):
         if result is None:
             return street
         closest_address, score, _ = result
-        logging.info(
-            f"Closest address for {street} according to fuzzy matching is: {closest_address}"
-        )
+        logging.info(f"Closest address for {street} according to fuzzy matching is: {closest_address}")
         return closest_address
     return street
 

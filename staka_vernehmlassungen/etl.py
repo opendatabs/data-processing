@@ -1121,9 +1121,7 @@ def process_textrueckmeldungen():
             normalized_source = {_normalize_column_name(c): c for c in df.columns}
             typ = _classify_rueckmeldung_type(filename)
             vernehmlassung = _infer_vernehmlassung_from_filename(filename, vernehmlassung_names)
-            url_vernehmlassung = _build_dataset_filter_url(
-                DATASET_100516_URL, "name_vernehmlassung", vernehmlassung
-            )
+            url_vernehmlassung = _build_dataset_filter_url(DATASET_100516_URL, "name_vernehmlassung", vernehmlassung)
 
             selected_columns = {}
             for key, candidates in alias_map.items():
@@ -1162,9 +1160,7 @@ def process_textrueckmeldungen():
                     kapitel_value = _collapse_whitespace(kapitel_col)
                     for _, row in df.iterrows():
                         antrag_value = _clean_cell_value(row.get(kapitel_col, ""))
-                        begruendung_value = (
-                            _clean_cell_value(row.get(begruendung_col, "")) if begruendung_col else ""
-                        )
+                        begruendung_value = _clean_cell_value(row.get(begruendung_col, "")) if begruendung_col else ""
                         if not antrag_value and not begruendung_value:
                             continue
 
