@@ -3,16 +3,18 @@ import logging
 import os
 from datetime import datetime
 from functools import reduce
-from statsmodels.nonparametric.smoothers_lowess import lowess
 
 import common
-import pandas as pd
 import numpy as np
+import pandas as pd
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 locale.setlocale(locale.LC_TIME, "de_CH.UTF-8")
 
 pop_BL = 66953
 pop_BS = 196735
+
+LOESS_WINDOW_DAYS = 7
 
 
 def main():
@@ -30,7 +32,7 @@ def main():
     df_all.to_csv(path_export_file, index=False)
 
     # make public dataset, remove empty rows
-    df_public = df_all[["7-TageMEDIAN of E, N1, N2 pro Tag & 100'000 Pers.", "7t_median_BS+BL"]].dropna(how="all")
+    df_public = df_all[["SC2_pro100000_loess", "7t_median_BS+BL"]].dropna(how="all")
     df_datum = df_all[["Datum", "Saison", "Tag der Saison"]]
     df_public = df_datum.join(df_public, how="right")
     path_export_file_public = os.path.join("data", "export", "public_dataset.csv")
@@ -73,11 +75,11 @@ def make_dataframe_abwasserdaten():
     df_abwasser.columns = [
         "Datum",
         "Ba-Nr.",
-        "SC2_GK_L",        # AV – Sc2/L
-        "SC2_pro100000",   # AX – Sc2/100'000 Pers.
-        "SC2_PMMoV",       # AZ – Sc2/PMMoV
+        "SC2_GK_L",
+        "SC2_pro100000",
+        "SC2_PMMoV",
     ]
-    df_abwasser.rename(columns={"Datum": "Datum"}, inplace=True)
+    logging.debug(f"eingelesene Spalten Abwasserdaten: {list(df_abwasser.columns)}")
     return df_abwasser
 
 
@@ -173,15 +175,22 @@ def calculate_saison_tag(datum):
     return f"Tag {tag_nr:03d} - {datum.strftime('%d. %B')}"
 
 
-def add_loess(df, column, window_days=7, frac=None, new_col=None):
-    """Add a LOESS-smoothed version of `column`, ignoring NaNs."""
-    if not frac:
-        frac = window_days / len(df)
+def add_loess(df, column, window_days=LOESS_WINDOW_DAYS, new_col=None):
+    """Add a LOESS-smoothed version of `column` as `<column>_loess`.
+
+    frac is derived from window_days so the effective smoothing window
+    stays roughly constant in calendar time as the dataset grows, rather
+    than shrinking relative to a fixed fraction of all rows.
+    NaNs in the source column are dropped before fitting and left as NaN
+    in the output.
+    """
     new_col = new_col or f"{column}_loess"
     valid = df[column].notna()
     df[new_col] = np.nan
     if valid.sum() < 2:
+        logging.warning(f"not enough data points to compute LOESS for {column}")
         return df
+    frac = min(1.0, window_days / valid.sum())
     x = df.loc[valid, "Datum"].map(pd.Timestamp.toordinal)
     y = df.loc[valid, column]
     smoothed = lowess(y, x, frac=frac, return_sorted=False)
