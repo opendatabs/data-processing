@@ -3,9 +3,11 @@ import logging
 import os
 from datetime import datetime
 from functools import reduce
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 import common
 import pandas as pd
+import numpy as np
 
 locale.setlocale(locale.LC_TIME, "de_CH.UTF-8")
 
@@ -65,11 +67,17 @@ def make_dataframe_abwasserdaten():
     df_abwasser = pd.read_excel(
         path,
         sheet_name="Proben",
-        usecols="A:B, N:O, AD:AE, AK:AL, AV:BA",
+        usecols="A:B, AV, AX, AZ",
         skiprows=range(6),
     )
-    # rename date column and change format
-    df_abwasser.rename(columns={"Abwasser von Tag": "Datum"}, inplace=True)
+    df_abwasser.columns = [
+        "Datum",
+        "Ba-Nr.",
+        "SC2_GK_L",        # AV – Sc2/L
+        "SC2_pro100000",   # AX – Sc2/100'000 Pers.
+        "SC2_PMMoV",       # AZ – Sc2/PMMoV
+    ]
+    df_abwasser.rename(columns={"Datum": "Datum"}, inplace=True)
     return df_abwasser
 
 
@@ -165,6 +173,22 @@ def calculate_saison_tag(datum):
     return f"Tag {tag_nr:03d} - {datum.strftime('%d. %B')}"
 
 
+def add_loess(df, column, window_days=7, frac=None, new_col=None):
+    """Add a LOESS-smoothed version of `column`, ignoring NaNs."""
+    if not frac:
+        frac = window_days / len(df)
+    new_col = new_col or f"{column}_loess"
+    valid = df[column].notna()
+    df[new_col] = np.nan
+    if valid.sum() < 2:
+        return df
+    x = df.loc[valid, "Datum"].map(pd.Timestamp.toordinal)
+    y = df.loc[valid, column]
+    smoothed = lowess(y, x, frac=frac, return_sorted=False)
+    df.loc[valid, new_col] = smoothed
+    return df
+
+
 def calculate_columns(df):
     logging.info("calculate and add columns")
     df = df.loc[df["Datum"].notnull()]
@@ -202,6 +226,12 @@ def calculate_columns(df):
     df["7t_median_BL"] = df["Anz_pos_BL"].rolling(window=7, min_periods=1).median()
     df["7t_median_BS"] = df["faelle_bs"].rolling(window=7, min_periods=1).median()
     df["7t_median_BS+BL"] = df["daily_cases_BS+BL"].rolling(window=7, min_periods=1).median()
+
+    # --- LOESS smoothing (replaces the old median columns) ---
+    df = add_loess(df, "SC2_GK_L")
+    df = add_loess(df, "SC2_pro100000")
+    df = add_loess(df, "SC2_PMMoV")
+
     return df
 
 
