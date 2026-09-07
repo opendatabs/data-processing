@@ -1,11 +1,12 @@
 import logging
 import common
-import common.change_tracking as ct #i am not using this, simply compare the bites
+import common.change_tracking as ct
 import pandas as pd
 import geopandas as gpd 
 import json
 from dotenv import load_dotenv
 from pathlib import Path
+from urllib.parse import quote
 
 load_dotenv()
 
@@ -19,20 +20,21 @@ ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson") #gets created the
 RIVERS_CACHE = Path("data_orig/gewaesserachsen.geojson")
 
 BUFFER_M = 150
-MAX_MONTHS_OUT = 24 # kein filter? später im ui
 EVENT_TYPES = ["Veranstaltung", "Aktivität", "Festivität"]
 EXCLUDED_STATUSES = ["storniert", "nicht bewilligt"] # auch erst im link
 APPROVED_STATUS = "bewilligt"
-REQUIRE_APPROVED = False
+REQUIRE_APPROVED  = False
 
 OUTPUT_COLUMNS = [
     "Bezeichnung",
-    "Belegungsstatus-Bezeichung",
-    "Datum",
+    "Belegstatus",
+    "datum_von",
+    "datum_bis",
     "MinDistanzRhein",
-    "Link" #link to the original data set, filtered so that all entries collapsed into this one are shown
+    "Link" 
 ]
-# add link zu kollapsed daten, falls mit filter darstellbar (zur not ids angeben)
+
+MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 
 # ------------------- extract --------------------------------
 def _canonicalize_geojson(raw_bytes: bytes) -> bytes:
@@ -79,14 +81,61 @@ def load_rhine_line(rivers_path: Path) -> gpd.GeoDataFrame:
 
     return rhine.to_crs(CRS_SWISS).geometry.union_all()
 
+def make_query_url(field, values, base_url="https://data.bs.ch/explore/dataset/100018/table/"):
+    query = " OR ".join(f'{field}="{v}"' for v in values)
+    return f"{base_url}?q={quote(query)}"
+
+def _to_list(value):
+    if isinstance(value, str):
+        return [v.strip() for v in value.split(",")]
+    elif isinstance(value, (list, tuple, set)):
+        return list(value)
+    else:
+        return [value]
+
+def build_link(idunique, begehrenid, base_url="https://data.bs.ch/explore/dataset/100018/table/", max_len=MAX_URL_LENGTH):
+    id_list = _to_list(idunique)
+    link = make_query_url("idunique", id_list, base_url)
+
+    if len(link) <= max_len:
+        return link
+
+    # too long -> fall back to the shorter field
+    begehren_list = _to_list(begehrenid)
+    return make_query_url("begehrenid", begehren_list, base_url)
+
 def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
 
     gj = json.loads(allmend_path.read_bytes())
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
     logging.info("Loaded %d total Allmend records.", len(gdf))
 
-    #TODO: collapsing and adding the link to the original entries!!!
-    #make sure, that the coloum names are the same as specified above!!!
+    #only "Veranstaltung", "Aktivität", "Festivität" count as events
+    gdf = gdf[gdf["belgartbez"].isin(EVENT_TYPES)].copy()
+
+    #dont take entries that are "storniert"/"nicht bewilligt"
+    gdf = gdf[~gdf["belestatbe"].isin(EXCLUDED_STATUSES)].copy()
+
+    if REQUIRE_APPROVED:
+        gdf = gdf[gdf["belestatbe"] == APPROVED_STATUS].copy()
+
+    gdf["geometry"] = gdf["geometry"].buffer(0)  # fix any self-intersecting rings
+
+    #clustering: events that have the same BegehrenID, Bezeichnung and date can be merged together
+    #TODO: dissolve also by begehrenid?
+    gdf = gdf.dissolve(
+        by=["bezeichng", "datum_von", "datum_bis"],
+        aggfunc={"idunique": lambda x: ", ".join(x.astype(str)), 
+                 "begehrenid": lambda x: ", ".join(x.astype(str).unique()) } #list all idunique (and begehrenid), so we can build the link later
+    )
+
+    #TODO: cluster the dates further, e.g. consecutive dates into one event
+
+    gdf = gdf.reset_index()
+
+    gdf["Link"] = gdf.apply(lambda row: build_link(row["idunique"], row["begehrenid"]), axis=1) #TODO: how to handle links that are too long?
+
+    gdf = gdf.rename(columns={"bezeichng" : "Bezeichnung", "belestatbe" : "Belegstatus"})
 
     return gdf
 
@@ -113,6 +162,8 @@ def write_outputs(gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
     csv_path = data_dir / "allmend_events_near_rhine.csv"
     gdf[cols].to_csv(csv_path, index=False)
     logging.info("Wrote:\n  %s", csv_path)
+
+    #automatisch in filezilla und veröffentlichen
     
 
 # ------------------------------ main -----------------------------------------------------
