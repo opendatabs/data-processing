@@ -56,8 +56,6 @@ def main():
 
         logging.info("Reading Bezirk data into geopandas df...")
         # see e.g. https://stackoverflow.com/a/58518583/5005585
-        get_text_from_url("https://data.bs.ch/explore/dataset/100042/download/?format=geojson")
-
         df_wv = gpd.read_file(get_text_from_url("https://data.bs.ch/explore/dataset/100042/download/?format=geojson"))
         df_bez = gpd.read_file(get_text_from_url("https://data.bs.ch/explore/dataset/100039/download/?format=geojson"))
         df_points = gpd.GeoDataFrame(
