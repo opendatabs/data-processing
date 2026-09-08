@@ -438,9 +438,7 @@ def write_flat_publish_catalog(
             merged = enrich_snapshot_from_dataspot(merged, ds_id, auth=auth)
         geodaten = clean(merged.get("custom.geodaten_modellbeschreibung"))
         if "/dataset/preview/" in geodaten:
-            merged["custom.geodaten_modellbeschreibung"] = geodaten.replace(
-                "/dataset/preview/", "/dataset/published/"
-            )
+            merged["custom.geodaten_modellbeschreibung"] = geodaten.replace("/dataset/preview/", "/dataset/published/")
         enriched[huwise_id] = merged
     flat = enriched
     write_metadata_snapshot_file(path, flat)
