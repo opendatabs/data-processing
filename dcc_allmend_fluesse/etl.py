@@ -1,6 +1,5 @@
 import logging
 import common
-import common.change_tracking as ct
 import pandas as pd
 import geopandas as gpd 
 import json
@@ -221,6 +220,7 @@ def write_outputs(gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
     csv_path = data_dir / "allmend_events_near_rhine.csv"
     gdf[cols].to_csv(csv_path, index=False)
     logging.info("Wrote:\n  %s", csv_path)
+    common.update_ftp_and_odsp(str(csv_path), "bachapp", "100556")
 
     #automatisch in filezilla und veröffentlichen
     
