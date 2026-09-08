@@ -68,9 +68,9 @@ jobs:
             bvb_fahrgastzahlen:
               - 'Dockerfile'
               - 'bvb_fahrgastzahlen/**'
-	    dcc_allmend_fluesse:
-	      - 'Dockerfile'
-	      - 'dcc_allmend_fluesse/**'
+            dcc_allmend_fluesse:
+              - 'Dockerfile'
+              - 'dcc_allmend_fluesse/**'
             dcc_dataspot_schemes:
               - 'Dockerfile'
               - 'dcc_dataspot_schemes/**'
