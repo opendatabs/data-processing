@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 import math
 import os
@@ -35,6 +36,7 @@ LAB_EXCEL = DATA_DIR / "input" / "Laborergebnisse2026.xlsx"
 COLIMINDER_XLSX = DATA_DIR / "etl_output" / "Coliminder.xlsx"
 JOINED_XLSX = DATA_DIR / "etl_output" / "joined_data.xlsx"
 LEGACY_SHORT_XLSX = DATA_DIR / "input" / "data_ecoli_entero_short.xlsx"
+NOTIFIED_REMOVALS_JSON = Path("change_tracking") / "coliminder_notified_removals.json"
 TZ = ZoneInfo("Europe/Zurich")
 
 
@@ -565,10 +567,10 @@ def merge_coliminder_wide(
     Rules:
     - Every timestamp/attribute value that was on disk is kept, even if the API no longer returns it.
     - When the API provides a value, it wins over the stored one (the source of truth for live data).
-    - A value present in both but different is recorded as a change (-> e-mail).
+    - A value present in both but different is recorded as a change (-> e-mail once, then applied).
     - A value that existed on disk inside the fetch window but is now missing from the API is recorded
-      as a removed value that we deliberately preserve (-> e-mail), since this is exactly the data-loss
-      situation we want to be warned about.
+      as a removed value that we deliberately preserve (-> e-mail once; later hourly runs skip it),
+      since this is exactly the data-loss situation we want to be warned about.
     """
     value_cols = COLIMINDER_VALUE_COLUMNS
 
@@ -670,18 +672,90 @@ def build_change_email_text(changes: list[ValueChange], removed: list[RemovedVal
     return text
 
 
-def notify_coliminder_changes(changes: list[ValueChange], removed: list[RemovedValue]) -> None:
-    """Send a notification e-mail when the API changed or dropped values. Never fails the ETL."""
-    if not changes and not removed:
-        LOGGER.info("No Coliminder value changes or removals detected; no e-mail sent.")
+def _removed_event_id(item: RemovedValue) -> str:
+    """Stable identity of an API-missing value we already keep (and may already have mailed)."""
+    return f"{_format_ts(item.timestamp)}|{item.attribute}"
+
+
+def load_notified_removals(path: Path | str = NOTIFIED_REMOVALS_JSON) -> set[str]:
+    """Return event ids that were already included in a successfully sent notification."""
+    path = Path(path)
+    if not path.exists():
+        return set()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        LOGGER.warning("Existing %s could not be read (%s); treating as empty.", path, exc)
+        return set()
+    if isinstance(payload, dict):
+        raw = payload.get("removed", [])
+    elif isinstance(payload, list):
+        raw = payload
+    else:
+        return set()
+    return {str(item) for item in raw if item is not None}
+
+
+def save_notified_removals(event_ids: set[str], path: Path | str = NOTIFIED_REMOVALS_JSON) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"removed": sorted(event_ids)}
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def notify_coliminder_changes(
+    changes: list[ValueChange],
+    removed: list[RemovedValue],
+    *,
+    state_path: Path | str = NOTIFIED_REMOVALS_JSON,
+) -> None:
+    """
+    Send a notification e-mail only when there is new information.
+
+    Changed values are applied to disk, so they naturally appear only on the run that
+    first sees them. Removed values are kept on disk by design, so without a memory of
+    what was already mailed the same list would be sent every hour.
+    Never fails the ETL.
+    """
+    state_file = Path(state_path)
+    state_file_existed = state_file.exists()
+    notified = load_notified_removals(state_path)
+    current_removed_ids = {_removed_event_id(item) for item in removed}
+    # If a previously missing value comes back from the API, forget it so a later
+    # disappearance is mailed again.
+    notified &= current_removed_ids
+    if not state_file_existed and current_removed_ids:
+        # First run with notification memory: these removals have already been mailed
+        # every hour. Record them so we only mail genuinely new disappearances later.
+        LOGGER.info(
+            "Initializing notification state with %s already-known API-removed value(s); not re-sending.",
+            len(current_removed_ids),
+        )
+        notified = set(current_removed_ids)
+    new_removed = [item for item in removed if _removed_event_id(item) not in notified]
+
+    if not changes and not new_removed:
+        try:
+            save_notified_removals(notified, state_path)
+        except OSError as exc:
+            LOGGER.warning("Could not persist Coliminder notification state: %s", exc)
+        if removed:
+            LOGGER.info(
+                "Coliminder still preserves %s API-removed value(s), all previously notified; no e-mail sent.",
+                len(removed),
+            )
+        else:
+            LOGGER.info("No Coliminder value changes or removals detected; no e-mail sent.")
         return
 
     LOGGER.info(
-        "Detected %s changed and %s removed Coliminder value(s); sending notification e-mail.",
+        "Detected %s changed and %s new removed Coliminder value(s) "
+        "(%s already notified, skipped); sending notification e-mail.",
         len(changes),
-        len(removed),
+        len(new_removed),
+        len(removed) - len(new_removed),
     )
-    text = build_change_email_text(changes, removed)
+    text = build_change_email_text(changes, new_removed)
     try:
         msg = common.email_message(
             subject="Coliminder (100530): API hat Werte geändert/gelöscht – Daten wurden bewahrt.",
@@ -690,9 +764,15 @@ def notify_coliminder_changes(changes: list[ValueChange], removed: list[RemovedV
             attachment=None,
         )
         common.send_email(msg)
+        notified.update(_removed_event_id(item) for item in new_removed)
+        save_notified_removals(notified, state_path)
         LOGGER.info("Change-notification e-mail sent.")
     except Exception as exc:  # pylint: disable=broad-exception-caught
         LOGGER.warning("Could not send Coliminder change-notification e-mail: %s", exc)
+        try:
+            save_notified_removals(notified, state_path)
+        except OSError as persist_exc:
+            LOGGER.warning("Could not persist Coliminder notification state: %s", persist_exc)
 
 
 def _is_zip_xlsx(content: bytes) -> bool:
