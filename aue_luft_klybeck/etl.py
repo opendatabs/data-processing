@@ -6,11 +6,13 @@ from typing import Any
 
 import common
 import common.change_tracking as ct
+import markdown
 import msal
 import pandas as pd
 import requests
 from decentlab import query
 from dotenv import load_dotenv
+from markdown_newtab import NewTabExtension
 
 load_dotenv()
 
@@ -32,6 +34,7 @@ SOURCE_LOCAL_NAME = "Tabelle_KlybeckDaten_Dashboard.xlsx"
 PLANNED_LOCAL_NAME = "Geplante_Messungen.xlsx"
 COORDINATES_LOCAL_NAME = "Koordinaten_Messstandorte_Klybeck.xlsx"
 EXCEEDANCE_LOCAL_NAME = "Gemessene_Ueberschreitungen.xlsx"
+TEXTS_LOCAL_NAME = "Texte.xlsx"
 
 # SharePoint location of the maintained exceedance workbook (read-only; we cannot write back).
 EXCEEDANCE_SHAREPOINT_FOLDER = f"{SHAREPOINT_BASE}/Ueberschreitungen"
@@ -43,6 +46,7 @@ SHAREPOINT_FILES = {
     f"{SHAREPOINT_BASE}/Planung Messungen/Geplante_Messungen.xlsx": PLANNED_LOCAL_NAME,
     f"{SHAREPOINT_BASE}/Planung Messungen/Koordinaten_Messstandorte_Klybeck.xlsx": COORDINATES_LOCAL_NAME,
     EXCEEDANCE_SHAREPOINT_PATH: EXCEEDANCE_LOCAL_NAME,
+    f"{SHAREPOINT_BASE}/{TEXTS_LOCAL_NAME}": TEXTS_LOCAL_NAME,
 }
 
 # Public SharePoint location of the maintained exceedance workbook (linked in e-mails).
@@ -58,6 +62,8 @@ SOURCE_SHEET = "DUMMIE-D2_Abfrage-Dashboard (2)"
 PLANNED_SOURCE_FILE = DATA_ORIG_PATH / PLANNED_LOCAL_NAME
 COORDINATES_SOURCE_FILE = DATA_ORIG_PATH / COORDINATES_LOCAL_NAME
 EXCEEDANCE_SOURCE_FILE = DATA_ORIG_PATH / EXCEEDANCE_LOCAL_NAME
+TEXTS_SOURCE_FILE = DATA_ORIG_PATH / TEXTS_LOCAL_NAME
+TEXTS_SOURCE_SHEET = "Texte"
 OUTPUT_DIR = Path("data")
 
 FEINSTAUB_OUTPUT_FILE = OUTPUT_DIR / "100523_feinstaub.csv"
@@ -68,6 +74,7 @@ EXCEEDANCE_TRACKING_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klyb
 EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck.xlsx"
 PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
 COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
+TEXTS_OUTPUT_FILE = OUTPUT_DIR / "100531_texte_klybeck.csv"
 
 DECENTLAB_DOMAIN = "bl-lufthygieneamt.decentlab.com"
 DECENTLAB_API_KEY = os.getenv("API_KEY_DECENTLAB")
@@ -575,6 +582,37 @@ def _publish_coordinates() -> None:
     common.update_ftp_and_odsp(str(COORDINATES_OUTPUT_FILE), "aue/luft/", "100528")
 
 
+def _markdown_to_html(value: Any) -> Any:
+    if pd.isna(value) or value == "":
+        return value
+    html = markdown.markdown(str(value), extensions=["nl2br", NewTabExtension()]).strip()
+    # These texts are injected into existing elements, so drop wrapping <p> tags.
+    html = html.replace("</p>\n<p>", "<br><br>").replace("</p><p>", "<br><br>")
+    if html.startswith("<p>") and html.endswith("</p>"):
+        html = html[3:-4]
+    return html
+
+
+def _publish_texts() -> None:
+    """Convert editorial Markdown texts to HTML and publish the dataset."""
+    if not TEXTS_SOURCE_FILE.exists():
+        raise FileNotFoundError(f"Texts file not found: {TEXTS_SOURCE_FILE}")
+
+    texts_df = pd.read_excel(TEXTS_SOURCE_FILE, sheet_name=TEXTS_SOURCE_SHEET)
+    expected_columns = {"id", "bereich", "hinweis", "text"}
+    missing_columns = expected_columns - set(texts_df.columns)
+    if missing_columns:
+        raise ValueError(f"Texts sheet is missing columns: {sorted(missing_columns)}")
+
+    logging.info("Converting %s editorial texts from Markdown to HTML...", len(texts_df))
+    texts_df["text_html"] = texts_df["text"].apply(_markdown_to_html)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    texts_df.to_csv(TEXTS_OUTPUT_FILE, sep=";", index=False, encoding="utf-8")
+    logging.info("Wrote %s rows to %s", len(texts_df), TEXTS_OUTPUT_FILE)
+    common.update_ftp_and_odsp(str(TEXTS_OUTPUT_FILE), "aue/luft/", "100531")
+
+
 def _normalize_feinstaub_column_name(column_name: str, device: str) -> str:
     prefix = f"{device}."
     if column_name.startswith(prefix):
@@ -708,6 +746,7 @@ def main() -> None:
     _send_exceedance_email_if_changed(attachment_df, warn_exceedances, intervention_exceedances)
     _publish_planned_measurements()
     _publish_coordinates()
+    _publish_texts()
     _publish_feinstaub()
     logging.info("ETL job completed")
 
