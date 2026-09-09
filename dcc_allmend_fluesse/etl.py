@@ -14,7 +14,7 @@ load_dotenv()
 CRS = "EPSG:4326"
 CRS_SWISS = "EPSG:2056"
 
-ALLMEND_URL = "https://data.bs.ch/explore/dataset/100018/download/"
+ALLMEND_URL = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018/exports/geojson"
 RIVERS_URL = "https://data.bs.ch/explore/dataset/100261/download/"
 
 ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson")  # gets created the first time the script is run?
@@ -22,6 +22,8 @@ RIVERS_CACHE = Path("data_orig/gewaesserachsen.geojson")
 
 BUFFER_M = 150
 EVENT_TYPES = ["Veranstaltung", "Aktivität", "Festivität"]
+ALLMEND_PARAMS = {"where": "belgartbez IN (" + ", ".join(f'"{t}"' for t in EVENT_TYPES) + ")"} # to filter the event_types already while pulling the data
+
 EXCLUDED_STATUSES = ["storniert", "nicht bewilligt"]  # auch erst im link?
 APPROVED_STATUS = "bewilligt"
 REQUIRE_APPROVED = False
@@ -56,11 +58,11 @@ def _write_if_bytes_changed(path: Path, new_bytes: bytes) -> bool:
 
 # downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson and saves them in the cache if they changed
 # returns the paths to the caches and true if any of the two changed, false if both are unchanged
-def download_to_cache(source_path: Path, cache_path: Path) -> tuple[Path, bool]:
+def download_to_cache(source_path: Path, cache_path: Path, *, params: dict | None=None) -> tuple[Path, bool]:
 
     logging.info("trying to downlad the data files")
 
-    r = common.requests_get(source_path, params={"format": "geojson"})  # does this need a catch block?
+    r = common.requests_get(source_path, params=params or {"format": "geojson"})  # does this need a catch block?
     r.raise_for_status()
     canonical = _canonicalize_geojson(r.content)  # so we can compare the raw bites later
     bytes_changed = _write_if_bytes_changed(cache_path, canonical)
@@ -177,7 +179,7 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
     logging.info("Loaded %d total Allmend records.", len(gdf))
 
     # only "Veranstaltung", "Aktivität", "Festivität" count as events
-    gdf = gdf[gdf["belgartbez"].isin(EVENT_TYPES)].copy()
+    # gdf = gdf[gdf["belgartbez"].isin(EVENT_TYPES)].copy(), this is already getting filtered while pulling the data
 
     # dont take entries that are "storniert"/"nicht bewilligt"
     # gdf = gdf[~gdf["belestatbe"].isin(EXCLUDED_STATUSES)].copy()
@@ -232,9 +234,7 @@ def write_outputs(gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
     csv_path = data_dir / "allmend_events_near_rhine.csv"
     gdf[cols].to_csv(csv_path, index=False)
     logging.info("Wrote:\n  %s", csv_path)
-    common.update_ftp_and_odsp(str(csv_path), "bachapp", "100556")
-
-    # automatisch in filezilla und veröffentlichen
+    #common.update_ftp_and_odsp(str(csv_path), "bachapp", "100556")
 
 
 # ------------------------------ main -----------------------------------------------------
@@ -245,7 +245,7 @@ def main():
     # #.
     logging.info("ETL job started")
 
-    allmend_path, allmend_changed = download_to_cache(ALLMEND_URL, ALLMEND_CACHE)
+    allmend_path, allmend_changed = download_to_cache(ALLMEND_URL, ALLMEND_CACHE, params=ALLMEND_PARAMS)
     rivers_path, rivers_changed = download_to_cache(RIVERS_URL, RIVERS_CACHE)
 
     if not allmend_changed and not rivers_changed:
