@@ -28,10 +28,9 @@ EXCLUDED_STATUSES = ["storniert", "nicht bewilligt"]  # auch erst im link?
 APPROVED_STATUS = "bewilligt"
 REQUIRE_APPROVED = False
 
-OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "datum_von", "datum_bis", "MinDistanzRhein", "Link"]
+OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "datum_von", "datum_bis", "Nähe_Flüsse", "Link"]
 
 MAX_URL_LENGTH = 2000  # common safe threshold for URL length
-
 
 # ------------------- extract --------------------------------
 def _canonicalize_geojson(raw_bytes: bytes) -> bytes:
@@ -73,16 +72,16 @@ def download_to_cache(source_path: Path, cache_path: Path, *, params: dict | Non
 # -------------------------- transform -------------------------------------
 
 
-def load_rhine_line(rivers_path: Path) -> gpd.GeoDataFrame:
+def load_river_lines(rivers_path: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
 
     gj = json.loads(rivers_path.read_bytes())
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
 
-    rhine = gdf[gdf["gz_gewaessername"] == "Rhein"]
-    if rhine.empty:
-        raise RuntimeError("Rhein nicht in Gewässerachsen gefunden")
-
-    return rhine.to_crs(CRS_SWISS).geometry.union_all()
+    rhein = gdf[gdf["gz_gewaessername"] == "Rhein"]
+    wiese = gdf[gdf["gz_gewaessername"] == "Wiese"]
+    birs = gdf[gdf["gz_gewaessername"] == "Birs"]
+    
+    return [rhein.to_crs(CRS_SWISS).geometry.union_all(), wiese.to_crs(CRS_SWISS).geometry.union_all(), birs.to_crs(CRS_SWISS).geometry.union_all()]
 
 
 def make_query_url(field, values, base_url="https://data.bs.ch/explore/dataset/100018/table/"):
@@ -210,15 +209,25 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
     return gdf
 
 
-def find_events_near_rhine(allmend_path: Path, rivers_path: Path, buffer_m: float) -> gpd.GeoDataFrame:
+def find_events_near_rivers(allmend_path: Path, rivers_path: Path, buffer_m: float) -> gpd.GeoDataFrame:
 
-    rhein_line = load_rhine_line(rivers_path)
+    rhein, wiese, birs = load_river_lines(rivers_path)
     allmend_gpd = load_and_collapse_allmende(allmend_path)
-    rhine_buffer = rhein_line.buffer(buffer_m)
+
+    rivers = {"Rhein": rhein, "Wiese": wiese, "Birs": birs}
 
     allmend_gpd = allmend_gpd.to_crs(CRS_SWISS)
-    allmend_gpd["MinDistanzRhein"] = allmend_gpd.geometry.distance(rhein_line).round(1)
-    allmend_gpd = allmend_gpd[allmend_gpd.geometry.intersects(rhine_buffer)].copy()
+
+    near_df = pd.DataFrame(
+        {name: allmend_gpd.geometry.intersects(river.buffer(buffer_m)) for name, river in rivers.items()},
+        index=allmend_gpd.index,
+    )
+
+    allmend_gpd["Nähe_Flüsse"] = near_df.apply(
+        lambda row: ", ".join(name for name, is_near in row.items() if is_near), axis=1
+    )
+
+    allmend_gpd = allmend_gpd[near_df.any(axis=1)].copy()
 
     return allmend_gpd.to_crs(CRS)
 
@@ -226,12 +235,10 @@ def find_events_near_rhine(allmend_path: Path, rivers_path: Path, buffer_m: floa
 # ---------------------------- load ---------------------------------------------
 
 
-# do we need a geodataframe as output? there are no geo shapes left in the result
-# maybe only csv for the moment, can be added later
 def write_outputs(gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
     data_dir = Path(data_dir)
     cols = [c for c in OUTPUT_COLUMNS if c in gdf.columns]
-    csv_path = data_dir / "allmend_events_near_rhine.csv"
+    csv_path = data_dir / "100556_allmend_events_near_rivers.csv"
     gdf[cols].to_csv(csv_path, index=False)
     logging.info("Wrote:\n  %s", csv_path)
     common.update_ftp_and_odsp(str(csv_path), "bachapp", "100556")
@@ -252,7 +259,7 @@ def main():
         logging.info("Neither source dataset changed since the last run - skipping processing.")
         return
 
-    near = find_events_near_rhine(allmend_path, rivers_path, BUFFER_M)
+    near = find_events_near_rivers(allmend_path, rivers_path, BUFFER_M)
     write_outputs(near)
 
     logging.info("ETL job completed")
