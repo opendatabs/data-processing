@@ -25,10 +25,6 @@ BUFFER_M = 150
 EVENT_TYPES = ["Veranstaltung", "Aktivität", "Festivität"]
 ALLMEND_PARAMS = {"where": "belgartbez IN (" + ", ".join(f'"{t}"' for t in EVENT_TYPES) + ")"} # to filter the event_types already while pulling the data
 
-EXCLUDED_STATUSES = ["storniert", "nicht bewilligt"]  # auch erst im link?
-APPROVED_STATUS = "bewilligt"
-REQUIRE_APPROVED = False
-
 OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "datum_von", "datum_bis", "Nähe_Flüsse", "Link"]
 
 MAX_URL_LENGTH = 2000  # common safe threshold for URL length
@@ -36,8 +32,6 @@ MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 # ------------------- extract --------------------------------
 
 def allmend_has_changed(saved_date: Path) -> bool:
-
-    #TODO: check metadata last changed against cached value, save this in txt file?
 
     r = common.requests_get("https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018")
 
@@ -56,12 +50,7 @@ def allmend_has_changed(saved_date: Path) -> bool:
     file.write_text(new_value)
     return True
 
-
-
-    return False
-
-# downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson and saves them in the cache if they changed
-# returns the paths to the caches and true if any of the two changed, false if both are unchanged
+# downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson 
 def download(source_path: Path, path: Path, *, params: dict | None=None):
 
     logging.info("trying to downlad the data files")
@@ -71,9 +60,6 @@ def download(source_path: Path, path: Path, *, params: dict | None=None):
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(r.content)
-
-
-    return path
 
 
 # -------------------------- transform -------------------------------------
@@ -184,9 +170,6 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
     logging.info("Loaded %d total Allmend records.", len(gdf))
 
-    if REQUIRE_APPROVED:
-        gdf = gdf[gdf["belestatbe"] == APPROVED_STATUS].copy()
-
     gdf["geometry"] = gdf["geometry"].buffer(0)  # fix any self-intersecting rings
 
     # clustering: events that have the same BegehrenID, Bezeichnung and date can be merged together
@@ -248,8 +231,6 @@ def write_outputs(gdf: gpd.GeoDataFrame) -> None:
 
 
 def main():
-    """Main ETL function."""
-    # #.
     logging.info("ETL job started")
 
     allmend_changed = allmend_has_changed(Path("data_orig/last_changed.csv"))
