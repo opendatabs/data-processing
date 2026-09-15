@@ -23,13 +23,16 @@ RIVERS_CACHE = Path("data_orig/gewaesserachsen.geojson")
 
 BUFFER_M = 150
 EVENT_TYPES = ["Veranstaltung", "Aktivität", "Festivität"]
-ALLMEND_PARAMS = {"where": "belgartbez IN (" + ", ".join(f'"{t}"' for t in EVENT_TYPES) + ")"} # to filter the event_types already while pulling the data
+ALLMEND_PARAMS = {
+    "where": "belgartbez IN (" + ", ".join(f'"{t}"' for t in EVENT_TYPES) + ")"
+}  # to filter the event_types already while pulling the data
 
 OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "datum_von", "datum_bis", "Nähe_Flüsse", "Link"]
 
 MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 
 # ------------------- extract --------------------------------
+
 
 def allmend_has_changed(saved_date: Path) -> bool:
 
@@ -50,8 +53,9 @@ def allmend_has_changed(saved_date: Path) -> bool:
     file.write_text(new_value)
     return True
 
-# downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson 
-def download(source_path: Path, path: Path, *, params: dict | None=None):
+
+# downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson
+def download(source_path: Path, path: Path, *, params: dict | None = None):
 
     logging.info("trying to downlad the data files")
 
@@ -73,8 +77,12 @@ def load_river_lines(rivers_path: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFr
     rhein = gdf[gdf["gz_gewaessername"] == "Rhein"]
     wiese = gdf[gdf["gz_gewaessername"] == "Wiese"]
     birs = gdf[gdf["gz_gewaessername"] == "Birs"]
-    
-    return [rhein.to_crs(CRS_SWISS).geometry.union_all(), wiese.to_crs(CRS_SWISS).geometry.union_all(), birs.to_crs(CRS_SWISS).geometry.union_all()]
+
+    return [
+        rhein.to_crs(CRS_SWISS).geometry.union_all(),
+        wiese.to_crs(CRS_SWISS).geometry.union_all(),
+        birs.to_crs(CRS_SWISS).geometry.union_all(),
+    ]
 
 
 def make_query_url(field, values, base_url="https://data.bs.ch/explore/dataset/100018/table/"):
