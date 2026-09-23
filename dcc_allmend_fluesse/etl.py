@@ -25,7 +25,7 @@ BUFFER_M = 150
 EVENT_TYPES = ["Veranstaltung", "Aktivität", "Festivität"]
 ALLMEND_PARAMS = {"where": "belgartbez IN (" + ", ".join(f'"{t}"' for t in EVENT_TYPES) + ")"} # to filter the event_types already while pulling the data
 
-OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "datum_von", "datum_bis", "Nähe_Flüsse", "Link"]
+OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "Entscheid-Datum", "Datum_von", "Datum_bis", "Nähe_Flüsse", "Link"]
 
 MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 
@@ -178,6 +178,7 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
         aggfunc={
             "idunique": lambda x: ", ".join(x.astype(str)),
             "belestatbe": lambda x: ", ".join(x.astype(str).unique()),
+            "entscheid_datum": lambda x: ", ".join(x.dropna().astype(str).unique()),
         },
     )
 
@@ -188,7 +189,7 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
 
     gdf["Link"] = gdf.apply(lambda row: build_link(row["idunique"], row["begehrenid"]), axis=1)
 
-    gdf = gdf.rename(columns={"bezeichng": "Bezeichnung", "belestatbe": "Belegstatus"})
+    gdf = gdf.rename(columns={"bezeichng": "Bezeichnung", "belestatbe": "Belegstatus", "datum_von": "Datum_von", "datum_bis": "Datum_bis", "entscheid_datum": "Entscheid-Datum"})
 
     return gdf
 
