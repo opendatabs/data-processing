@@ -229,8 +229,9 @@ def build_mismatch_email_text(unlisted: set[str], missing: set[str]) -> str:
     text = (
         "Beim ETL-Lauf für die Gutachten (Dataset 100489) wurden Abweichungen zwischen "
         "den PDF-Dateien und der Excel-Liste (Liste_Gutachten.xlsx) festgestellt.\n\n"
-        "Der Job läuft weiter: vorhandene, in der Liste dokumentierte Dateien werden "
-        "hochgeladen; die Abweichungen werden nicht automatisch behoben.\n"
+        "Der Job läuft weiter und schreibt die Daten trotzdem:\n"
+        " - Nur Datei (ohne Excel-Eintrag): Zeile mit URL_Datei\n"
+        " - Nur Metadaten (ohne Datei): Zeile mit Metadaten, ohne URL_Datei\n"
     )
 
     if unlisted:
@@ -357,8 +358,6 @@ def process_excel_file():
     base_url = "https://data-bs.ch/stata/staka/gutachten/"
     gate_url = base_url + "index.html?file="
 
-    df["URL_Datei"] = gate_url + df["Dateiname_ftp"]
-
     files_in_data_orig = {f for f in os.listdir(DATA_ORIG_PATH) if os.path.isfile(os.path.join(DATA_ORIG_PATH, f))}
 
     listed_files = set(df["Dateiname"])
@@ -374,12 +373,27 @@ def process_excel_file():
 
     notify_file_mismatches(unlisted_files, missing_files)
 
-    if missing_files:
+    # Metadata only (Excel row, no PDF): keep metadata, leave URL empty.
+    df["URL_Datei"] = [
+        (gate_url + ftp_name) if orig_name not in missing_files else pd.NA
+        for orig_name, ftp_name in zip(df["Dateiname"], df["Dateiname_ftp"])
+    ]
+
+    # Document only (PDF without Excel row): add a row with Dateiname + URL_Datei.
+    if unlisted_files:
         LOGGER.warning(
-            "Skipping %s file(s) listed in 'Liste_Gutachten' but missing in 'data_orig'.",
-            len(missing_files),
+            "Adding %s unlisted file(s) to the dataset with URL only (no Excel metadata).",
+            len(unlisted_files),
         )
-        df = df[~df["Dateiname"].isin(missing_files)].reset_index(drop=True)
+        extra_rows = []
+        for orig_name in sorted(unlisted_files):
+            ftp_name = ensure_pdf_suffix(orig_name, sanitize_filename(orig_name))
+            row = {col: pd.NA for col in df.columns}
+            row["Dateiname"] = orig_name
+            row["Dateiname_ftp"] = ftp_name
+            row["URL_Datei"] = gate_url + ftp_name
+            extra_rows.append(row)
+        df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True)
 
     return df
 
@@ -397,6 +411,10 @@ def upload_files_to_ftp(df: pd.DataFrame):
             DATA_ORIG_PATH,
             orig_name,
         )
+
+        if not os.path.isfile(src_path):
+            logging.info(f"Skipping upload for missing file {orig_name}")
+            continue
 
         dst_path = os.path.join(
             "data",
