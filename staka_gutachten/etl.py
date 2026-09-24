@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -11,6 +12,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+LOGGER = logging.getLogger(__name__)
+
 TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
 CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID")
 SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
@@ -21,6 +24,7 @@ THUMBPRINT = os.getenv("SHAREPOINT_THUMBPRINT")
 SHAREPOINT_ROOT = "General"
 
 DATA_ORIG_PATH = "data_orig"
+NOTIFIED_MISMATCHES_JSON = Path("change_tracking") / "gutachten_notified_mismatches.json"
 
 DEPARTEMENTS = ["BVD", "ED", "FD", "GD", "JSD", "PD", "WSU", "Staatskanzlei"]
 
@@ -188,6 +192,129 @@ def sanitize_filename(name: str) -> str:
     return "".join(c for c in name if c in allowed)
 
 
+def load_notified_mismatches(path: Path | str = NOTIFIED_MISMATCHES_JSON) -> dict[str, set[str]]:
+    """Return mismatch filenames that were already included in a successfully sent notification."""
+    path = Path(path)
+    if not path.exists():
+        return {"unlisted": set(), "missing": set()}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        LOGGER.warning("Existing %s could not be read (%s); treating as empty.", path, exc)
+        return {"unlisted": set(), "missing": set()}
+    if not isinstance(payload, dict):
+        return {"unlisted": set(), "missing": set()}
+    return {
+        "unlisted": {str(item) for item in payload.get("unlisted", []) if item is not None},
+        "missing": {str(item) for item in payload.get("missing", []) if item is not None},
+    }
+
+
+def save_notified_mismatches(
+    unlisted: set[str],
+    missing: set[str],
+    path: Path | str = NOTIFIED_MISMATCHES_JSON,
+) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "unlisted": sorted(unlisted),
+        "missing": sorted(missing),
+    }
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def build_mismatch_email_text(unlisted: set[str], missing: set[str]) -> str:
+    """Human-readable German notification body for Excel/PDF mismatches."""
+    text = (
+        "Beim ETL-Lauf für die Gutachten (Dataset 100489) wurden Abweichungen zwischen "
+        "den PDF-Dateien und der Excel-Liste (Liste_Gutachten.xlsx) festgestellt.\n\n"
+        "Der Job läuft weiter: vorhandene, in der Liste dokumentierte Dateien werden "
+        "hochgeladen; die Abweichungen werden nicht automatisch behoben.\n"
+    )
+
+    if unlisted:
+        text += f"\nDateien vorhanden, aber nicht in Liste_Gutachten – {len(unlisted)} Stück:\n"
+        for name in sorted(unlisted):
+            text += f" - {name}\n"
+
+    if missing:
+        text += f"\nIn Liste_Gutachten eingetragen, aber Datei fehlt – {len(missing)} Stück:\n"
+        for name in sorted(missing):
+            text += f" - {name}\n"
+
+    text += (
+        "\nBitte prüfen Sie die Dateien auf SharePoint "
+        f"({SHAREPOINT_ROOT}/Excel-Datei bzw. {SHAREPOINT_ROOT}/Gutachten).\n"
+    )
+    text += "\nFreundliche Grüsse, \nEuer automatisierter Open Data Basel-Stadt Python Job"
+    return text
+
+
+def notify_file_mismatches(
+    unlisted_files: set[str],
+    missing_files: set[str],
+    *,
+    state_path: Path | str = NOTIFIED_MISMATCHES_JSON,
+) -> None:
+    """
+    Send a notification e-mail only when there is new mismatch information.
+
+    Persistent mismatches would otherwise trigger the same mail on every run.
+    Never fails the ETL.
+    """
+    notified = load_notified_mismatches(state_path)
+    # If a previously reported mismatch is resolved, forget it so a later recurrence is mailed again.
+    notified["unlisted"] &= unlisted_files
+    notified["missing"] &= missing_files
+
+    new_unlisted = unlisted_files - notified["unlisted"]
+    new_missing = missing_files - notified["missing"]
+
+    if not new_unlisted and not new_missing:
+        try:
+            save_notified_mismatches(notified["unlisted"], notified["missing"], state_path)
+        except OSError as exc:
+            LOGGER.warning("Could not persist Gutachten notification state: %s", exc)
+        if unlisted_files or missing_files:
+            LOGGER.info(
+                "Gutachten still has %s unlisted and %s missing file(s), all previously notified; no e-mail sent.",
+                len(unlisted_files),
+                len(missing_files),
+            )
+        else:
+            LOGGER.info("All files in 'data_orig' are listed in 'Liste_Gutachten' and vice versa.")
+        return
+
+    LOGGER.info(
+        "Detected %s new unlisted and %s new missing Gutachten file(s) "
+        "(%s unlisted / %s missing already notified, skipped); sending notification e-mail.",
+        len(new_unlisted),
+        len(new_missing),
+        len(unlisted_files) - len(new_unlisted),
+        len(missing_files) - len(new_missing),
+    )
+    text = build_mismatch_email_text(new_unlisted, new_missing)
+    try:
+        msg = common.email_message(
+            subject="Gutachten (100489): Abweichungen zwischen PDFs und Liste_Gutachten.",
+            text=text,
+            img=None,
+            attachment=None,
+        )
+        common.send_email(msg)
+        notified["unlisted"] |= new_unlisted
+        notified["missing"] |= new_missing
+        save_notified_mismatches(notified["unlisted"], notified["missing"], state_path)
+        LOGGER.info("Mismatch-notification e-mail sent.")
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        LOGGER.warning("Could not send Gutachten mismatch-notification e-mail: %s", exc)
+        try:
+            save_notified_mismatches(notified["unlisted"], notified["missing"], state_path)
+        except OSError as persist_exc:
+            LOGGER.warning("Could not persist Gutachten notification state: %s", persist_exc)
+
+
 def process_excel_file():
     excel_filename = "Liste_Gutachten.xlsx"
 
@@ -243,18 +370,16 @@ def process_excel_file():
     }
 
     unlisted_files = files_in_data_orig - listed_files - ignored
-
-    if unlisted_files:
-        raise ValueError(f"The following files are in 'data_orig' but not in 'Liste_Gutachten': {unlisted_files}")
-
     missing_files = listed_files - files_in_data_orig
 
-    if missing_files:
-        raise ValueError(
-            f"The following files are listed in 'Liste_Gutachten' but do not exist in 'data_orig': {missing_files}"
-        )
+    notify_file_mismatches(unlisted_files, missing_files)
 
-    logging.info("All files in 'data_orig' are listed in 'Liste_Gutachten' and vice versa.")
+    if missing_files:
+        LOGGER.warning(
+            "Skipping %s file(s) listed in 'Liste_Gutachten' but missing in 'data_orig'.",
+            len(missing_files),
+        )
+        df = df[~df["Dateiname"].isin(missing_files)].reset_index(drop=True)
 
     return df
 
