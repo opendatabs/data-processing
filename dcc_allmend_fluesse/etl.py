@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import logging
 from pathlib import Path
@@ -15,7 +16,7 @@ CRS = "EPSG:4326"
 CRS_SWISS = "EPSG:2056"
 
 ALLMEND_URL = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018/exports/geojson"
-RIVERS_URL = "https://data.bs.ch/explore/dataset/100261/download/"
+RIVERS_URL = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100261/exports/geojson"
 
 ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson")  # gets created the first time the script is run?
 RIVERS_CACHE = Path("data_orig/gewaesserachsen.geojson")
@@ -24,65 +25,56 @@ BUFFER_M = 150
 EVENT_TYPES = ["Veranstaltung", "Aktivität", "Festivität"]
 ALLMEND_PARAMS = {"where": "belgartbez IN (" + ", ".join(f'"{t}"' for t in EVENT_TYPES) + ")"} # to filter the event_types already while pulling the data
 
-EXCLUDED_STATUSES = ["storniert", "nicht bewilligt"]  # auch erst im link?
-APPROVED_STATUS = "bewilligt"
-REQUIRE_APPROVED = False
-
-OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "datum_von", "datum_bis", "MinDistanzRhein", "Link"]
+OUTPUT_COLUMNS = ["Bezeichnung", "Belegstatus", "Entscheid-Datum", "Datum_von", "Datum_bis", "Nähe_Flüsse", "Link"]
 
 MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 
-
 # ------------------- extract --------------------------------
-def _canonicalize_geojson(raw_bytes: bytes) -> bytes:
-    """Produce a byte-stable representation of a GeoJSON FeatureCollection,
-    independent of the server's (unstable) feature ordering."""
-    gj = json.loads(raw_bytes)
-    gj["features"] = sorted(gj["features"], key=lambda f: json.dumps(f, sort_keys=True))
-    return json.dumps(gj, sort_keys=True, ensure_ascii=False).encode("utf-8")
 
+def allmend_has_changed(saved_date: Path) -> bool:
 
-def _write_if_bytes_changed(path: Path, new_bytes: bytes) -> bool:
-    """
-    Write bytes to path only if content differs.
-    Returns True if file content changed (written), else False.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if (
-        path.exists() and path.read_bytes() == new_bytes
-    ):  # downlads do not have the same bites even if the data has not changed!!
-        return False
-    path.write_bytes(new_bytes)
+    r = common.requests_get("https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018")
+
+    data = json.loads(r.content)
+    new_value = data["metas"]["default"]["modified"]  # e.g. "2026-09-10T00:00:00+00:00"
+    new_dt = dt.datetime.fromisoformat(new_value)
+
+    file = Path(saved_date)
+    if file.exists():
+        old_value = file.read_text().strip()
+        if old_value:
+            old_dt = dt.datetime.fromisoformat(old_value)
+            if new_dt <= old_dt:
+                return False
+
+    file.write_text(new_value)
     return True
 
-
-# downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson and saves them in the cache if they changed
-# returns the paths to the caches and true if any of the two changed, false if both are unchanged
-def download_to_cache(source_path: Path, cache_path: Path, *, params: dict | None=None) -> tuple[Path, bool]:
+# downloads the two data sets, allmendbewilligungen and gewässerachsen, as geojson 
+def download(source_path: Path, path: Path, *, params: dict | None=None):
 
     logging.info("trying to downlad the data files")
 
     r = common.requests_get(source_path, params=params or {"format": "geojson"})  # does this need a catch block?
     r.raise_for_status()
-    canonical = _canonicalize_geojson(r.content)  # so we can compare the raw bites later
-    bytes_changed = _write_if_bytes_changed(cache_path, canonical)
 
-    return cache_path, bytes_changed
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(r.content)
 
 
 # -------------------------- transform -------------------------------------
 
 
-def load_rhine_line(rivers_path: Path) -> gpd.GeoDataFrame:
+def load_river_lines(rivers_path: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
 
     gj = json.loads(rivers_path.read_bytes())
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
 
-    rhine = gdf[gdf["gz_gewaessername"] == "Rhein"]
-    if rhine.empty:
-        raise RuntimeError("Rhein nicht in Gewässerachsen gefunden")
-
-    return rhine.to_crs(CRS_SWISS).geometry.union_all()
+    rhein = gdf[gdf["gz_gewaessername"] == "Rhein"]
+    wiese = gdf[gdf["gz_gewaessername"] == "Wiese"]
+    birs = gdf[gdf["gz_gewaessername"] == "Birs"]
+    
+    return [rhein.to_crs(CRS_SWISS).geometry.union_all(), wiese.to_crs(CRS_SWISS).geometry.union_all(), birs.to_crs(CRS_SWISS).geometry.union_all()]
 
 
 def make_query_url(field, values, base_url="https://data.bs.ch/explore/dataset/100018/table/"):
@@ -178,15 +170,6 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs=CRS)
     logging.info("Loaded %d total Allmend records.", len(gdf))
 
-    # only "Veranstaltung", "Aktivität", "Festivität" count as events
-    # gdf = gdf[gdf["belgartbez"].isin(EVENT_TYPES)].copy(), this is already getting filtered while pulling the data
-
-    # dont take entries that are "storniert"/"nicht bewilligt"
-    # gdf = gdf[~gdf["belestatbe"].isin(EXCLUDED_STATUSES)].copy()
-
-    if REQUIRE_APPROVED:
-        gdf = gdf[gdf["belestatbe"] == APPROVED_STATUS].copy()
-
     gdf["geometry"] = gdf["geometry"].buffer(0)  # fix any self-intersecting rings
 
     # clustering: events that have the same BegehrenID, Bezeichnung and date can be merged together
@@ -195,7 +178,8 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
         aggfunc={
             "idunique": lambda x: ", ".join(x.astype(str)),
             "belestatbe": lambda x: ", ".join(x.astype(str).unique()),
-        },  # list all idunique (and begehrenid), so we can build the link later
+            "entscheid_datum": lambda x: ", ".join(x.dropna().astype(str).unique()),
+        },
     )
 
     gdf = gdf.reset_index()
@@ -205,20 +189,30 @@ def load_and_collapse_allmende(allmend_path: Path) -> gpd.GeoDataFrame:
 
     gdf["Link"] = gdf.apply(lambda row: build_link(row["idunique"], row["begehrenid"]), axis=1)
 
-    gdf = gdf.rename(columns={"bezeichng": "Bezeichnung", "belestatbe": "Belegstatus"})
+    gdf = gdf.rename(columns={"bezeichng": "Bezeichnung", "belestatbe": "Belegstatus", "datum_von": "Datum_von", "datum_bis": "Datum_bis", "entscheid_datum": "Entscheid-Datum"})
 
     return gdf
 
 
-def find_events_near_rhine(allmend_path: Path, rivers_path: Path, buffer_m: float) -> gpd.GeoDataFrame:
+def find_events_near_rivers(allmend_path: Path, rivers_path: Path, buffer_m: float) -> gpd.GeoDataFrame:
 
-    rhein_line = load_rhine_line(rivers_path)
+    rhein, wiese, birs = load_river_lines(rivers_path)
     allmend_gpd = load_and_collapse_allmende(allmend_path)
-    rhine_buffer = rhein_line.buffer(buffer_m)
+
+    rivers = {"Rhein": rhein, "Wiese": wiese, "Birs": birs}
 
     allmend_gpd = allmend_gpd.to_crs(CRS_SWISS)
-    allmend_gpd["MinDistanzRhein"] = allmend_gpd.geometry.distance(rhein_line).round(1)
-    allmend_gpd = allmend_gpd[allmend_gpd.geometry.intersects(rhine_buffer)].copy()
+
+    near_df = pd.DataFrame(
+        {name: allmend_gpd.geometry.intersects(river.buffer(buffer_m)) for name, river in rivers.items()},
+        index=allmend_gpd.index,
+    )
+
+    allmend_gpd["Nähe_Flüsse"] = near_df.apply(
+        lambda row: ", ".join(name for name, is_near in row.items() if is_near), axis=1
+    )
+
+    allmend_gpd = allmend_gpd[near_df.any(axis=1)].copy()
 
     return allmend_gpd.to_crs(CRS)
 
@@ -226,12 +220,9 @@ def find_events_near_rhine(allmend_path: Path, rivers_path: Path, buffer_m: floa
 # ---------------------------- load ---------------------------------------------
 
 
-# do we need a geodataframe as output? there are no geo shapes left in the result
-# maybe only csv for the moment, can be added later
-def write_outputs(gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
-    data_dir = Path(data_dir)
+def write_outputs(gdf: gpd.GeoDataFrame) -> None:
     cols = [c for c in OUTPUT_COLUMNS if c in gdf.columns]
-    csv_path = data_dir / "allmend_events_near_rhine.csv"
+    csv_path = "data/100556_allmend_events_near_rivers.csv"
     gdf[cols].to_csv(csv_path, index=False)
     logging.info("Wrote:\n  %s", csv_path)
     common.update_ftp_and_odsp(str(csv_path), "bachapp", "100556")
@@ -241,18 +232,18 @@ def write_outputs(gdf: gpd.GeoDataFrame, data_dir: str = "data") -> None:
 
 
 def main():
-    """Main ETL function."""
-    # #.
     logging.info("ETL job started")
 
-    allmend_path, allmend_changed = download_to_cache(ALLMEND_URL, ALLMEND_CACHE, params=ALLMEND_PARAMS)
-    rivers_path, rivers_changed = download_to_cache(RIVERS_URL, RIVERS_CACHE)
+    allmend_changed = allmend_has_changed(Path("data_orig/last_changed.csv"))
 
-    if not allmend_changed and not rivers_changed:
-        logging.info("Neither source dataset changed since the last run - skipping processing.")
+    if not allmend_changed:
+        logging.info("Allmend dataset not updated since the last run - skipping processing.")
         return
 
-    near = find_events_near_rhine(allmend_path, rivers_path, BUFFER_M)
+    download(ALLMEND_URL, ALLMEND_CACHE, params=ALLMEND_PARAMS)
+    download(RIVERS_URL, RIVERS_CACHE)
+
+    near = find_events_near_rivers(ALLMEND_CACHE, RIVERS_CACHE, BUFFER_M)
     write_outputs(near)
 
     logging.info("ETL job completed")

@@ -239,9 +239,6 @@ jobs:
             staka_vernehmlassungen:
               - 'Dockerfile'
               - 'staka_vernehmlassungen/**'
-            staka_verz_verf_persdat:
-              - 'Dockerfile'
-              - 'staka_verz_verf_persdat/**'
             staka_wahlen:
               - 'Dockerfile'
               - 'staka_wahlen/**'
