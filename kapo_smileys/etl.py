@@ -140,6 +140,15 @@ def parse_messdaten(df_einsatz_days, df_einsaetze):
         conn.close()
         gc.collect()
 
+        # The raw unfiltered CSV and the uncompressed filtered CSV are only needed to build
+        # the sqlite db, the upload zip, and the stats file above. Once those exist, keep
+        # only the zip (upload artifact) and drop the multi-GB raw CSVs to save disk space.
+        for path in (export_file_all_unfiltered, export_file_filtered):
+            if os.path.exists(path):
+                size_mb = os.path.getsize(path) / (1024 * 1024)
+                logging.info(f"Removing intermediate file {path} ({size_mb:.1f} MB) — no longer needed after this run")
+                os.remove(path)
+
         ct.update_hash_file(list_path)
         return export_file_to_upload, export_file_stats
     return None, None
