@@ -81,46 +81,72 @@ def get_drive_id(token: str, site_id: str) -> str:
     return drive["id"]
 
 
+def list_drive_children(token: str, drive_id: str, sharepoint_folder: str) -> list[dict]:
+    """List every child of a drive folder, following Graph pagination."""
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_folder}:/children"
+    items: list[dict] = []
+
+    while url:
+        r = requests.get(url, headers=headers)
+        r.raise_for_status()
+        payload = r.json()
+        items.extend(payload.get("value", []))
+        url = payload.get("@odata.nextLink")
+
+    return items
+
+
 def download_folder(
     token: str,
     drive_id: str,
     sharepoint_folder: str,
     local_dir: str,
+    *,
+    flatten: bool = False,
+    departement: str | None = None,
+    file_departments: dict[str, str] | None = None,
 ):
     """
     Download all files from a SharePoint folder recursively.
-    """
 
-    headers = {"Authorization": f"Bearer {token}"}
+    With flatten=True, files from subfolders are written into local_dir
+    instead of a mirrored subdirectory, so later steps can see them.
+    """
 
     os.makedirs(local_dir, exist_ok=True)
 
-    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_folder}:/children"
-
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
-
-    items = r.json().get("value", [])
-
-    for item in items:
+    for item in list_drive_children(token, drive_id, sharepoint_folder):
         name = item["name"]
 
         # Folder
         if "folder" in item:
             sub_sp_path = f"{sharepoint_folder}/{name}"
-            sub_local_dir = os.path.join(local_dir, name)
+            sub_local_dir = local_dir if flatten else os.path.join(local_dir, name)
 
             download_folder(
                 token,
                 drive_id,
                 sub_sp_path,
                 sub_local_dir,
+                flatten=flatten,
+                departement=departement,
+                file_departments=file_departments,
             )
 
             continue
 
         # File
         if "file" not in item:
+            continue
+
+        if file_departments is not None and name in file_departments:
+            logging.warning(
+                "Skipping duplicate %s/%s; keeping the copy already downloaded from departement %s.",
+                sharepoint_folder,
+                name,
+                file_departments[name],
+            )
             continue
 
         download_url = item["@microsoft.graph.downloadUrl"]
@@ -136,12 +162,17 @@ def download_folder(
             for chunk in file_r.iter_content(chunk_size=8192):
                 f.write(chunk)
 
+        if file_departments is not None and departement is not None:
+            file_departments[name] = departement
 
-def download_sharepoint_files(token: str, site_id: str):
+
+def download_sharepoint_files(token: str, site_id: str) -> dict[str, str]:
     """
     Download:
     - Excel-Datei/Liste_Gutachten.xlsx
-    - Gutachten/<Departement>/*.pdf
+    - Gutachten/<Departement>/**  (recursive, flattened into data_orig)
+
+    Returns a map of downloaded Gutachten filename -> departement folder name.
     """
 
     drive_id = get_drive_id(token, site_id)
@@ -160,8 +191,10 @@ def download_sharepoint_files(token: str, site_id: str):
     )
 
     # ------------------------------------------------------------------
-    # Download Gutachten PDFs
+    # Download Gutachten PDFs, including files in subfolders
     # ------------------------------------------------------------------
+
+    file_departments: dict[str, str] = {}
 
     for departement in DEPARTEMENTS:
         download_folder(
@@ -169,7 +202,12 @@ def download_sharepoint_files(token: str, site_id: str):
             drive_id=drive_id,
             sharepoint_folder=(f"{SHAREPOINT_ROOT}/Gutachten/{departement}"),
             local_dir=DATA_ORIG_PATH,
+            flatten=True,
+            departement=departement,
+            file_departments=file_departments,
         )
+
+    return file_departments
 
 
 def sanitize_filename(name: str) -> str:
@@ -224,20 +262,28 @@ def save_notified_mismatches(
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def build_mismatch_email_text(unlisted: set[str], missing: set[str]) -> str:
+def build_mismatch_email_text(
+    unlisted: set[str],
+    missing: set[str],
+    file_departments: dict[str, str] | None = None,
+) -> str:
     """Human-readable German notification body for Excel/PDF mismatches."""
     text = (
         "Beim ETL-Lauf für die Gutachten (Dataset 100489) wurden Abweichungen zwischen "
         "den PDF-Dateien und der Excel-Liste (Liste_Gutachten.xlsx) festgestellt.\n\n"
         "Der Job läuft weiter und schreibt die Daten trotzdem:\n"
-        " - Nur Datei (ohne Excel-Eintrag): Zeile mit URL_Datei\n"
+        " - Nur Datei (ohne Excel-Eintrag): Zeile mit URL_Datei und Departement aus dem SharePoint-Ordner\n"
         " - Nur Metadaten (ohne Datei): Zeile mit Metadaten, ohne URL_Datei\n"
     )
 
     if unlisted:
         text += f"\nDateien vorhanden, aber nicht in Liste_Gutachten – {len(unlisted)} Stück:\n"
         for name in sorted(unlisted):
-            text += f" - {name}\n"
+            departement = (file_departments or {}).get(name)
+            if departement:
+                text += f" - {name} ({departement})\n"
+            else:
+                text += f" - {name}\n"
 
     if missing:
         text += f"\nIn Liste_Gutachten eingetragen, aber Datei fehlt – {len(missing)} Stück:\n"
@@ -256,6 +302,7 @@ def notify_file_mismatches(
     unlisted_files: set[str],
     missing_files: set[str],
     *,
+    file_departments: dict[str, str] | None = None,
     state_path: Path | str = NOTIFIED_MISMATCHES_JSON,
 ) -> None:
     """
@@ -295,7 +342,7 @@ def notify_file_mismatches(
         len(unlisted_files) - len(new_unlisted),
         len(missing_files) - len(new_missing),
     )
-    text = build_mismatch_email_text(new_unlisted, new_missing)
+    text = build_mismatch_email_text(new_unlisted, new_missing, file_departments)
     try:
         msg = common.email_message(
             subject="Gutachten (100489): Abweichungen zwischen PDFs und Liste_Gutachten.",
@@ -316,7 +363,15 @@ def notify_file_mismatches(
             LOGGER.warning("Could not persist Gutachten notification state: %s", persist_exc)
 
 
-def process_excel_file():
+def departement_column_name(columns) -> str | None:
+    """Return the existing Departement column, matching the Excel header regardless of case."""
+    for col in columns:
+        if str(col).strip().lower() == "departement":
+            return str(col)
+    return None
+
+
+def process_excel_file(file_departments: dict[str, str] | None = None):
     excel_filename = "Liste_Gutachten.xlsx"
 
     excel_file_path = os.path.join(
@@ -371,7 +426,10 @@ def process_excel_file():
     unlisted_files = files_in_data_orig - listed_files - ignored
     missing_files = listed_files - files_in_data_orig
 
-    notify_file_mismatches(unlisted_files, missing_files)
+    if file_departments is None:
+        file_departments = {}
+
+    notify_file_mismatches(unlisted_files, missing_files, file_departments=file_departments)
 
     # Metadata only (Excel row, no PDF): keep metadata, leave URL empty.
     df["URL_Datei"] = [
@@ -379,12 +437,17 @@ def process_excel_file():
         for orig_name, ftp_name in zip(df["Dateiname"], df["Dateiname_ftp"])
     ]
 
-    # Document only (PDF without Excel row): add a row with Dateiname + URL_Datei.
+    # Document only (PDF without Excel row): add a row with Dateiname, URL_Datei
+    # and the departement taken from the SharePoint folder the file was downloaded from.
     if unlisted_files:
         LOGGER.warning(
-            "Adding %s unlisted file(s) to the dataset with URL only (no Excel metadata).",
+            "Adding %s unlisted file(s) to the dataset with URL and Departement (no other Excel metadata).",
             len(unlisted_files),
         )
+        departement_col = departement_column_name(df.columns)
+        if departement_col is None:
+            departement_col = "Departement"
+            df[departement_col] = pd.NA
         extra_rows = []
         for orig_name in sorted(unlisted_files):
             ftp_name = ensure_pdf_suffix(orig_name, sanitize_filename(orig_name))
@@ -392,6 +455,7 @@ def process_excel_file():
             row["Dateiname"] = orig_name
             row["Dateiname_ftp"] = ftp_name
             row["URL_Datei"] = gate_url + ftp_name
+            row[departement_col] = file_departments.get(orig_name, pd.NA)
             extra_rows.append(row)
         df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True)
 
@@ -453,9 +517,9 @@ def main():
 
     site_id = get_site_id(token)
 
-    download_sharepoint_files(token, site_id)
+    file_departments = download_sharepoint_files(token, site_id)
 
-    df = process_excel_file()
+    df = process_excel_file(file_departments)
 
     upload_files_to_ftp(df)
 
