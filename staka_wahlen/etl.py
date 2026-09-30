@@ -184,16 +184,12 @@ def find_excel_with_results(data_orig=DATA_ORIG):
     files = []
     for pattern in patterns:
         files.extend(
-            path
-            for path in glob.glob(os.path.join(data_orig, pattern))
-            if not os.path.basename(path).startswith("~$")
+            path for path in glob.glob(os.path.join(data_orig, pattern)) if not os.path.basename(path).startswith("~$")
         )
     # Preserve order but drop duplicates (same path matched by multiple patterns).
     files = list(dict.fromkeys(files))
     if not files:
-        raise FileNotFoundError(
-            f"No Schluss-/Zwischenresultate Excel file (*AppG*.xlsx) found in {data_orig}/"
-        )
+        raise FileNotFoundError(f"No Schluss-/Zwischenresultate Excel file (*AppG*.xlsx) found in {data_orig}/")
 
     scored = []
     for path in files:
@@ -345,10 +341,7 @@ def briefliche_by_gemeinde(df_excel):
     # One value per Gemeinde (same for every candidate row).
     brieflich = brieflich.drop_duplicates(subset=["wahllokal"])
     brieflich["Bezeichnung Wahlkreis"] = brieflich["wahllokal"].map(WAHLLOKAL_TO_GEMEINDE)
-    by_gemeinde = {
-        row["Bezeichnung Wahlkreis"]: to_number(row["wahlzettel"])
-        for _, row in brieflich.iterrows()
-    }
+    by_gemeinde = {row["Bezeichnung Wahlkreis"]: to_number(row["wahlzettel"]) for _, row in brieflich.iterrows()}
     gemeinde_keys = ["Stadt Basel", "Gemeinde Riehen", "Gemeinde Bettingen"]
     kanton_parts = [by_gemeinde[key] for key in gemeinde_keys if key in by_gemeinde and pd.notna(by_gemeinde[key])]
     if kanton_parts:
@@ -420,8 +413,7 @@ def combine_excel_and_maka(df_excel, df_maka, meta=None):
         for w, s in zip(wahlzettel, stimmberechtigte)
     ]
     merged["Anteil brieflich Wählende"] = [
-        format_percent(b / w) if pd.notna(b) and pd.notna(w) and w else pd.NA
-        for b, w in zip(briefliche, wahlzettel)
+        format_percent(b / w) if pd.notna(b) and pd.notna(w) and w else pd.NA for b, w in zip(briefliche, wahlzettel)
     ]
 
     absolutes_mehr = resolve_absolutes_mehr(df_excel, meta)
