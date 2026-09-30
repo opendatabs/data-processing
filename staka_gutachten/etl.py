@@ -140,6 +140,10 @@ def download_folder(
         if "file" not in item:
             continue
 
+        if Path(name).suffix.lower() == ".url":
+            logging.info(f"Skipping SharePoint shortcut {sharepoint_folder}/{name}")
+            continue
+
         if file_departments is not None and name in file_departments:
             logging.warning(
                 "Skipping duplicate %s/%s; keeping the copy already downloaded from departement %s.",
@@ -417,13 +421,16 @@ def process_excel_file(file_departments: dict[str, str] | None = None):
 
     listed_files = set(df["Dateiname"])
 
-    ignored = {
+    ignored_names = {
         ".gitkeep",
         "Liste_Gutachten.xlsx",
         "DESKTOP.INI",
     }
 
-    unlisted_files = files_in_data_orig - listed_files - ignored
+    def is_ignored(name: str) -> bool:
+        return name in ignored_names or Path(name).suffix.lower() == ".url"
+
+    unlisted_files = {name for name in files_in_data_orig - listed_files if not is_ignored(name)}
     missing_files = listed_files - files_in_data_orig
 
     if file_departments is None:
