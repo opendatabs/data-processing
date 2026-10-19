@@ -18,7 +18,7 @@ CRS_SWISS = "EPSG:2056"
 ALLMEND_URL = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018/exports/geojson"
 RIVERS_URL = "https://data.bs.ch/api/explore/v2.1/catalog/datasets/100261/exports/geojson"
 
-ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson")  # gets created the first time the script is run?
+ALLMEND_CACHE = Path("data_orig/allmendbewilligungen.geojson")
 RIVERS_CACHE = Path("data_orig/gewaesserachsen.geojson")
 
 BUFFER_M = 150
@@ -31,6 +31,8 @@ MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 
 # ------------------- extract --------------------------------
 
+# Before extracting the data, this function extracts and saves the date of the last update to "Allmendbewilligungen".
+# If the the data has not been changed since the last run, the script does not run.
 def allmend_has_changed(saved_date: Path) -> bool:
 
     r = common.requests_get("https://data.bs.ch/api/explore/v2.1/catalog/datasets/100018")
@@ -55,7 +57,8 @@ def download(source_path: Path, path: Path, *, params: dict | None=None):
 
     logging.info("trying to downlad the data files")
 
-    r = common.requests_get(source_path, params=params or {"format": "geojson"})  # does this need a catch block?
+    # Through the parameters, we only download permits with belegartbz in EVENT_TYPES
+    r = common.requests_get(source_path, params=params or {"format": "geojson"})
     r.raise_for_status()
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +94,9 @@ def _to_list(value):
         return [value]
 
 
+# This generates the link to the original entries that have been collapsed together.
+# The first attempt contains all unique ids. If the link is too long, we filter by begehrenid instead, which may 
+# also include pemrits that have not been considered.
 def build_link(
     idunique, begehrenid, base_url="https://data.bs.ch/explore/dataset/100018/table/", max_len=MAX_URL_LENGTH
 ):
