@@ -12,13 +12,32 @@ load_dotenv()
 
 DATA_ORIG = "data_orig"
 DATA_DIR = "data"
-ODS_ID = "100549"
-FTP_REMOTE_PATH = "wahlen_abstimmungen/wahlen/gericht/2026-09"
-CSV_NAME_TEMPLATE = "100549_resultate_ersatzwahl_appellationsgericht_{date}.csv"
+ODS_ID = "100557"
+FTP_REMOTE_PATH = "wahlen_abstimmungen/wahlen/gericht/2026-11"
+CSV_NAME_TEMPLATE = "100557_resultate_ersatzwahl_appellationsgericht_{date}.csv"
 
 CANDIDATE_HEADER_RE = re.compile(r"^(?P<name>.+?)\s*\((?P<nr>\d+)\)\s*$")
+# «vom 1. November 2026» / «Basel, 1. November 2026»
+GERMAN_DATE_RE = re.compile(
+    r"(?P<day>\d{1,2})\.\s*(?P<month>Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(?P<year>\d{4})",
+    re.IGNORECASE,
+)
+GERMAN_MONTHS = {
+    "januar": 1,
+    "februar": 2,
+    "märz": 3,
+    "april": 4,
+    "mai": 5,
+    "juni": 6,
+    "juli": 7,
+    "august": 8,
+    "september": 9,
+    "oktober": 10,
+    "november": 11,
+    "dezember": 12,
+}
 
-# Vorlage labels: «Briefl. und elektr.» instead of SESAM's «briefl. Stimmende».
+# Vorlage / SESAM labels → canonical Wahllokal names used below.
 WAHLLOKAL_LABELS = {
     "Basel briefl. Stimmende": "Basel briefl. & elektr. Stimmende (Total)",
     "Basel brieflich Stimmende": "Basel briefl. & elektr. Stimmende (Total)",
@@ -174,12 +193,10 @@ def parse_date_for_filename(value):
 
 
 def find_excel_with_results(data_orig=DATA_ORIG):
-    """Prefer Schlussresultate when present, otherwise Zwischenresultate. Skip Vorlage if possible."""
+    """2. Wahlgang: only Schlussresultate. Skip Vorlage if a real file is present."""
     patterns = (
         "Schlussresultate_*AppG*.xlsx",
         "Schlussresultat_*AppG*.xlsx",
-        "Zwischenresultate_*AppG*.xlsx",
-        "Zwischenresultat_*AppG*.xlsx",
     )
     files = []
     for pattern in patterns:
@@ -189,7 +206,7 @@ def find_excel_with_results(data_orig=DATA_ORIG):
     # Preserve order but drop duplicates (same path matched by multiple patterns).
     files = list(dict.fromkeys(files))
     if not files:
-        raise FileNotFoundError(f"No Schluss-/Zwischenresultate Excel file (*AppG*.xlsx) found in {data_orig}/")
+        raise FileNotFoundError(f"No Schlussresultate Excel file (*AppG*.xlsx) found in {data_orig}/")
 
     scored = []
     for path in files:
@@ -200,16 +217,13 @@ def find_excel_with_results(data_orig=DATA_ORIG):
             logging.warning(f"Could not parse {path}: {exc}")
             votes = -1
         name = os.path.basename(path).lower()
-        is_schluss = name.startswith("schluss")
         is_vorlage = "vorlage" in name
-        # Prefer Schlussresultate, then non-Vorlage, then more filled-in votes.
-        scored.append((is_schluss, not is_vorlage, votes, path))
+        # Prefer non-Vorlage, then more filled-in votes.
+        scored.append((not is_vorlage, votes, path))
     scored.sort(reverse=True)
-    best_schluss, _, best_votes, best_path = scored[0]
+    _, best_votes, best_path = scored[0]
     if best_votes <= 0:
         logging.warning("Excel files appear to contain no vote counts yet; using %s anyway", best_path)
-    elif best_schluss:
-        logging.info("Using Schlussresultate file (takes precedence over Zwischenresultate)")
     return best_path
 
 
@@ -235,11 +249,13 @@ def read_maka(data_orig=DATA_ORIG):
 def read_excel_dat1(path):
     raw = pd.read_excel(path, sheet_name="DAT 1", header=None, engine="openpyxl")
     title = str(raw.iloc[2, 1]).strip() if pd.notna(raw.iloc[2, 1]) else ""
-    resultats_typ = _first_non_null(raw.iloc[1, 9:]) or "Zwischenresultat"
+    # Filename often says Schlussresultate while the sheet template still says Zwischenresultat.
+    resultats_typ = "Schlussresultat"
+    if "zwischen" in os.path.basename(path).lower():
+        resultats_typ = _first_non_null(raw.iloc[1, 9:]) or "Zwischenresultat"
 
     header = ["" if pd.isna(value) else str(value).strip() for value in raw.iloc[6].tolist()]
     candidate_cols = {}
-    absolutes_mehr_col = None
     for idx, label in enumerate(header):
         match = CANDIDATE_HEADER_RE.match(label)
         if match:
@@ -247,29 +263,17 @@ def read_excel_dat1(path):
                 "kandidaten_nr": match.group("nr").zfill(2),
                 "header_name": match.group("name").strip(),
             }
-        elif label.replace("\n", " ").strip().lower() == "absolutes mehr":
-            absolutes_mehr_col = idx
 
     if not candidate_cols:
         raise ValueError(f"No candidate columns found in {path} sheet DAT 1")
 
     records = []
-    absolutes_mehr_value = pd.NA
     for _, row in raw.iloc[7:].iterrows():
         wahllokal_raw = row.iloc[1]
         if pd.isna(wahllokal_raw):
             continue
         wahllokal = normalize_wahllokal(str(wahllokal_raw).strip())
         if wahllokal == "" or wahllokal.startswith(SKIP_WAHLLOKALE_PREFIXES):
-            # Dedicated «Absolutes Mehr:» label row (value usually in col 3 or 4).
-            if str(wahllokal_raw).strip().lower().startswith("absolutes mehr"):
-                for col_idx in (3, 4, 2, absolutes_mehr_col):
-                    if col_idx is None:
-                        continue
-                    value = to_number(row.iloc[col_idx]) if col_idx < len(row) else pd.NA
-                    if pd.notna(value):
-                        absolutes_mehr_value = value
-                        break
             continue
         if wahllokal not in WAHLLOKAL_TO_GEMEINDE:
             logging.debug(f"Skipping Excel row that is not a result line: {wahllokal}")
@@ -283,12 +287,6 @@ def read_excel_dat1(path):
             "total_gultige_wahlzettel": to_number(row.iloc[6]),
             "vereinzelte_stimmen": to_number(row.iloc[9]) if len(row) > 9 else pd.NA,
         }
-        if absolutes_mehr_col is not None and absolutes_mehr_col < len(row):
-            row_mehr = to_number(row.iloc[absolutes_mehr_col])
-            if pd.notna(row_mehr):
-                base["absolutes_mehr"] = row_mehr
-                if wahllokal == "Total Kanton":
-                    absolutes_mehr_value = row_mehr
         for col_idx, cand in candidate_cols.items():
             rec = dict(base)
             rec["kandidaten_nr"] = cand["kandidaten_nr"]
@@ -296,16 +294,39 @@ def read_excel_dat1(path):
             records.append(rec)
 
     df = pd.DataFrame(records)
+    wahltermin = parse_german_date(title) or parse_date_from_filename(path)
     meta = {
         "wahlbezeichnung_excel": title,
         "resultats_typ": str(resultats_typ).strip(),
-        "absolutes_mehr": absolutes_mehr_value,
+        "wahltermin": wahltermin,
     }
     return df, meta
 
 
 def normalize_wahllokal(name):
-    return WAHLLOKAL_LABELS.get(name, name)
+    # 2. WG Excel uses «Stimmende* (Total)»; strip footnote markers.
+    cleaned = re.sub(r"\*+", "", name).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return WAHLLOKAL_LABELS.get(cleaned, cleaned)
+
+
+def parse_german_date(text):
+    if not text:
+        return None
+    match = GERMAN_DATE_RE.search(str(text))
+    if not match:
+        return None
+    month = GERMAN_MONTHS.get(match.group("month").lower())
+    if not month:
+        return None
+    return f"{int(match.group('day')):02d}.{month:02d}.{match.group('year')}"
+
+
+def parse_date_from_filename(path):
+    match = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", os.path.basename(path))
+    if match:
+        return f"{match.group(1)}.{match.group(2)}.{match.group(3)}"
+    return None
 
 
 def to_number(value):
@@ -349,32 +370,30 @@ def briefliche_by_gemeinde(df_excel):
     return by_gemeinde
 
 
-def resolve_absolutes_mehr(df_excel, meta):
-    """Prefer Excel Total-Kanton / label value; fall back to (Wahlzettel - Ungültige) // 2 + 1."""
-    value = meta.get("absolutes_mehr", pd.NA)
-    if pd.notna(value):
-        return int(value)
-
-    kanton = df_excel[df_excel["wahllokal"] == "Total Kanton"]
-    if not kanton.empty and "absolutes_mehr" in kanton.columns:
-        row_value = kanton["absolutes_mehr"].dropna()
-        if not row_value.empty:
-            return int(row_value.iloc[0])
-
-    if not kanton.empty:
-        wahlzettel = pd.to_numeric(kanton["wahlzettel"], errors="coerce").iloc[0]
-        ungueltige = pd.to_numeric(kanton["ungultige_wahlzettel"], errors="coerce").fillna(0).iloc[0]
-        if pd.notna(wahlzettel):
-            # Matches SESAM / Excel: Absolutes Mehr = (Wahlzettel - Ungültige) // 2 + 1
-            return int(wahlzettel - ungueltige) // 2 + 1
-    return pd.NA
-
-
 def _first_non_null(values):
     for value in values:
         if pd.notna(value) and str(value).strip() != "":
             return value
     return None
+
+
+def elect_by_relative_majority(merged):
+    """2. Wahlgang: no Absolutes Mehr — highest Kanton Stimmen wins; ties → all Nicht gewählt."""
+    kanton = (
+        merged.loc[merged["Bezeichnung Wahlkreis"] == "Kanton Basel-Stadt", ["Kandidaten-Nr", "Stimmen"]]
+        .drop_duplicates("Kandidaten-Nr")
+        .copy()
+    )
+    kanton["Stimmen"] = pd.to_numeric(kanton["Stimmen"], errors="coerce")
+    max_stimmen = kanton["Stimmen"].max()
+    if pd.isna(max_stimmen):
+        return {nr: "Nicht gewählt" for nr in kanton["Kandidaten-Nr"]}
+    winners = kanton.loc[kanton["Stimmen"] == max_stimmen, "Kandidaten-Nr"]
+    if len(winners) != 1:
+        logging.warning("Relative majority tie at %s votes; marking nobody elected", max_stimmen)
+        return {nr: "Nicht gewählt" for nr in kanton["Kandidaten-Nr"]}
+    winner = winners.iloc[0]
+    return {nr: ("Gewählt" if nr == winner else "Nicht gewählt") for nr in kanton["Kandidaten-Nr"]}
 
 
 def combine_excel_and_maka(df_excel, df_maka, meta=None):
@@ -402,6 +421,9 @@ def combine_excel_and_maka(df_excel, df_maka, meta=None):
     for excel_col, maka_col in EXCEL_TO_MAKA_NUMBERS.items():
         merged[maka_col] = merged[excel_col]
 
+    if meta.get("wahltermin"):
+        merged["Wahltermin"] = meta["wahltermin"]
+
     briefliche_map = briefliche_by_gemeinde(df_excel)
     merged["Briefliche Stimmabgaben"] = merged["Bezeichnung Wahlkreis"].map(briefliche_map)
 
@@ -416,22 +438,10 @@ def combine_excel_and_maka(df_excel, df_maka, meta=None):
         format_percent(b / w) if pd.notna(b) and pd.notna(w) and w else pd.NA for b, w in zip(briefliche, wahlzettel)
     ]
 
-    absolutes_mehr = resolve_absolutes_mehr(df_excel, meta)
+    # 2. Wahlgang: Absolutes Mehr remains empty; outcome by relative majority on Kanton Stimmen.
     merged["Absolutes Mehr"] = pd.NA
-    if pd.notna(absolutes_mehr):
-        merged.loc[merged["Bezeichnung Wahlkreis"] == "Kanton Basel-Stadt", "Absolutes Mehr"] = absolutes_mehr
-        # Outcome is decided on Kanton Stimmen vs Absolutes Mehr; mirror to all rows.
-        kanton_stimmen = (
-            merged.loc[merged["Bezeichnung Wahlkreis"] == "Kanton Basel-Stadt", ["Kandidaten-Nr", "Stimmen"]]
-            .drop_duplicates("Kandidaten-Nr")
-            .set_index("Kandidaten-Nr")["Stimmen"]
-        )
-        kanton_stimmen = pd.to_numeric(kanton_stimmen, errors="coerce")
-        elected = {
-            nr: ("Gewählt" if pd.notna(s) and s >= absolutes_mehr else "Nicht gewählt")
-            for nr, s in kanton_stimmen.items()
-        }
-        merged["Gewählt"] = merged["Kandidaten-Nr"].map(elected).fillna("Nicht gewählt")
+    elected = elect_by_relative_majority(merged)
+    merged["Gewählt"] = merged["Kandidaten-Nr"].map(elected).fillna("Nicht gewählt")
 
     df = merged[MAKA_COLUMNS].copy()
     gemeinde_order = ["Stadt Basel", "Gemeinde Bettingen", "Gemeinde Riehen", "Kanton Basel-Stadt"]
