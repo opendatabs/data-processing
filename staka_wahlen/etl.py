@@ -159,6 +159,14 @@ EXCEL_TO_MAKA_NUMBERS = {
     "stimmen": "Stimmen",
 }
 
+# Labels on sheets «Abstimmungs-Kennzahlen» / «Stimmberechtigte».
+KENNZAHLEN_TO_GEMEINDE = {
+    "Basel": "Stadt Basel",
+    "Riehen": "Gemeinde Riehen",
+    "Bettingen": "Gemeinde Bettingen",
+    "Total Kanton": "Kanton Basel-Stadt",
+}
+
 
 def main():
     logging.info("Building Ersatzwahl resultate from Excel + MAKA files...")
@@ -177,6 +185,8 @@ def calculate_resultate(data_orig=DATA_ORIG):
     excel_path = find_excel_with_results(data_orig)
     logging.info(f"Using Excel results from {excel_path}")
     df_excel, meta = read_excel_dat1(excel_path)
+    meta["kennzahlen"] = read_kennzahlen(excel_path)
+    meta["stimmberechtigte_detail"] = read_stimmberechtigte_sheet(excel_path)
     df = combine_excel_and_maka(df_excel, df_maka, meta)
     validate_totals(df_excel)
     return df
@@ -329,6 +339,46 @@ def parse_date_from_filename(path):
     return None
 
 
+def read_kennzahlen(path):
+    """Stimmberechtigte + Stimmbeteiligung (+ Anteil brieflich) from sheet Abstimmungs-Kennzahlen."""
+    raw = pd.read_excel(path, sheet_name="Abstimmungs-Kennzahlen", header=None, engine="openpyxl")
+    by_gemeinde = {}
+    for _, row in raw.iterrows():
+        label = row.iloc[1] if len(row) > 1 else None
+        if pd.isna(label):
+            continue
+        gemeinde = KENNZAHLEN_TO_GEMEINDE.get(str(label).strip())
+        if not gemeinde:
+            continue
+        by_gemeinde[gemeinde] = {
+            "Stimmberechtigte": to_number(row.iloc[2]),
+            "Stimmbeteiligung": format_percent(to_number(row.iloc[3])),
+            "Anteil brieflich Wählende": format_percent(to_number(row.iloc[4])),
+        }
+    if not by_gemeinde:
+        raise ValueError(f"No Kennzahlen rows found in {path} sheet Abstimmungs-Kennzahlen")
+    return by_gemeinde
+
+
+def read_stimmberechtigte_sheet(path):
+    """Männer / Frauen split from sheet Stimmberechtigte (totals match Kennzahlen)."""
+    raw = pd.read_excel(path, sheet_name="Stimmberechtigte", header=None, engine="openpyxl")
+    by_gemeinde = {}
+    for _, row in raw.iterrows():
+        label = row.iloc[1] if len(row) > 1 else None
+        if pd.isna(label):
+            continue
+        gemeinde = KENNZAHLEN_TO_GEMEINDE.get(str(label).strip())
+        if not gemeinde:
+            continue
+        by_gemeinde[gemeinde] = {
+            "Stimmberechtigte": to_number(row.iloc[2]),
+            "Stimmberechtigte Männer": to_number(row.iloc[3]),
+            "Stimmberechtigte Frauen": to_number(row.iloc[4]),
+        }
+    return by_gemeinde
+
+
 def to_number(value):
     if pd.isna(value) or value == "":
         return pd.NA
@@ -427,16 +477,22 @@ def combine_excel_and_maka(df_excel, df_maka, meta=None):
     briefliche_map = briefliche_by_gemeinde(df_excel)
     merged["Briefliche Stimmabgaben"] = merged["Bezeichnung Wahlkreis"].map(briefliche_map)
 
-    stimmberechtigte = pd.to_numeric(merged["Stimmberechtigte"], errors="coerce")
-    wahlzettel = pd.to_numeric(merged["Wahlzettel"], errors="coerce")
-    briefliche = pd.to_numeric(merged["Briefliche Stimmabgaben"], errors="coerce")
-    merged["Stimmbeteiligung"] = [
-        format_percent(w / s) if pd.notna(w) and pd.notna(s) and s else pd.NA
-        for w, s in zip(wahlzettel, stimmberechtigte)
-    ]
-    merged["Anteil brieflich Wählende"] = [
-        format_percent(b / w) if pd.notna(b) and pd.notna(w) and w else pd.NA for b, w in zip(briefliche, wahlzettel)
-    ]
+    # MAKA is read as strings; cast before writing live Excel kennzahlen.
+    for col in ("Stimmberechtigte", "Stimmberechtigte Männer", "Stimmberechtigte Frauen"):
+        merged[col] = pd.to_numeric(merged[col], errors="coerce")
+    for col in ("Stimmbeteiligung", "Anteil brieflich Wählende"):
+        merged[col] = merged[col].astype(object)
+
+    kennzahlen = meta.get("kennzahlen") or {}
+    for gemeinde, values in kennzahlen.items():
+        mask = merged["Bezeichnung Wahlkreis"] == gemeinde
+        for col, value in values.items():
+            merged.loc[mask, col] = value
+
+    for gemeinde, values in (meta.get("stimmberechtigte_detail") or {}).items():
+        mask = merged["Bezeichnung Wahlkreis"] == gemeinde
+        for col, value in values.items():
+            merged.loc[mask, col] = value
 
     # 2. Wahlgang: Absolutes Mehr remains empty; outcome by relative majority on Kanton Stimmen.
     merged["Absolutes Mehr"] = pd.NA
