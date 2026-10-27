@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "huwise-utils-py>=1.1.0",
+    "huwise-utils-py>=1.5.1",
     "pandas>=2.3.3",
 ]
+
