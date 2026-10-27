@@ -165,42 +165,57 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
     return df_all
 
 
+def _load_session_calendar_from_web(ical_file_path, pickle_file_name, cal_export_file):
+    """Fetch Google Calendar ICS and persist as native-type pickle/csv (no icalendar objects)."""
+    logging.info(
+        "Pickle or iCal file does not exist, is stale, or is unreadable - opening Google Calendar from web..."
+    )
+    url = "https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics"
+    r = common.requests_get(url=url, allow_redirects=True)
+    with open(ical_file_path, "wb") as f:
+        f.write(r.content)
+    logging.info("Parsing events into df to publish to dataset...")
+    calendar = icalendar.Calendar.from_ical(r.content)
+    # Store plain Python types so pickles survive icalendar upgrades (vText is not stable across majors).
+    df_cal = pd.DataFrame(
+        dict(
+            summary=str(event.get("SUMMARY", "")),
+            dtstart=event["DTSTART"].dt,
+            dtend=event["DTEND"].dt,
+        )
+        for event in calendar.walk("VEVENT")
+    )
+    logging.info(f"Saving session calendar as pickle and csv: {pickle_file_name}, {cal_export_file}...")
+    df_cal.to_pickle(pickle_file_name)
+    df_cal.to_csv(cal_export_file, index=False)
+    common.update_ftp_and_odsp(cal_export_file, "parlamentsdienst/gr_sitzungskalender", "100188")
+    return df_cal
+
+
 def get_session_calendar(cutoff):
     logging.info("Checking if we should reload the ical file from the web...")
     ical_file_path = "data/grosserrat-abstimmungen.ics"
     cal_export_file = os.path.join("data", "grosser_rat_sitzungskalender.csv")
     pickle_file_name = cal_export_file.replace(".csv", ".pickle")
-    if (
+    should_reload = (
         not os.path.exists(ical_file_path)
         or not os.path.exists(pickle_file_name)
         or utilities.is_file_older_than(ical_file_path, cutoff)
-    ):
-        logging.info(
-            "Pickle or iCal file does not exist or is older than required - opening Google Calendar from web..."
-        )
-        url = "https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics"
-        r = common.requests_get(url=url, allow_redirects=True)
-        with open(ical_file_path, "wb") as f:
-            f.write(r.content)
-        logging.info("Parsing events into df to publish to dataset...")
-        calendar = icalendar.Calendar.from_ical(r.content)
-        df_cal = pd.DataFrame(
-            dict(
-                summary=event["SUMMARY"],
-                dtstart=event["DTSTART"].dt,
-                dtend=event["DTEND"].dt,
-            )
-            for event in calendar.walk("VEVENT")
-        )
-        logging.info(f"Saving session calendar as pickle and csv: {pickle_file_name}, {cal_export_file}...")
-        df_cal.to_pickle(pickle_file_name)
-        df_cal.to_csv(cal_export_file, index=False)
-        common.update_ftp_and_odsp(cal_export_file, "parlamentsdienst/gr_sitzungskalender", "100188")
+    )
+    if should_reload:
+        df_cal = _load_session_calendar_from_web(ical_file_path, pickle_file_name, cal_export_file)
     else:
         logging.info(f"Reading session calendar from pickle {pickle_file_name}")
-        df_cal = pd.read_pickle(pickle_file_name)
-        df_cal["dtstart"] = pd.to_datetime(df_cal["dtstart"], utc=True, errors="coerce")
-        df_cal["dtend"] = pd.to_datetime(df_cal["dtend"], utc=True, errors="coerce")
+        try:
+            df_cal = pd.read_pickle(pickle_file_name)
+        except Exception:
+            logging.exception(
+                "Failed to read session calendar pickle (likely created with an older icalendar); regenerating..."
+            )
+            df_cal = _load_session_calendar_from_web(ical_file_path, pickle_file_name, cal_export_file)
+        else:
+            df_cal["dtstart"] = pd.to_datetime(df_cal["dtstart"], utc=True, errors="coerce")
+            df_cal["dtend"] = pd.to_datetime(df_cal["dtend"], utc=True, errors="coerce")
     return ical_file_path, df_cal
 
 
