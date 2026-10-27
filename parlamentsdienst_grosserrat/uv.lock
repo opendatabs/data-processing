@@ -1,14 +1,14 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and platform_machine != 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine != 'x86_64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and platform_machine == 'aarch64' and sys_platform == 'linux'",
     "(python_full_version >= '3.13' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.13' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_machine != 'x86_64' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_machine == 'aarch64' and sys_platform == 'linux'",
     "(python_full_version < '3.13' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
@@ -59,7 +59,7 @@ wheels = [
 [[package]]
 name = "common"
 version = "0.1.1"
-source = { git = "https://github.com/opendatabs/common?rev=b2d26f48a7cc43ce823b2763d87c41201e131b40#b2d26f48a7cc43ce823b2763d87c41201e131b40" }
+source = { git = "https://github.com/opendatabs/common?rev=2877e38289eb628fa7f30c4203b99f2b9ee19ad8#2877e38289eb628fa7f30c4203b99f2b9ee19ad8" }
 dependencies = [
     { name = "filehash" },
     { name = "more-itertools" },
@@ -116,10 +116,10 @@ version = "2.2.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and platform_machine != 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_machine != 'x86_64' and sys_platform == 'darwin'",
     "python_full_version >= '3.13' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version < '3.13' and platform_machine == 'aarch64' and sys_platform == 'linux'",
     "(python_full_version >= '3.13' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.13' and platform_machine != 'x86_64' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_machine == 'aarch64' and sys_platform == 'linux'",
     "(python_full_version < '3.13' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e1/78/31103410a57bc2c2b93a3597340a8119588571f6a4539067546cb9a0bfac/numpy-2.2.4.tar.gz", hash = "sha256:9ba03692a45d3eef66559efe1d1096c4b9b75c0986b5dff5530c378fb8331d4f", size = 20270701, upload-time = "2025-03-16T18:27:00.648Z" }
@@ -202,7 +202,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "common", git = "https://github.com/opendatabs/common?rev=b2d26f48a7cc43ce823b2763d87c41201e131b40" },
+    { name = "common", git = "https://github.com/opendatabs/common?rev=2877e38289eb628fa7f30c4203b99f2b9ee19ad8" },
     { name = "pandas", specifier = ">=2.2.3" },
 ]
 

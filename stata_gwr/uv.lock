@@ -49,7 +49,7 @@ wheels = [
 [[package]]
 name = "common"
 version = "0.1.1"
-source = { git = "https://github.com/opendatabs/common?rev=b2d26f48a7cc43ce823b2763d87c41201e131b40#b2d26f48a7cc43ce823b2763d87c41201e131b40" }
+source = { git = "https://github.com/opendatabs/common?rev=2877e38289eb628fa7f30c4203b99f2b9ee19ad8#2877e38289eb628fa7f30c4203b99f2b9ee19ad8" }
 dependencies = [
     { name = "filehash" },
     { name = "more-itertools" },
@@ -335,7 +335,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "common", git = "https://github.com/opendatabs/common?rev=b2d26f48a7cc43ce823b2763d87c41201e131b40" },
+    { name = "common", git = "https://github.com/opendatabs/common?rev=2877e38289eb628fa7f30c4203b99f2b9ee19ad8" },
     { name = "filehash", specifier = ">=0.2.dev1" },
     { name = "more-itertools", specifier = ">=10.6.0" },
     { name = "pandas", specifier = ">=2.2.3" },
