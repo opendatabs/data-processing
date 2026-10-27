@@ -52,8 +52,30 @@ def parse_truncate(path, filename):
         },
     )
     logging.info(f"Processing {path_to_copied_file}...")
-    data["DateTimeFrom"] = pd.to_datetime(data["Date"] + " " + data["TimeFrom"], format="%d.%m.%Y %H:%M")
-    data["DateTimeTo"] = data["DateTimeFrom"] + pd.Timedelta(hours=1)
+    data['DateTimeFrom'] = (
+        pd.to_datetime(
+            data['Date'] + ' ' + data['TimeFrom'],
+            format='%d.%m.%Y %H:%M',
+        )
+        .dt.tz_localize(
+            'Europe/Zurich',
+            ambiguous=True,
+            nonexistent='NaT',
+        )
+        .dt.tz_convert('UTC')
+    )
+    data['DateTimeTo'] = (
+        pd.to_datetime(
+            data['Date'] + ' ' + data['TimeTo'],
+            format='%d.%m.%Y %H:%M',
+        )
+        .dt.tz_localize(
+            'Europe/Zurich',
+            ambiguous=True,
+            nonexistent='shift_forward',
+        )
+        .dt.tz_convert('UTC')
+    )
     data["Year"] = data["DateTimeFrom"].dt.year
     data["Month"] = data["DateTimeFrom"].dt.month
     data["Day"] = data["DateTimeFrom"].dt.day
