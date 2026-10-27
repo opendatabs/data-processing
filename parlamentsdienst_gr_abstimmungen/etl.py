@@ -167,9 +167,7 @@ def calc_tagesordnungen_from_txt_files(process_archive=False):
 
 def _load_session_calendar_from_web(ical_file_path, pickle_file_name, cal_export_file):
     """Fetch Google Calendar ICS and persist as native-type pickle/csv (no icalendar objects)."""
-    logging.info(
-        "Pickle or iCal file does not exist, is stale, or is unreadable - opening Google Calendar from web..."
-    )
+    logging.info("Pickle or iCal file does not exist, is stale, or is unreadable - opening Google Calendar from web...")
     url = "https://calendar.google.com/calendar/ical/vfb9bndssqs2v9uiun9uk7hkl8%40group.calendar.google.com/public/basic.ics"
     r = common.requests_get(url=url, allow_redirects=True)
     with open(ical_file_path, "wb") as f:
