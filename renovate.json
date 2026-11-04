@@ -5,5 +5,25 @@
   ],
   "ignorePaths": [
     "archived_etl_jobs/**"
+  ],
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Group non-major uv/lockfile updates across the monorepo",
+      "matchManagers": ["pep621", "uv"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "uv non-major dependencies",
+      "groupSlug": "uv-non-major"
+    },
+    {
+      "description": "Keep major upgrades as separate reviewable PRs",
+      "matchManagers": ["pep621", "uv"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "uv major dependencies",
+      "groupSlug": "uv-major"
+    }
   ]
 }

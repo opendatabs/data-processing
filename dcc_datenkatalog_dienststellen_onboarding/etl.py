@@ -32,7 +32,7 @@ DRIVE_NAME_CANDIDATES = ("Documents", "Dokumente", "Freigegebene Dokumente")
 
 SOURCE_COLUMNS = [
     "Departement",
-    "Posten ",
+    "Dienststelle",
     "Status: Kontaktiert",
     "Status: Info",
     "Status: Kick-Off",
@@ -43,7 +43,7 @@ SOURCE_COLUMNS = [
 
 OUTPUT_COLUMNS = [
     "Departement",
-    "Posten",
+    "Dienststelle",
     "Status: Kontaktiert",
     "Status: Info",
     "Status: Kick-Off",
@@ -199,8 +199,7 @@ def _extract_onboarding_df(source_path: Path) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing expected columns in {source_path.name}: {missing}")
 
-    df = source_df[SOURCE_COLUMNS].rename(columns={"Posten ": "Posten"})
-    df["Posten"] = df["Posten"].str.removeprefix("Data Owner ")
+    df = source_df[SOURCE_COLUMNS]
     df = _format_status_dates(df)[OUTPUT_COLUMNS]
     return _drop_rows_without_status(df)
 

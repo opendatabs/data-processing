@@ -33,6 +33,7 @@ MAX_URL_LENGTH = 2000  # common safe threshold for URL length
 
 # ------------------- extract --------------------------------
 
+
 # Before extracting the data, this function extracts and saves the date of the last update to "Allmendbewilligungen".
 # If the the data has not been changed since the last run, the script does not run.
 def allmend_has_changed(saved_date: Path) -> bool:
@@ -102,7 +103,7 @@ def _to_list(value):
 
 
 # This generates the link to the original entries that have been collapsed together.
-# The first attempt contains all unique ids. If the link is too long, we filter by begehrenid instead, which may 
+# The first attempt contains all unique ids. If the link is too long, we filter by begehrenid instead, which may
 # also include pemrits that have not been considered.
 def build_link(
     idunique, begehrenid, base_url="https://data.bs.ch/explore/dataset/100018/table/", max_len=MAX_URL_LENGTH
