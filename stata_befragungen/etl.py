@@ -11,6 +11,7 @@ from charset_normalizer import from_path
 
 
 def main():
+    
     datasets = [
         {
             "data_file": os.path.join("data_orig", "55plus/2011-2023/Daten_Befragung_55_plus_alle_jahre.csv"),
@@ -161,6 +162,11 @@ def process_single_file(
     jahr=None,
 ):
     logging.info(f"Processing survey with data file {data_file}...")
+
+    # to make sure the needed folder structure exists
+    export_dir = os.path.join(data_path, export_folder)
+    os.makedirs(export_dir, exist_ok=True)
+
     df_data = read_survey_file(data_file)
     df_data.to_csv(os.path.join(data_path, export_folder, f"Daten_{export_file}"), index=False)
     if jahr:
