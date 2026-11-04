@@ -393,6 +393,15 @@ def download_locations():
     ]
 
 
+# Traffic SiteCodes that changed but are still registered under the old id in
+# dataset 100038 (Standorte der Zählstellen). Without this alias the location
+# join fails and metadata is filled with -1, which hides the station in the
+# dashboard (strtyp === -1 filter).
+LOCATION_ID_ALIASES = {
+    "236": "235",  # A3-A35, Grenze CH-F
+}
+
+
 def merge_dtv_with_counts_and_locations(df, df_dtv, df_locations):
     """
     Merges DTV data with counts and location data.
@@ -409,12 +418,17 @@ def merge_dtv_with_counts_and_locations(df, df_dtv, df_locations):
     df_count = df_count[df_count["DateTimeFrom"] > 0]
     df_dtv = df_dtv.merge(df_count, on=["Zst_id", "TrafficType"], how="left")
     df_dtv.rename(columns={"DateTimeFrom": "NumMeasures"}, inplace=True)
+
+    # Join key: prefer the live SiteCode, fall back to a known legacy id in 100038.
+    df_dtv = df_dtv.copy()
+    df_dtv["_loc_id"] = df_dtv["Zst_id"].astype(str).replace(LOCATION_ID_ALIASES)
+
     df_dtv = df_dtv.merge(
         df_locations,
-        left_on=["Zst_id", "TrafficType"],
+        left_on=["_loc_id", "TrafficType"],
         right_on=["id_zst", "zweck"],
         how="left",
-    ).drop(columns=["id_zst", "zweck"])
+    ).drop(columns=["id_zst", "zweck", "_loc_id"])
     return df_dtv
 
 
