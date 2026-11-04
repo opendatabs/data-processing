@@ -42,28 +42,28 @@ def main():
             "var_file": "data/Bevoelkerung/2011/Variablen_Befragung_Bevoelkerung_2011.csv",
             "export_folder": "datasette",
             "export_file": "Befragung_Bevoelkerung_2011.db",
-            "ftp_folder": "Bevoelkerung",
+            "ftp_folder": "bevoelkerung",
         },
         {
             "data_file": "data/Bevoelkerung/2015/Daten_Befragung_Bevoelkerung_2015.csv",
             "var_file": "data/Bevoelkerung/2015/Variablen_Befragung_Bevoelkerung_2015.csv",
             "export_folder": "datasette",
             "export_file": "Befragung_Bevoelkerung_2015.db",
-            "ftp_folder": "Bevoelkerung",
+            "ftp_folder": "bevoelkerung",
         },
         {
             "data_file": "data/Bevoelkerung/2019/Daten_Befragung_Bevoelkerung_2019.csv",
             "var_file": "data/Bevoelkerung/2019/Variablen_Befragung_Bevoelkerung_2019.csv",
             "export_folder": "datasette",
             "export_file": "Befragung_Bevoelkerung_2019.db",
-            "ftp_folder": "Bevoelkerung",
+            "ftp_folder": "bevoelkerung",
         },
         {
             "data_file": "data/Bevoelkerung/2023/Daten_Befragung_Bevoelkerung_2023.csv",
             "var_file": "data/Bevoelkerung/2023/Variablen_Befragung_Bevoelkerung_2023.csv",
             "export_folder": "datasette",
             "export_file": "Befragung_Bevoelkerung_2023.db",
-            "ftp_folder": "Bevoelkerung",
+            "ftp_folder": "bevoelkerung",
         },
     ]
 
