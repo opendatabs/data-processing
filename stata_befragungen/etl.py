@@ -11,7 +11,7 @@ from charset_normalizer import from_path
 
 
 def main():
-    
+
     datasets = [
         {
             "data_file": os.path.join("data_orig", "55plus/2011-2023/Daten_Befragung_55_plus_alle_jahre.csv"),
