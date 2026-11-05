@@ -483,9 +483,9 @@ def previously_published_urls(remote_dir: str) -> list:
         try:
             common.download_ftp(
                 [],
-                common.credentials.ftp_server,
-                common.credentials.ftp_user,
-                common.credentials.ftp_pass,
+                common.FTP_SERVER,
+                common.FTP_USER,
+                common.FTP_PASS,
                 remote_dir,
                 tmp,
                 CSV_FILENAME,
@@ -509,8 +509,8 @@ def previously_published_urls(remote_dir: str) -> list:
 
 def delete_ftp_file(filename: str, remote_dir: str) -> None:
     """Delete one file from the FTP directory. A missing file counts as already deleted."""
-    ftp = ftplib.FTP(common.credentials.ftp_server)
-    ftp.login(common.credentials.ftp_user, common.credentials.ftp_pass)
+    ftp = ftplib.FTP(common.FTP_SERVER)
+    ftp.login(common.FTP_USER, common.FTP_PASS)
     try:
         ftp.cwd(remote_dir)
         try:
