@@ -6,7 +6,7 @@ This script processes datasets from ``data/publish_catalog.yaml`` and performs:
 2. Schema reconciliation against local GeoJSON properties.
 3. Optional per-field YAML override merge.
 4. GeoJSON upload to FTP (remote folder ``fgi/stac``).
-5. HUWISE dataset create/reuse and metadata updates.
+5. HUWISE dataset create (only when huwise_id is missing) / reuse and metadata updates.
 6. HUWISE schema upsert based on the generated schema CSV.
 """
 
@@ -780,7 +780,6 @@ def _dataspot_dataset_id_from_metadata_row(metadata_row: pd.Series) -> str:
 
 def _build_create_metadata_payload(ods_id: str, metadata_row: pd.Series) -> dict[str, Any]:
     """Minimal HUWISE create payload (full metadata is written immediately after)."""
-    _ = metadata_row
     title = clean_text(_metadata_row_field(metadata_row, "default.title", "title")) or ods_id
     return {
         "default": {
@@ -910,20 +909,43 @@ def _ensure_huwise_dataset(
     metadata_row: pd.Series,
     *,
     dataspot_dataset_id: str = "",
-) -> tuple[str | None, bool]:
-    """Create dataset by ods_id if missing and return dataset UID + created flag."""
+) -> tuple[str, bool]:
+    """Reuse dataset by ``ods_id``, or create it once when genuinely missing.
+
+    Only ``IndexError`` from ``get_uid_by_id`` (empty search results) means
+    "not found" and may create. Any other lookup failure is re-raised so a
+    transient API error cannot spawn duplicate datasets.
+    """
     try:
         return get_uid_by_id(dataset_id=ods_id), False
-    except Exception:
-        metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
-        created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
-        _write_initial_metadata_after_create(
-            ods_id,
-            created.uid,
-            metadata_row,
-            dataspot_dataset_id=dataspot_dataset_id,
+    except IndexError:
+        logging.info("HUWISE dataset id %s not found; creating", ods_id)
+    except Exception as exc:
+        raise RuntimeError(
+            f"HUWISE dataset id {ods_id!r} could not be resolved; refusing to create"
+        ) from exc
+
+    metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
+    created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
+    _write_initial_metadata_after_create(
+        ods_id,
+        created.uid,
+        metadata_row,
+        dataspot_dataset_id=dataspot_dataset_id,
+    )
+    try:
+        resolved_uid = get_uid_by_id(dataset_id=ods_id)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Created HUWISE dataset uid={created.uid} but huwise_id {ods_id!r} "
+            "is still not resolvable; refusing to continue (would risk duplicates)"
+        ) from exc
+    if resolved_uid != created.uid:
+        raise RuntimeError(
+            f"Created HUWISE dataset uid={created.uid} for huwise_id {ods_id!r}, "
+            f"but lookup returned different uid={resolved_uid}"
         )
-        return created.uid, True
+    return created.uid, True
 
 
 _TEMPLATE_FIELD_DEFINITIONS_CACHE: dict[str, set[str]] = {}
@@ -2127,6 +2149,7 @@ def run(*, huwise_id_filter: str = "") -> None:
         logging.warning("Could not discover HUWISE field types; schema field upserts may be skipped")
 
     huwise_filter = clean_text(huwise_id_filter)
+    failures: list[str] = []
     for _, pub_row in pub_df.iterrows():
         ods_id = clean_text(pub_row.get("ods_id"))
         if huwise_filter and ods_id != huwise_filter:
@@ -2146,6 +2169,7 @@ def run(*, huwise_id_filter: str = "") -> None:
             )
         except Exception as exc:
             logging.error("Failed ods_id=%s: %s", ods_id, exc)
+            failures.append(f"{ods_id}: {exc}")
 
     catalog_snapshots = load_flat_publish_catalog()
     for ods_id in active_ids:
@@ -2159,3 +2183,7 @@ def run(*, huwise_id_filter: str = "") -> None:
     prune_all_publish_artifacts(active_ids)
     _save_last_push_snapshot(metadata_last_push)
     logging.info("STEP publish done")
+    if failures:
+        raise RuntimeError(
+            f"Publish failed for {len(failures)} dataset(s):\n" + "\n".join(failures)
+        )
