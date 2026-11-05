@@ -18,7 +18,7 @@ from paths import BINDINGS_FILE, ORIG_CATALOG_FILE, ORIG_METADATA_LAST_PUSH_FILE
 from schema_merge import geometa_stac_url
 from yaml_io import dump_yaml
 
-from util import clean, normalize_uuid, row_key
+from util import clean, normalize_uuid, row_key, shared_geo_dataset_label
 
 _TEMPLATE_ORDER = ("custom", "dcat", "dcat_ap_ch", "default", "internal")
 _SNAPSHOT_TEMPLATES = frozenset(_TEMPLATE_ORDER)
@@ -45,6 +45,10 @@ COLUMN_WIDTHS = {
 }
 METADATA_LEGEND_ROWS = [
     ("HUWISE ids", "Edit the huwise_id column on the Datasets sheet."),
+    (
+        "Merged layers",
+        "The same huwise_id on multiple rows (e.g. Punkt + Fläche) merges those STAC layers into one HUWISE dataset.",
+    ),
     (
         "Metadata policy",
         "Editorial metadata lives in HUWISE; publish uses conservative overwrite + data_orig/publish_metadata_last_push.yaml.",
@@ -236,13 +240,12 @@ def load_bindings(path: Path = BINDINGS_FILE) -> dict[tuple[str, str], str]:
 
 
 def validate_bindings(bindings: dict[tuple[str, str], str]) -> None:
-    seen_hw: set[str] = set()
-    for hw in bindings.values():
-        if not hw:
-            continue
-        if hw in seen_hw:
-            raise ValueError(f"Duplicate huwise_id in bindings: {hw}")
-        seen_hw.add(hw)
+    """Validate bindings.
+
+    The same ``huwise_id`` may appear on multiple ``(stac_collection_id, geo_dataset)``
+    keys — that intentionally merges those layers into one HUWISE dataset.
+    """
+    _ = bindings
 
 
 def load_bindings_with_fallback(
@@ -356,8 +359,8 @@ def build_flat_publish_catalog(
     nested_catalog: dict[str, Any],
     bindings: dict[tuple[str, str], str],
 ) -> dict[str, dict[str, Any]]:
-    flat: dict[str, dict[str, Any]] = {}
-    seen_hw: set[str] = set()
+    """Build one snapshot entry per ``huwise_id`` (merging layers that share an id)."""
+    groups: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
     for collection in nested_catalog.get("datasets", []):
         if not isinstance(collection, dict):
             continue
@@ -369,12 +372,43 @@ def build_flat_publish_catalog(
             huwise_id = bindings.get(row_key(stac_id, geo_name), "") or clean(geo.get("huwise_id"))
             if not huwise_id:
                 continue
-            if huwise_id in seen_hw:
-                raise ValueError(f"Duplicate huwise_id in active catalog: {huwise_id}")
-            seen_hw.add(huwise_id)
             geo_row = dict(geo)
             geo_row["huwise_id"] = huwise_id
-            flat[huwise_id] = flatten_to_snapshot(geo_row, collection)
+            groups.setdefault(huwise_id, []).append((collection, geo_row))
+
+    flat: dict[str, dict[str, Any]] = {}
+    for huwise_id, items in groups.items():
+        items = sorted(items, key=lambda pair: clean(pair[1].get("geo_dataset")).lower())
+        snapshots = [flatten_to_snapshot(geo_row, collection) for collection, geo_row in items]
+        merged = snapshots[0]
+        if len(snapshots) > 1:
+            logging.info(
+                "Merging %s STAC layers into huwise_id=%s: %s",
+                len(items),
+                huwise_id,
+                ", ".join(clean(geo.get("geo_dataset")) for _, geo in items),
+            )
+            merged = merge_snapshot_fill_gaps(snapshots[0], *snapshots[1:])
+            shared_title = shared_geo_dataset_label([clean(geo.get("geo_dataset")) for _, geo in items])
+            if shared_title:
+                merged["default.title"] = shared_title
+            primary_geometa = clean(merged.get("custom.geodaten_modellbeschreibung"))
+            relation_values = merged.get("dcat.relation")
+            relations: list[str] = []
+            if isinstance(relation_values, list):
+                relations = [clean(value) for value in relation_values if clean(value)]
+            elif clean(relation_values):
+                relations = [clean(relation_values)]
+            for collection, geo_row in items[1:]:
+                stac_id = clean(collection.get("stac_collection_id"))
+                ds_id = clean(geo_row.get("dataspot_dataset_id")).lower()
+                if stac_id and ds_id:
+                    extra_url = geometa_stac_url(stac_id, ds_id)
+                    if extra_url and extra_url != primary_geometa and extra_url not in relations:
+                        relations.append(extra_url)
+            if relations:
+                merged["dcat.relation"] = relations
+        flat[huwise_id] = order_snapshot_entry(merged)
     return flat
 
 
@@ -414,17 +448,25 @@ def write_flat_publish_catalog(
     path: Path = ORIG_CATALOG_FILE,
 ) -> dict[str, dict[str, Any]]:
     flat = build_flat_publish_catalog(nested_catalog, bindings)
+    # First Dataspot UUID per huwise_id (stable geo_dataset sort); extras stay in dcat.relation.
     dataspot_by_huwise: dict[str, str] = {}
+    layer_pairs: list[tuple[str, str, str]] = []
     for collection in nested_catalog.get("datasets", []):
         if not isinstance(collection, dict):
             continue
+        stac_id = clean(collection.get("stac_collection_id"))
         for geo in collection.get("geo_datasets", []):
             if not isinstance(geo, dict):
                 continue
-            hw = clean(geo.get("huwise_id"))
+            geo_name = clean(geo.get("geo_dataset"))
+            hw = bindings.get(row_key(stac_id, geo_name), "") or clean(geo.get("huwise_id"))
             ds = clean(geo.get("dataspot_dataset_id")).lower()
             if hw and ds:
-                dataspot_by_huwise[hw] = ds
+                layer_pairs.append((hw, geo_name.lower(), ds))
+    layer_pairs.sort(key=lambda item: (item[0], item[1]))
+    for hw, _geo_name, ds in layer_pairs:
+        if hw not in dataspot_by_huwise:
+            dataspot_by_huwise[hw] = ds
 
     auth = DataspotAuth()
     last_push = (

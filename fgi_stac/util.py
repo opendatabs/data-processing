@@ -184,3 +184,46 @@ def normalize_uuid(value: Any) -> str:
 
 def row_key(stac_collection_id: str, geo_dataset: str) -> tuple[str, str]:
     return (clean(stac_collection_id), clean(geo_dataset))
+
+
+_LAYER_GEOMETRY_SUFFIX_RE = re.compile(
+    r"\s*:\s*(Punkt|Fläche|Flaeche|Linie|Text|Symbol)\s*$",
+    re.IGNORECASE,
+)
+
+
+def strip_geometry_layer_suffix(label: str) -> str:
+    """Remove trailing ``: Punkt`` / ``: Fläche`` (etc.) geometry-type suffixes."""
+    text = clean(label)
+    stripped = _LAYER_GEOMETRY_SUFFIX_RE.sub("", text).strip()
+    return stripped or text
+
+
+def shared_geo_dataset_label(labels: list[str]) -> str:
+    """Shared display label for layers merged under one ``huwise_id``."""
+    bases = [strip_geometry_layer_suffix(label) for label in labels if clean(label)]
+    if not bases:
+        return ""
+    unique = list(dict.fromkeys(bases))
+    return unique[0]
+
+
+def merged_layer_schema_basename(collection_id: str, geo_labels: list[str]) -> str:
+    """Basename for a merged multi-layer publish artifact (``{collection}_{common_slug}``)."""
+    from schema_merge import schema_file_slug
+
+    cid = clean(collection_id)
+    labels = [clean(label) for label in geo_labels if clean(label)]
+    if not labels:
+        return cid or "merged"
+    slugs = [schema_file_slug(label) for label in labels]
+    if len(slugs) == 1:
+        return f"{cid}_{slugs[0]}" if cid else slugs[0]
+    common = slugs[0]
+    for slug in slugs[1:]:
+        while common and not slug.startswith(common):
+            common = common[:-1]
+    common = common.rstrip("_")
+    if not common:
+        common = schema_file_slug(shared_geo_dataset_label(labels)) or "merged"
+    return f"{cid}_{common}" if cid else common

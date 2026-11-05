@@ -14,6 +14,7 @@ from typing import Any
 
 import geopandas as gpd
 import httpx
+import pandas as pd
 import yaml
 from catalog import (
     active_huwise_ids_from_bindings,
@@ -64,10 +65,12 @@ from yaml_io import dump_yaml
 from util import (
     clean,
     extract_string_list,
+    merged_layer_schema_basename,
     normalize_geo_dataset_match_keys,
     normalize_huwise_field_name,
     normalize_name,
     read_geojson_properties,
+    shared_geo_dataset_label,
 )
 
 STAC_V1_BASE_URL = "https://api.geo.bs.ch/stac/v1"
@@ -832,6 +835,278 @@ def _matches_huwise_filter(huwise_id: str, huwise_id_filter: str) -> bool:
     return clean(huwise_id) == filt
 
 
+def _layer_schema_basename(collection_id: str, geo_dataset: str) -> str:
+    geojson_file_hint = _resolve_geojson_file_for_dataset(geo_dataset)
+    if geojson_file_hint:
+        return geojson_file_hint.stem
+    return f"{collection_id}_{schema_file_slug(geo_dataset)}"
+
+
+def _geometry_types_require_geo_shape(gdfs: list[gpd.GeoDataFrame]) -> bool:
+    """True when layers include non-point geometries or mix point with other types."""
+    geom_types: set[str] = set()
+    for gdf in gdfs:
+        if gdf.empty or not hasattr(gdf, "geometry"):
+            continue
+        for geom_type in gdf.geom_type.dropna().unique().tolist():
+            geom_types.add(str(geom_type).lower())
+    if not geom_types:
+        return False
+    point_like = {"point", "multipoint"}
+    non_point = geom_types - point_like
+    if non_point and (geom_types & point_like):
+        return True
+    return bool(non_point)
+
+
+def _prefer_schema_datentyp(current: str, incoming: str) -> str:
+    cur = clean(current).lower()
+    inc = clean(incoming).lower()
+    if not cur:
+        return clean(incoming) or "text"
+    if not inc:
+        return clean(current) or "text"
+    if cur == inc:
+        return clean(current)
+    if {cur, inc} == {"geo_point_2d", "geo_shape"}:
+        return "geo_shape"
+    if inc == "geo_shape":
+        return "geo_shape"
+    return clean(current)
+
+
+def _merge_schema_field_lists(
+    field_lists: list[list[dict[str, Any]]],
+    *,
+    force_geo_shape: bool,
+) -> list[dict[str, Any]]:
+    """Union schema rows by ``technical_name``; optionally promote geometry to ``geo_shape``."""
+    by_name: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for fields in field_lists:
+        for row in fields:
+            if not isinstance(row, dict):
+                continue
+            technical_name = clean(row.get("technical_name"))
+            if not technical_name:
+                continue
+            if technical_name not in by_name:
+                by_name[technical_name] = dict(row)
+                order.append(technical_name)
+                continue
+            existing = by_name[technical_name]
+            for key in ("name", "description", "mehrwertigkeit"):
+                if not clean(existing.get(key)) and clean(row.get(key)):
+                    existing[key] = row[key]
+            existing["datentyp"] = _prefer_schema_datentyp(
+                clean(existing.get("datentyp")),
+                clean(row.get("datentyp")),
+            )
+            if existing.get("export") is None and row.get("export") is not None:
+                existing["export"] = row.get("export")
+            existing_custom = existing.get("custom")
+            incoming_custom = row.get("custom")
+            if not isinstance(existing_custom, dict):
+                existing_custom = {}
+            if isinstance(incoming_custom, dict):
+                for key, value in incoming_custom.items():
+                    if key == "datentyp":
+                        existing_custom[key] = _prefer_schema_datentyp(
+                            clean(existing_custom.get(key)),
+                            clean(value),
+                        )
+                    elif not clean(existing_custom.get(key)) and clean(value):
+                        existing_custom[key] = value
+            existing_custom.setdefault("technical_name", normalize_huwise_field_name(technical_name))
+            existing["custom"] = existing_custom
+            by_name[technical_name] = existing
+
+    if "stac_layer" not in by_name:
+        insert_at = len(order)
+        if "geometry" in order:
+            insert_at = order.index("geometry")
+        order.insert(insert_at, "stac_layer")
+        by_name["stac_layer"] = {
+            "technical_name": "stac_layer",
+            "name": "STAC-Layer",
+            "description": "Ursprünglicher STAC-/Geometa-Layername vor dem Zusammenführen",
+            "mehrwertigkeit": "",
+            "datentyp": "text",
+            "export": True,
+            "custom": {
+                "technical_name": "stac_layer",
+                "name": "STAC-Layer",
+                "description": "Ursprünglicher STAC-/Geometa-Layername vor dem Zusammenführen",
+                "datentyp": "text",
+                "mehrwertigkeit": "",
+            },
+        }
+
+    if force_geo_shape and "geometry" in by_name:
+        geometry_row = by_name["geometry"]
+        geometry_row["datentyp"] = "geo_shape"
+        custom = geometry_row.get("custom")
+        if not isinstance(custom, dict):
+            custom = {}
+        custom["datentyp"] = "geo_shape"
+        geometry_row["custom"] = custom
+
+    if "geometry" in order:
+        order = [name for name in order if name != "geometry"] + ["geometry"]
+    return [by_name[name] for name in order]
+
+
+def _merge_bound_layer_assets(
+    *,
+    huwise_id: str,
+    layer_results: list[dict[str, Any]],
+) -> None:
+    """Concatenate prepared layer GeoJSONs and write one merged schema + GeoJSON."""
+    if len(layer_results) < 2:
+        return
+    collection_id = clean(layer_results[0].get("collection_id"))
+    geo_labels = [clean(item.get("geo_dataset")) for item in layer_results]
+    merged_stem = merged_layer_schema_basename(collection_id, geo_labels)
+    logging.info(
+        "STEP merge_layers huwise_id=%s stem=%s layers=%s",
+        huwise_id,
+        merged_stem,
+        ", ".join(geo_labels),
+    )
+
+    frames: list[gpd.GeoDataFrame] = []
+    field_lists: list[list[dict[str, Any]]] = []
+    for item in layer_results:
+        geo_dataset = clean(item.get("geo_dataset"))
+        geojson_path = item.get("geojson_path")
+        fields = item.get("fields")
+        if isinstance(fields, list):
+            field_lists.append(fields)
+        if not isinstance(geojson_path, Path) or not geojson_path.is_file():
+            logging.warning(
+                "Skipping missing layer GeoJSON for huwise_id=%s geo_dataset=%s",
+                huwise_id,
+                geo_dataset,
+            )
+            continue
+        gdf = gpd.read_file(geojson_path)
+        gdf = gdf.copy()
+        gdf["stac_layer"] = geo_dataset
+        frames.append(gdf)
+
+    if not frames:
+        logging.warning("No layer GeoJSON available to merge for huwise_id=%s", huwise_id)
+        return
+
+    force_geo_shape = _geometry_types_require_geo_shape(frames)
+    # Align CRS before concat so mixed layers stay consistent.
+    target_crs = None
+    for frame in frames:
+        if frame.crs is not None:
+            target_crs = frame.crs
+            break
+    aligned: list[gpd.GeoDataFrame] = []
+    for frame in frames:
+        if target_crs is not None and frame.crs is not None and frame.crs != target_crs:
+            aligned.append(frame.to_crs(target_crs))
+        elif target_crs is not None and frame.crs is None:
+            aligned.append(frame.set_crs(target_crs, allow_override=True))
+        else:
+            aligned.append(frame)
+    merged_gdf = gpd.GeoDataFrame(pd.concat(aligned, ignore_index=True), crs=target_crs)
+    output_path = publish_geojson_path(merged_stem)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    merged_gdf.to_file(tmp_path, driver="GeoJSON")
+    os.replace(tmp_path, output_path)
+    logging.info(
+        "Wrote merged GeoJSON huwise_id=%s file=%s features=%s",
+        huwise_id,
+        output_path.name,
+        len(merged_gdf),
+    )
+
+    primary = layer_results[0]
+    dataspot_uuid = clean(primary.get("dataspot_uuid")).lower()
+    mapbs_url = clean(primary.get("mapbs_url"))
+    preserved_payload = _load_preserved_schema_payload(
+        merged_stem,
+        huwise_id=huwise_id,
+        dataspot_dataset_id=dataspot_uuid,
+    )
+    create_map_links_flag = _coerce_create_map_links_flag(
+        preserved_payload,
+        primary.get("old") if isinstance(primary.get("old"), dict) else {},
+        mapbs_url,
+    )
+    if create_map_links_flag and mapbs_url and output_path.is_file():
+        _add_map_links_to_dataset(output_path, mapbs_url)
+
+    merged_fields = _merge_schema_field_lists(field_lists, force_geo_shape=force_geo_shape)
+    geojson_properties = read_geojson_properties(output_path)
+    merged_fields = _reconcile_schema_fields_with_geojson(merged_fields, geojson_properties)
+    merged_fields = _apply_map_links_schema_field(
+        merged_fields,
+        mapbs_url,
+        create_map_links=create_map_links_flag,
+    )
+    # Re-apply user overrides from the merged schema basename when present.
+    preserved_fields = None
+    if isinstance(preserved_payload, dict):
+        candidate = preserved_payload.get("fields")
+        if isinstance(candidate, list):
+            preserved_fields = candidate
+    if preserved_fields:
+        merged_fields = _append_preserved_fields_missing_from_dataspot(
+            merged_fields,
+            preserved_fields,
+            geojson_properties,
+        )
+        # Overlay export/custom from preserved rows onto matching technical names.
+        preserved_by_name = {
+            clean(row.get("technical_name")): row
+            for row in preserved_fields
+            if isinstance(row, dict) and clean(row.get("technical_name"))
+        }
+        overlaid: list[dict[str, Any]] = []
+        for row in merged_fields:
+            tn = clean(row.get("technical_name"))
+            preserved = preserved_by_name.get(tn)
+            if not preserved:
+                overlaid.append(row)
+                continue
+            updated = dict(row)
+            if "export" in preserved:
+                updated["export"] = schema_export_value(preserved.get("export"), default=True)
+            for key in ("name", "description", "mehrwertigkeit", "datentyp"):
+                if clean(preserved.get(key)):
+                    updated[key] = preserved.get(key)
+            preserved_custom = preserved.get("custom")
+            if isinstance(preserved_custom, dict):
+                custom = dict(updated.get("custom") or {})
+                for key, value in preserved_custom.items():
+                    if clean(value):
+                        custom[key] = value
+                updated["custom"] = custom
+            overlaid.append(updated)
+        merged_fields = overlaid
+
+    _write_schema_file(
+        huwise_id=huwise_id,
+        dataspot_dataset_id=dataspot_uuid,
+        stac_collection_id=collection_id,
+        schema_basename=merged_stem,
+        fields=merged_fields,
+        dataspot_asset_url=f"https://bs.dataspot.io/web/prod/assets/{dataspot_uuid}",
+    )
+    logging.info(
+        "Merged %s layers into huwise_id=%s label=%s",
+        len(layer_results),
+        huwise_id,
+        shared_geo_dataset_label(geo_labels) or merged_stem,
+    )
+
+
 def _prepare_one_dataset_assets(
     *,
     auth: DataspotAuth,
@@ -842,58 +1117,69 @@ def _prepare_one_dataset_assets(
     mapbs_url: str,
     old: dict[str, Any],
     stac_zip_cache: dict[str, bytes],
-) -> None:
-    """Download GeoJSON, transform, sync schema YAML, and enrich map_links for one bound dataset."""
+    write_schema: bool = True,
+) -> dict[str, Any]:
+    """Download GeoJSON, transform, optionally sync schema YAML, and enrich map_links."""
     logging.info("STEP prepare_assets huwise_id=%s geo_dataset=%s", huwise_id, geo_dataset)
-    geojson_file_hint = _resolve_geojson_file_for_dataset(geo_dataset)
-    if geojson_file_hint:
-        schema_basename = geojson_file_hint.stem
-    else:
-        schema_basename = f"{collection_id}_{schema_file_slug(geo_dataset)}"
+    schema_basename = _layer_schema_basename(collection_id, geo_dataset)
     preserved_payload = _load_preserved_schema_payload(
         schema_basename,
-        huwise_id=huwise_id,
+        huwise_id=huwise_id if write_schema else "",
         dataspot_dataset_id=dataspot_uuid,
     )
     create_map_links_flag = _coerce_create_map_links_flag(preserved_payload, old, mapbs_url)
 
     raw_path = _download_stac_layer_geojson(collection_id, geo_dataset, DATASETS_DIR, zip_cache=stac_zip_cache)
+    geojson_path = publish_geojson_path(schema_basename)
     if raw_path is not None:
         stem = schema_basename or raw_path.stem
-        run_transform(
+        geojson_path = run_transform(
             input_path=raw_path,
             output_path=publish_geojson_path(stem),
             stem=stem,
         )
 
     if create_map_links_flag and mapbs_url:
-        layer_path = publish_geojson_path(schema_basename)
+        layer_path = geojson_path if geojson_path.is_file() else publish_geojson_path(schema_basename)
         if not layer_path.is_file():
             alt = _resolve_geojson_file_for_dataset(geo_dataset)
             if alt is not None:
                 layer_path = alt
         if layer_path.is_file():
             _add_map_links_to_dataset(layer_path, mapbs_url)
+            geojson_path = layer_path
 
     preserved_fields = None
     if isinstance(preserved_payload, dict):
         candidate = preserved_payload.get("fields")
         if isinstance(candidate, list):
             preserved_fields = candidate
-    geojson_file = _resolve_geojson_file_for_dataset(geo_dataset)
-    geojson_properties = read_geojson_properties(geojson_file) if geojson_file else []
+    resolved_geojson = geojson_path if geojson_path.is_file() else _resolve_geojson_file_for_dataset(geo_dataset)
+    geojson_properties = read_geojson_properties(resolved_geojson) if resolved_geojson else []
     fields = _dataspot_schema(auth, dataspot_uuid, preserved_fields)
     fields = _append_preserved_fields_missing_from_dataspot(fields, preserved_fields, geojson_properties)
     fields = _reconcile_schema_fields_with_geojson(fields, geojson_properties)
     fields = _apply_map_links_schema_field(fields, mapbs_url, create_map_links=create_map_links_flag)
-    _write_schema_file(
-        huwise_id=huwise_id,
-        dataspot_dataset_id=dataspot_uuid,
-        stac_collection_id=collection_id,
-        schema_basename=schema_basename,
-        fields=fields,
-        dataspot_asset_url=f"https://bs.dataspot.io/web/prod/assets/{dataspot_uuid}",
-    )
+    if write_schema:
+        _write_schema_file(
+            huwise_id=huwise_id,
+            dataspot_dataset_id=dataspot_uuid,
+            stac_collection_id=collection_id,
+            schema_basename=schema_basename,
+            fields=fields,
+            dataspot_asset_url=f"https://bs.dataspot.io/web/prod/assets/{dataspot_uuid}",
+        )
+    return {
+        "collection_id": collection_id,
+        "geo_dataset": geo_dataset,
+        "huwise_id": huwise_id,
+        "dataspot_uuid": dataspot_uuid,
+        "mapbs_url": mapbs_url,
+        "old": old,
+        "schema_basename": schema_basename,
+        "geojson_path": resolved_geojson if isinstance(resolved_geojson, Path) else geojson_path,
+        "fields": fields,
+    }
 
 
 def sync_catalog() -> dict[str, Any]:
@@ -1000,29 +1286,46 @@ def prepare_assets(*, huwise_id_filter: str = "") -> None:
         logging.warning("No active huwise_id rows in %s; nothing to prepare", BINDINGS_FILE)
         return
 
-    prepared = 0
+    grouped: dict[str, list[dict[str, str]]] = {}
     for row in rows:
         huwise_id = clean(row.get("huwise_id"))
-        if not _matches_huwise_filter(huwise_id, huwise_id_filter):
+        if not huwise_id or not _matches_huwise_filter(huwise_id, huwise_id_filter):
             continue
-        collection_id = clean(row.get("stac_collection_id"))
-        geo_dataset = clean(row.get("geo_dataset"))
-        dataspot_uuid = clean(row.get("dataspot_dataset_id")).lower()
-        mapbs_url = clean(row.get("mapbs_url"))
-        if not collection_id or not geo_dataset or not dataspot_uuid:
-            logging.warning("Skipping incomplete binding row for huwise_id=%s", huwise_id)
-            continue
-        old = by_uuid.get(dataspot_uuid, {})
-        _prepare_one_dataset_assets(
-            auth=auth,
-            collection_id=collection_id,
-            geo_dataset=geo_dataset,
-            huwise_id=huwise_id,
-            dataspot_uuid=dataspot_uuid,
-            mapbs_url=mapbs_url,
-            old=old,
-            stac_zip_cache=stac_zip_cache,
+        grouped.setdefault(huwise_id, []).append(row)
+
+    prepared = 0
+    for huwise_id in sorted(grouped, key=lambda value: value):
+        group_rows = sorted(
+            grouped[huwise_id],
+            key=lambda item: (clean(item.get("stac_collection_id")).lower(), clean(item.get("geo_dataset")).lower()),
         )
-        prepared += 1
+        layer_results: list[dict[str, Any]] = []
+        multi_layer = len(group_rows) > 1
+        for row in group_rows:
+            collection_id = clean(row.get("stac_collection_id"))
+            geo_dataset = clean(row.get("geo_dataset"))
+            dataspot_uuid = clean(row.get("dataspot_dataset_id")).lower()
+            mapbs_url = clean(row.get("mapbs_url"))
+            if not collection_id or not geo_dataset or not dataspot_uuid:
+                logging.warning("Skipping incomplete binding row for huwise_id=%s", huwise_id)
+                continue
+            old = by_uuid.get(dataspot_uuid, {})
+            result = _prepare_one_dataset_assets(
+                auth=auth,
+                collection_id=collection_id,
+                geo_dataset=geo_dataset,
+                huwise_id=huwise_id,
+                dataspot_uuid=dataspot_uuid,
+                mapbs_url=mapbs_url,
+                old=old,
+                stac_zip_cache=stac_zip_cache,
+                write_schema=not multi_layer,
+            )
+            layer_results.append(result)
+        if multi_layer and layer_results:
+            _merge_bound_layer_assets(huwise_id=huwise_id, layer_results=layer_results)
+            prepared += 1
+        elif layer_results:
+            prepared += 1
 
     logging.info("STEP prepare_assets done (%s dataset(s))", prepared)

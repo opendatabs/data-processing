@@ -81,8 +81,10 @@ from util import (
     description_to_html,
     extract_stac_code,
     is_uuid,
+    merged_layer_schema_basename,
     normalize_name,
     read_geojson_properties,
+    shared_geo_dataset_label,
     split_keywords,
     split_semicolon_list,
 )
@@ -369,6 +371,49 @@ def _stac_collection_from_metadata_row(metadata_row: pd.Series) -> str:
     return ""
 
 
+def _bindings_by_huwise_id() -> dict[str, list[dict[str, str]]]:
+    """Group Excel binding rows by ``huwise_id`` (stable geo_dataset sort)."""
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for row in load_active_dataset_rows():
+        huwise_id = clean_text(row.get("huwise_id"))
+        if not huwise_id:
+            continue
+        grouped.setdefault(huwise_id, []).append(row)
+    for huwise_id, rows in grouped.items():
+        grouped[huwise_id] = sorted(
+            rows,
+            key=lambda item: (
+                clean_text(item.get("stac_collection_id")).lower(),
+                clean_text(item.get("geo_dataset")).lower(),
+            ),
+        )
+    return grouped
+
+
+def _binding_view_for_huwise(rows: list[dict[str, str]]) -> dict[str, str]:
+    """Collapse one or more binding rows into the publish view for that ``huwise_id``."""
+    if not rows:
+        return {}
+    primary = rows[0]
+    geo_labels = [clean_text(row.get("geo_dataset")) for row in rows if clean_text(row.get("geo_dataset"))]
+    geo_dataset = shared_geo_dataset_label(geo_labels) if len(rows) > 1 else clean_text(primary.get("geo_dataset"))
+    if len(rows) > 1 and not geo_dataset:
+        geo_dataset = clean_text(primary.get("geo_dataset"))
+    return {
+        "huwise_id": clean_text(primary.get("huwise_id")),
+        "stac_collection_id": clean_text(primary.get("stac_collection_id")),
+        "geo_dataset": geo_dataset,
+        "dataspot_dataset_id": clean_text(primary.get("dataspot_dataset_id")),
+        "dataspot_asset_url": clean_text(primary.get("dataspot_asset_url")),
+        "mapbs_url": clean_text(primary.get("mapbs_url")),
+        "merged_stem": (
+            merged_layer_schema_basename(clean_text(primary.get("stac_collection_id")), geo_labels)
+            if len(rows) > 1
+            else ""
+        ),
+    }
+
+
 def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load snapshot catalog + Excel bindings (``template.field`` keys only in YAML)."""
 
@@ -377,7 +422,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not flat:
         raise FileNotFoundError(f"No active datasets in publish catalog: {catalog_path}")
 
-    binding_rows = {row["huwise_id"]: row for row in load_active_dataset_rows()}
+    binding_groups = _bindings_by_huwise_id()
     pub_rows: list[dict[str, Any]] = []
     metadata_rows: list[dict[str, Any]] = []
     for ods_id in sorted(flat.keys(), key=lambda value: clean_text(value)):
@@ -385,7 +430,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
         if not isinstance(entry, dict):
             continue
         snapshot = snapshot_fields_only(entry)
-        binding = binding_rows.get(ods_id, {})
+        binding = _binding_view_for_huwise(binding_groups.get(ods_id, []))
         dataspot_id = clean_text(binding.get("dataspot_dataset_id")) or dataspot_uuid_from_snapshot(snapshot)
         geo_dataset = clean_text(binding.get("geo_dataset"))
         stac_collection_id = clean_text(binding.get("stac_collection_id")) or _stac_collection_from_metadata_row(
@@ -397,6 +442,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
                 "id": dataspot_id,
                 "geo_dataset": geo_dataset,
                 "paket": stac_collection_id,
+                "merged_stem": clean_text(binding.get("merged_stem")),
             }
         )
         metadata_row = dict(snapshot)
@@ -525,17 +571,31 @@ def _build_geojson_index() -> list[Path]:
 
 
 def _resolve_geojson_file(context: DatasetContext, candidates: list[Path]) -> Path | None:
-    """Resolve the local GeoJSON for the given dataset context."""
-    normalized_geo_dataset = normalize_name(context.geo_dataset)
-    for candidate in candidates:
-        stem_normalized = normalize_name(candidate.stem)
-        if stem_normalized.endswith(normalized_geo_dataset):
-            return candidate
+    """Resolve the local GeoJSON for the given dataset context.
 
-    for candidate in candidates:
-        stem_normalized = normalize_name(candidate.stem)
-        if normalized_geo_dataset in stem_normalized:
-            return candidate
+    Prefer the schema basename for ``huwise_id`` (covers merged Punkt/Fläche stems),
+    then fall back to matching on ``geo_dataset``.
+    """
+    basename = resolve_schema_basename_for(context.ods_id, context.dataspot_dataset_id)
+    if basename:
+        preferred = DATASETS_DIR / f"{basename}.geojson"
+        if preferred.is_file():
+            return preferred
+        for candidate in candidates:
+            if candidate.stem == basename:
+                return candidate
+
+    normalized_geo_dataset = normalize_name(context.geo_dataset)
+    if normalized_geo_dataset:
+        for candidate in candidates:
+            stem_normalized = normalize_name(candidate.stem)
+            if stem_normalized.endswith(normalized_geo_dataset):
+                return candidate
+
+        for candidate in candidates:
+            stem_normalized = normalize_name(candidate.stem)
+            if normalized_geo_dataset in stem_normalized:
+                return candidate
 
     return None
 
@@ -2005,10 +2065,12 @@ def _process_dataset(
 ) -> None:
     """Process one dataset from source extraction to HUWISE schema update."""
     logging.info("STEP publish_dataset huwise_id=%s", clean_text(pub_row.get("ods_id")))
+    merged_stem = clean_text(pub_row.get("merged_stem"))
+    geo_dataset = clean_text(pub_row.get("geo_dataset"))
     context = DatasetContext(
         ods_id=clean_text(pub_row.get("ods_id")),
         dataspot_dataset_id=clean_text(pub_row.get("id")),
-        geo_dataset=clean_text(pub_row.get("geo_dataset")),
+        geo_dataset=merged_stem or geo_dataset,
     )
     if not context.ods_id or not context.dataspot_dataset_id:
         logging.warning("Skipping row with missing ods_id or dataspot id")
@@ -2021,6 +2083,11 @@ def _process_dataset(
     )
 
     geojson_file = _resolve_geojson_file(context, geojson_files)
+    if geojson_file is None and merged_stem:
+        # Direct merged-stem lookup when schema YAML is not yet resolvable.
+        direct = DATASETS_DIR / f"{merged_stem}.geojson"
+        if direct.is_file():
+            geojson_file = direct
     if geojson_file is None:
         logging.warning(
             "No local GeoJSON found for ods_id=%s (%s): resource/schema skipped, metadata still updated",
