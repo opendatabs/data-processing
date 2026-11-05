@@ -1,8 +1,11 @@
+import ftplib
 import json
 import logging
 import os
 import shutil
+import tempfile
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import common
 import msal
@@ -25,6 +28,9 @@ SHAREPOINT_ROOT = "General"
 
 DATA_ORIG_PATH = "data_orig"
 NOTIFIED_MISMATCHES_JSON = Path("change_tracking") / "gutachten_notified_mismatches.json"
+REMOTE_DIR = "staka/gutachten/"
+CSV_FILENAME = "100489_gutachten.csv"
+PROTECTED_FTP_NAMES = {CSV_FILENAME, "index.html"}
 
 DEPARTEMENTS = ["BVD", "ED", "FD", "GD", "JSD", "PD", "WSU", "Staatskanzlei"]
 
@@ -275,9 +281,11 @@ def build_mismatch_email_text(
     text = (
         "Beim ETL-Lauf für die Gutachten (Dataset 100489) wurden Abweichungen zwischen "
         "den PDF-Dateien und der Excel-Liste (Liste_Gutachten.xlsx) festgestellt.\n\n"
-        "Der Job läuft weiter und schreibt die Daten trotzdem:\n"
-        " - Nur Datei (ohne Excel-Eintrag): Zeile mit URL_Datei und Departement aus dem SharePoint-Ordner\n"
-        " - Nur Metadaten (ohne Datei): Zeile mit Metadaten, ohne URL_Datei\n"
+        "Diese Zeilen werden nicht ins Dataset aufgenommen und nicht hochgeladen:\n"
+        " - Nur Datei (ohne Excel-Eintrag)\n"
+        " - Nur Excel-Eintrag (ohne Datei)\n"
+        "Bereits veröffentlichte Dateien, die nicht mehr vollständig vorliegen, werden aus dem "
+        "Dataset entfernt und vom FTP-Server gelöscht.\n"
     )
 
     if unlisted:
@@ -367,14 +375,6 @@ def notify_file_mismatches(
             LOGGER.warning("Could not persist Gutachten notification state: %s", persist_exc)
 
 
-def departement_column_name(columns) -> str | None:
-    """Return the existing Departement column, matching the Excel header regardless of case."""
-    for col in columns:
-        if str(col).strip().lower() == "departement":
-            return str(col)
-    return None
-
-
 def process_excel_file(file_departments: dict[str, str] | None = None):
     excel_filename = "Liste_Gutachten.xlsx"
 
@@ -438,39 +438,121 @@ def process_excel_file(file_departments: dict[str, str] | None = None):
 
     notify_file_mismatches(unlisted_files, missing_files, file_departments=file_departments)
 
-    # Metadata only (Excel row, no PDF): keep metadata, leave URL empty.
-    df["URL_Datei"] = [
-        (gate_url + ftp_name) if orig_name not in missing_files else pd.NA
-        for orig_name, ftp_name in zip(df["Dateiname"], df["Dateiname_ftp"])
-    ]
-
-    # Document only (PDF without Excel row): add a row with Dateiname, URL_Datei
-    # and the departement taken from the SharePoint folder the file was downloaded from.
-    if unlisted_files:
-        LOGGER.warning(
-            "Adding %s unlisted file(s) to the dataset with URL and Departement (no other Excel metadata).",
-            len(unlisted_files),
-        )
-        departement_col = departement_column_name(df.columns)
-        if departement_col is None:
-            departement_col = "Departement"
-            df[departement_col] = pd.NA
-        extra_rows = []
-        for orig_name in sorted(unlisted_files):
-            ftp_name = ensure_pdf_suffix(orig_name, sanitize_filename(orig_name))
-            row = {col: pd.NA for col in df.columns}
-            row["Dateiname"] = orig_name
-            row["Dateiname_ftp"] = ftp_name
-            row["URL_Datei"] = gate_url + ftp_name
-            row[departement_col] = file_departments.get(orig_name, pd.NA)
-            extra_rows.append(row)
-        df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True)
+    # Only a row with both an Excel entry and a file is published.
+    kept = df["Dateiname"].isin(files_in_data_orig)
+    LOGGER.info(
+        "Publishing %s row(s) with both file and Excel entry. "
+        "Not publishing %s file(s) without an Excel entry and %s Excel row(s) without a file.",
+        int(kept.sum()),
+        len(unlisted_files),
+        len(missing_files),
+    )
+    df = df.loc[kept].reset_index(drop=True)
+    df["URL_Datei"] = [gate_url + ftp_name for ftp_name in df["Dateiname_ftp"]]
 
     return df
 
 
+def ftp_name_from_url(url) -> str | None:
+    """Return the FTP filename referenced by a published URL_Datei value."""
+    try:
+        if pd.isna(url):
+            return None
+    except TypeError:
+        if url is None:
+            return None
+    text = str(url).strip()
+    if not text or text.lower() == "nan":
+        return None
+    names = parse_qs(urlparse(text).query).get("file") or []
+    name = names[0].strip() if names else ""
+    if not name or name in PROTECTED_FTP_NAMES:
+        return None
+    return name
+
+
+def ftp_names_to_delete(previous_urls, current_ftp_names: set[str]) -> set[str]:
+    """FTP files published last time that are no longer part of a complete row."""
+    previous = {name for url in previous_urls if (name := ftp_name_from_url(url))}
+    return previous - current_ftp_names
+
+
+def previously_published_urls(remote_dir: str) -> list:
+    """Read URL_Datei from the CSV currently on the FTP server."""
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            common.download_ftp(
+                [],
+                common.credentials.ftp_server,
+                common.credentials.ftp_user,
+                common.credentials.ftp_pass,
+                remote_dir,
+                tmp,
+                CSV_FILENAME,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            LOGGER.warning(
+                "Could not download the previous Gutachten CSV (%s); the dataset CSV will not be replaced.",
+                exc,
+            )
+            raise
+        path = Path(tmp) / CSV_FILENAME
+        if not path.is_file():
+            LOGGER.info("No previous Gutachten CSV on FTP; nothing to delete.")
+            return []
+        previous = pd.read_csv(path)
+    if "URL_Datei" not in previous.columns:
+        LOGGER.warning("Previous Gutachten CSV has no URL_Datei column; no FTP files will be deleted.")
+        return []
+    return previous["URL_Datei"].tolist()
+
+
+def delete_ftp_file(filename: str, remote_dir: str) -> None:
+    """Delete one file from the FTP directory. A missing file counts as already deleted."""
+    ftp = ftplib.FTP(common.credentials.ftp_server)
+    ftp.login(common.credentials.ftp_user, common.credentials.ftp_pass)
+    try:
+        ftp.cwd(remote_dir)
+        try:
+            ftp.delete(filename)
+        except ftplib.error_perm as exc:
+            if not str(exc).startswith("550"):
+                raise
+            LOGGER.info("FTP file %s is already gone.", filename)
+            return
+    finally:
+        ftp.quit()
+    LOGGER.info("Deleted %s from FTP directory %s.", filename, remote_dir)
+
+
+def delete_removed_files(current_ftp_names: set[str], remote_dir: str) -> None:
+    """
+    Remove PDFs that were published last time but are no longer a complete row.
+
+    Runs before the new CSV replaces the previous one, so a failed delete can be retried
+    on the next run while the old CSV still lists the file.
+    """
+    removed = sorted(ftp_names_to_delete(previously_published_urls(remote_dir), current_ftp_names))
+    if not removed:
+        LOGGER.info("No previously published Gutachten files to delete from FTP.")
+        return
+    LOGGER.info("Deleting %s Gutachten file(s) from FTP that are no longer published.", len(removed))
+    failures = []
+    for name in removed:
+        try:
+            delete_ftp_file(name, remote_dir)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            LOGGER.warning("Could not delete %s from FTP: %s", name, exc)
+            failures.append(name)
+    if failures:
+        raise RuntimeError(
+            "Failed to delete Gutachten file(s) from FTP, CSV was not updated: " + ", ".join(failures)
+        )
+
+
 def upload_files_to_ftp(df: pd.DataFrame):
-    remote_dir = "staka/gutachten/"
+    remote_dir = REMOTE_DIR
+    delete_removed_files(set(df["Dateiname_ftp"]), remote_dir)
 
     os.makedirs("data", exist_ok=True)
 
@@ -501,7 +583,7 @@ def upload_files_to_ftp(df: pd.DataFrame):
 
         logging.info(f"Uploaded {orig_name} as {ftp_name}")
 
-    csv_filename = "100489_gutachten.csv"
+    csv_filename = CSV_FILENAME
 
     csv_file_path = os.path.join(
         "data",
