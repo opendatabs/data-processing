@@ -573,31 +573,57 @@ def _build_geojson_index() -> list[Path]:
 def _resolve_geojson_file(context: DatasetContext, candidates: list[Path]) -> Path | None:
     """Resolve the local GeoJSON for the given dataset context.
 
-    Prefer the schema basename for ``huwise_id`` (covers merged Punkt/Fläche stems),
-    then fall back to matching on ``geo_dataset``.
+    Prefer exact stem matches (schema basename / ``geo_dataset``), then fuzzy
+    matching. Exact matches matter for merged Punkt/Fläche stems so we do not
+    accidentally pick a single layer file whose name only shares a prefix.
     """
+    exact_stems: list[str] = []
     basename = resolve_schema_basename_for(context.ods_id, context.dataspot_dataset_id)
     if basename:
-        preferred = DATASETS_DIR / f"{basename}.geojson"
+        exact_stems.append(basename)
+    geo_dataset = clean_text(context.geo_dataset)
+    if geo_dataset and geo_dataset not in exact_stems:
+        exact_stems.append(geo_dataset)
+
+    for stem in exact_stems:
+        preferred = DATASETS_DIR / f"{stem}.geojson"
         if preferred.is_file():
             return preferred
         for candidate in candidates:
-            if candidate.stem == basename:
+            if candidate.stem == stem:
                 return candidate
 
-    normalized_geo_dataset = normalize_name(context.geo_dataset)
+    normalized_geo_dataset = normalize_name(geo_dataset)
     if normalized_geo_dataset:
+        # Prefer equality over prefix/endswith so merged stems do not resolve to
+        # ``..._Flaeche`` / ``..._Punkt`` layer intermediates.
+        for candidate in candidates:
+            if normalize_name(candidate.stem) == normalized_geo_dataset:
+                return candidate
         for candidate in candidates:
             stem_normalized = normalize_name(candidate.stem)
             if stem_normalized.endswith(normalized_geo_dataset):
                 return candidate
-
         for candidate in candidates:
             stem_normalized = normalize_name(candidate.stem)
             if normalized_geo_dataset in stem_normalized:
                 return candidate
 
     return None
+
+
+def _dataset_resource_count(ods_id: str) -> int | None:
+    """Return number of HUWISE resources, or None when the listing fails."""
+    try:
+        dataset_uid = get_uid_by_id(dataset_id=ods_id)
+        client = HttpClient(HuwiseConfig.from_env())
+        existing = client.get(f"/datasets/{dataset_uid}/resources/").json().get("results", [])
+    except Exception as exc:
+        logging.warning("Could not count resources for ods_id=%s: %s", ods_id, exc)
+        return None
+    if not isinstance(existing, list):
+        return 0
+    return len(existing)
 
 
 def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
@@ -2039,19 +2065,18 @@ def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
         except Exception as exc:
             # Do not create a second resource on update failure — that is how
             # duplicate sources accumulate across publishes.
-            logging.warning(
-                "Failed to update resource for ods_id=%s uid=%s: %s",
-                ods_id,
-                matched_uid,
-                exc,
-            )
+            raise RuntimeError(
+                f"Failed to update resource for ods_id={ods_id} uid={matched_uid}: {exc}"
+            ) from exc
         return
 
     try:
         response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
         logging.info("Created resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
     except Exception as exc:
-        logging.warning("Failed to create resource for ods_id=%s source=%s: %s", ods_id, source_url, exc)
+        raise RuntimeError(
+            f"Failed to create resource for ods_id={ods_id} source={source_url}: {exc}"
+        ) from exc
 
 
 def _process_dataset(
@@ -2076,18 +2101,42 @@ def _process_dataset(
         logging.warning("Skipping row with missing ods_id or dataspot id")
         return
 
+    # Resolve GeoJSON before create so a missing merge artifact cannot leave an
+    # empty HUWISE dataset without FTP source.
+    geojson_file = _resolve_geojson_file(context, geojson_files)
+    if geojson_file is None and merged_stem:
+        direct = DATASETS_DIR / f"{merged_stem}.geojson"
+        if direct.is_file():
+            geojson_file = direct
+        else:
+            raise FileNotFoundError(
+                f"Merged GeoJSON missing for ods_id={context.ods_id}: expected {direct}. "
+                "Re-run prepare_assets for this huwise_id before publish."
+            )
+
+    dataset_exists = False
+    try:
+        get_uid_by_id(dataset_id=context.ods_id)
+        dataset_exists = True
+    except IndexError:
+        dataset_exists = False
+    except Exception as exc:
+        raise RuntimeError(
+            f"HUWISE dataset id {context.ods_id!r} could not be resolved; refusing to create"
+        ) from exc
+
+    if geojson_file is None and not dataset_exists:
+        raise FileNotFoundError(
+            f"Cannot create ods_id={context.ods_id}: no local GeoJSON for "
+            f"{context.geo_dataset!r}. Run prepare_assets first."
+        )
+
     _, dataset_created = _ensure_huwise_dataset(
         context.ods_id,
         metadata_row,
         dataspot_dataset_id=context.dataspot_dataset_id,
     )
 
-    geojson_file = _resolve_geojson_file(context, geojson_files)
-    if geojson_file is None and merged_stem:
-        # Direct merged-stem lookup when schema YAML is not yet resolvable.
-        direct = DATASETS_DIR / f"{merged_stem}.geojson"
-        if direct.is_file():
-            geojson_file = direct
     if geojson_file is None:
         logging.warning(
             "No local GeoJSON found for ods_id=%s (%s): resource/schema skipped, metadata still updated",
@@ -2141,13 +2190,17 @@ def _process_dataset(
         context.dataspot_dataset_id,
         geojson_file,
     )
-    if geojson_changed or schema_inputs_changed:
+    resource_count = _dataset_resource_count(context.ods_id)
+    missing_source = resource_count == 0
+    # New datasets and datasets without a source must always hit FTP + resource
+    # upsert, even when the local GeoJSON hash is unchanged.
+    must_publish_source = dataset_created or missing_source or geojson_changed
+    if must_publish_source or schema_inputs_changed:
         _upload_geojson(publish_geojson)
         change_tracking.update_hash_file(str(geojson_file))
     else:
         logging.info("Skipping FTP upload for ods_id=%s (geojson and schema unchanged)", context.ods_id)
-    resource_touched = dataset_created or geojson_changed
-    if resource_touched:
+    if must_publish_source:
         _upsert_dataset_resource(context.ods_id, source_url)
         _wait_for_huwise_idle(context.ods_id, reason="after resource upsert")
     else:
@@ -2182,7 +2235,7 @@ def _process_dataset(
         accepted_types=accepted_types,
         dataspot_dataset_id=context.dataspot_dataset_id,
         geojson_file=geojson_file,
-        force_resync=dataset_created or geojson_changed,
+        force_resync=must_publish_source,
     )
     _wait_for_huwise_idle(context.ods_id, reason="after schema upsert")
     _publish_huwise_dataset(context.ods_id)

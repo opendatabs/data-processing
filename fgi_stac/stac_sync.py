@@ -976,6 +976,7 @@ def _merge_bound_layer_assets(
 
     frames: list[gpd.GeoDataFrame] = []
     field_lists: list[list[dict[str, Any]]] = []
+    missing_layers: list[str] = []
     for item in layer_results:
         geo_dataset = clean(item.get("geo_dataset"))
         geojson_path = item.get("geojson_path")
@@ -983,20 +984,20 @@ def _merge_bound_layer_assets(
         if isinstance(fields, list):
             field_lists.append(fields)
         if not isinstance(geojson_path, Path) or not geojson_path.is_file():
-            logging.warning(
-                "Skipping missing layer GeoJSON for huwise_id=%s geo_dataset=%s",
-                huwise_id,
-                geo_dataset,
-            )
+            missing_layers.append(geo_dataset or "<unknown>")
             continue
         gdf = gpd.read_file(geojson_path)
         gdf = gdf.copy()
         gdf["stac_layer"] = geo_dataset
         frames.append(gdf)
 
+    if missing_layers:
+        raise FileNotFoundError(
+            f"Cannot merge huwise_id={huwise_id}: missing layer GeoJSON for "
+            f"{', '.join(missing_layers)}. Re-run prepare_assets after STAC download succeeds."
+        )
     if not frames:
-        logging.warning("No layer GeoJSON available to merge for huwise_id=%s", huwise_id)
-        return
+        raise FileNotFoundError(f"Cannot merge huwise_id={huwise_id}: no layer GeoJSON available")
 
     force_geo_shape = _geometry_types_require_geo_shape(frames)
     # Align CRS before concat so mixed layers stay consistent.
@@ -1013,7 +1014,18 @@ def _merge_bound_layer_assets(
             aligned.append(frame.set_crs(target_crs, allow_override=True))
         else:
             aligned.append(frame)
-    merged_gdf = gpd.GeoDataFrame(pd.concat(aligned, ignore_index=True), crs=target_crs)
+    # gpd.concat keeps an active geometry column; pd.concat alone often does not.
+    if hasattr(gpd, "concat"):
+        merged_gdf = gpd.concat(aligned, ignore_index=True)
+    else:
+        geom_name = None
+        for frame in aligned:
+            if hasattr(frame, "geometry") and frame.geometry is not None:
+                geom_name = frame.geometry.name
+                break
+        merged_gdf = gpd.GeoDataFrame(pd.concat(aligned, ignore_index=True), geometry=geom_name, crs=target_crs)
+    if target_crs is not None and merged_gdf.crs is None:
+        merged_gdf = merged_gdf.set_crs(target_crs, allow_override=True)
     output_path = publish_geojson_path(merged_stem)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
