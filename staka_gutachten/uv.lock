@@ -2,12 +2,6 @@ version = 1
 revision = 1
 requires-python = ">=3.13"
 
-[manifest]
-constraints = [
-    { name = "numpy", specifier = "<3" },
-    { name = "pandas", specifier = "<3" },
-]
-
 [[package]]
 name = "certifi"
 version = "2026.10.23"

@@ -6,7 +6,7 @@ This script processes datasets from ``data/publish_catalog.yaml`` and performs:
 2. Schema reconciliation against local GeoJSON properties.
 3. Optional per-field YAML override merge.
 4. GeoJSON upload to FTP (remote folder ``fgi/stac``).
-5. HUWISE dataset create/reuse and metadata updates.
+5. HUWISE dataset create (only when huwise_id is missing) / reuse and metadata updates.
 6. HUWISE schema upsert based on the generated schema CSV.
 """
 
@@ -81,8 +81,10 @@ from util import (
     description_to_html,
     extract_stac_code,
     is_uuid,
+    merged_layer_schema_basename,
     normalize_name,
     read_geojson_properties,
+    shared_geo_dataset_label,
     split_keywords,
     split_semicolon_list,
 )
@@ -369,6 +371,49 @@ def _stac_collection_from_metadata_row(metadata_row: pd.Series) -> str:
     return ""
 
 
+def _bindings_by_huwise_id() -> dict[str, list[dict[str, str]]]:
+    """Group Excel binding rows by ``huwise_id`` (stable geo_dataset sort)."""
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for row in load_active_dataset_rows():
+        huwise_id = clean_text(row.get("huwise_id"))
+        if not huwise_id:
+            continue
+        grouped.setdefault(huwise_id, []).append(row)
+    for huwise_id, rows in grouped.items():
+        grouped[huwise_id] = sorted(
+            rows,
+            key=lambda item: (
+                clean_text(item.get("stac_collection_id")).lower(),
+                clean_text(item.get("geo_dataset")).lower(),
+            ),
+        )
+    return grouped
+
+
+def _binding_view_for_huwise(rows: list[dict[str, str]]) -> dict[str, str]:
+    """Collapse one or more binding rows into the publish view for that ``huwise_id``."""
+    if not rows:
+        return {}
+    primary = rows[0]
+    geo_labels = [clean_text(row.get("geo_dataset")) for row in rows if clean_text(row.get("geo_dataset"))]
+    geo_dataset = shared_geo_dataset_label(geo_labels) if len(rows) > 1 else clean_text(primary.get("geo_dataset"))
+    if len(rows) > 1 and not geo_dataset:
+        geo_dataset = clean_text(primary.get("geo_dataset"))
+    return {
+        "huwise_id": clean_text(primary.get("huwise_id")),
+        "stac_collection_id": clean_text(primary.get("stac_collection_id")),
+        "geo_dataset": geo_dataset,
+        "dataspot_dataset_id": clean_text(primary.get("dataspot_dataset_id")),
+        "dataspot_asset_url": clean_text(primary.get("dataspot_asset_url")),
+        "mapbs_url": clean_text(primary.get("mapbs_url")),
+        "merged_stem": (
+            merged_layer_schema_basename(clean_text(primary.get("stac_collection_id")), geo_labels)
+            if len(rows) > 1
+            else ""
+        ),
+    }
+
+
 def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load snapshot catalog + Excel bindings (``template.field`` keys only in YAML)."""
 
@@ -377,7 +422,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not flat:
         raise FileNotFoundError(f"No active datasets in publish catalog: {catalog_path}")
 
-    binding_rows = {row["huwise_id"]: row for row in load_active_dataset_rows()}
+    binding_groups = _bindings_by_huwise_id()
     pub_rows: list[dict[str, Any]] = []
     metadata_rows: list[dict[str, Any]] = []
     for ods_id in sorted(flat.keys(), key=lambda value: clean_text(value)):
@@ -385,7 +430,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
         if not isinstance(entry, dict):
             continue
         snapshot = snapshot_fields_only(entry)
-        binding = binding_rows.get(ods_id, {})
+        binding = _binding_view_for_huwise(binding_groups.get(ods_id, []))
         dataspot_id = clean_text(binding.get("dataspot_dataset_id")) or dataspot_uuid_from_snapshot(snapshot)
         geo_dataset = clean_text(binding.get("geo_dataset"))
         stac_collection_id = clean_text(binding.get("stac_collection_id")) or _stac_collection_from_metadata_row(
@@ -397,6 +442,7 @@ def _load_catalog_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
                 "id": dataspot_id,
                 "geo_dataset": geo_dataset,
                 "paket": stac_collection_id,
+                "merged_stem": clean_text(binding.get("merged_stem")),
             }
         )
         metadata_row = dict(snapshot)
@@ -525,19 +571,59 @@ def _build_geojson_index() -> list[Path]:
 
 
 def _resolve_geojson_file(context: DatasetContext, candidates: list[Path]) -> Path | None:
-    """Resolve the local GeoJSON for the given dataset context."""
-    normalized_geo_dataset = normalize_name(context.geo_dataset)
-    for candidate in candidates:
-        stem_normalized = normalize_name(candidate.stem)
-        if stem_normalized.endswith(normalized_geo_dataset):
-            return candidate
+    """Resolve the local GeoJSON for the given dataset context.
 
-    for candidate in candidates:
-        stem_normalized = normalize_name(candidate.stem)
-        if normalized_geo_dataset in stem_normalized:
-            return candidate
+    Prefer exact stem matches (schema basename / ``geo_dataset``), then fuzzy
+    matching. Exact matches matter for merged Punkt/Fläche stems so we do not
+    accidentally pick a single layer file whose name only shares a prefix.
+    """
+    exact_stems: list[str] = []
+    basename = resolve_schema_basename_for(context.ods_id, context.dataspot_dataset_id)
+    if basename:
+        exact_stems.append(basename)
+    geo_dataset = clean_text(context.geo_dataset)
+    if geo_dataset and geo_dataset not in exact_stems:
+        exact_stems.append(geo_dataset)
+
+    for stem in exact_stems:
+        preferred = DATASETS_DIR / f"{stem}.geojson"
+        if preferred.is_file():
+            return preferred
+        for candidate in candidates:
+            if candidate.stem == stem:
+                return candidate
+
+    normalized_geo_dataset = normalize_name(geo_dataset)
+    if normalized_geo_dataset:
+        # Prefer equality over prefix/endswith so merged stems do not resolve to
+        # ``..._Flaeche`` / ``..._Punkt`` layer intermediates.
+        for candidate in candidates:
+            if normalize_name(candidate.stem) == normalized_geo_dataset:
+                return candidate
+        for candidate in candidates:
+            stem_normalized = normalize_name(candidate.stem)
+            if stem_normalized.endswith(normalized_geo_dataset):
+                return candidate
+        for candidate in candidates:
+            stem_normalized = normalize_name(candidate.stem)
+            if normalized_geo_dataset in stem_normalized:
+                return candidate
 
     return None
+
+
+def _dataset_resource_count(ods_id: str) -> int | None:
+    """Return number of HUWISE resources, or None when the listing fails."""
+    try:
+        dataset_uid = get_uid_by_id(dataset_id=ods_id)
+        client = HttpClient(HuwiseConfig.from_env())
+        existing = client.get(f"/datasets/{dataset_uid}/resources/").json().get("results", [])
+    except Exception as exc:
+        logging.warning("Could not count resources for ods_id=%s: %s", ods_id, exc)
+        return None
+    if not isinstance(existing, list):
+        return 0
+    return len(existing)
 
 
 def _geometa_collection_code_from_metadata(metadata_row: pd.Series) -> str:
@@ -780,7 +866,6 @@ def _dataspot_dataset_id_from_metadata_row(metadata_row: pd.Series) -> str:
 
 def _build_create_metadata_payload(ods_id: str, metadata_row: pd.Series) -> dict[str, Any]:
     """Minimal HUWISE create payload (full metadata is written immediately after)."""
-    _ = metadata_row
     title = clean_text(_metadata_row_field(metadata_row, "default.title", "title")) or ods_id
     return {
         "default": {
@@ -910,20 +995,43 @@ def _ensure_huwise_dataset(
     metadata_row: pd.Series,
     *,
     dataspot_dataset_id: str = "",
-) -> tuple[str | None, bool]:
-    """Create dataset by ods_id if missing and return dataset UID + created flag."""
+) -> tuple[str, bool]:
+    """Reuse dataset by ``ods_id``, or create it once when genuinely missing.
+
+    Only ``IndexError`` from ``get_uid_by_id`` (empty search results) means
+    "not found" and may create. Any other lookup failure is re-raised so a
+    transient API error cannot spawn duplicate datasets.
+    """
     try:
         return get_uid_by_id(dataset_id=ods_id), False
-    except Exception:
-        metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
-        created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
-        _write_initial_metadata_after_create(
-            ods_id,
-            created.uid,
-            metadata_row,
-            dataspot_dataset_id=dataspot_dataset_id,
+    except IndexError:
+        logging.info("HUWISE dataset id %s not found; creating", ods_id)
+    except Exception as exc:
+        raise RuntimeError(
+            f"HUWISE dataset id {ods_id!r} could not be resolved; refusing to create"
+        ) from exc
+
+    metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
+    created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
+    _write_initial_metadata_after_create(
+        ods_id,
+        created.uid,
+        metadata_row,
+        dataspot_dataset_id=dataspot_dataset_id,
+    )
+    try:
+        resolved_uid = get_uid_by_id(dataset_id=ods_id)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Created HUWISE dataset uid={created.uid} but huwise_id {ods_id!r} "
+            "is still not resolvable; refusing to continue (would risk duplicates)"
+        ) from exc
+    if resolved_uid != created.uid:
+        raise RuntimeError(
+            f"Created HUWISE dataset uid={created.uid} for huwise_id {ods_id!r}, "
+            f"but lookup returned different uid={resolved_uid}"
         )
-        return created.uid, True
+    return created.uid, True
 
 
 _TEMPLATE_FIELD_DEFINITIONS_CACHE: dict[str, set[str]] = {}
@@ -1957,19 +2065,18 @@ def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
         except Exception as exc:
             # Do not create a second resource on update failure — that is how
             # duplicate sources accumulate across publishes.
-            logging.warning(
-                "Failed to update resource for ods_id=%s uid=%s: %s",
-                ods_id,
-                matched_uid,
-                exc,
-            )
+            raise RuntimeError(
+                f"Failed to update resource for ods_id={ods_id} uid={matched_uid}: {exc}"
+            ) from exc
         return
 
     try:
         response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
         logging.info("Created resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
     except Exception as exc:
-        logging.warning("Failed to create resource for ods_id=%s source=%s: %s", ods_id, source_url, exc)
+        raise RuntimeError(
+            f"Failed to create resource for ods_id={ods_id} source={source_url}: {exc}"
+        ) from exc
 
 
 def _process_dataset(
@@ -1983,14 +2090,46 @@ def _process_dataset(
 ) -> None:
     """Process one dataset from source extraction to HUWISE schema update."""
     logging.info("STEP publish_dataset huwise_id=%s", clean_text(pub_row.get("ods_id")))
+    merged_stem = clean_text(pub_row.get("merged_stem"))
+    geo_dataset = clean_text(pub_row.get("geo_dataset"))
     context = DatasetContext(
         ods_id=clean_text(pub_row.get("ods_id")),
         dataspot_dataset_id=clean_text(pub_row.get("id")),
-        geo_dataset=clean_text(pub_row.get("geo_dataset")),
+        geo_dataset=merged_stem or geo_dataset,
     )
     if not context.ods_id or not context.dataspot_dataset_id:
         logging.warning("Skipping row with missing ods_id or dataspot id")
         return
+
+    # Resolve GeoJSON before create so a missing merge artifact cannot leave an
+    # empty HUWISE dataset without FTP source.
+    geojson_file = _resolve_geojson_file(context, geojson_files)
+    if geojson_file is None and merged_stem:
+        direct = DATASETS_DIR / f"{merged_stem}.geojson"
+        if direct.is_file():
+            geojson_file = direct
+        else:
+            raise FileNotFoundError(
+                f"Merged GeoJSON missing for ods_id={context.ods_id}: expected {direct}. "
+                "Re-run prepare_assets for this huwise_id before publish."
+            )
+
+    dataset_exists = False
+    try:
+        get_uid_by_id(dataset_id=context.ods_id)
+        dataset_exists = True
+    except IndexError:
+        dataset_exists = False
+    except Exception as exc:
+        raise RuntimeError(
+            f"HUWISE dataset id {context.ods_id!r} could not be resolved; refusing to create"
+        ) from exc
+
+    if geojson_file is None and not dataset_exists:
+        raise FileNotFoundError(
+            f"Cannot create ods_id={context.ods_id}: no local GeoJSON for "
+            f"{context.geo_dataset!r}. Run prepare_assets first."
+        )
 
     _, dataset_created = _ensure_huwise_dataset(
         context.ods_id,
@@ -1998,7 +2137,6 @@ def _process_dataset(
         dataspot_dataset_id=context.dataspot_dataset_id,
     )
 
-    geojson_file = _resolve_geojson_file(context, geojson_files)
     if geojson_file is None:
         logging.warning(
             "No local GeoJSON found for ods_id=%s (%s): resource/schema skipped, metadata still updated",
@@ -2052,13 +2190,17 @@ def _process_dataset(
         context.dataspot_dataset_id,
         geojson_file,
     )
-    if geojson_changed or schema_inputs_changed:
+    resource_count = _dataset_resource_count(context.ods_id)
+    missing_source = resource_count == 0
+    # New datasets and datasets without a source must always hit FTP + resource
+    # upsert, even when the local GeoJSON hash is unchanged.
+    must_publish_source = dataset_created or missing_source or geojson_changed
+    if must_publish_source or schema_inputs_changed:
         _upload_geojson(publish_geojson)
         change_tracking.update_hash_file(str(geojson_file))
     else:
         logging.info("Skipping FTP upload for ods_id=%s (geojson and schema unchanged)", context.ods_id)
-    resource_touched = dataset_created or geojson_changed
-    if resource_touched:
+    if must_publish_source:
         _upsert_dataset_resource(context.ods_id, source_url)
         _wait_for_huwise_idle(context.ods_id, reason="after resource upsert")
     else:
@@ -2093,7 +2235,7 @@ def _process_dataset(
         accepted_types=accepted_types,
         dataspot_dataset_id=context.dataspot_dataset_id,
         geojson_file=geojson_file,
-        force_resync=dataset_created or geojson_changed,
+        force_resync=must_publish_source,
     )
     _wait_for_huwise_idle(context.ods_id, reason="after schema upsert")
     _publish_huwise_dataset(context.ods_id)
@@ -2127,6 +2269,7 @@ def run(*, huwise_id_filter: str = "") -> None:
         logging.warning("Could not discover HUWISE field types; schema field upserts may be skipped")
 
     huwise_filter = clean_text(huwise_id_filter)
+    failures: list[str] = []
     for _, pub_row in pub_df.iterrows():
         ods_id = clean_text(pub_row.get("ods_id"))
         if huwise_filter and ods_id != huwise_filter:
@@ -2146,6 +2289,7 @@ def run(*, huwise_id_filter: str = "") -> None:
             )
         except Exception as exc:
             logging.error("Failed ods_id=%s: %s", ods_id, exc)
+            failures.append(f"{ods_id}: {exc}")
 
     catalog_snapshots = load_flat_publish_catalog()
     for ods_id in active_ids:
@@ -2159,3 +2303,7 @@ def run(*, huwise_id_filter: str = "") -> None:
     prune_all_publish_artifacts(active_ids)
     _save_last_push_snapshot(metadata_last_push)
     logging.info("STEP publish done")
+    if failures:
+        raise RuntimeError(
+            f"Publish failed for {len(failures)} dataset(s):\n" + "\n".join(failures)
+        )

@@ -54,23 +54,27 @@ def normalize_huwise_field_name(value: str) -> str:
 def normalize_geo_dataset_match_keys(geo_dataset: str) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
+
+    def _add(key: str) -> None:
+        if key and key not in seen:
+            seen.add(key)
+            keys.append(key)
+
     base = normalize_name(geo_dataset)
-    if base and base not in seen:
-        seen.add(base)
-        keys.append(base)
+    _add(base)
     text = clean(geo_dataset)
     if text and re.search(r"\bund\b", text, re.IGNORECASE):
         parts = re.split(r"\s+und\s+", text, flags=re.IGNORECASE)
-        merged = "".join(normalize_name(part) for part in parts if clean(part))
-        if merged and merged not in seen:
-            seen.add(merged)
-            keys.append(merged)
+        _add("".join(normalize_name(part) for part in parts if clean(part)))
     if text and "(" in text:
         stripped = re.sub(r"\s*\([^)]*\)\s*", " ", text)
-        stripped_key = normalize_name(stripped)
-        if stripped_key and stripped_key not in seen:
-            seen.add(stripped_key)
-            keys.append(stripped_key)
+        _add(normalize_name(stripped))
+    # STAC ZIP members are often just the geometry-type suffix, e.g. ``flaeche.geojson``
+    # for ``Schulstandorte (Gemeinde Basel): Fläche``.
+    if ":" in text:
+        suffix = text.rsplit(":", 1)[-1].strip()
+        _add(normalize_name(suffix))
+        _add(normalize_name(strip_geometry_layer_suffix(text)))
     return keys
 
 
@@ -184,3 +188,46 @@ def normalize_uuid(value: Any) -> str:
 
 def row_key(stac_collection_id: str, geo_dataset: str) -> tuple[str, str]:
     return (clean(stac_collection_id), clean(geo_dataset))
+
+
+_LAYER_GEOMETRY_SUFFIX_RE = re.compile(
+    r"\s*:\s*(Punkt|Fläche|Flaeche|Linie|Text|Symbol)\s*$",
+    re.IGNORECASE,
+)
+
+
+def strip_geometry_layer_suffix(label: str) -> str:
+    """Remove trailing ``: Punkt`` / ``: Fläche`` (etc.) geometry-type suffixes."""
+    text = clean(label)
+    stripped = _LAYER_GEOMETRY_SUFFIX_RE.sub("", text).strip()
+    return stripped or text
+
+
+def shared_geo_dataset_label(labels: list[str]) -> str:
+    """Shared display label for layers merged under one ``huwise_id``."""
+    bases = [strip_geometry_layer_suffix(label) for label in labels if clean(label)]
+    if not bases:
+        return ""
+    unique = list(dict.fromkeys(bases))
+    return unique[0]
+
+
+def merged_layer_schema_basename(collection_id: str, geo_labels: list[str]) -> str:
+    """Basename for a merged multi-layer publish artifact (``{collection}_{common_slug}``)."""
+    from schema_merge import schema_file_slug
+
+    cid = clean(collection_id)
+    labels = [clean(label) for label in geo_labels if clean(label)]
+    if not labels:
+        return cid or "merged"
+    slugs = [schema_file_slug(label) for label in labels]
+    if len(slugs) == 1:
+        return f"{cid}_{slugs[0]}" if cid else slugs[0]
+    common = slugs[0]
+    for slug in slugs[1:]:
+        while common and not slug.startswith(common):
+            common = common[:-1]
+    common = common.rstrip("_")
+    if not common:
+        common = schema_file_slug(shared_geo_dataset_label(labels)) or "merged"
+    return f"{cid}_{common}" if cid else common
