@@ -697,11 +697,18 @@ def _expected_stac_download_path(collection_id: str, geo_dataset: str) -> Path:
 
 
 def _find_zip_entry_for_geo_layer(zip_names: list[str], geo_dataset: str) -> str | None:
-    """Match a GeoJSON member inside the STAC ``latest/geojson`` ZIP to a Geometa layer label."""
+    """Match a GeoJSON member inside the STAC ``latest/geojson`` ZIP to a Geometa layer label.
+
+    ZIP members are often short stems (``flaeche.geojson``, ``punkt.geojson``) while
+    Geometa labels are long (``Schulstandorte (Gemeinde Basel): Fläche``). Matching
+    therefore also accepts suffix/geometry-type keys from
+    :func:`normalize_geo_dataset_match_keys`.
+    """
     if not zip_names or not clean(geo_dataset):
         return None
     wanted = str(geo_dataset).strip()
     wlow = wanted.lower()
+    match_keys = [key for key in normalize_geo_dataset_match_keys(geo_dataset) if key]
     for name in zip_names:
         if name.endswith("/"):
             continue
@@ -714,10 +721,10 @@ def _find_zip_entry_for_geo_layer(zip_names: list[str], geo_dataset: str) -> str
             continue
         stem = Path(name).stem
         s_norm = normalize_name(stem)
-        for key in normalize_geo_dataset_match_keys(geo_dataset):
-            if not key:
-                continue
-            if s_norm == key or s_norm.endswith(key):
+        if not s_norm:
+            continue
+        for key in match_keys:
+            if s_norm == key or s_norm.endswith(key) or key.endswith(s_norm):
                 return name
     geojsons = [n for n in zip_names if n.lower().endswith(".geojson") and not n.endswith("/")]
     if len(geojsons) == 1:

@@ -54,23 +54,27 @@ def normalize_huwise_field_name(value: str) -> str:
 def normalize_geo_dataset_match_keys(geo_dataset: str) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
+
+    def _add(key: str) -> None:
+        if key and key not in seen:
+            seen.add(key)
+            keys.append(key)
+
     base = normalize_name(geo_dataset)
-    if base and base not in seen:
-        seen.add(base)
-        keys.append(base)
+    _add(base)
     text = clean(geo_dataset)
     if text and re.search(r"\bund\b", text, re.IGNORECASE):
         parts = re.split(r"\s+und\s+", text, flags=re.IGNORECASE)
-        merged = "".join(normalize_name(part) for part in parts if clean(part))
-        if merged and merged not in seen:
-            seen.add(merged)
-            keys.append(merged)
+        _add("".join(normalize_name(part) for part in parts if clean(part)))
     if text and "(" in text:
         stripped = re.sub(r"\s*\([^)]*\)\s*", " ", text)
-        stripped_key = normalize_name(stripped)
-        if stripped_key and stripped_key not in seen:
-            seen.add(stripped_key)
-            keys.append(stripped_key)
+        _add(normalize_name(stripped))
+    # STAC ZIP members are often just the geometry-type suffix, e.g. ``flaeche.geojson``
+    # for ``Schulstandorte (Gemeinde Basel): Fläche``.
+    if ":" in text:
+        suffix = text.rsplit(":", 1)[-1].strip()
+        _add(normalize_name(suffix))
+        _add(normalize_name(strip_geometry_layer_suffix(text)))
     return keys
 
 
