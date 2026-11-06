@@ -1007,9 +1007,7 @@ def _ensure_huwise_dataset(
     except IndexError:
         logging.info("HUWISE dataset id %s not found; creating", ods_id)
     except Exception as exc:
-        raise RuntimeError(
-            f"HUWISE dataset id {ods_id!r} could not be resolved; refusing to create"
-        ) from exc
+        raise RuntimeError(f"HUWISE dataset id {ods_id!r} could not be resolved; refusing to create") from exc
 
     metadata_payload = _build_create_metadata_payload(ods_id, metadata_row)
     created = create_dataset(metadata=metadata_payload, dataset_id=ods_id, is_restricted=True)
@@ -2065,18 +2063,14 @@ def _upsert_dataset_resource(ods_id: str, source_url: str) -> None:
         except Exception as exc:
             # Do not create a second resource on update failure — that is how
             # duplicate sources accumulate across publishes.
-            raise RuntimeError(
-                f"Failed to update resource for ods_id={ods_id} uid={matched_uid}: {exc}"
-            ) from exc
+            raise RuntimeError(f"Failed to update resource for ods_id={ods_id} uid={matched_uid}: {exc}") from exc
         return
 
     try:
         response = client.post(f"/datasets/{dataset_uid}/resources/", json=payload).json()
         logging.info("Created resource for ods_id=%s uid=%s", ods_id, clean_text(response.get("uid")))
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to create resource for ods_id={ods_id} source={source_url}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to create resource for ods_id={ods_id} source={source_url}: {exc}") from exc
 
 
 def _process_dataset(
@@ -2121,9 +2115,7 @@ def _process_dataset(
     except IndexError:
         dataset_exists = False
     except Exception as exc:
-        raise RuntimeError(
-            f"HUWISE dataset id {context.ods_id!r} could not be resolved; refusing to create"
-        ) from exc
+        raise RuntimeError(f"HUWISE dataset id {context.ods_id!r} could not be resolved; refusing to create") from exc
 
     if geojson_file is None and not dataset_exists:
         raise FileNotFoundError(
@@ -2304,6 +2296,4 @@ def run(*, huwise_id_filter: str = "") -> None:
     _save_last_push_snapshot(metadata_last_push)
     logging.info("STEP publish done")
     if failures:
-        raise RuntimeError(
-            f"Publish failed for {len(failures)} dataset(s):\n" + "\n".join(failures)
-        )
+        raise RuntimeError(f"Publish failed for {len(failures)} dataset(s):\n" + "\n".join(failures))

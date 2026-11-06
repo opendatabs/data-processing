@@ -12,6 +12,7 @@ from charset_normalizer import from_path
 # TODO: : vs _ bereinigen oder behalten?; Freitextfragen (bzw welche fragen wurden überhaupt aufgenommen?); F21 in 2021; FrageLabel vs Fortsetzung (z.B. 2009)
 # TODO: alle jahre datensatz (jahresübergreifend)
 
+
 def main():
 
     datasets = [
@@ -149,7 +150,7 @@ def main():
             "ftp_folder": "jugend",
             "jahr": None,
             "ods_id": "100487",
-        }, """
+        }, """,
     ]
 
     for ds in datasets:
@@ -246,7 +247,9 @@ def process_single_file(
     df_var = read_survey_file(var_file)
     df_var.to_csv(os.path.join(data_path, export_folder, f"Variablen_{export_file}"), index=False)
     if jahr == 2013:
-        df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on="FrageName2") #TODO: mit Michael abkläre, warum das Label anders ist (also make sure that no other befragung happened in 2013, onyl quick fix!!)
+        df_merge = df_data_long.merge(
+            df_var, how="left", left_on="variable", right_on="FrageName2"
+        )  # TODO: mit Michael abkläre, warum das Label anders ist (also make sure that no other befragung happened in 2013, onyl quick fix!!)
     else:
         df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on="FrageName")
     df_merge = df_merge[df_merge["value"] != "**OTHER**"]
