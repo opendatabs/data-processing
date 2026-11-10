@@ -112,12 +112,16 @@ EXCEEDANCE_COLUMNS = [
     "parameter",
     "messwert_ug_m3",
     "interventionswert_ug_m3",
-    "Info / Massnahmen",
+    "Info",
+    "Massnahmen",
 ]
 
+# Manually maintained columns in the SharePoint workbook; never overwritten by the ETL.
+EXCEEDANCE_MANUAL_COLUMNS = ["Info", "Massnahmen"]
+
 # Natural key identifying a single exceedance event (one measurement period at one
-# location for one parameter). Used to carry over manually maintained "Info /
-# Massnahmen" entries when refreshing the exceedance workbook.
+# location for one parameter). Used to carry over the manually maintained columns
+# when refreshing the exceedance workbook.
 EXCEEDANCE_KEY_COLUMNS = ["Messbeginn", "Messende", "Standort", "parameter"]
 
 
@@ -169,7 +173,7 @@ def _format_date(value: Any) -> str:
 def _month_day_swapped(date_str: str) -> str | None:
     """Return ``YYYY-MM-DD`` with month and day swapped, if that is a valid date.
 
-    Used to attach ``Info / Massnahmen`` when the workbook stored ``07.04.2026``
+    Used to attach ``Info`` / ``Massnahmen`` when the workbook stored ``07.04.2026``
     as the ISO string ``2026-07-04`` (4 July) instead of ``2026-04-07`` (7 April).
     """
     parts = str(date_str).split("-")
@@ -190,14 +194,15 @@ def _month_day_swapped(date_str: str) -> str | None:
     return swapped
 
 
-def _info_for_exceedance(key: tuple, existing_info: dict[tuple, str]) -> str:
-    """Find ``Info / Massnahmen`` for a detected exceedance.
+def _info_for_exceedance(key: tuple, existing_info: dict[tuple, dict[str, str]]) -> dict[str, str]:
+    """Find ``Info`` and ``Massnahmen`` for a detected exceedance.
 
     Tries an exact key match, then a month/day-swapped ``Messende``/``Messbeginn``
     (faulty ISO strings in the workbook), then a unique match on Messbeginn +
     Standort + parameter.
     """
-    exact = existing_info.get(key, "")
+    empty = {column: "" for column in EXCEEDANCE_MANUAL_COLUMNS}
+    exact = existing_info.get(key)
     if exact:
         return exact
 
@@ -211,7 +216,7 @@ def _info_for_exceedance(key: tuple, existing_info: dict[tuple, str]) -> str:
     ):
         if candidate is None:
             continue
-        info = existing_info.get(candidate, "")
+        info = existing_info.get(candidate)
         if info:
             return info
 
@@ -222,7 +227,7 @@ def _info_for_exceedance(key: tuple, existing_info: dict[tuple, str]) -> str:
     ]
     if len(prefix_matches) == 1:
         return prefix_matches[0]
-    return ""
+    return empty
 
 
 def _format_number(value: Any, decimals: int | None = None) -> str:
@@ -286,7 +291,8 @@ def _build_excel_attachment(intervention_exceedances: pd.DataFrame) -> pd.DataFr
             "interventionswert": "interventionswert_ug_m3",
         }
     )
-    attachment["Info / Massnahmen"] = ""
+    for column in EXCEEDANCE_MANUAL_COLUMNS:
+        attachment[column] = ""
     return attachment.reindex(columns=EXCEEDANCE_COLUMNS)
 
 
@@ -305,7 +311,7 @@ def _load_existing_exceedances() -> pd.DataFrame:
 def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.DataFrame:
     """Combine freshly detected exceedances with the maintained workbook.
 
-    The dataset is the current detections. ``Info / Massnahmen`` is copied from
+    The dataset is the current detections. ``Info`` and ``Massnahmen`` are copied from
     the workbook and never overwritten. Workbook rows that are not a current
     detection (including entries with a swapped month/day in Messende) are not
     published.
@@ -319,19 +325,22 @@ def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.Da
         frame["Standort"] = frame["Standort"].astype(str).str.strip()
         frame["parameter"] = frame["parameter"].astype(str).str.strip()
 
-    existing_info: dict[tuple, str] = {}
+    existing_info: dict[tuple, dict[str, str]] = {}
     for _, row in existing_df.iterrows():
         key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
-        info = row.get("Info / Massnahmen", "")
-        info = "" if pd.isna(info) else str(info).strip()
-        if key not in existing_info or (not existing_info[key] and info):
-            existing_info[key] = info
+        info = {}
+        for column in EXCEEDANCE_MANUAL_COLUMNS:
+            value = row.get(column, "")
+            info[column] = "" if pd.isna(value) else str(value).strip()
+        has_info = any(info.values())
+        if key not in existing_info or (not any(existing_info[key].values()) and has_info):
+            existing_info[key] = info if has_info else {}
 
     merged_rows = []
     for _, row in new_df.iterrows():
         key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
         new_row = row.copy()
-        new_row["Info / Massnahmen"] = _info_for_exceedance(key, existing_info)
+        new_row.update(pd.Series(_info_for_exceedance(key, existing_info)))
         merged_rows.append(new_row)
 
     return pd.DataFrame(merged_rows, columns=EXCEEDANCE_COLUMNS).reset_index(drop=True)
@@ -341,7 +350,7 @@ def _publish_exceedances(attachment_df: pd.DataFrame) -> None:
     """Refresh the exceedance workbook and publish it to OGD.
 
     The maintained workbook is merged with the freshly detected exceedances
-    (keeping existing ``Info / Massnahmen``), saved to ``data_orig``, copied to
+    (keeping existing ``Info`` and ``Massnahmen``), saved to ``data_orig``, copied to
     the OGD output folder and uploaded via FTP/ODS. SharePoint is read-only for
     this job; the workbook is sent by e-mail for manual upload.
     """
@@ -388,7 +397,7 @@ def _send_exceedance_email_if_changed(
     text += f"Interventionswert-Überschreitungen (>=): {len(intervention_exceedances)}\n\n"
     text += (
         f"Die aktualisierte Datei «{EXCEEDANCE_LOCAL_NAME}» ist dieser E-Mail beigefügt.\n\n"
-        "Bitte ergänzen Sie die Spalte «Info / Massnahmen» und laden Sie die Datei "
+        "Bitte ergänzen Sie die Spalten «Info» und «Massnahmen» und laden Sie die Datei "
         "anschliessend in den folgenden SharePoint-Ordner hoch:\n\n"
         f"{EXCEEDANCE_SHAREPOINT_FOLDER}\n"
         f"{EXCEEDANCE_SHAREPOINT_URL}\n\n"
