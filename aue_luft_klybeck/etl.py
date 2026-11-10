@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 import common
-import common.change_tracking as ct
 import markdown
 import msal
 import pandas as pd
@@ -16,7 +15,7 @@ from markdown_newtab import NewTabExtension
 
 load_dotenv()
 
-# Set LOCAL_RUN=true in .env to skip SharePoint download and exceedance e-mail (offline dev on Mac).
+# Set LOCAL_RUN=true in .env to skip the SharePoint download (offline dev on Mac).
 LOCAL_RUN = os.getenv("LOCAL_RUN", "false").lower() in ("1", "true", "yes", "y")
 
 TENANT_ID = os.getenv("SHAREPOINT_TENANT_ID")
@@ -36,27 +35,14 @@ COORDINATES_LOCAL_NAME = "Koordinaten_Messstandorte_Klybeck.xlsx"
 EXCEEDANCE_LOCAL_NAME = "Gemessene_Ueberschreitungen.xlsx"
 TEXTS_LOCAL_NAME = "Texte.xlsx"
 
-# SharePoint location of the maintained exceedance workbook (read-only; we cannot write back).
-EXCEEDANCE_SHAREPOINT_FOLDER = f"{SHAREPOINT_BASE}/Ueberschreitungen"
-EXCEEDANCE_SHAREPOINT_PATH = f"{EXCEEDANCE_SHAREPOINT_FOLDER}/{EXCEEDANCE_LOCAL_NAME}"
-
 # Map of SharePoint file paths to the local file names we store them under.
 SHAREPOINT_FILES = {
     f"{SHAREPOINT_BASE}/Entwicklung Tabelle/ENTWURF_Auswertungstabelle_Klybeck_NEU.xlsx": SOURCE_LOCAL_NAME,
     f"{SHAREPOINT_BASE}/Planung Messungen/Geplante_Messungen.xlsx": PLANNED_LOCAL_NAME,
     f"{SHAREPOINT_BASE}/Planung Messungen/Koordinaten_Messstandorte_Klybeck.xlsx": COORDINATES_LOCAL_NAME,
-    EXCEEDANCE_SHAREPOINT_PATH: EXCEEDANCE_LOCAL_NAME,
+    f"{SHAREPOINT_BASE}/Ueberschreitungen/{EXCEEDANCE_LOCAL_NAME}": EXCEEDANCE_LOCAL_NAME,
     f"{SHAREPOINT_BASE}/{TEXTS_LOCAL_NAME}": TEXTS_LOCAL_NAME,
 }
-
-# Public SharePoint location of the maintained exceedance workbook (linked in e-mails).
-EXCEEDANCE_SHAREPOINT_URL = (
-    "https://baselstadt.sharepoint.com/sites/ArG-Transformations-Areale/"
-    "Freigegebene%20Dokumente/Forms/AllItems.aspx?id=%2Fsites%2FArG-Transformations-Areale"
-    "%2FFreigegebene%20Dokumente%2FKlybeck%2FImmissions%C3%BCberwachung"
-    "%2FDashboard_Klybeck%2FUeberschreitungen"
-)
-
 SOURCE_FILE = DATA_ORIG_PATH / SOURCE_LOCAL_NAME
 SOURCE_SHEET = "DUMMIE-D2_Abfrage-Dashboard (2)"
 PLANNED_SOURCE_FILE = DATA_ORIG_PATH / PLANNED_LOCAL_NAME
@@ -70,7 +56,6 @@ FEINSTAUB_OUTPUT_FILE = OUTPUT_DIR / "100523_feinstaub.csv"
 FEINSTAUB_METADATA_FILE = OUTPUT_DIR / "metadata_feinstaub.csv"
 DUST_OUTPUT_FILE = OUTPUT_DIR / "100524_staubgebundene_schadstoffe_klybeck.csv"
 VOLATILE_OUTPUT_FILE = OUTPUT_DIR / "100525_fluechtige_schadstoffe_klybeck.csv"
-EXCEEDANCE_TRACKING_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck_tracking.csv"
 EXCEEDANCE_OUTPUT_FILE = OUTPUT_DIR / "100526_gemessene_ueberschreitungen_klybeck.xlsx"
 PLANNED_OUTPUT_FILE = OUTPUT_DIR / "100527_geplante_messungen.xlsx"
 COORDINATES_OUTPUT_FILE = OUTPUT_DIR / "100528_koordinaten_klybeck.xlsx"
@@ -105,25 +90,6 @@ TARGET_COLUMNS = [
     "messmethode",
 ]
 
-EXCEEDANCE_COLUMNS = [
-    "Messbeginn",
-    "Messende",
-    "Standort",
-    "parameter",
-    "messwert_ug_m3",
-    "interventionswert_ug_m3",
-    "Info",
-    "Massnahmen",
-]
-
-# Manually maintained columns in the SharePoint workbook; never overwritten by the ETL.
-EXCEEDANCE_MANUAL_COLUMNS = ["Info", "Massnahmen"]
-
-# Natural key identifying a single exceedance event (one measurement period at one
-# location for one parameter). Used to carry over the manually maintained columns
-# when refreshing the exceedance workbook.
-EXCEEDANCE_KEY_COLUMNS = ["Messbeginn", "Messende", "Standort", "parameter"]
-
 
 def _normalize_parameter(value: Any) -> str:
     parameter = str(value).strip()
@@ -139,8 +105,7 @@ def _format_date(value: Any) -> str:
 
     SharePoint cells may be real Excel datetimes, ISO ``YYYY-MM-DD`` strings, or
     German ``DD.MM.YYYY`` strings. ISO strings must be parsed as year-month-day:
-    ``dayfirst=True`` on ``2026-07-04`` would silently turn 4 July into 7 April
-    and break exceedance key matching against the local workbook.
+    ``dayfirst=True`` on ``2026-07-04`` would silently turn 4 July into 7 April.
     """
     if value is None or value == "":
         return ""
@@ -170,66 +135,6 @@ def _format_date(value: Any) -> str:
     return ts.strftime("%Y-%m-%d")
 
 
-def _month_day_swapped(date_str: str) -> str | None:
-    """Return ``YYYY-MM-DD`` with month and day swapped, if that is a valid date.
-
-    Used to attach ``Info`` / ``Massnahmen`` when the workbook stored ``07.04.2026``
-    as the ISO string ``2026-07-04`` (4 July) instead of ``2026-04-07`` (7 April).
-    """
-    parts = str(date_str).split("-")
-    if len(parts) != 3:
-        return None
-    year, month, day = parts
-    try:
-        month_n = int(month)
-        day_n = int(day)
-    except ValueError:
-        return None
-    if month_n == day_n or month_n > 12 or day_n > 12:
-        return None
-    swapped = f"{year}-{day}-{month}"
-    ts = pd.to_datetime(swapped, errors="coerce", format="%Y-%m-%d")
-    if pd.isna(ts):
-        return None
-    return swapped
-
-
-def _info_for_exceedance(key: tuple, existing_info: dict[tuple, dict[str, str]]) -> dict[str, str]:
-    """Find ``Info`` and ``Massnahmen`` for a detected exceedance.
-
-    Tries an exact key match, then a month/day-swapped ``Messende``/``Messbeginn``
-    (faulty ISO strings in the workbook), then a unique match on Messbeginn +
-    Standort + parameter.
-    """
-    empty = {column: "" for column in EXCEEDANCE_MANUAL_COLUMNS}
-    exact = existing_info.get(key)
-    if exact:
-        return exact
-
-    messbeginn, messende, standort, parameter = key
-    swapped_ende = _month_day_swapped(messende)
-    swapped_beginn = _month_day_swapped(messbeginn)
-    for candidate in (
-        (messbeginn, swapped_ende, standort, parameter) if swapped_ende else None,
-        (swapped_beginn, messende, standort, parameter) if swapped_beginn else None,
-        (swapped_beginn, swapped_ende, standort, parameter) if swapped_beginn and swapped_ende else None,
-    ):
-        if candidate is None:
-            continue
-        info = existing_info.get(candidate)
-        if info:
-            return info
-
-    prefix_matches = [
-        info
-        for (beginn, _ende, loc, param), info in existing_info.items()
-        if beginn == messbeginn and loc == standort and param == parameter and info
-    ]
-    if len(prefix_matches) == 1:
-        return prefix_matches[0]
-    return empty
-
-
 def _format_number(value: Any, decimals: int | None = None) -> str:
     if pd.isna(value) or value == "":
         return ""
@@ -237,15 +142,6 @@ def _format_number(value: Any, decimals: int | None = None) -> str:
     if decimals is None:
         return f"{number:g}"
     return f"{number:.{decimals}f}"
-
-
-def _to_float(value: Any) -> float | None:
-    if pd.isna(value) or value == "":
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _messmethode(parameter: str) -> str:
@@ -258,166 +154,18 @@ def _messmethode(parameter: str) -> str:
     return ""
 
 
-def _build_exceedance_df(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    numeric = df.copy()
-    numeric["messwert_num"] = numeric["messwert"].apply(_to_float)
-    numeric["warnwert_num"] = numeric["warnwert"].apply(_to_float)
-    numeric["interventionswert_num"] = numeric["interventionswert"].apply(_to_float)
+def _publish_exceedances() -> None:
+    """Copy the exceedance workbook from data_orig and publish it.
 
-    warn_exceedances = numeric[
-        numeric["messwert_num"].notna()
-        & numeric["warnwert_num"].notna()
-        & (numeric["messwert_num"] >= numeric["warnwert_num"])
-    ].copy()
-    intervention_exceedances = numeric[
-        numeric["messwert_num"].notna()
-        & numeric["interventionswert_num"].notna()
-        & (numeric["messwert_num"] >= numeric["interventionswert_num"])
-    ].copy()
-
-    return warn_exceedances, intervention_exceedances
-
-
-def _build_excel_attachment(intervention_exceedances: pd.DataFrame) -> pd.DataFrame:
-    attachment = intervention_exceedances[
-        ["messbeginn", "messende", "standort", "parameter", "messwert", "interventionswert"]
-    ].copy()
-    attachment = attachment.rename(
-        columns={
-            "messbeginn": "Messbeginn",
-            "messende": "Messende",
-            "standort": "Standort",
-            "messwert": "messwert_ug_m3",
-            "interventionswert": "interventionswert_ug_m3",
-        }
-    )
-    for column in EXCEEDANCE_MANUAL_COLUMNS:
-        attachment[column] = ""
-    return attachment.reindex(columns=EXCEEDANCE_COLUMNS)
-
-
-def _load_existing_exceedances() -> pd.DataFrame:
-    """Read the existing exceedance workbook downloaded from SharePoint."""
+    The file is downloaded from SharePoint into ``data_orig``. Here we copy it
+    to the output folder under its OGD name and upload/publish it via FTP and ODS.
+    """
     if not EXCEEDANCE_SOURCE_FILE.exists():
         raise FileNotFoundError(f"Exceedance file not found: {EXCEEDANCE_SOURCE_FILE}")
-
-    existing = pd.read_excel(EXCEEDANCE_SOURCE_FILE)
-    for column in EXCEEDANCE_COLUMNS:
-        if column not in existing.columns:
-            existing[column] = ""
-    return existing[EXCEEDANCE_COLUMNS]
-
-
-def _merge_exceedances(new_df: pd.DataFrame, existing_df: pd.DataFrame) -> pd.DataFrame:
-    """Combine freshly detected exceedances with the maintained workbook.
-
-    The dataset is the current detections. ``Info`` and ``Massnahmen`` are copied from
-    the workbook and never overwritten. Workbook rows that are not a current
-    detection (including entries with a swapped month/day in Messende) are not
-    published.
-    """
-    new_df = new_df.copy()
-    existing_df = existing_df.copy()
-
-    for frame in (new_df, existing_df):
-        for date_col in ("Messbeginn", "Messende"):
-            frame[date_col] = frame[date_col].apply(_format_date)
-        frame["Standort"] = frame["Standort"].astype(str).str.strip()
-        frame["parameter"] = frame["parameter"].astype(str).str.strip()
-
-    existing_info: dict[tuple, dict[str, str]] = {}
-    for _, row in existing_df.iterrows():
-        key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
-        info = {}
-        for column in EXCEEDANCE_MANUAL_COLUMNS:
-            value = row.get(column, "")
-            info[column] = "" if pd.isna(value) else str(value).strip()
-        has_info = any(info.values())
-        if key not in existing_info or (not any(existing_info[key].values()) and has_info):
-            existing_info[key] = info if has_info else {}
-
-    merged_rows = []
-    for _, row in new_df.iterrows():
-        key = tuple(row[col] for col in EXCEEDANCE_KEY_COLUMNS)
-        new_row = row.copy()
-        new_row.update(pd.Series(_info_for_exceedance(key, existing_info)))
-        merged_rows.append(new_row)
-
-    return pd.DataFrame(merged_rows, columns=EXCEEDANCE_COLUMNS).reset_index(drop=True)
-
-
-def _publish_exceedances(attachment_df: pd.DataFrame) -> None:
-    """Refresh the exceedance workbook and publish it to OGD.
-
-    The maintained workbook is merged with the freshly detected exceedances
-    (keeping existing ``Info`` and ``Massnahmen``), saved to ``data_orig``, copied to
-    the OGD output folder and uploaded via FTP/ODS. SharePoint is read-only for
-    this job; the workbook is sent by e-mail for manual upload.
-    """
-    existing_df = _load_existing_exceedances()
-    merged_df = _merge_exceedances(attachment_df, existing_df)
-
-    DATA_ORIG_PATH.mkdir(parents=True, exist_ok=True)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    merged_df.to_excel(EXCEEDANCE_SOURCE_FILE, index=False)
-    logging.info("Wrote %s exceedance rows to %s", len(merged_df), EXCEEDANCE_SOURCE_FILE)
 
     shutil.copyfile(EXCEEDANCE_SOURCE_FILE, EXCEEDANCE_OUTPUT_FILE)
     logging.info("Copied %s to %s", EXCEEDANCE_SOURCE_FILE, EXCEEDANCE_OUTPUT_FILE)
     common.update_ftp_and_odsp(str(EXCEEDANCE_OUTPUT_FILE), "aue/luft/", "100526")
-
-
-def _send_exceedance_email_if_changed(
-    attachment_df: pd.DataFrame,
-    warn_exceedances: pd.DataFrame,
-    intervention_exceedances: pd.DataFrame,
-) -> None:
-    tracking_df = attachment_df.fillna("").sort_values(
-        [
-            "Messbeginn",
-            "Messende",
-            "Standort",
-            "parameter",
-            "messwert_ug_m3",
-            "interventionswert_ug_m3",
-        ]
-    )
-    tracking_df.to_csv(EXCEEDANCE_TRACKING_FILE, sep=";", index=False, encoding="utf-8")
-
-    if not ct.has_changed(str(EXCEEDANCE_TRACKING_FILE)):
-        logging.info("No change in exceedance content. Skipping e-mail.")
-        return
-
-    if LOCAL_RUN:
-        logging.info("LOCAL_RUN=true: skipping exceedance e-mail.")
-        return
-
-    text = "Das Klybeck Luftmessungs-ETL hat neue/veränderte Überschreitungen erkannt.\n\n"
-    text += f"Warnwert-Überschreitungen (>=): {len(warn_exceedances)}\n"
-    text += f"Interventionswert-Überschreitungen (>=): {len(intervention_exceedances)}\n\n"
-    text += (
-        f"Die aktualisierte Datei «{EXCEEDANCE_LOCAL_NAME}» ist dieser E-Mail beigefügt.\n\n"
-        "Bitte ergänzen Sie die Spalten «Info» und «Massnahmen» und laden Sie die Datei "
-        "anschliessend in den folgenden SharePoint-Ordner hoch:\n\n"
-        f"{EXCEEDANCE_SHAREPOINT_FOLDER}\n"
-        f"{EXCEEDANCE_SHAREPOINT_URL}\n\n"
-        "Freundliche Grüsse\n"
-        "Ihr automatisierter Open Data Basel-Stadt Python-Job"
-    )
-
-    msg = common.email_message(
-        subject="Klybeck Luft: Überschreitungen Warnwert/Interventionswert",
-        text=text,
-        img=None,
-        attachment=str(EXCEEDANCE_SOURCE_FILE),
-    )
-    common.send_email(msg)
-    ct.update_hash_file(str(EXCEEDANCE_TRACKING_FILE))
-    logging.info(
-        "Sent exceedance e-mail with attachment %s (SharePoint folder %s)",
-        EXCEEDANCE_SOURCE_FILE,
-        EXCEEDANCE_SHAREPOINT_FOLDER,
-    )
 
 
 def get_graph_token() -> str:
@@ -717,9 +465,6 @@ def main() -> None:
 
     source_df = pd.read_excel(SOURCE_FILE, sheet_name=SOURCE_SHEET)
     long_df = _to_long_schema(source_df)
-    warn_exceedances, intervention_exceedances = _build_exceedance_df(long_df)
-    attachment_df = _build_excel_attachment(intervention_exceedances)
-
     volatile_params = PASSIVE_PARAMS.union(ACTIVE_PARAMS)
     volatile_df = long_df[long_df["parameter"].isin(volatile_params)].copy()
     dust_df = long_df[long_df["parameter"].isin(DUST_PARAMS)].copy()
@@ -751,8 +496,7 @@ def main() -> None:
     dust_df.to_csv(DUST_OUTPUT_FILE, sep=";", index=False, encoding="utf-8")
     logging.info("Wrote %s rows to %s", len(dust_df), DUST_OUTPUT_FILE)
     common.update_ftp_and_odsp(str(DUST_OUTPUT_FILE), "aue/luft/", "100524")
-    _publish_exceedances(attachment_df)
-    _send_exceedance_email_if_changed(attachment_df, warn_exceedances, intervention_exceedances)
+    _publish_exceedances()
     _publish_planned_measurements()
     _publish_coordinates()
     _publish_texts()
