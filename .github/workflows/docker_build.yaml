@@ -275,6 +275,9 @@ jobs:
             stata_superblock_allmend:
               - 'Dockerfile'
               - 'stata_superblock_allmend/**'
+            stata_statrhena:
+              - 'Dockerfile'
+              - 'stata_statrhena/**'
             tba_abfuhrtermine:
               - 'Dockerfile'
               - 'tba_abfuhrtermine/**'
