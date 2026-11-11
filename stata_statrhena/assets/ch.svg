@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="flag-icons-ch" viewBox="0 0 640 480">
+  <path fill="#ff0000" d="M0 0h640v480H0z"/>
+  <path fill="#fff" d="M170 195h300v90H170zm105-105h90v300h-90z"/>
+</svg>
