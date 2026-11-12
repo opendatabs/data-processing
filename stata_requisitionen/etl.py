@@ -108,10 +108,19 @@ def main():
 
     out.to_file(Path("data/100517_requisitionen.geojson"), driver="GeoJSON")
 
-    out_csv = out.copy()
-    out_csv["geometry"] = out_csv.geometry.to_wkt()
-
-    # longitude/latitude are already in df; they are carried through in `out`
+    csv_columns_of_interest = [
+        "Ereignistyp",
+        "EreignistypKlasse",
+        "EinsatzJahr",
+        "EinsatzMonat",
+        "EinsatzDatum",
+        "Einsatzzeit",
+        "Lichtverhaeltnisse",
+        "ort_wohnbezirk_name",
+        "ort_wohnviertel_name",
+        "ort_gemeinde_name",
+    ]
+    out_csv = pd.DataFrame(joined[csv_columns_of_interest])
     out_csv.to_csv(Path("data/100517_requisitionen.csv"), index=False)
 
     common.update_ftp_and_odsp("data/100517_requisitionen.geojson", "requisitionen", "100517")
