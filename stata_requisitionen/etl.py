@@ -123,7 +123,7 @@ def main():
     out_csv = pd.DataFrame(joined[csv_columns_of_interest])
     out_csv.to_csv(Path("data/100517_requisitionen.csv"), index=False)
 
-    common.update_ftp_and_odsp("data/100517_requisitionen.geojson", "requisitionen", "100517")
+    common.update_ftp_and_odsp("data/100517_requisitionen.csv", "requisitionen", "100517")
 
 
 if __name__ == "__main__":
