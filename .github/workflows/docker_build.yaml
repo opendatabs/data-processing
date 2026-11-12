@@ -275,6 +275,9 @@ jobs:
             stata_superblock_allmend:
               - 'Dockerfile'
               - 'stata_superblock_allmend/**'
+            stata_statrhena:
+              - 'Dockerfile'
+              - 'stata_statrhena/**'
             tba_abfuhrtermine:
               - 'Dockerfile'
               - 'tba_abfuhrtermine/**'
@@ -318,6 +321,9 @@ jobs:
   build_base:
     needs: changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Check out code
         uses: actions/checkout@v7
@@ -331,7 +337,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push the base image
         # Only run if base_changed == 'true'
@@ -361,6 +367,9 @@ jobs:
     needs: [changes, build_base]
     if: ${{ needs.changes.outputs.projects != '[]' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     strategy:
       fail-fast: false
@@ -380,7 +389,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push Docker image for ${{ matrix.project }}
         uses: docker/build-push-action@v7
