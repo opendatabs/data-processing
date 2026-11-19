@@ -18,6 +18,7 @@ import mimetypes
 import os
 import pathlib
 import re
+import unicodedata
 
 import common
 import pandas as pd
@@ -57,7 +58,15 @@ COUNTRY_FIELDS = {
     "copyright": "Copyright",
     "info": "Specific_Information",
 }
-TREE_TOPICS = ("1", "2", "3", "4")
+# Data-tree images per topic tile: data_orig/webp/<prefix>_<TREE_VARIANT>_<LANG>.webp.
+# "live" shows the indicators published in 100553; "all" also contains not yet released ones.
+TREE_FILES = {
+    "1": "Datenbaum_Bevölkerung",
+    "2": "Datenbaum_Wirtschaft_und_Arbeit",
+    "3": None,
+    "4": None,
+}
+TREE_VARIANT = "live"
 FTP_REMOTE_PATH = "statrhena"
 _DATASET_FILE = re.compile(r"^(\d+)_.*\.csv$")
 
@@ -237,18 +246,23 @@ def build_labels() -> dict:
     return labels
 
 
-def build_tree_images() -> dict:
-    """Data-tree images per topic and language: data_orig/webp/<topic>_<lang>.webp."""
+def build_tree_images(langs: tuple[str, ...] = LANGS) -> dict:
+    """Data-tree images per topic tile and language, embedded as data URIs."""
+    # Match names Unicode-normalised: macOS may store "ö" decomposed (NFD).
+    files = {}
+    if WEBP_DIR.is_dir():
+        files = {unicodedata.normalize("NFC", p.name).lower(): p for p in WEBP_DIR.glob("*.webp")}
     images: dict[str, dict[str, str | None]] = {}
-    for topic in TREE_TOPICS:
+    for topic, prefix in TREE_FILES.items():
         images[topic] = {}
-        for lang in LANGS:
-            path = WEBP_DIR / f"{topic}_{lang}.webp"
-            if path.exists():
-                images[topic][lang] = data_uri(path)
-            else:
-                logging.warning("Data tree image missing: %s", path.relative_to(ROOT))
-                images[topic][lang] = None
+        for lang in langs:
+            path = None
+            if prefix:
+                name = unicodedata.normalize("NFC", f"{prefix}_{TREE_VARIANT}_{lang}.webp").lower()
+                path = files.get(name)
+                if path is None:
+                    logging.warning("Data tree image missing: webp/%s_%s_%s.webp", prefix, TREE_VARIANT, lang.upper())
+            images[topic][lang] = data_uri(path) if path else None
     return images
 
 
@@ -282,7 +296,6 @@ def build_pages() -> None:
         "data_gz": _json_gz(build_data()),
         "metadata_gz": _json_gz(build_metadata()),
         "labels": build_labels(),
-        "trees": build_tree_images(),
         "flags": {
             "de": data_uri(ASSETS / "de.svg"),
             "en": data_uri(ASSETS / "en.svg"),
@@ -297,11 +310,16 @@ def build_pages() -> None:
         ("index_en.html", "en", False),
         ("index_fr.html", "fr", False),
     ]
+    # The images are large, so single-language pages only carry their own language.
+    trees_all = build_tree_images()
     OUT_DIR.mkdir(exist_ok=True)
     for name, fixed_lang, show_lang in variants:
+        trees = trees_all
+        if fixed_lang:
+            trees = {topic: {fixed_lang: imgs[fixed_lang]} for topic, imgs in trees_all.items()}
         out = OUT_DIR / name
         out.write_text(
-            render_html(font_css, payload, fixed_lang=fixed_lang, show_lang=show_lang),
+            render_html(font_css, {**payload, "trees": trees}, fixed_lang=fixed_lang, show_lang=show_lang),
             encoding="utf-8",
         )
         logging.info("Wrote %s (%s KB)", out.name, round(out.stat().st_size / 1024))
@@ -500,7 +518,7 @@ dialog.lightbox::backdrop { background: rgba(20,22,30,.7); }
 .lb-close:hover { border-color: var(--blue); color: var(--blue); }
 .lb-body { padding: 16px; overflow: auto; }
 .lb-body img { margin: 0 auto; cursor: zoom-in; }
-.lb-body.zoomed img { max-width: none; cursor: zoom-out; }
+.lb-body.zoomed img { max-width: none; width: 250%; cursor: zoom-out; }
 .lb-missing { padding: 40px 16px; text-align: center; color: var(--muted); }
 
 /* Sections */
@@ -1472,7 +1490,17 @@ function initLightbox() {
       ? `<img src="${src}" alt="${escapeHtml(t("tree.title") + ": " + t("theme." + topic))}" />`
       : `<p class="lb-missing">${escapeHtml(t("tree.missing"))}</p>`;
     const img = body.querySelector("img");
-    if (img) img.addEventListener("click", () => body.classList.toggle("zoomed"));
+    // Zoom in around the clicked spot so that part stays in view.
+    if (img) img.addEventListener("click", (e) => {
+      const rect = img.getBoundingClientRect();
+      const fx = (e.clientX - rect.left) / rect.width;
+      const fy = (e.clientY - rect.top) / rect.height;
+      const zoomed = body.classList.toggle("zoomed");
+      if (zoomed) {
+        body.scrollLeft = fx * img.offsetWidth - body.clientWidth / 2;
+        dlg.scrollTop = fy * img.offsetHeight - dlg.clientHeight / 2;
+      }
+    });
     dlg.showModal();
   }));
   document.getElementById("lbClose").addEventListener("click", () => dlg.close());
