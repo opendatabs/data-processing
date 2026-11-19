@@ -73,6 +73,7 @@ __pycache__/
 /stata_daily_upload/data/StatA/stata_daily_uploads.json
 /stata_erwarteter_stromverbrauch/pw.txt
 /stata_erwarteter_stromverbrauch/Stromverbrauch_productiv.R
+/stata_statrhena/data_orig/webp/
 /zefix_handelsregister/data/addr_to_coords_lookup_table.json
 /zrd_gesetzessammlung/data/*.json
 

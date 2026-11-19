@@ -497,28 +497,55 @@ button, select, input { font: inherit; }
 
 /* Lightbox */
 dialog.lightbox {
-  width: min(1400px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  width: calc(100vw - 32px);
+  max-width: 1600px;
+  height: calc(100vh - 32px);
+  max-height: none;
   padding: 0;
   border: 0;
   box-shadow: 0 24px 60px rgba(0,0,0,.35);
+  overflow: hidden;
 }
+dialog.lightbox[open] { display: flex; flex-direction: column; }
 dialog.lightbox::backdrop { background: rgba(20,22,30,.7); }
 .lb-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--line);
-  position: sticky; top: 0; background: #fff; z-index: 1;
+  background: #fff;
 }
-.lb-head h2 { margin: 0; font-size: 1.15rem; font-weight: 600; }
-.lb-close {
+.lb-head h2 { margin: 0; font-size: 1.15rem; font-weight: 600; flex: 1 1 auto; min-width: 0; }
+.lb-tools { display: flex; align-items: center; gap: 6px; }
+.lb-btn {
+  display: inline-grid; place-items: center;
+  min-width: 36px; height: 36px; padding: 0 10px;
   border: 1px solid var(--line); background: #fff; cursor: pointer;
-  width: 36px; height: 36px; font-size: 1.3rem; line-height: 1;
+  font-size: 1.1rem; font-weight: 600; line-height: 1; color: var(--ink);
 }
-.lb-close:hover { border-color: var(--blue); color: var(--blue); }
-.lb-body { padding: 16px; overflow: auto; }
-.lb-body img { margin: 0 auto; cursor: zoom-in; }
-.lb-body.zoomed img { max-width: none; width: 250%; cursor: zoom-out; }
+.lb-btn.text { font-size: .85rem; }
+.lb-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+.lb-btn:disabled { opacity: .4; cursor: not-allowed; }
+.lb-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.lb-zoom { min-width: 52px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.lb-sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+.lb-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--soft);
+  cursor: grab;
+  overscroll-behavior: contain;
+}
+.lb-view.dragging { cursor: grabbing; user-select: none; }
+.lb-view img { max-width: none; margin: 0 auto; -webkit-user-drag: none; user-select: none; }
+.lb-hint {
+  padding: 6px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .8rem;
+  background: #fff;
+}
 .lb-missing { padding: 40px 16px; text-align: center; color: var(--muted); }
 
 /* Sections */
@@ -798,9 +825,17 @@ __LANG_SWITCHER__
   <dialog class="lightbox" id="lightbox">
     <div class="lb-head">
       <h2 id="lbTitle"></h2>
-      <button type="button" class="lb-close" id="lbClose" aria-label="Close">×</button>
+      <div class="lb-tools">
+        <button type="button" class="lb-btn" id="lbOut" data-i18n-title="tree.zoomOut">−</button>
+        <span class="lb-zoom" id="lbZoom" aria-live="polite">100%</span>
+        <button type="button" class="lb-btn" id="lbIn" data-i18n-title="tree.zoomIn">+</button>
+        <button type="button" class="lb-btn text" id="lbFit" data-i18n="tree.fit"></button>
+        <span class="lb-sep"></span>
+        <button type="button" class="lb-btn" id="lbClose" data-i18n-title="tree.close">×</button>
+      </div>
     </div>
-    <div class="lb-body" id="lbBody"></div>
+    <div class="lb-view" id="lbView"></div>
+    <div class="lb-hint" data-i18n="tree.hint"></div>
   </dialog>
 
   <div id="status" hidden></div>
@@ -886,6 +921,10 @@ const I18N = {
     "tree.title": "Datenbaum",
     "tree.missing": "Der Datenbaum für dieses Thema folgt in Kürze.",
     "tree.close": "Schliessen",
+    "tree.zoomIn": "Vergrössern",
+    "tree.zoomOut": "Verkleinern",
+    "tree.fit": "Einpassen",
+    "tree.hint": "Bild mit gedrückter Maustaste verschieben · Zoomen mit + / − oder Strg + Mausrad",
     "filters.title": "Suche und Filter",
     "filter.searchPlaceholder": "Indikator suchen, z. B. Geburten…",
     "filter.all": "Alle",
@@ -936,6 +975,10 @@ const I18N = {
     "tree.title": "Data tree",
     "tree.missing": "The data tree for this topic will be available soon.",
     "tree.close": "Close",
+    "tree.zoomIn": "Zoom in",
+    "tree.zoomOut": "Zoom out",
+    "tree.fit": "Fit",
+    "tree.hint": "Drag the image to move it · Zoom with + / − or Ctrl + mouse wheel",
     "filters.title": "Search and filters",
     "filter.searchPlaceholder": "Search indicators, e.g. births…",
     "filter.all": "All",
@@ -986,6 +1029,10 @@ const I18N = {
     "tree.title": "Arborescence des données",
     "tree.missing": "L’arborescence de ce thème sera bientôt disponible.",
     "tree.close": "Fermer",
+    "tree.zoomIn": "Agrandir",
+    "tree.zoomOut": "Réduire",
+    "tree.fit": "Ajuster",
+    "tree.hint": "Faites glisser l’image pour la déplacer · Zoom avec + / − ou Ctrl + molette",
     "filters.title": "Recherche et filtres",
     "filter.searchPlaceholder": "Rechercher un indicateur, p. ex. naissances…",
     "filter.all": "Tous",
@@ -1477,34 +1524,117 @@ function renderDownloads() {
 }
 
 /* ---------- Data tree lightbox ---------- */
+/* Zoom/pan viewer: scale is relative to the image's natural size; "fit" shows the whole tree. */
+const tree = { img: null, scale: 1, fit: 1 };
+const ZOOM_STEP = 1.25;
+
+function treeMax() { return Math.max(1, tree.fit); }
+
+function computeFit() {
+  const view = document.getElementById("lbView");
+  const img = tree.img;
+  return Math.min((view.clientWidth - 24) / img.naturalWidth, (view.clientHeight - 24) / img.naturalHeight);
+}
+
+/** Set the zoom level, keeping the image point under view coordinates (cx, cy) in place. */
+function setZoom(next, cx, cy) {
+  const img = tree.img;
+  if (!img) return;
+  const view = document.getElementById("lbView");
+  next = Math.min(Math.max(next, tree.fit), treeMax());
+  if (cx === undefined) { cx = view.clientWidth / 2; cy = view.clientHeight / 2; }
+  const ix = (view.scrollLeft + cx - img.offsetLeft) / tree.scale;
+  const iy = (view.scrollTop + cy - img.offsetTop) / tree.scale;
+  tree.scale = next;
+  const w = img.naturalWidth * next;
+  const h = img.naturalHeight * next;
+  img.style.width = `${w}px`;
+  img.style.height = `${h}px`;
+  // Centre the image while it is smaller than the viewer.
+  img.style.marginTop = `${Math.max(0, (view.clientHeight - h) / 2)}px`;
+  view.scrollLeft = ix * next + img.offsetLeft - cx;
+  view.scrollTop = iy * next + img.offsetTop - cy;
+  document.getElementById("lbZoom").textContent = `${Math.round((next / tree.fit) * 100)}%`;
+  document.getElementById("lbOut").disabled = next <= tree.fit + 1e-6;
+  document.getElementById("lbIn").disabled = next >= treeMax() - 1e-6;
+}
+
+function fitTree() {
+  if (!tree.img) return;
+  tree.fit = computeFit();
+  setZoom(tree.fit);
+}
+
 function initLightbox() {
   const dlg = document.getElementById("lightbox");
-  const body = document.getElementById("lbBody");
+  const view = document.getElementById("lbView");
+  const tools = [document.getElementById("lbIn"), document.getElementById("lbOut"), document.getElementById("lbFit")];
+
   document.querySelectorAll(".tile").forEach(tile => tile.addEventListener("click", () => {
     const topic = tile.dataset.tree;
     const imgs = PAYLOAD.trees[topic] || {};
     const src = imgs[lang] || imgs.de;
-    document.getElementById("lbTitle").textContent = `${t("tree.title")}: ${t("theme." + topic)}`;
-    body.classList.remove("zoomed");
-    body.innerHTML = src
-      ? `<img src="${src}" alt="${escapeHtml(t("tree.title") + ": " + t("theme." + topic))}" />`
+    const title = `${t("tree.title")}: ${t("theme." + topic)}`;
+    document.getElementById("lbTitle").textContent = title;
+    tree.img = null;
+    view.innerHTML = src
+      ? `<img src="${src}" alt="${escapeHtml(title)}" draggable="false" />`
       : `<p class="lb-missing">${escapeHtml(t("tree.missing"))}</p>`;
-    const img = body.querySelector("img");
-    // Zoom in around the clicked spot so that part stays in view.
-    if (img) img.addEventListener("click", (e) => {
-      const rect = img.getBoundingClientRect();
-      const fx = (e.clientX - rect.left) / rect.width;
-      const fy = (e.clientY - rect.top) / rect.height;
-      const zoomed = body.classList.toggle("zoomed");
-      if (zoomed) {
-        body.scrollLeft = fx * img.offsetWidth - body.clientWidth / 2;
-        dlg.scrollTop = fy * img.offsetHeight - dlg.clientHeight / 2;
-      }
-    });
+    tools.forEach(b => { b.disabled = !src; });
+    document.getElementById("lbZoom").textContent = src ? "…" : "";
     dlg.showModal();
+    const img = view.querySelector("img");
+    if (img) img.decode().catch(() => {}).then(() => { tree.img = img; tree.scale = 1; fitTree(); });
   }));
+
+  document.getElementById("lbIn").addEventListener("click", () => setZoom(tree.scale * ZOOM_STEP));
+  document.getElementById("lbOut").addEventListener("click", () => setZoom(tree.scale / ZOOM_STEP));
+  document.getElementById("lbFit").addEventListener("click", fitTree);
   document.getElementById("lbClose").addEventListener("click", () => dlg.close());
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => { tree.img = null; view.innerHTML = ""; });
+  dlg.addEventListener("keydown", (e) => {
+    if (!tree.img || e.target.closest("input")) return;
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); setZoom(tree.scale * ZOOM_STEP); }
+    else if (e.key === "-") { e.preventDefault(); setZoom(tree.scale / ZOOM_STEP); }
+    else if (e.key === "0") { e.preventDefault(); fitTree(); }
+  });
+
+  // Ctrl/⌘ + wheel (and trackpad pinch) zooms around the cursor; plain wheel scrolls.
+  view.addEventListener("wheel", (e) => {
+    if (!tree.img || !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const rect = view.getBoundingClientRect();
+    setZoom(tree.scale * Math.exp(-e.deltaY * 0.002), e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+
+  // Click and drag to pan (mouse/pen); touch keeps native scrolling.
+  let drag = null;
+  view.addEventListener("pointerdown", (e) => {
+    if (!tree.img || e.button !== 0 || e.pointerType === "touch") return;
+    drag = { x: e.clientX, y: e.clientY, left: view.scrollLeft, top: view.scrollTop, id: e.pointerId };
+    view.setPointerCapture(e.pointerId);
+    view.classList.add("dragging");
+  });
+  view.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    view.scrollLeft = drag.left - (e.clientX - drag.x);
+    view.scrollTop = drag.top - (e.clientY - drag.y);
+  });
+  const endDrag = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag = null;
+    view.classList.remove("dragging");
+  };
+  view.addEventListener("pointerup", endDrag);
+  view.addEventListener("pointercancel", endDrag);
+
+  window.addEventListener("resize", () => {
+    if (!tree.img) return;
+    const wasFit = Math.abs(tree.scale - tree.fit) < 1e-6;
+    tree.fit = computeFit();
+    setZoom(wasFit ? tree.fit : tree.scale);
+  });
 }
 
 /* ---------- Language ---------- */
@@ -1512,7 +1642,11 @@ function applyStaticI18n() {
   document.documentElement.lang = lang;
   document.title = t("page.title");
   document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.getAttribute("data-i18n")); });
-  document.getElementById("lbClose").setAttribute("aria-label", t("tree.close"));
+  document.querySelectorAll("[data-i18n-title]").forEach(el => {
+    const text = t(el.getAttribute("data-i18n-title"));
+    el.title = text;
+    el.setAttribute("aria-label", text);
+  });
   document.getElementById("searchLabel").textContent = colLabel("Variable_Description");
   document.getElementById("search").placeholder = t("filter.searchPlaceholder");
   if (SHOW_LANG) {
