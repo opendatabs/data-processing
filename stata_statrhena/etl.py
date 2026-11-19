@@ -20,6 +20,7 @@ import pathlib
 import re
 
 import common
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,9 +29,35 @@ ROOT = pathlib.Path(__file__).resolve().parent
 DATA_ORIG = ROOT / "data_orig"
 OUT_DIR = ROOT / "data"
 ASSETS = ROOT / "assets"
-TOPIC_BEVOELKERUNG = "1_Bevölkerung"
-TOPIC_WIRTSCHAFT = "2_Wirtschaft_Arbeit"
+WEBP_DIR = DATA_ORIG / "webp"
+DATA_FILE = DATA_ORIG / "100553_statrhena_all_databs.csv"
+META_SHORT_FILE = DATA_ORIG / "100554_statrhena_metadaten_1_databs.csv"
+META_LONG_FILE = DATA_ORIG / "100555_statrhena_metadaten_2_databs.csv"
+LABELS_FILE = DATA_ORIG / "statrhena_spaltennamen.xlsx"
+LANGS = ("de", "fr", "en")
+# Fields that exist once per language as <Field>_DE / _FR / _EN.
+VAR_FIELDS = {
+    "topic": "Topic",
+    "subtopic": "Subtopic",
+    "title": "Title",
+    "variable": "Variable",
+    "desc": "Variable_Description",
+    "unit": "Measure_Unit",
+}
+PLACE_FIELDS = ("land_code", "land", "region_code", "region", "kanton_code", "kanton_kreis_departement")
+# Country tabs in the long metadata: page key -> column prefix (columns are <Field>_<prefix>1/2).
 COUNTRIES = (("ch", "CH"), ("de", "DE"), ("fr", "FR"))
+COUNTRY_FIELDS = {
+    "title": "Title",
+    "statistic": "Statistic",
+    "source": "Source",
+    "database": "Database",
+    "code": "Code",
+    "stichtag": "Stichtag",
+    "copyright": "Copyright",
+    "info": "Specific_Information",
+}
+TREE_TOPICS = ("1", "2", "3", "4")
 FTP_REMOTE_PATH = "statrhena"
 _DATASET_FILE = re.compile(r"^(\d+)_.*\.csv$")
 
@@ -53,6 +80,8 @@ def data_uri(path: pathlib.Path) -> str:
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     if path.suffix == ".svg":
         mime = "image/svg+xml"
+    elif path.suffix == ".webp":
+        mime = "image/webp"
     return f"data:{mime};base64,{b64(path)}"
 
 
@@ -72,16 +101,20 @@ def render_html(font_css: str, payload: dict, *, fixed_lang: str | None, show_la
         .replace("__FIXED_LANG__", json.dumps(fixed_lang))
         .replace("__SHOW_LANG__", "true" if show_lang else "false")
         .replace("__LANG_SWITCHER__", LANG_SWITCHER_HTML if show_lang else "")
-        .replace("__ICON_BEVOELKERUNG__", nav_icon("users.svg"))
-        .replace("__ICON_WIRTSCHAFT__", nav_icon("settings.svg"))
-        .replace("__ICON_GESELLSCHAFT__", nav_icon("message-square-more.svg"))
-        .replace("__ICON_UMWELT__", nav_icon("rotate-ccw.svg"))
+        .replace("__ICON_1__", nav_icon("users.svg"))
+        .replace("__ICON_2__", nav_icon("settings.svg"))
+        .replace("__ICON_3__", nav_icon("message-square-more.svg"))
+        .replace("__ICON_4__", nav_icon("rotate-ccw.svg"))
     )
 
 
 def _text(value: str | None) -> str:
     text = (value or "").strip()
     return "" if text == "NA" else text
+
+
+def _per_lang(row: dict[str, str], field: str) -> dict[str, str]:
+    return {lang: _text(row.get(f"{field}_{lang.upper()}")) for lang in LANGS}
 
 
 def _country_value(row: dict[str, str], field: str, prefix: str) -> str:
@@ -101,56 +134,122 @@ def _timespan(row: dict[str, str], prefix: str) -> list[str]:
     return [start, end]
 
 
-def _read_topic(path: pathlib.Path, topic: str) -> list[dict[str, str]]:
+def _read_csv(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as handle:
-        return [row for row in csv.DictReader(handle) if _text(row.get("Topic")) == topic]
+        return list(csv.DictReader(handle))
 
 
-def _metadata_for(topic: str) -> dict:
-    """Shape one topic from the metadata CSVs into the structure the page reads."""
-    short_rows = _read_topic(DATA_ORIG / "100554_statrhena_metadaten_1_databs.csv", topic)
-    long_rows = _read_topic(DATA_ORIG / "100555_statrhena_metadaten_2_databs.csv", topic)
-    subtopics: list[str] = []
-    for row in short_rows:
-        subtopic = _text(row.get("Subtopic"))
-        if subtopic and subtopic not in subtopics:
-            subtopics.append(subtopic)
-    short = [
-        {
-            "subtopic": _text(row.get("Subtopic")),
-            "title": _text(row.get("Title")),
-            "variable": _text(row.get("Variable")),
-            "description": _text(row.get("Variable_Description")),
-            "unit": _text(row.get("Measure_Unit")),
-            "min": _text(row.get("Timespan_Min")),
-            "max": _text(row.get("Timespan_Max")),
-            "source": _text(row.get("Source")),
-            "footnote": _text(row.get("Footnote")),
-        }
-        for row in short_rows
-    ]
-    long = [
-        {
-            "variable": _text(row.get("Variable")),
-            "title": _text(row.get("Title")),
-            "description": _text(row.get("Variable_Description")),
-            "footnote": _text(row.get("Footnote")),
-            "titles": {code: _country_value(row, "Title", prefix) for code, prefix in COUNTRIES},
-            "stats": {code: _country_value(row, "Statistic", prefix) for code, prefix in COUNTRIES},
-            "info": {code: _country_value(row, "Specific_Information", prefix) for code, prefix in COUNTRIES},
-            "sources": {code: _country_value(row, "Source", prefix) for code, prefix in COUNTRIES},
-            "timespan": {code: _timespan(row, prefix) for code, prefix in COUNTRIES},
-        }
-        for row in long_rows
-    ]
-    return {"short": short, "long": long, "subtopics": subtopics}
+def build_data() -> dict:
+    """Shape 100553 into a compact, column-oriented structure for the page.
+
+    Indicator texts and places are stored once and referenced by index from
+    every row, which keeps the embedded payload small and fast to parse.
+    """
+    var_index: dict[str, int] = {}
+    variables: list[dict] = []
+    place_index: dict[tuple, int] = {}
+    places: list[list[str]] = []
+    geo_index: dict[str, int] = {}
+    geos: list[str] = []
+    cols: dict[str, list] = {"v": [], "y": [], "g": [], "p": [], "x": [], "d": []}
+
+    for row in _read_csv(DATA_FILE):
+        key = _text(row["Variable_DE"])
+        if key not in var_index:
+            var_index[key] = len(variables)
+            variables.append({name: _per_lang(row, field) for name, field in VAR_FIELDS.items()})
+        place = tuple(_text(row[f]) for f in PLACE_FIELDS)
+        if place not in place_index:
+            place_index[place] = len(places)
+            places.append(list(place))
+        geo = _text(row["geo"])
+        if geo not in geo_index:
+            geo_index[geo] = len(geos)
+            geos.append(geo)
+        integer = _text(row["values_integer"])
+        decimal = _text(row["values_decimal"])
+        if decimal:
+            value, is_decimal = float(decimal), 1
+        else:
+            value, is_decimal = (int(integer) if integer else None), 0
+        year = _text(row["jahr_annee"])
+        cols["v"].append(var_index[key])
+        cols["y"].append(int(year) if year.isdigit() else year)
+        cols["g"].append(geo_index[geo])
+        cols["p"].append(place_index[place])
+        cols["x"].append(value)
+        cols["d"].append(is_decimal)
+
+    logging.info("Data: %s rows, %s indicators, %s places", len(cols["v"]), len(variables), len(places))
+    return {"vars": variables, "places": places, "geos": geos, "rows": cols}
 
 
 def build_metadata() -> dict:
-    return {
-        TOPIC_BEVOELKERUNG: _metadata_for(TOPIC_BEVOELKERUNG),
-        TOPIC_WIRTSCHAFT: _metadata_for(TOPIC_WIRTSCHAFT),
-    }
+    """Metadata per indicator (keyed by Variable_DE) from 100554 (short) and 100555 (long)."""
+    meta: dict[str, dict] = {}
+    for row in _read_csv(META_SHORT_FILE):
+        key = _text(row.get("Variable_DE"))
+        if not key:
+            continue
+        meta[key] = {
+            "min": _text(row.get("Timespan_Min")),
+            "max": _text(row.get("Timespan_Max")),
+            "source": _text(row.get("Source")),
+            "footnote": _per_lang(row, "Footnote"),
+            "countries": {},
+        }
+    for row in _read_csv(META_LONG_FILE):
+        key = _text(row.get("Variable_DE"))
+        if not key:
+            continue
+        entry = meta.setdefault(
+            key,
+            {
+                "min": _text(row.get("Timespan_Min")),
+                "max": _text(row.get("Timespan_Max")),
+                "source": _text(row.get("Source")),
+                "footnote": _per_lang(row, "Footnote"),
+                "countries": {},
+            },
+        )
+        for code, prefix in COUNTRIES:
+            fields = {name: _country_value(row, field, prefix) for name, field in COUNTRY_FIELDS.items()}
+            fields["timespan"] = _timespan(row, prefix)
+            entry["countries"][code] = fields
+    return meta
+
+
+def build_labels() -> dict:
+    """Display names per technical column from the Excel mapping (empty cells are skipped)."""
+    if not LABELS_FILE.exists():
+        logging.warning("Label file %s missing, using technical column names", LABELS_FILE.name)
+        return {}
+    frame = pd.read_excel(LABELS_FILE, sheet_name="Spaltennamen", dtype=str).fillna("")
+    labels: dict[str, dict[str, str]] = {}
+    for record in frame.to_dict("records"):
+        column = record.get("spalte", "").strip()
+        if not column:
+            continue
+        texts = {lang: str(record.get(f"label_{lang.upper()}", "")).strip() for lang in LANGS}
+        texts = {lang: text for lang, text in texts.items() if text}
+        if texts:
+            labels[column] = texts
+    return labels
+
+
+def build_tree_images() -> dict:
+    """Data-tree images per topic and language: data_orig/webp/<topic>_<lang>.webp."""
+    images: dict[str, dict[str, str | None]] = {}
+    for topic in TREE_TOPICS:
+        images[topic] = {}
+        for lang in LANGS:
+            path = WEBP_DIR / f"{topic}_{lang}.webp"
+            if path.exists():
+                images[topic][lang] = data_uri(path)
+            else:
+                logging.warning("Data tree image missing: %s", path.relative_to(ROOT))
+                images[topic][lang] = None
+    return images
 
 
 def gzip_b64(data: bytes) -> str:
@@ -158,6 +257,10 @@ def gzip_b64(data: bytes) -> str:
     with gzip.GzipFile(fileobj=buffer, mode="wb", filename="", mtime=0) as handle:
         handle.write(data)
     return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _json_gz(obj) -> str:
+    return gzip_b64(json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
 
 def build_pages() -> None:
@@ -176,9 +279,10 @@ def build_pages() -> None:
     )
 
     payload = {
-        "bevoelkerung_gz": gzip_b64((DATA_ORIG / "100550_statrhena_bevoelkerung_databs.csv").read_bytes()),
-        "wirtschaft_gz": gzip_b64((DATA_ORIG / "100551_statrhena_wirtschaft_arbeit_databs.csv").read_bytes()),
-        "metadata_gz": gzip_b64(json.dumps(build_metadata(), ensure_ascii=False).encode("utf-8")),
+        "data_gz": _json_gz(build_data()),
+        "metadata_gz": _json_gz(build_metadata()),
+        "labels": build_labels(),
+        "trees": build_tree_images(),
         "flags": {
             "de": data_uri(ASSETS / "de.svg"),
             "en": data_uri(ASSETS / "en.svg"),
@@ -226,7 +330,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>StatRhena: Daten &amp; Metadaten</title>
+<title>StatRhena: Daten und Metadaten</title>
 <style>
 __FONT_CSS__
 
@@ -237,8 +341,8 @@ __FONT_CSS__
   --muted: #5b6070;
   --line: #e6e7eb;
   --soft: #f7f7f7;
-  --footer: #222531;
   --font: "Work Sans", system-ui, sans-serif;
+  --row-h: 36px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -255,14 +359,34 @@ a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
 button, select, input { font: inherit; }
 
+.wrap {
+  width: min(1600px, 100%);
+  margin: 0 auto;
+  padding: 40px 32px 48px;
+}
+@media (max-width: 560px) { .wrap { padding: 28px 16px 40px; } }
+
 .page-bar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px 24px;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
-.page-bar .page-title { margin: 0; flex: 1; min-width: 0; }
+.page-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(2.1rem, 4vw, 2.85rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.intro {
+  margin: 0 0 28px;
+  max-width: 80ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
 
 .lang { position: relative; flex: 0 0 auto; margin-top: 6px; }
 .lang-btn {
@@ -301,95 +425,104 @@ button, select, input { font: inherit; }
 .lang-menu button:hover, .lang-menu button.active { background: var(--soft); }
 .lang-menu img { width: 22px; height: 16px; object-fit: cover; border-radius: 2px; }
 
-.wrap {
-  width: min(1600px, 100%);
-  margin: 0 auto;
-  padding: 40px 32px 48px;
-}
-
-.page-title {
-  margin: 0 0 24px;
-  font-size: clamp(2.1rem, 4vw, 2.85rem);
-  font-weight: 700;
-  letter-spacing: -0.025em;
-}
-
+/* Topic tiles: each opens the data tree image */
 .theme-nav {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 36px;
+  margin-bottom: 40px;
 }
-@media (max-width: 800px) {
-  .theme-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-.theme-nav a {
+@media (max-width: 800px) { .theme-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile {
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 96px;
+  gap: 14px;
+  min-height: 132px;
   padding: 16px;
+  border: 0;
   background: var(--blue);
   color: #fff;
-  transition: background .15s ease;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(34,37,49,.12);
+  transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
 }
-.theme-nav a:hover { background: var(--blue-dark); }
-.theme-nav a.soon { opacity: .72; }
-.theme-nav svg {
+.tile:hover, .tile:focus-visible {
+  background: var(--blue-dark);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(17,106,141,.28);
+}
+.tile:focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+.tile svg {
   width: 30px; height: 30px;
   stroke: #fff; fill: none; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
 }
-.theme-nav span { font-weight: 600; font-size: .98rem; }
-
-.theme {
-  padding: 40px 0 52px;
-  border-bottom: 1px solid var(--line);
-  scroll-margin-top: 24px;
+.tile .tile-name { font-weight: 600; font-size: 1rem; flex: 1; }
+.tile .tile-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .85rem; font-weight: 600;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.35);
 }
-.theme:last-of-type { border-bottom: 0; }
-.theme h2 {
-  margin: 0 0 10px;
+.tile .tile-cta .arrow { transition: transform .15s ease; }
+.tile:hover .tile-cta .arrow { transform: translateX(4px); }
+.tile .tile-zoom {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.18);
+}
+.tile .tile-zoom svg { width: 16px; height: 16px; }
+
+/* Lightbox */
+dialog.lightbox {
+  width: min(1400px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  box-shadow: 0 24px 60px rgba(0,0,0,.35);
+}
+dialog.lightbox::backdrop { background: rgba(20,22,30,.7); }
+.lb-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: #fff; z-index: 1;
+}
+.lb-head h2 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.lb-close {
+  border: 1px solid var(--line); background: #fff; cursor: pointer;
+  width: 36px; height: 36px; font-size: 1.3rem; line-height: 1;
+}
+.lb-close:hover { border-color: var(--blue); color: var(--blue); }
+.lb-body { padding: 16px; overflow: auto; }
+.lb-body img { margin: 0 auto; cursor: zoom-in; }
+.lb-body.zoomed img { max-width: none; cursor: zoom-out; }
+.lb-missing { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+/* Sections */
+.block { padding: 8px 0 36px; }
+.block-title {
+  margin: 0 0 14px;
   font-size: clamp(1.45rem, 2.4vw, 1.85rem);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
-.theme-desc {
-  margin: 0 0 22px;
-  color: var(--muted);
-  max-width: 72ch;
-  font-size: 1.02rem;
-}
 
-.block-title {
-  margin: 28px 0 12px;
-  font-size: 1.05rem;
-  font-weight: 600;
+/* Search + filters */
+.search-field { margin-bottom: 16px; }
+.search-field input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  font-size: 1rem;
+  min-height: 46px;
 }
-.block-title:first-of-type { margin-top: 0; }
-
-/* Multiselect filters */
-.filters {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px 16px;
-  margin-bottom: 18px;
-  align-items: end;
-}
-@media (max-width: 900px) {
-  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 560px) {
-  .filters { grid-template-columns: 1fr; }
-}
-.filter-field {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.filter-field > .flabel {
+.search-field input:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.flabel {
   font-size: .75rem;
   font-weight: 600;
   color: var(--muted);
@@ -397,8 +530,17 @@ button, select, input { font: inherit; }
   letter-spacing: .03em;
   line-height: 1.25;
   overflow-wrap: anywhere;
-  word-break: break-word;
+  margin-bottom: 6px;
 }
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: end;
+}
+@media (max-width: 900px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .filters { grid-template-columns: 1fr; } }
+.filter-field { min-width: 0; }
 .ms { position: relative; }
 .ms-btn {
   width: 100%;
@@ -412,337 +554,174 @@ button, select, input { font: inherit; }
   color: var(--ink);
   min-height: 40px;
 }
-.ms-btn .ms-summary {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  flex: 1;
+.ms-summary {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0; flex: 1;
   color: var(--muted);
 }
-.ms-btn .ms-summary.has { color: var(--ink); font-weight: 500; }
-.ms-btn .ms-caret { color: var(--muted); flex: 0 0 auto; }
+.ms-summary.has { color: var(--ink); font-weight: 500; }
+.ms-summary.auto { font-style: italic; }
+.ms-caret { color: var(--muted); flex: 0 0 auto; }
 .ms.open .ms-btn { border-color: var(--blue); }
 .ms-panel {
   display: none;
   position: absolute; left: 0; right: 0; top: calc(100% + 4px);
-  max-height: 240px;
-  overflow: auto;
   background: #fff;
   border: 1px solid var(--line);
   box-shadow: 0 10px 28px rgba(34,37,49,.12);
   z-index: 40;
-  padding: 6px 0;
 }
 .ms.open .ms-panel { display: block; }
-.ms-panel label {
+.ms-find { padding: 8px; border-bottom: 1px solid var(--line); }
+.ms-find input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); font-size: .85rem; }
+.ms-opts { max-height: 260px; overflow: auto; padding: 6px 0; }
+.ms-opts label {
   display: flex; align-items: flex-start; gap: 8px;
   padding: 7px 12px;
   font-size: .88rem;
   cursor: pointer;
-  text-transform: none;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--ink);
 }
-.ms-panel label:hover { background: var(--soft); }
-.ms-panel input { margin-top: 2px; flex: 0 0 auto; }
-.filters .search-field input {
-  padding: 9px 10px;
+.ms-opts label:hover { background: var(--soft); }
+.ms-opts input { margin-top: 3px; flex: 0 0 auto; }
+.ms-empty { padding: 8px 12px; color: var(--muted); font-size: .85rem; }
+.filter-actions { margin-top: 14px; display: flex; gap: 8px; }
+.btn-ghost {
+  padding: 9px 14px;
   border: 1px solid var(--line);
   background: #fff;
-  color: var(--ink);
-  font-size: .9rem;
-  min-height: 40px;
-  width: 100%;
-}
-.filters .actions {
-  display: flex; align-items: flex-end; gap: 8px;
-  grid-column: 1 / -1;
-}
-.filters .actions button {
-  padding: 9px 14px;
-  border: 0;
-  background: var(--blue);
-  color: #fff;
+  color: var(--muted);
   font-weight: 600;
   cursor: pointer;
 }
-.filters .actions button:hover { background: var(--blue-dark); }
-.filters .actions button.ghost {
-  background: #fff;
-  border: 1px solid var(--line);
-  color: var(--muted);
-}
+.btn-ghost:hover { border-color: var(--blue); color: var(--blue); }
 
+/* Virtualised table */
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
-  max-height: 520px;
+  height: min(70vh, 640px);
+  position: relative;
 }
 table.data {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .88rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: .85rem;
 }
 table.data th, table.data td {
-  padding: 10px 12px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--line);
   text-align: left;
+}
+table.data td {
+  height: var(--row-h);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 table.data th {
   position: sticky; top: 0;
   background: var(--soft);
   font-weight: 600;
-  z-index: 1;
-}
-table.data th.sortable {
+  font-size: .78rem;
+  padding: 8px 10px;
+  z-index: 2;
   cursor: pointer;
   user-select: none;
+  vertical-align: bottom;
+  overflow-wrap: anywhere;
+}
+table.data th:hover { color: var(--blue); }
+table.data th .sort-ind { margin-left: 4px; color: var(--muted); font-weight: 500; }
+table.data th.sorted .sort-ind { color: var(--blue); }
+table.data tr.spacer td { border: 0; padding: 0; height: auto; }
+table.data tbody tr:not(.spacer):hover td { background: #fafafa; }
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-foot { margin-top: 10px; color: var(--muted); font-size: .9rem; }
+.table-none { padding: 24px 12px; color: var(--muted); }
+
+/* Metadata accordion */
+.meta-count { color: var(--muted); font-size: .9rem; margin: -6px 0 12px; }
+.meta-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.meta-item { border: 1px solid var(--line); background: #fff; min-width: 0; }
+.meta-item > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px;
+}
+.meta-item > summary::-webkit-details-marker { display: none; }
+.meta-item > summary:hover { background: var(--soft); }
+.meta-item > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.meta-item[open] > summary { border-bottom: 1px solid var(--line); background: var(--soft); }
+.meta-head { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.meta-name { font-weight: 600; font-size: 1rem; overflow-wrap: anywhere; }
+.meta-path { color: var(--muted); font-size: .82rem; }
+.meta-toggle {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--blue);
+  color: var(--blue);
+  font-size: .8rem; font-weight: 600;
+  border-radius: 999px;
   white-space: nowrap;
 }
-table.data th.sortable:hover { color: var(--blue); }
-table.data th .sort-ind {
-  margin-left: 4px;
-  color: var(--muted);
-  font-weight: 500;
-}
-table.data th.sorted .sort-ind { color: var(--blue); }
-table.data tr:hover td { background: #fafafa; }
-table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
-
-.table-foot {
-  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px;
-  align-items: center;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: .9rem;
-}
-.pager { display: flex; gap: 8px; align-items: center; }
-.pager button {
-  border: 1px solid var(--line);
-  background: #fff;
-  padding: 7px 12px;
-  cursor: pointer;
-  font-weight: 500;
-}
-.pager button:disabled { opacity: .4; cursor: not-allowed; }
-
-.download-box {
-  margin-top: 8px;
-  padding: 4px 16px 16px;
-  border: 1px solid var(--line);
-  background: var(--soft);
-}
-.download-row {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-}
-.download-row:last-child { border-bottom: 0; padding-bottom: 0; }
-.download-row h4 {
-  margin: 0 0 10px;
-  font-size: .95rem;
-  font-weight: 600;
-}
-.exports {
-  display: flex; flex-wrap: wrap; gap: 8px;
-  align-items: center;
-}
-.exports a {
-  display: inline-flex; align-items: center;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  background: #fff;
-  font-weight: 600;
-  font-size: .85rem;
-  letter-spacing: .02em;
-  cursor: pointer;
-  color: inherit;
-}
-.exports a:hover {
-  border-color: var(--blue); color: var(--blue);
-}
-.exports .api-note {
-  flex-basis: 100%;
-  color: var(--muted);
-  font-size: .78rem;
-  margin-top: 4px;
-  word-break: break-all;
-}
-.exports code { font-size: .76rem; }
-
-.meta-fold {
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  background: #fff;
-  padding: 0;
-}
-.meta-fold > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 14px 16px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.meta-fold > summary::-webkit-details-marker { display: none; }
-.meta-fold > summary::after {
-  content: "▾";
-  color: var(--muted);
-  font-weight: 500;
-  transition: transform .15s ease;
-}
-.meta-fold[open] > summary::after { transform: rotate(180deg); }
-.meta-fold > summary:hover { background: var(--soft); }
-.meta-fold-body {
-  padding: 0 16px 16px;
-  border-top: 1px solid var(--line);
-}
-.meta-long {
-  display: grid; gap: 14px;
-  padding-top: 14px;
-}
-.meta-group {
-  border: 1px solid var(--line);
-  background: #fff;
-}
-.meta-group-title {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  background: var(--soft);
-  border-bottom: 1px solid var(--line);
-}
-.meta-group .meta-vars { display: grid; gap: 0; }
-.meta-var {
-  border-bottom: 1px solid var(--line);
-  padding: 0;
-  overflow: visible;
-}
-.meta-var:last-child { border-bottom: 0; }
-.meta-var > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 8px 12px;
+.meta-toggle .chev { display: inline-block; transition: transform .15s ease; }
+.meta-item[open] .meta-toggle { background: var(--blue); color: #fff; }
+.meta-item[open] .meta-toggle .chev { transform: rotate(180deg); }
+.meta-body { padding: 12px 14px 16px; }
+.kv {
   display: grid;
-  gap: 2px;
-}
-.meta-var > summary::-webkit-details-marker { display: none; }
-.meta-var > summary:hover { background: #fafafa; }
-.meta-var-name {
-  font-weight: 600;
-  font-size: .95rem;
-}
-.meta-var-desc {
-  color: var(--ink);
-  font-size: .95rem;
-  font-weight: 400;
-}
-.meta-var .body {
-  margin: 0;
-  padding: 0 12px 10px;
-  color: var(--muted);
-  font-size: .88rem;
-  white-space: normal;
-  overflow: visible;
-  max-height: none;
-}
-.meta-long .kv {
-  display: grid;
-  grid-template-columns: minmax(100px, 140px) 1fr;
+  grid-template-columns: minmax(110px, 170px) 1fr;
   gap: 2px 12px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   align-items: start;
 }
-.meta-long .kv b {
-  color: var(--muted);
-  font-weight: 600;
-  font-size: .78rem;
-  line-height: 1.4;
-  padding-top: 1px;
-}
-.meta-long .kv span {
-  color: var(--ink);
-  font-size: .95rem;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  overflow: visible;
-  word-break: break-word;
-}
-.meta-tabs { margin-top: 2px; }
+.kv b { color: var(--muted); font-weight: 600; font-size: .78rem; line-height: 1.4; padding-top: 2px; }
+.kv span { font-size: .93rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+@media (max-width: 560px) { .kv { grid-template-columns: 1fr; } }
+.meta-tabs { margin-top: 14px; }
 .meta-tablist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 6px;
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 4px;
 }
 .meta-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
   border: 1px solid transparent;
-  border-radius: 4px 4px 0 0;
+  border-bottom: 0;
+  margin-bottom: -1px;
   background: transparent;
   cursor: pointer;
   color: var(--muted);
   font-weight: 500;
   font-size: .88rem;
 }
-.meta-tab img {
-  width: 22px; height: 16px;
-  object-fit: cover;
-  border-radius: 2px;
-  border: 1px solid var(--line);
-}
+.meta-tab img { width: 22px; height: 16px; object-fit: cover; border-radius: 2px; border: 1px solid var(--line); }
 .meta-tab:hover { color: var(--ink); background: var(--soft); }
-.meta-tab.active {
-  color: var(--ink);
-  background: #fff;
-  border-color: var(--line);
-  border-bottom-color: #fff;
-  box-shadow: 0 1px 0 #fff;
-  font-weight: 600;
-}
-.meta-tabpanel { display: none; overflow: visible; }
+.meta-tab.active { color: var(--ink); background: #fff; border-color: var(--line); font-weight: 600; }
+.meta-tabpanel { display: none; }
 .meta-tabpanel.active { display: block; }
-.meta-footnote {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--line);
-  font-size: .82rem;
-  line-height: 1.45;
-  color: var(--muted);
-  font-style: italic;
-}
-.archive-link {
-  display: inline-block;
-  margin-top: 10px;
-  font-size: .9rem;
-  font-weight: 600;
-  color: var(--blue);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.archive-link:hover { color: var(--blue-dark); }
-.meta-downloads { margin-top: 16px; }
+.meta-empty { color: var(--muted); font-size: .9rem; }
 
-.coming {
-  padding: 28px 20px;
-  text-align: center;
-  color: var(--muted);
-  border: 1px dashed var(--line);
-  background: var(--soft);
-  margin-top: 8px;
+/* Downloads */
+.download-box { padding: 4px 16px 16px; border: 1px solid var(--line); background: var(--soft); }
+.download-row { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.download-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.download-row h3 { margin: 0 0 10px; font-size: .98rem; font-weight: 600; }
+.exports { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.exports a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-weight: 600; font-size: .85rem; letter-spacing: .02em;
 }
-.coming strong { color: var(--ink); display: block; margin-bottom: 6px; }
+.exports a:hover { border-color: var(--blue); color: var(--blue); }
+.api-note { flex-basis: 100%; color: var(--muted); font-size: .78rem; margin-top: 4px; word-break: break-all; }
+.api-note code { font-size: .76rem; }
 
 .status {
   padding: 12px 14px;
@@ -753,9 +732,7 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: .9rem;
 }
 .status.error { background: #fff1f0; border-color: #f0c2c0; color: #8a2f2a; }
-.loading {
-  display: inline-flex; align-items: center; gap: 10px; color: var(--muted);
-}
+.loading { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
 .spinner {
   width: 16px; height: 16px; border: 2px solid var(--line);
   border-top-color: var(--blue); border-radius: 50%;
@@ -775,151 +752,91 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
     <h1 class="page-title" data-i18n="page.title"></h1>
 __LANG_SWITCHER__
   </div>
+  <p class="intro" data-i18n="page.intro"></p>
+
   <nav class="theme-nav" aria-label="Themen">
-    <a href="#bevoelkerung">
-      __ICON_BEVOELKERUNG__
-      <span data-i18n="theme.bevoelkerung"></span>
-    </a>
-    <a href="#wirtschaft">
-      __ICON_WIRTSCHAFT__
-      <span data-i18n="theme.wirtschaft"></span>
-    </a>
-    <a class="soon" href="#gesellschaft">
-      __ICON_GESELLSCHAFT__
-      <span data-i18n="theme.gesellschaft"></span>
-    </a>
-    <a class="soon" href="#umwelt">
-      __ICON_UMWELT__
-      <span data-i18n="theme.umwelt"></span>
-    </a>
+    <button type="button" class="tile" data-tree="1">
+      __ICON_1__
+      <span class="tile-name" data-i18n="theme.1"></span>
+      <span class="tile-cta"><span data-i18n="tree.open"></span><span class="arrow">→</span></span>
+    </button>
+    <button type="button" class="tile" data-tree="2">
+      __ICON_2__
+      <span class="tile-name" data-i18n="theme.2"></span>
+      <span class="tile-cta"><span data-i18n="tree.open"></span><span class="arrow">→</span></span>
+    </button>
+    <button type="button" class="tile" data-tree="3">
+      __ICON_3__
+      <span class="tile-name" data-i18n="theme.3"></span>
+      <span class="tile-cta"><span data-i18n="tree.open"></span><span class="arrow">→</span></span>
+    </button>
+    <button type="button" class="tile" data-tree="4">
+      __ICON_4__
+      <span class="tile-name" data-i18n="theme.4"></span>
+      <span class="tile-cta"><span data-i18n="tree.open"></span><span class="arrow">→</span></span>
+    </button>
   </nav>
 
-  <section class="theme" id="bevoelkerung" data-dataset="100550" data-topic="1_Bevölkerung" data-payload="bevoelkerung_gz">
-    <h2 data-i18n="theme.bevoelkerung"></h2>
-    <p class="theme-desc" data-i18n="desc.bevoelkerung"></p>
+  <dialog class="lightbox" id="lightbox">
+    <div class="lb-head">
+      <h2 id="lbTitle"></h2>
+      <button type="button" class="lb-close" id="lbClose" aria-label="Close">×</button>
+    </div>
+    <div class="lb-body" id="lbBody"></div>
+  </dialog>
 
-    <h3 class="block-title" data-i18n="filters.title"></h3>
-    <div class="filters" data-filters></div>
-    <div data-status hidden></div>
+  <div id="status" hidden></div>
 
-    <h3 class="block-title" data-i18n="table.title"></h3>
-    <div class="table-wrap">
+  <section class="block" id="filter">
+    <h2 class="block-title" data-i18n="filters.title"></h2>
+    <div class="search-field">
+      <div class="flabel" id="searchLabel"></div>
+      <input type="search" id="search" autocomplete="off" />
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="filter-actions">
+      <button type="button" class="btn-ghost" id="reset" data-i18n="filter.reset"></button>
+    </div>
+  </section>
+
+  <section class="block" id="tabelle">
+    <h2 class="block-title" data-i18n="table.title"></h2>
+    <div class="table-wrap" id="tableWrap">
       <table class="data">
-        <thead></thead>
-        <tbody></tbody>
+        <colgroup id="cols"></colgroup>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
       </table>
     </div>
-    <div class="table-foot">
-      <div data-info>–</div>
-      <div class="pager">
-        <button type="button" data-prev data-i18n="pager.prev"></button>
-        <span data-page>1</span>
-        <button type="button" data-next data-i18n="pager.next"></button>
-      </div>
-    </div>
+    <div class="table-foot" id="tableInfo">–</div>
+  </section>
 
-    <h3 class="block-title" data-i18n="download.title"></h3>
+  <section class="block" id="metadaten">
+    <h2 class="block-title" data-i18n="meta.title"></h2>
+    <p class="meta-count" id="metaCount"></p>
+    <div class="meta-list" id="metaList"></div>
+  </section>
+
+  <section class="block" id="download">
+    <h2 class="block-title" data-i18n="download.title"></h2>
     <div class="download-box">
       <div class="download-row">
-        <h4 data-i18n="download.all"></h4>
-        <div class="exports" data-exports-all></div>
+        <h3 data-i18n="download.all"></h3>
+        <div class="exports" id="exportsAll"></div>
       </div>
       <div class="download-row">
-        <h4 data-i18n="download.filtered"></h4>
-        <div class="exports" data-exports-filtered></div>
-      </div>
-      <a class="archive-link" data-i18n="download.archive" href="https://data.bs.ch/explore/assets/100550/view/?headless=true" target="_blank" rel="noopener"></a>
-    </div>
-
-    <details class="meta-fold">
-      <summary data-i18n="meta.titleBlock"></summary>
-      <div class="meta-fold-body">
-        <div data-meta-long class="meta-long"></div>
-      </div>
-    </details>
-
-    <div class="download-box meta-downloads">
-      <div class="download-row">
-        <h4 data-i18n="meta.shortTab"></h4>
-        <div class="exports" data-exports-meta-short></div>
-        <a class="archive-link" data-i18n="download.archive" href="https://data.bs.ch/explore/assets/100554/view/?headless=true" target="_blank" rel="noopener"></a>
+        <h3 data-i18n="download.filtered"></h3>
+        <div class="exports" id="exportsFiltered"></div>
       </div>
       <div class="download-row">
-        <h4 data-i18n="meta.longTab"></h4>
-        <div class="exports" data-exports-meta-long></div>
-        <a class="archive-link" data-i18n="download.archive" href="https://data.bs.ch/explore/assets/100555/view/?headless=true" target="_blank" rel="noopener"></a>
+        <h3 data-i18n="download.metaShort"></h3>
+        <div class="exports" id="exportsMetaShort"></div>
+      </div>
+      <div class="download-row">
+        <h3 data-i18n="download.metaLong"></h3>
+        <div class="exports" id="exportsMetaLong"></div>
       </div>
     </div>
-  </section>
-
-  <section class="theme" id="wirtschaft" data-dataset="100551" data-topic="2_Wirtschaft_Arbeit" data-payload="wirtschaft_gz">
-    <h2 data-i18n="theme.wirtschaft"></h2>
-    <p class="theme-desc" data-i18n="desc.wirtschaft"></p>
-
-    <h3 class="block-title" data-i18n="filters.title"></h3>
-    <div class="filters" data-filters></div>
-    <div data-status hidden></div>
-
-    <h3 class="block-title" data-i18n="table.title"></h3>
-    <div class="table-wrap">
-      <table class="data">
-        <thead></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="table-foot">
-      <div data-info>–</div>
-      <div class="pager">
-        <button type="button" data-prev data-i18n="pager.prev"></button>
-        <span data-page>1</span>
-        <button type="button" data-next data-i18n="pager.next"></button>
-      </div>
-    </div>
-
-    <h3 class="block-title" data-i18n="download.title"></h3>
-    <div class="download-box">
-      <div class="download-row">
-        <h4 data-i18n="download.all"></h4>
-        <div class="exports" data-exports-all></div>
-      </div>
-      <div class="download-row">
-        <h4 data-i18n="download.filtered"></h4>
-        <div class="exports" data-exports-filtered></div>
-      </div>
-      <a class="archive-link" data-i18n="download.archive" href="https://data.bs.ch/explore/assets/100551/view/?headless=true" target="_blank" rel="noopener"></a>
-    </div>
-
-    <details class="meta-fold">
-      <summary data-i18n="meta.titleBlock"></summary>
-      <div class="meta-fold-body">
-        <div data-meta-long class="meta-long"></div>
-      </div>
-    </details>
-
-    <div class="download-box meta-downloads">
-      <div class="download-row">
-        <h4 data-i18n="meta.shortTab"></h4>
-        <div class="exports" data-exports-meta-short></div>
-        <a class="archive-link" data-i18n="download.archive" href="https://data.bs.ch/explore/assets/100554/view/?headless=true" target="_blank" rel="noopener"></a>
-      </div>
-      <div class="download-row">
-        <h4 data-i18n="meta.longTab"></h4>
-        <div class="exports" data-exports-meta-long></div>
-        <a class="archive-link" data-i18n="download.archive" href="https://data.bs.ch/explore/assets/100555/view/?headless=true" target="_blank" rel="noopener"></a>
-      </div>
-    </div>
-  </section>
-
-  <section class="theme" id="gesellschaft" data-soon="1">
-    <h2 data-i18n="theme.gesellschaft"></h2>
-    <p class="theme-desc" data-i18n="desc.gesellschaft"></p>
-    <div class="coming"><strong data-i18n="soon.title"></strong><span data-i18n="soon.body"></span></div>
-  </section>
-
-  <section class="theme" id="umwelt" data-soon="1">
-    <h2 data-i18n="theme.umwelt"></h2>
-    <p class="theme-desc" data-i18n="desc.umwelt"></p>
-    <div class="coming"><strong data-i18n="soon.title"></strong><span data-i18n="soon.body"></span></div>
   </section>
 </main>
 
@@ -927,363 +844,686 @@ __LANG_SWITCHER__
 const PAYLOAD = __PAYLOAD__;
 const FIXED_LANG = __FIXED_LANG__;
 const SHOW_LANG = __SHOW_LANG__;
-const PAGE_SIZE = 20;
-const META_COUNTRIES = ["de", "fr", "ch"];
+const DATA_ID = "100553";
+const META_SHORT_ID = "100554";
+const META_LONG_ID = "100555";
+const META_COUNTRIES = ["ch", "de", "fr"];
+// Finest level first; without a RAUMEBENE filter the table shows the finest level present.
+const GEO_HIERARCHY = ["Gemeinde", "Kanton/Kreis/Departement", "Region", "Land", "Oberrhein"];
 const LANGS = [
   { id: "de", label: "Deutsch" },
   { id: "en", label: "English" },
   { id: "fr", label: "Français" },
 ];
 
-const FILTER_LABELS = {
-  geo: { de: "Geo-Ebene", en: "Geo level", fr: "Niveau géo" },
-  land: { de: "Land", en: "Country", fr: "Pays" },
-  region: { de: "Region", en: "Region", fr: "Région" },
-  kanton_kreis_departement: { de: "Kanton / Kreis / Département", en: "Canton / District / Department", fr: "Canton / Kreis / Département" },
-  jahr_annee: { de: "Jahr", en: "Year", fr: "Année" },
-  variable: { de: "Variable", en: "Variable", fr: "Variable" },
-};
-
 const I18N = {
   de: {
-    "page.title": "StatRhena: Daten & Metadaten",
-    "theme.bevoelkerung": "Bevölkerung",
-    "theme.wirtschaft": "Wirtschaft & Arbeit",
-    "theme.gesellschaft": "Gesellschaft",
-    "theme.umwelt": "Umwelt & Mobilität",
-    "desc.bevoelkerung": "Harmonisierte Bevölkerungszahlen für die Oberrheinregion: Bestand, Altersstruktur, Staatsangehörigkeit, natürliche und räumliche Bevölkerungsbewegung sowie Szenarien bis 2050. Die Daten stammen aus den amtlichen Statistiken der Schweiz, Deutschlands und Frankreichs und wurden für den Vergleich über die Grenzen hinweg aufbereitet.",
-    "desc.wirtschaft": "Kennzahlen zu Arbeitsmarkt, Grenzgängerinnen und Grenzgängern, Wirtschaftsleistung und Unternehmen in der Oberrheinregion. Die Daten stammen aus den amtlichen Statistiken der Schweiz, Deutschlands und Frankreichs und wurden für den Vergleich über die Grenzen hinweg aufbereitet.",
-    "desc.gesellschaft": "Gesellschaftliche Indikatoren für die Oberrheinregion – demnächst verfügbar.",
-    "desc.umwelt": "Indikatoren zu Umwelt und Mobilität in der Oberrheinregion – demnächst verfügbar.",
-    "filters.title": "Filter",
+    "page.title": "StatRhena: Daten und Metadaten",
+    "page.intro": "Entdecken Sie die Daten zum Oberrhein. Mit der Suche und den Filtern finden Sie schnell, was Sie brauchen, und können es direkt ansehen, herunterladen oder automatisiert über unsere API abrufen.",
+    "theme.1": "Bevölkerung",
+    "theme.2": "Wirtschaft & Arbeit",
+    "theme.3": "Gesellschaft",
+    "theme.4": "Umwelt & Mobilität",
+    "tree.open": "Datenbaum ansehen",
+    "tree.title": "Datenbaum",
+    "tree.missing": "Der Datenbaum für dieses Thema folgt in Kürze.",
+    "tree.close": "Schliessen",
+    "filters.title": "Suche und Filter",
+    "filter.searchPlaceholder": "Indikator suchen, z. B. Geburten…",
+    "filter.all": "Alle",
+    "filter.selected": "ausgewählt",
+    "filter.auto": "Automatisch",
+    "filter.find": "Optionen durchsuchen…",
+    "filter.noOptions": "Keine Optionen",
+    "filter.reset": "Alle Filter zurücksetzen",
     "table.title": "Tabelle",
-    "download.title": "Download",
-    "download.all": "Alle Daten",
-    "download.filtered": "Gefilterte Daten",
-    "download.hintAll": "API-Export ohne Filter.",
-    "download.hintFiltered": "API-Export mit aktiven Filtern (refine).",
-    "download.archive": "Datenablage",
-    "meta.titleBlock": "Metadaten",
-    "meta.shortTab": "Metadaten kurz",
-    "meta.longTab": "Metadaten lang",
-    "meta.variable": "Variable",
-    "meta.description": "Beschreibung",
+    "table.rows": "Zeilen",
+    "table.none": "Keine Treffer für die aktuelle Auswahl.",
+    "table.geoAuto": "automatisch gewählte Raumebene",
+    "meta.title": "Metadaten",
+    "meta.count": "Indikatoren in der aktuellen Auswahl",
+    "meta.details": "Details",
+    "meta.none": "Keine Indikatoren für die aktuelle Auswahl.",
     "meta.unit": "Einheit",
     "meta.period": "Zeitraum",
     "meta.source": "Quelle",
     "meta.footnote": "Fussnote",
-    "meta.statistic": "Statistik",
     "meta.sourceTitle": "Originaltitel",
+    "meta.statistic": "Statistik",
+    "meta.database": "Datenbank",
+    "meta.code": "Code",
+    "meta.stichtag": "Stichtag",
+    "meta.copyright": "Copyright",
     "meta.info": "Methodik / Hinweise",
-    "meta.empty": "Für diese Sprache liegen keine längeren Hinweise vor.",
+    "meta.empty": "Für dieses Land liegen keine Angaben vor.",
     "meta.country.ch": "Schweiz",
     "meta.country.de": "Deutschland",
     "meta.country.fr": "Frankreich",
-    "filter.all": "Alle",
-    "filter.selected": "ausgewählt",
-    "filter.search": "Suche",
-    "filter.placeholder": "Textfilter…",
-    "filter.apply": "Filtern",
-    "filter.reset": "Zurücksetzen",
-    "pager.prev": "Zurück",
-    "pager.next": "Weiter",
-    "pager.page": "Seite",
-    "table.rows": "Zeilen",
-    "table.none": "Keine Treffer für die aktuellen Filter.",
-    "soon.title": "Demnächst",
-    "soon.body": "Die Daten werden freigeschaltet, sobald sie vorliegen.",
-    "partners.kofi": "Kofinanzierende Partner",
-    "partners.asso": "Assoziierte Partner",
-    "footer.copy": "© 2026 StatRhena. All rights reserved. Made with Love by",
-    "footer.top": "Seitenanfang ↑",
-    "legal.impressum": "Impressum",
-    "legal.datenschutz": "Datenschutz",
-    "legal.agb": "AGB",
+    "download.title": "Download",
+    "download.all": "Alle Daten",
+    "download.filtered": "Gefilterte Daten",
+    "download.metaShort": "Metadaten kurz",
+    "download.metaLong": "Metadaten lang",
+    "download.api": "API-Export:",
     "status.loading": "Lade Daten…",
-    "status.loaded": "Zeilen geladen.",
   },
   en: {
-    "page.title": "StatRhena: Data & Metadata",
-    "theme.bevoelkerung": "Population",
-    "theme.wirtschaft": "Economy & Labour",
-    "theme.gesellschaft": "Society",
-    "theme.umwelt": "Environment & Mobility",
-    "desc.bevoelkerung": "Harmonised population figures for the Upper Rhine region: stock, age structure, nationality, natural and migration change, and scenarios through 2050. The data come from official statistics in Switzerland, Germany and France and have been prepared for cross-border comparison.",
-    "desc.wirtschaft": "Indicators on the labour market, cross-border workers, economic output and businesses in the Upper Rhine region. The data come from official statistics in Switzerland, Germany and France and have been prepared for cross-border comparison.",
-    "desc.gesellschaft": "Social indicators for the Upper Rhine region – coming soon.",
-    "desc.umwelt": "Environment and mobility indicators for the Upper Rhine region – coming soon.",
-    "filters.title": "Filters",
+    "page.title": "StatRhena: Data and Metadata",
+    "page.intro": "Explore data on the Upper Rhine. Use the search and filters to quickly find what you need, then view it directly, download it, or retrieve it automatically through our API.",
+    "theme.1": "Population",
+    "theme.2": "Economy & Labour",
+    "theme.3": "Society",
+    "theme.4": "Environment & Mobility",
+    "tree.open": "View data tree",
+    "tree.title": "Data tree",
+    "tree.missing": "The data tree for this topic will be available soon.",
+    "tree.close": "Close",
+    "filters.title": "Search and filters",
+    "filter.searchPlaceholder": "Search indicators, e.g. births…",
+    "filter.all": "All",
+    "filter.selected": "selected",
+    "filter.auto": "Automatic",
+    "filter.find": "Search options…",
+    "filter.noOptions": "No options",
+    "filter.reset": "Reset all filters",
     "table.title": "Table",
-    "download.title": "Download",
-    "download.all": "All data",
-    "download.filtered": "Filtered data",
-    "download.hintAll": "API export without filters.",
-    "download.hintFiltered": "API export with active filters (refine).",
-    "download.archive": "Data repository",
-    "meta.titleBlock": "Metadata",
-    "meta.shortTab": "Metadata (short)",
-    "meta.longTab": "Metadata (long)",
-    "meta.variable": "Variable",
-    "meta.description": "Description",
+    "table.rows": "rows",
+    "table.none": "No results for the current selection.",
+    "table.geoAuto": "geographic level chosen automatically",
+    "meta.title": "Metadata",
+    "meta.count": "indicators in the current selection",
+    "meta.details": "Details",
+    "meta.none": "No indicators for the current selection.",
     "meta.unit": "Unit",
     "meta.period": "Period",
     "meta.source": "Source",
     "meta.footnote": "Footnote",
-    "meta.statistic": "Statistic",
     "meta.sourceTitle": "Original title",
+    "meta.statistic": "Statistic",
+    "meta.database": "Database",
+    "meta.code": "Code",
+    "meta.stichtag": "Reference date",
+    "meta.copyright": "Copyright",
     "meta.info": "Methodology / notes",
-    "meta.empty": "No longer notes are available for this language.",
+    "meta.empty": "No information available for this country.",
     "meta.country.ch": "Switzerland",
     "meta.country.de": "Germany",
     "meta.country.fr": "France",
-    "filter.all": "All",
-    "filter.selected": "selected",
-    "filter.search": "Search",
-    "filter.placeholder": "Text filter…",
-    "filter.apply": "Filter",
-    "filter.reset": "Reset",
-    "pager.prev": "Previous",
-    "pager.next": "Next",
-    "pager.page": "Page",
-    "table.rows": "rows",
-    "table.none": "No results for the current filters.",
-    "soon.title": "Coming soon",
-    "soon.body": "Data will be enabled once available.",
-    "partners.kofi": "Co-financing partners",
-    "partners.asso": "Associated partners",
-    "footer.copy": "© 2026 StatRhena. All rights reserved. Made with Love by",
-    "footer.top": "Back to top ↑",
-    "legal.impressum": "Imprint",
-    "legal.datenschutz": "Privacy policy",
-    "legal.agb": "Terms and Conditions",
+    "download.title": "Download",
+    "download.all": "All data",
+    "download.filtered": "Filtered data",
+    "download.metaShort": "Metadata (short)",
+    "download.metaLong": "Metadata (long)",
+    "download.api": "API export:",
     "status.loading": "Loading data…",
-    "status.loaded": "rows loaded.",
   },
   fr: {
-    "page.title": "StatRhena: Données & Métadonnées",
-    "theme.bevoelkerung": "Population",
-    "theme.wirtschaft": "Économie & Emploi",
-    "theme.gesellschaft": "Société",
-    "theme.umwelt": "Environnement & Mobilité",
-    "desc.bevoelkerung": "Chiffres de population harmonisés pour la région du Rhin supérieur : effectifs, structure par âge, nationalité, mouvement naturel et migratoire, ainsi que scénarios jusqu’en 2050. Les données proviennent des statistiques officielles de la Suisse, de l’Allemagne et de la France et ont été préparées pour la comparaison transfrontalière.",
-    "desc.wirtschaft": "Indicateurs sur le marché du travail, les travailleurs frontaliers, la performance économique et les entreprises dans la région du Rhin supérieur. Les données proviennent des statistiques officielles de la Suisse, de l’Allemagne et de la France et ont été préparées pour la comparaison transfrontalière.",
-    "desc.gesellschaft": "Indicateurs sociétaux pour la région du Rhin supérieur – bientôt disponibles.",
-    "desc.umwelt": "Indicateurs d’environnement et de mobilité pour la région du Rhin supérieur – bientôt disponibles.",
-    "filters.title": "Filtres",
+    "page.title": "StatRhena: Données et métadonnées",
+    "page.intro": "Découvrez les données sur le Rhin supérieur. Grâce à la recherche et aux filtres, trouvez rapidement ce dont vous avez besoin, puis consultez-le directement, téléchargez-le ou récupérez-le automatiquement via notre API.",
+    "theme.1": "Population",
+    "theme.2": "Économie & Emploi",
+    "theme.3": "Société",
+    "theme.4": "Environnement & Mobilité",
+    "tree.open": "Voir l’arborescence",
+    "tree.title": "Arborescence des données",
+    "tree.missing": "L’arborescence de ce thème sera bientôt disponible.",
+    "tree.close": "Fermer",
+    "filters.title": "Recherche et filtres",
+    "filter.searchPlaceholder": "Rechercher un indicateur, p. ex. naissances…",
+    "filter.all": "Tous",
+    "filter.selected": "sélectionné(s)",
+    "filter.auto": "Automatique",
+    "filter.find": "Rechercher dans les options…",
+    "filter.noOptions": "Aucune option",
+    "filter.reset": "Réinitialiser tous les filtres",
     "table.title": "Tableau",
-    "download.title": "Téléchargement",
-    "download.all": "Toutes les données",
-    "download.filtered": "Données filtrées",
-    "download.hintAll": "Export API sans filtre.",
-    "download.hintFiltered": "Export API avec filtres actifs (refine).",
-    "download.archive": "Dépôt de données",
-    "meta.titleBlock": "Métadonnées",
-    "meta.shortTab": "Métadonnées (courtes)",
-    "meta.longTab": "Métadonnées (longues)",
-    "meta.variable": "Variable",
-    "meta.description": "Description",
+    "table.rows": "lignes",
+    "table.none": "Aucun résultat pour la sélection actuelle.",
+    "table.geoAuto": "échelle territoriale choisie automatiquement",
+    "meta.title": "Métadonnées",
+    "meta.count": "indicateurs dans la sélection actuelle",
+    "meta.details": "Détails",
+    "meta.none": "Aucun indicateur pour la sélection actuelle.",
     "meta.unit": "Unité",
     "meta.period": "Période",
     "meta.source": "Source",
     "meta.footnote": "Note",
-    "meta.statistic": "Statistique",
     "meta.sourceTitle": "Titre original",
+    "meta.statistic": "Statistique",
+    "meta.database": "Base de données",
+    "meta.code": "Code",
+    "meta.stichtag": "Date de référence",
+    "meta.copyright": "Copyright",
     "meta.info": "Méthodologie / notes",
-    "meta.empty": "Aucune note longue n’est disponible pour cette langue.",
+    "meta.empty": "Aucune information disponible pour ce pays.",
     "meta.country.ch": "Suisse",
     "meta.country.de": "Allemagne",
     "meta.country.fr": "France",
-    "filter.all": "Tous",
-    "filter.selected": "sélectionné(s)",
-    "filter.search": "Recherche",
-    "filter.placeholder": "Filtre texte…",
-    "filter.apply": "Filtrer",
-    "filter.reset": "Réinitialiser",
-    "pager.prev": "Précédent",
-    "pager.next": "Suivant",
-    "pager.page": "Page",
-    "table.rows": "lignes",
-    "table.none": "Aucun résultat pour les filtres actuels.",
-    "soon.title": "Bientôt",
-    "soon.body": "Les données seront activées dès qu’elles seront disponibles.",
-    "partners.kofi": "Partenaires cofinanceurs",
-    "partners.asso": "Partenaires associés",
-    "footer.copy": "© 2026 StatRhena. All rights reserved. Made with Love by",
-    "footer.top": "Haut de page ↑",
-    "legal.impressum": "Mentions légales",
-    "legal.datenschutz": "Politique de confidentialité",
-    "legal.agb": "CGV",
+    "download.title": "Téléchargement",
+    "download.all": "Toutes les données",
+    "download.filtered": "Données filtrées",
+    "download.metaShort": "Métadonnées (courtes)",
+    "download.metaLong": "Métadonnées (longues)",
+    "download.api": "Export API :",
     "status.loading": "Chargement des données…",
-    "status.loaded": "lignes chargées.",
   },
 };
 
-const LEGAL = {
-  de: {
-    impressum: "https://stala.wedeon.info/impressum/",
-    datenschutz: "https://stala.wedeon.info/datenschutz/",
-    agb: "https://stala.wedeon.info/allgemeine-geschaeftsbedingungen/",
-  },
-  en: {
-    impressum: "https://stala.wedeon.info/en/impressum/",
-    datenschutz: "https://stala.wedeon.info/en/datenschutz/",
-    agb: "https://stala.wedeon.info/en/allgemeine-geschaeftsbedingungen/",
-  },
-  fr: {
-    impressum: "https://stala.wedeon.info/fr/impressum/",
-    datenschutz: "https://stala.wedeon.info/fr/datenschutz/",
-    agb: "https://stala.wedeon.info/fr/allgemeine-geschaeftsbedingungen/",
-  },
-};
+let lang = FIXED_LANG || (() => { try { return localStorage.getItem("statrhena_lang"); } catch (e) { return null; } })() || "de";
+if (!I18N[lang]) lang = "de";
 
-const FILTER_COLS = ["geo", "land", "region", "kanton_kreis_departement", "jahr_annee", "variable"];
-const SEARCH_COLS = ["geo", "land", "region", "kanton_kreis_departement", "variable", "variable_desription"];
-const META_SHORT_ID = "100554";
-const META_LONG_ID = "100555";
-
-const state = {
-  lang: FIXED_LANG || localStorage.getItem("statrhena_lang") || "de",
-  metadata: null,
-  controllers: [],
-};
-
-function t(key) {
-  return (I18N[state.lang] && I18N[state.lang][key]) || I18N.de[key] || key;
-}
-function filterLabel(col) {
-  return (FILTER_LABELS[col] && FILTER_LABELS[col][state.lang]) || col;
+function t(key) { return (I18N[lang] && I18N[lang][key]) || I18N.de[key] || key; }
+/** Display name for a technical column (from data_orig/statrhena_spaltennamen.xlsx). */
+function colLabel(column, fallback) {
+  const entry = PAYLOAD.labels[column];
+  return (entry && (entry[lang] || entry.de)) || fallback || column;
 }
 function escapeHtml(s) {
   return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
-function escapeAttr(s) { return escapeHtml(s).replaceAll("'", "&#39;"); }
-function fmtNum(n) {
-  return new Intl.NumberFormat(state.lang === "fr" ? "fr-FR" : state.lang === "en" ? "en-GB" : "de-CH").format(n);
+function locale() { return lang === "fr" ? "fr-FR" : lang === "en" ? "en-GB" : "de-DE"; }
+let NF_INT, NF_DEC, COLLATOR;
+function initFormats() {
+  NF_INT = new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 });
+  NF_DEC = new Intl.NumberFormat(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  COLLATOR = new Intl.Collator(locale(), { numeric: true, sensitivity: "base" });
 }
 
-function b64ToBytes(b64) {
+async function gunzipJson(b64) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-async function gunzipB64(b64) {
-  const bytes = b64ToBytes(b64);
-  if (typeof DecompressionStream === "undefined") throw new Error("DecompressionStream unsupported");
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return await new Response(stream).text();
+  return JSON.parse(await new Response(stream).text());
 }
 
-function parseCSV(text) {
-  const rows = [];
-  let i = 0, field = "", row = [], inQuotes = false;
-  const pushField = () => { row.push(field); field = ""; };
-  const pushRow = () => {
-    if (row.length === 1 && row[0] === "" && rows.length) { row = []; return; }
-    rows.push(row); row = [];
+/* ---------- Data model ---------- */
+let VARS, PLACES, GEOS, V, Y, G, P, X, D, N, META = {};
+let DIMS = [];
+
+/** Build a filter dimension: unique keys, a per-row code array and a display function. */
+function makeDim(id, column, field, rowKey, label, order) {
+  const keys = [];
+  const index = new Map();
+  const codes = new Int32Array(N);
+  for (let i = 0; i < N; i++) {
+    const k = rowKey(i);
+    if (k === "" || k === null || k === undefined) { codes[i] = -1; continue; }
+    let c = index.get(k);
+    if (c === undefined) { c = keys.length; index.set(k, c); keys.push(k); }
+    codes[i] = c;
+  }
+  return { id, column, field, keys, codes, label, order, selected: new Set(), mask: new Uint8Array(keys.length) };
+}
+
+function buildDims() {
+  const varText = (prop) => (k) => {
+    const v = VARS.find(x => x[prop].de === k);
+    return (v && (v[prop][lang] || v[prop].de)) || k;
   };
-  while (i < text.length) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
-      }
-      field += c; i++; continue;
-    }
-    if (c === '"') { inQuotes = true; i++; continue; }
-    if (c === ",") { pushField(); i++; continue; }
-    if (c === "\n") { pushField(); pushRow(); i++; continue; }
-    if (c === "\r") { i++; continue; }
-    field += c; i++;
-  }
-  if (field.length || row.length) { pushField(); pushRow(); }
-  if (!rows.length) return { headers: [], records: [] };
-  const headers = rows[0].map(h => h.trim());
-  const records = [];
-  for (let r = 1; r < rows.length; r++) {
-    const obj = {};
-    const vals = rows[r];
-    let empty = true;
-    for (let c = 0; c < headers.length; c++) {
-      const v = (vals[c] ?? "").trim();
-      obj[headers[c]] = v === "NA" ? "" : v;
-      if (v) empty = false;
-    }
-    if (!empty) records.push(obj);
-  }
-  return { headers, records };
+  const appearance = (dim) => dim.keys.map((_, c) => c);
+  const alpha = (dim) => dim.keys.map((_, c) => c).sort((a, b) => COLLATOR.compare(String(dim.label(dim.keys[a])), String(dim.label(dim.keys[b]))));
+  const place = (n) => (i) => PLACES[P[i]][n];
+  DIMS = [
+    makeDim("topic", "Topic", "topic_de", i => VARS[V[i]].topic.de, varText("topic"), appearance),
+    makeDim("subtopic", "Subtopic", "subtopic_de", i => VARS[V[i]].subtopic.de, varText("subtopic"), appearance),
+    makeDim("title", "Title", "title_de", i => VARS[V[i]].title.de, varText("title"), appearance),
+    makeDim("indicator", "Variable_Description", "variable_de", i => V[i], k => VARS[k].desc[lang] || VARS[k].desc.de, appearance),
+    makeDim("geo", "geo", "geo", i => GEOS[G[i]], k => k,
+      dim => dim.keys.map((_, c) => c).sort((a, b) => geoRank(dim.keys[b]) - geoRank(dim.keys[a]))),
+    makeDim("land", "land", "land", place(1), k => k, alpha),
+    makeDim("region", "region", "region", place(3), k => k, alpha),
+    makeDim("kanton", "kanton_kreis_departement", "kanton_kreis_departement", place(5), k => k, alpha),
+    makeDim("year", "jahr_annee", "jahr_annee", i => Y[i], k => String(k),
+      dim => dim.keys.map((_, c) => c).sort((a, b) => dim.keys[a] - dim.keys[b])),
+  ];
+}
+function dim(id) { return DIMS.find(d => d.id === id); }
+function geoRank(name) {
+  const r = GEO_HIERARCHY.indexOf(name);
+  return r === -1 ? GEO_HIERARCHY.length : r;
 }
 
-/** filters: { field: string[] } */
-function buildExportUrl(id, format, filters = {}, search = "") {
-  const params = new URLSearchParams();
-  params.set("timezone", "Europe/Zurich");
-  Object.entries(filters).forEach(([field, values]) => {
-    (values || []).forEach(value => {
-      if (value) params.append("refine", `${field}:${value}`);
+/* ---------- Filter state ---------- */
+const state = { search: "", searchMask: null, base: [], visible: null, autoGeo: null, sortCol: null, sortDir: 1 };
+
+function updateSearchMask() {
+  const q = state.search.trim().toLowerCase();
+  if (!q) { state.searchMask = null; return; }
+  state.searchMask = new Uint8Array(VARS.length);
+  VARS.forEach((v, idx) => { state.searchMask[idx] = (v.desc[lang] || "").toLowerCase().includes(q) ? 1 : 0; });
+}
+
+/** True when row i passes every active filter and the search, ignoring dimension `skip`. */
+function passes(i, skip) {
+  if (state.searchMask && !state.searchMask[V[i]]) return false;
+  for (const d of DIMS) {
+    if (d === skip || !d.selected.size) continue;
+    const c = d.codes[i];
+    if (c < 0 || !d.mask[c]) return false;
+  }
+  return true;
+}
+
+function compute() {
+  const base = [];
+  for (let i = 0; i < N; i++) if (passes(i, null)) base.push(i);
+  state.base = base;
+  const geoDim = dim("geo");
+  state.autoGeo = null;
+  let visible = base;
+  if (!geoDim.selected.size && base.length) {
+    let best = Infinity, bestCode = -1;
+    for (const i of base) {
+      const r = geoRank(GEOS[G[i]]);
+      if (r < best) { best = r; bestCode = G[i]; }
+    }
+    state.autoGeo = GEOS[bestCode];
+    visible = base.filter(i => G[i] === bestCode);
+  }
+  state.visible = Int32Array.from(visible);
+  sortVisible();
+}
+
+/** Option codes still reachable for a dimension, given all other filters. */
+function availableCodes(d) {
+  const seen = new Uint8Array(d.keys.length);
+  for (let i = 0; i < N; i++) {
+    const c = d.codes[i];
+    if (c >= 0 && !seen[c] && passes(i, d)) seen[c] = 1;
+  }
+  return seen;
+}
+
+/* ---------- Filter UI ---------- */
+function summaryText(d) {
+  if (d.id === "geo" && !d.selected.size && state.autoGeo) return `${t("filter.auto")}: ${state.autoGeo}`;
+  if (!d.selected.size) return t("filter.all");
+  if (d.selected.size === 1) return d.label(d.keys[[...d.selected][0]]);
+  return `${d.selected.size} ${t("filter.selected")}`;
+}
+
+function renderFilterShell() {
+  const el = document.getElementById("filters");
+  el.innerHTML = DIMS.map(d => `<div class="filter-field">
+      <div class="flabel">${escapeHtml(colLabel(d.column))}</div>
+      <div class="ms" data-dim="${d.id}">
+        <button type="button" class="ms-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="ms-summary"></span><span class="ms-caret">▾</span>
+        </button>
+        <div class="ms-panel">
+          ${d.keys.length > 12 ? `<div class="ms-find"><input type="search" placeholder="${escapeHtml(t("filter.find"))}" /></div>` : ""}
+          <div class="ms-opts" role="listbox"></div>
+        </div>
+      </div>
+    </div>`).join("");
+
+  el.querySelectorAll(".ms").forEach(ms => {
+    const d = dim(ms.dataset.dim);
+    const btn = ms.querySelector(".ms-btn");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wasOpen = ms.classList.contains("open");
+      closePanels();
+      if (!wasOpen) {
+        ms.classList.add("open");
+        btn.setAttribute("aria-expanded", "true");
+        const find = ms.querySelector(".ms-find input");
+        if (find) find.focus();
+      }
+    });
+    ms.querySelector(".ms-panel").addEventListener("click", e => e.stopPropagation());
+    const find = ms.querySelector(".ms-find input");
+    if (find) find.addEventListener("input", () => {
+      const q = find.value.trim().toLowerCase();
+      ms.querySelectorAll(".ms-opts label").forEach(l => {
+        l.hidden = q && !l.textContent.toLowerCase().includes(q);
+      });
+    });
+    ms.querySelector(".ms-opts").addEventListener("change", (e) => {
+      const code = Number(e.target.value);
+      if (e.target.checked) { d.selected.add(code); d.mask[code] = 1; }
+      else { d.selected.delete(code); d.mask[code] = 0; }
+      update(d);
     });
   });
-  if (search && search.trim()) {
-    const q = search.trim().replaceAll('"', '\\"');
-    params.set("where", `search("${q}")`);
+}
+
+function closePanels() {
+  document.querySelectorAll(".ms.open").forEach(m => {
+    m.classList.remove("open");
+    m.querySelector(".ms-btn").setAttribute("aria-expanded", "false");
+  });
+}
+
+function renderOptions(d) {
+  const ms = document.querySelector(`.ms[data-dim="${d.id}"]`);
+  const avail = availableCodes(d);
+  const codes = d.order(d).filter(c => avail[c] || d.selected.has(c));
+  const opts = ms.querySelector(".ms-opts");
+  opts.innerHTML = codes.length
+    ? codes.map(c => `<label><input type="checkbox" value="${c}" ${d.selected.has(c) ? "checked" : ""} /><span>${escapeHtml(d.label(d.keys[c]))}</span></label>`).join("")
+    : `<div class="ms-empty">${escapeHtml(t("filter.noOptions"))}</div>`;
+  const find = ms.querySelector(".ms-find input");
+  if (find && find.value) find.dispatchEvent(new Event("input"));
+}
+
+function renderSummaries() {
+  for (const d of DIMS) {
+    const sum = document.querySelector(`.ms[data-dim="${d.id}"] .ms-summary`);
+    sum.textContent = summaryText(d);
+    sum.classList.toggle("has", d.selected.size > 0);
+    sum.classList.toggle("auto", d.id === "geo" && !d.selected.size && !!state.autoGeo);
+  }
+}
+
+/** Recompute after a change in dimension `changed` (null = everything). */
+function update(changed) {
+  compute();
+  // A dimension's own options do not depend on its own selection.
+  for (const d of DIMS) if (d !== changed) renderOptions(d);
+  renderSummaries();
+  renderTable(true);
+  renderMetadata();
+  renderDownloads();
+}
+
+/* ---------- Table (virtualised: all rows, one scroll area) ---------- */
+const COLUMNS = [
+  { col: "Topic", get: i => VARS[V[i]].topic[lang] },
+  { col: "Subtopic", get: i => VARS[V[i]].subtopic[lang] },
+  { col: "Title", get: i => VARS[V[i]].title[lang] },
+  { col: "Variable", get: i => VARS[V[i]].variable[lang] },
+  { col: "Variable_Description", get: i => VARS[V[i]].desc[lang] },
+  { col: "geo", get: i => GEOS[G[i]] },
+  { col: "land_code", get: i => PLACES[P[i]][0] },
+  { col: "land", get: i => PLACES[P[i]][1] },
+  { col: "region_code", get: i => PLACES[P[i]][2] },
+  { col: "region", get: i => PLACES[P[i]][3] },
+  { col: "kanton_code", get: i => PLACES[P[i]][4] },
+  { col: "kanton_kreis_departement", get: i => PLACES[P[i]][5] },
+  { col: "jahr_annee", get: i => String(Y[i]), num: true, sortKey: i => Y[i] },
+  { col: "values", get: i => fmtValue(i), num: true, sortKey: i => X[i] ?? -Infinity },
+];
+function fmtValue(i) {
+  const x = X[i];
+  if (x === null || x === undefined) return "";
+  return D[i] ? NF_DEC.format(x) : NF_INT.format(x);
+}
+
+function sortVisible() {
+  if (state.sortCol === null) return;
+  const c = COLUMNS[state.sortCol];
+  const dir = state.sortDir;
+  const arr = Array.from(state.visible);
+  if (c.sortKey) arr.sort((a, b) => (c.sortKey(a) - c.sortKey(b)) * dir || a - b);
+  else {
+    const cache = new Map();
+    const key = i => { let v = cache.get(i); if (v === undefined) { v = c.get(i) || ""; cache.set(i, v); } return v; };
+    arr.sort((a, b) => COLLATOR.compare(key(a), key(b)) * dir || a - b);
+  }
+  state.visible = Int32Array.from(arr);
+}
+
+/** Fixed column widths from the longest value in the whole dataset, so scrolling never shifts columns. */
+function renderTableHead() {
+  const sample = new Map();
+  const widths = COLUMNS.map((c, idx) => {
+    let max = 4;
+    if (idx <= 4) VARS.forEach((v, k) => {
+      const prop = ["topic", "subtopic", "title", "variable", "desc"][idx];
+      max = Math.max(max, (v[prop][lang] || "").length);
+    });
+    else if (c.col === "geo") GEOS.forEach(g => { max = Math.max(max, g.length); });
+    else if (idx >= 6 && idx <= 11) PLACES.forEach(p => { max = Math.max(max, (p[idx - 6] || "").length); });
+    else if (c.col === "values") max = 12;
+    // Header labels are uppercase and wider per character; +2 leaves room for the sort arrow.
+    max = Math.max(max, Math.ceil(colLabel(c.col).length * 1.05) + 2);
+    const ch = Math.min(Math.max(max, 6), 46);
+    return Math.round(ch * 7.4 + 24);
+  });
+  document.getElementById("cols").innerHTML = widths.map(w => `<col style="width:${w}px">`).join("");
+  document.querySelector("table.data").style.width = widths.reduce((a, b) => a + b, 0) + "px";
+  const thead = document.getElementById("thead");
+  thead.innerHTML = `<tr>${COLUMNS.map((c, idx) => {
+    const sorted = state.sortCol === idx;
+    const arrow = !sorted ? "↕" : (state.sortDir === 1 ? "↑" : "↓");
+    return `<th class="${c.num ? "num" : ""} ${sorted ? "sorted" : ""}" data-col="${idx}" title="${escapeHtml(c.col)}">${escapeHtml(colLabel(c.col))}<span class="sort-ind">${arrow}</span></th>`;
+  }).join("")}</tr>`;
+  thead.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
+    const idx = Number(th.dataset.col);
+    if (state.sortCol === idx) state.sortDir = -state.sortDir;
+    else { state.sortCol = idx; state.sortDir = 1; }
+    sortVisible();
+    renderTableHead();
+    renderTable(true);
+  }));
+}
+
+let ROW_H = 36;
+let rafPending = false;
+function renderTable(resetScroll) {
+  const wrap = document.getElementById("tableWrap");
+  if (resetScroll) wrap.scrollTop = 0;
+  const tbody = document.getElementById("tbody");
+  const rows = state.visible;
+  const total = rows.length;
+  if (!total) {
+    tbody.innerHTML = `<tr><td colspan="${COLUMNS.length}" class="table-none">${escapeHtml(t("table.none"))}</td></tr>`;
+  } else {
+    const headH = document.getElementById("thead").offsetHeight;
+    const top = Math.max(0, wrap.scrollTop - headH);
+    const start = Math.max(0, Math.floor(top / ROW_H) - 15);
+    const end = Math.min(total, Math.ceil((top + wrap.clientHeight) / ROW_H) + 15);
+    let html = `<tr class="spacer"><td colspan="${COLUMNS.length}" style="height:${start * ROW_H}px"></td></tr>`;
+    for (let r = start; r < end; r++) {
+      const i = rows[r];
+      html += "<tr>" + COLUMNS.map(c => {
+        const v = c.get(i) || "";
+        return `<td${c.num ? ' class="num"' : ""} title="${escapeHtml(v)}">${escapeHtml(v)}</td>`;
+      }).join("") + "</tr>";
+    }
+    html += `<tr class="spacer"><td colspan="${COLUMNS.length}" style="height:${(total - end) * ROW_H}px"></td></tr>`;
+    tbody.innerHTML = html;
+    const first = tbody.children[1];
+    if (first && first.offsetHeight && Math.abs(first.offsetHeight - ROW_H) > 0.5) {
+      ROW_H = first.offsetHeight;
+      return renderTable(false);
+    }
+  }
+  let info = `${NF_INT.format(total)} ${t("table.rows")}`;
+  if (state.autoGeo) info += ` · ${colLabel("geo")}: ${state.autoGeo} (${t("table.geoAuto")})`;
+  document.getElementById("tableInfo").textContent = info;
+}
+
+/* ---------- Metadata accordion ---------- */
+let metaKey = "";
+function renderMetadata(force) {
+  const present = new Set();
+  for (const i of state.base) present.add(V[i]);
+  const ids = [...present].sort((a, b) => a - b);
+  const key = lang + "|" + ids.join(",");
+  if (!force && key === metaKey) return;
+  metaKey = key;
+  document.getElementById("metaCount").textContent = ids.length ? `${ids.length} ${t("meta.count")}` : "";
+  const list = document.getElementById("metaList");
+  if (!ids.length) { list.innerHTML = `<p class="meta-empty">${escapeHtml(t("meta.none"))}</p>`; return; }
+  list.innerHTML = ids.map(k => {
+    const v = VARS[k];
+    const path = [v.topic[lang], v.subtopic[lang], v.title[lang]].filter(Boolean).join(" › ");
+    return `<details class="meta-item" data-var="${k}">
+      <summary>
+        <span class="meta-head">
+          <span class="meta-name">${escapeHtml(v.desc[lang] || v.desc.de)}</span>
+          <span class="meta-path">${escapeHtml(path)}</span>
+        </span>
+        <span class="meta-toggle">${escapeHtml(t("meta.details"))} <span class="chev">▾</span></span>
+      </summary>
+      <div class="meta-body"></div>
+    </details>`;
+  }).join("");
+  list.querySelectorAll(".meta-item").forEach(item => {
+    item.addEventListener("toggle", () => {
+      if (item.open && !item.dataset.filled) {
+        item.querySelector(".meta-body").innerHTML = metaBody(Number(item.dataset.var));
+        item.dataset.filled = "1";
+        wireTabs(item);
+      }
+    });
+  });
+}
+
+function kv(label, value) {
+  return value ? `<div class="kv"><b>${escapeHtml(label)}</b><span>${escapeHtml(value)}</span></div>` : "";
+}
+
+function metaBody(k) {
+  const v = VARS[k];
+  const m = META[v.variable.de] || {};
+  const period = [m.min, m.max].filter(Boolean).join("–");
+  const head = kv(colLabel("Variable", "Code"), v.variable[lang])
+    + kv(colLabel("Measure_Unit", t("meta.unit")), v.unit[lang])
+    + kv(colLabel("Timespan_Min", t("meta.period")), period)
+    + kv(colLabel("Source", t("meta.source")), m.source)
+    + kv(colLabel("Footnote", t("meta.footnote")), m.footnote && (m.footnote[lang] || m.footnote.de));
+  const countries = m.countries || {};
+  const tabs = META_COUNTRIES.map((c, i) => `<button type="button" class="meta-tab ${i === 0 ? "active" : ""}" role="tab" data-country="${c}" aria-selected="${i === 0}">
+      <img src="${PAYLOAD.flags[c]}" alt="" /><span>${escapeHtml(t("meta.country." + c))}</span></button>`).join("");
+  const panels = META_COUNTRIES.map((c, i) => `<div class="meta-tabpanel ${i === 0 ? "active" : ""}" role="tabpanel" data-country="${c}">${countryPanel(countries[c])}</div>`).join("");
+  return `${head}<div class="meta-tabs"><div class="meta-tablist" role="tablist">${tabs}</div>${panels}</div>`;
+}
+
+function countryPanel(c) {
+  if (!c) return `<p class="meta-empty">${escapeHtml(t("meta.empty"))}</p>`;
+  const L = (field, key) => colLabel(`${field}_<LAND>`, t(key));
+  const ts = (c.timespan || []).filter(Boolean).join("–");
+  const html = kv(L("Title", "meta.sourceTitle"), c.title)
+    + kv(L("Statistic", "meta.statistic"), c.statistic)
+    + kv(L("Source", "meta.source"), c.source)
+    + kv(L("Database", "meta.database"), c.database)
+    + kv(L("Code", "meta.code"), c.code)
+    + kv(L("Timespan_Min", "meta.period"), ts)
+    + kv(L("Stichtag", "meta.stichtag"), c.stichtag)
+    + kv(L("Copyright", "meta.copyright"), c.copyright)
+    + kv(L("Specific_Information", "meta.info"), c.info);
+  return html || `<p class="meta-empty">${escapeHtml(t("meta.empty"))}</p>`;
+}
+
+function wireTabs(root) {
+  const btns = root.querySelectorAll(".meta-tab");
+  const panels = root.querySelectorAll(".meta-tabpanel");
+  btns.forEach(btn => btn.addEventListener("click", () => {
+    const c = btn.dataset.country;
+    btns.forEach(b => { const on = b.dataset.country === c; b.classList.toggle("active", on); b.setAttribute("aria-selected", on); });
+    panels.forEach(p => p.classList.toggle("active", p.dataset.country === c));
+  }));
+}
+
+/* ---------- Downloads ---------- */
+function odsLiteral(value) { return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`; }
+
+/** Export URL for the current filters: one value -> refine, several -> where IN, search -> where search(). */
+function buildExportUrl(id, format, withFilters) {
+  const params = new URLSearchParams();
+  params.set("timezone", "Europe/Zurich");
+  if (withFilters) {
+    const where = [];
+    for (const d of DIMS) {
+      let values = [...d.selected].map(c => d.id === "indicator" ? VARS[d.keys[c]].variable.de : d.keys[c]);
+      if (d.id === "geo" && !values.length && state.autoGeo) values = [state.autoGeo];
+      if (!values.length) continue;
+      if (values.length === 1) params.append("refine", `${d.field}:${values[0]}`);
+      else where.push(`${d.field} in (${values.map(odsLiteral).join(", ")})`);
+    }
+    const q = state.search.trim();
+    if (q) where.push(`search(variable_description_${lang}, ${odsLiteral(q)})`);
+    if (where.length) params.set("where", where.join(" and "));
   }
   return `https://data.bs.ch/api/explore/v2.1/catalog/datasets/${id}/exports/${format}/?${params.toString()}`;
 }
 
-function formatButtons(id, filters, search) {
-  const formats = [["csv","CSV"],["json","JSON"],["xlsx","XLSX"],["parquet","Parquet"]];
-  return formats.map(([fmt, label]) =>
-    `<a href="${buildExportUrl(id, fmt, filters, search)}" target="_blank" rel="noopener">${label}</a>`
-  ).join("");
+function exportsHtml(id, withFilters) {
+  const formats = [["csv", "CSV"], ["json", "JSON"], ["xlsx", "XLSX"], ["parquet", "Parquet"]];
+  const links = formats.map(([fmt, label]) =>
+    `<a href="${escapeHtml(buildExportUrl(id, fmt, withFilters))}" target="_blank" rel="noopener">↓ ${label}</a>`).join("");
+  return links + `<div class="api-note">${escapeHtml(t("download.api"))} <code>${escapeHtml(buildExportUrl(id, "csv", withFilters))}</code></div>`;
 }
 
-function applyI18n() {
-  document.documentElement.lang = state.lang;
+function renderDownloads() {
+  document.getElementById("exportsAll").innerHTML = exportsHtml(DATA_ID, false);
+  document.getElementById("exportsFiltered").innerHTML = exportsHtml(DATA_ID, true);
+  document.getElementById("exportsMetaShort").innerHTML = exportsHtml(META_SHORT_ID, false);
+  document.getElementById("exportsMetaLong").innerHTML = exportsHtml(META_LONG_ID, false);
+}
+
+/* ---------- Data tree lightbox ---------- */
+function initLightbox() {
+  const dlg = document.getElementById("lightbox");
+  const body = document.getElementById("lbBody");
+  document.querySelectorAll(".tile").forEach(tile => tile.addEventListener("click", () => {
+    const topic = tile.dataset.tree;
+    const imgs = PAYLOAD.trees[topic] || {};
+    const src = imgs[lang] || imgs.de;
+    document.getElementById("lbTitle").textContent = `${t("tree.title")}: ${t("theme." + topic)}`;
+    body.classList.remove("zoomed");
+    body.innerHTML = src
+      ? `<img src="${src}" alt="${escapeHtml(t("tree.title") + ": " + t("theme." + topic))}" />`
+      : `<p class="lb-missing">${escapeHtml(t("tree.missing"))}</p>`;
+    const img = body.querySelector("img");
+    if (img) img.addEventListener("click", () => body.classList.toggle("zoomed"));
+    dlg.showModal();
+  }));
+  document.getElementById("lbClose").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+}
+
+/* ---------- Language ---------- */
+function applyStaticI18n() {
+  document.documentElement.lang = lang;
   document.title = t("page.title");
-  document.querySelectorAll("[data-i18n]").forEach(el => {
-    el.textContent = t(el.getAttribute("data-i18n"));
-  });
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.getAttribute("data-i18n")); });
+  document.getElementById("lbClose").setAttribute("aria-label", t("tree.close"));
+  document.getElementById("searchLabel").textContent = colLabel("Variable_Description");
+  document.getElementById("search").placeholder = t("filter.searchPlaceholder");
   if (SHOW_LANG) {
-    const cur = LANGS.find(l => l.id === state.lang);
-    document.getElementById("langFlag").src = PAYLOAD.flags[state.lang];
-    document.getElementById("langLabel").textContent = cur.label;
+    document.getElementById("langFlag").src = PAYLOAD.flags[lang];
+    document.getElementById("langLabel").textContent = LANGS.find(l => l.id === lang).label;
   }
-  renderMetadata();
-  renderMetaDownloads();
-  state.controllers.forEach(ctrl => ctrl.refreshI18n());
+}
+
+function setLang(next) {
+  lang = next;
+  try { localStorage.setItem("statrhena_lang", lang); } catch (e) { /* ignore */ }
+  initFormats();
+  applyStaticI18n();
+  renderLangMenu();
+  if (!N) return;
+  updateSearchMask();
+  renderFilterShell();
+  renderTableHead();
+  update(null);
 }
 
 function renderLangMenu() {
   if (!SHOW_LANG) return;
   const menu = document.getElementById("langMenu");
-  menu.innerHTML = LANGS.map(l =>
-    `<button type="button" role="option" data-lang="${l.id}" class="${l.id === state.lang ? "active" : ""}">
-      <img src="${PAYLOAD.flags[l.id]}" alt="" /> ${escapeHtml(l.label)}
-    </button>`
-  ).join("");
-  menu.querySelectorAll("button").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.lang = btn.dataset.lang;
-      localStorage.setItem("statrhena_lang", state.lang);
-      document.getElementById("langSwitch").classList.remove("open");
-      document.getElementById("langBtn").setAttribute("aria-expanded", "false");
-      renderLangMenu();
-      applyI18n();
-    });
-  });
+  menu.innerHTML = LANGS.map(l => `<button type="button" role="option" data-lang="${l.id}" class="${l.id === lang ? "active" : ""}">
+      <img src="${PAYLOAD.flags[l.id]}" alt="" /> ${escapeHtml(l.label)}</button>`).join("");
+  menu.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    document.getElementById("langSwitch").classList.remove("open");
+    document.getElementById("langBtn").setAttribute("aria-expanded", "false");
+    setLang(btn.dataset.lang);
+  }));
 }
 
 function initLangSwitcher() {
   if (!SHOW_LANG) return;
-  renderLangMenu();
   const langBtn = document.getElementById("langBtn");
   const langSwitch = document.getElementById("langSwitch");
-  langBtn.addEventListener("click", () => {
+  langBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     const open = langSwitch.classList.toggle("open");
     langBtn.setAttribute("aria-expanded", open ? "true" : "false");
   });
@@ -1295,322 +1535,55 @@ function initLangSwitcher() {
   });
 }
 
-function countryPanel(r, c) {
-  const srcTitle = r.titles[c];
-  const info = r.info[c];
-  const stat = r.stats[c];
-  const src = r.sources[c];
-  const ts = (r.timespan[c] || []).filter(Boolean).join("–");
-  if (!srcTitle && !info && !stat && !src && !ts) {
-    return `<div class="kv"><b></b><span>${escapeHtml(t("meta.empty"))}</span></div>`;
-  }
-  return `${srcTitle ? `<div class="kv"><b>${escapeHtml(t("meta.sourceTitle"))}</b><span>${escapeHtml(srcTitle)}</span></div>` : ""}
-    ${stat ? `<div class="kv"><b>${escapeHtml(t("meta.statistic"))}</b><span>${escapeHtml(stat)}</span></div>` : ""}
-    ${src ? `<div class="kv"><b>${escapeHtml(t("meta.source"))}</b><span>${escapeHtml(src)}</span></div>` : ""}
-    ${ts ? `<div class="kv"><b>${escapeHtml(t("meta.period"))}</b><span>${escapeHtml(ts)}</span></div>` : ""}
-    ${info ? `<div class="kv"><b>${escapeHtml(t("meta.info"))}</b><span>${escapeHtml(info)}</span></div>` : ""}`;
-}
+/* ---------- Boot ---------- */
+async function boot() {
+  initFormats();
+  applyStaticI18n();
+  renderLangMenu();
+  initLangSwitcher();
+  initLightbox();
 
-function renderMetadata() {
-  if (!state.metadata) return;
-  document.querySelectorAll("[data-meta-long]").forEach(longEl => {
-    const topic = longEl.closest("section").dataset.topic;
-    const bundle = state.metadata[topic];
-    if (!bundle) return;
-    const byTitle = new Map();
-    for (const r of bundle.long) {
-      const key = r.title || r.variable;
-      if (!byTitle.has(key)) byTitle.set(key, []);
-      byTitle.get(key).push(r);
-    }
-    longEl.innerHTML = [...byTitle.entries()].map(([title, rows]) => {
-      const vars = rows.map(r => {
-        const tabs = META_COUNTRIES.map((c, i) =>
-          `<button type="button" class="meta-tab ${i === 0 ? "active" : ""}" role="tab" data-country="${c}" aria-selected="${i === 0 ? "true" : "false"}">
-            <img src="${PAYLOAD.flags[c]}" alt="" />
-            <span>${escapeHtml(t("meta.country." + c))}</span>
-          </button>`
-        ).join("");
-        const panels = META_COUNTRIES.map((c, i) =>
-          `<div class="meta-tabpanel ${i === 0 ? "active" : ""}" role="tabpanel" data-country="${c}">${countryPanel(r, c)}</div>`
-        ).join("");
-        const footnote = r.footnote
-          ? `<div class="meta-footnote">${escapeHtml(r.footnote)}</div>`
-          : "";
-        return `<details class="meta-var">
-          <summary>
-            <span class="meta-var-name">${escapeHtml(r.variable)}</span>
-            <span class="meta-var-desc">${escapeHtml(r.description || "")}</span>
-          </summary>
-          <div class="body">
-            <div class="meta-tabs">
-              <div class="meta-tablist" role="tablist">${tabs}</div>
-              ${panels}
-            </div>
-            ${footnote}
-          </div>
-        </details>`;
-      }).join("");
-      return `<div class="meta-group">
-        <h4 class="meta-group-title">${escapeHtml(title)}</h4>
-        <div class="meta-vars">${vars}</div>
-      </div>`;
-    }).join("");
-
-    longEl.querySelectorAll(".meta-tabs").forEach(tabs => {
-      const tabBtns = tabs.querySelectorAll(".meta-tab");
-      const panels = tabs.querySelectorAll(".meta-tabpanel");
-      tabBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          const c = btn.dataset.country;
-          tabBtns.forEach(b => {
-            const on = b.dataset.country === c;
-            b.classList.toggle("active", on);
-            b.setAttribute("aria-selected", on ? "true" : "false");
-          });
-          panels.forEach(p => p.classList.toggle("active", p.dataset.country === c));
-        });
-      });
-    });
-  });
-}
-
-function renderMetaDownloads() {
-  document.querySelectorAll("section[data-topic]").forEach(section => {
-    const filters = { topic: [section.dataset.topic] };
-    const shortEl = section.querySelector("[data-exports-meta-short]");
-    const longEl = section.querySelector("[data-exports-meta-long]");
-    if (!shortEl || !longEl) return;
-    const shortUrl = buildExportUrl(META_SHORT_ID, "csv", filters, "");
-    const longUrl = buildExportUrl(META_LONG_ID, "csv", filters, "");
-    shortEl.innerHTML = formatButtons(META_SHORT_ID, filters, "") +
-      `<div class="api-note"><code>${escapeHtml(shortUrl)}</code></div>`;
-    longEl.innerHTML = formatButtons(META_LONG_ID, filters, "") +
-      `<div class="api-note"><code>${escapeHtml(longUrl)}</code></div>`;
-  });
-}
-
-function uniqueValues(records, col) {
-  const set = new Set();
-  for (const r of records) if (r[col]) set.add(r[col]);
-  return [...set].sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
-}
-
-function createTableController(section, data) {
-  const datasetId = section.dataset.dataset;
-  const ctrl = {
-    filters: Object.fromEntries(FILTER_COLS.map(c => [c, []])),
-    search: "",
-    page: 1,
-    sortCol: null,
-    sortDir: "asc",
-    filtered: data.records.slice(),
-    options: Object.fromEntries(FILTER_COLS.map(c => [c, uniqueValues(data.records, c)])),
-
-    refreshI18n() {
-      this.renderFilters();
-      this.renderExports();
-      this.render();
-    },
-
-    summaryText(col) {
-      const vals = this.filters[col] || [];
-      if (!vals.length) return t("filter.all");
-      if (vals.length === 1) return vals[0];
-      return `${vals.length} ${t("filter.selected")}`;
-    },
-
-    renderExports() {
-      const allEl = section.querySelector("[data-exports-all]");
-      const filEl = section.querySelector("[data-exports-filtered]");
-      allEl.innerHTML = formatButtons(datasetId, {}, "") +
-        `<div class="api-note">${escapeHtml(t("download.hintAll"))}<br><code>${escapeHtml(buildExportUrl(datasetId, "csv"))}</code></div>`;
-      filEl.innerHTML = formatButtons(datasetId, this.filters, this.search) +
-        `<div class="api-note">${escapeHtml(t("download.hintFiltered"))}<br><code>${escapeHtml(buildExportUrl(datasetId, "csv", this.filters, this.search))}</code></div>`;
-    },
-
-    sortRows() {
-      if (!this.sortCol) return;
-      const col = this.sortCol;
-      const dir = this.sortDir === "asc" ? 1 : -1;
-      this.filtered.sort((a, b) => {
-        const av = a[col] ?? "";
-        const bv = b[col] ?? "";
-        const an = parseFloat(String(av).replace(",", "."));
-        const bn = parseFloat(String(bv).replace(",", "."));
-        if (!Number.isNaN(an) && !Number.isNaN(bn) && String(av).trim() !== "" && String(bv).trim() !== "") {
-          return (an - bn) * dir;
-        }
-        return String(av).localeCompare(String(bv), "de", { numeric: true, sensitivity: "base" }) * dir;
-      });
-    },
-
-    toggleSort(col) {
-      if (this.sortCol === col) {
-        this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
-      } else {
-        this.sortCol = col;
-        this.sortDir = "asc";
-      }
-      this.sortRows();
-      this.page = 1;
-      this.render();
-    },
-
-    renderFilters() {
-      const el = section.querySelector("[data-filters]");
-      const parts = FILTER_COLS.map(col => {
-        const selected = new Set(this.filters[col] || []);
-        const opts = this.options[col].map(v =>
-          `<label><input type="checkbox" value="${escapeAttr(v)}" ${selected.has(v) ? "checked" : ""} /><span>${escapeHtml(v)}</span></label>`
-        ).join("");
-        const has = selected.size > 0;
-        return `<div class="filter-field">
-          <div class="flabel" title="${escapeAttr(col)}">${escapeHtml(filterLabel(col))}</div>
-          <div class="ms" data-col="${escapeAttr(col)}">
-            <button type="button" class="ms-btn" aria-haspopup="listbox">
-              <span class="ms-summary ${has ? "has" : ""}">${escapeHtml(this.summaryText(col))}</span>
-              <span class="ms-caret">▾</span>
-            </button>
-            <div class="ms-panel" role="listbox">${opts}</div>
-          </div>
-        </div>`;
-      });
-      parts.push(`<div class="filter-field search-field">
-        <div class="flabel">${escapeHtml(t("filter.search"))}</div>
-        <input type="search" data-search placeholder="${escapeAttr(t("filter.placeholder"))}" value="${escapeAttr(this.search)}" />
-      </div>`);
-      parts.push(`<div class="actions">
-        <button type="button" data-apply>${escapeHtml(t("filter.apply"))}</button>
-        <button type="button" class="ghost" data-reset>${escapeHtml(t("filter.reset"))}</button>
-      </div>`);
-      el.innerHTML = parts.join("");
-
-      el.querySelectorAll(".ms").forEach(ms => {
-        const col = ms.dataset.col;
-        const btn = ms.querySelector(".ms-btn");
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const wasOpen = ms.classList.contains("open");
-          el.querySelectorAll(".ms").forEach(m => m.classList.remove("open"));
-          if (!wasOpen) ms.classList.add("open");
-        });
-        ms.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          cb.addEventListener("change", () => {
-            this.filters[col] = [...ms.querySelectorAll('input[type="checkbox"]:checked')].map(x => x.value);
-            const sum = ms.querySelector(".ms-summary");
-            sum.textContent = this.summaryText(col);
-            sum.classList.toggle("has", this.filters[col].length > 0);
-            this.apply();
-          });
-        });
-      });
-      el.querySelector("[data-search]").addEventListener("input", e => { this.search = e.target.value; });
-      el.querySelector("[data-apply]").addEventListener("click", () => this.apply());
-      el.querySelector("[data-reset]").addEventListener("click", () => {
-        this.filters = Object.fromEntries(FILTER_COLS.map(c => [c, []]));
-        this.search = "";
-        this.page = 1;
-        this.renderFilters();
-        this.apply();
-      });
-    },
-
-    apply() {
-      const q = this.search.trim().toLowerCase();
-      this.filtered = data.records.filter(row => {
-        for (const col of FILTER_COLS) {
-          const vals = this.filters[col] || [];
-          if (vals.length && !vals.includes(row[col])) return false;
-        }
-        if (!q) return true;
-        return SEARCH_COLS.some(col => String(row[col] || "").toLowerCase().includes(q));
-      });
-      this.sortRows();
-      this.page = 1;
-      this.renderExports();
-      this.render();
-    },
-
-    render() {
-      const thead = section.querySelector("thead");
-      const tbody = section.querySelector("tbody");
-      const info = section.querySelector("[data-info]");
-      const pageLabel = section.querySelector("[data-page]");
-      const prev = section.querySelector("[data-prev]");
-      const next = section.querySelector("[data-next]");
-      thead.innerHTML = `<tr>${data.headers.map(h => {
-        const sorted = this.sortCol === h;
-        const arrow = !sorted ? "↕" : (this.sortDir === "asc" ? "↑" : "↓");
-        return `<th class="sortable ${sorted ? "sorted" : ""}" data-sort="${escapeAttr(h)}">${escapeHtml(h)}<span class="sort-ind">${arrow}</span></th>`;
-      }).join("")}</tr>`;
-      thead.querySelectorAll("th[data-sort]").forEach(th => {
-        th.addEventListener("click", () => this.toggleSort(th.dataset.sort));
-      });
-      const total = this.filtered.length;
-      const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-      if (this.page > pages) this.page = pages;
-      const start = (this.page - 1) * PAGE_SIZE;
-      const slice = this.filtered.slice(start, start + PAGE_SIZE);
-      const numericHints = new Set(["values_integer", "values_decimal", "jahr_annee"]);
-      tbody.innerHTML = slice.map(row =>
-        `<tr>${data.headers.map(h => {
-          const v = row[h] ?? "";
-          const cls = numericHints.has(h) || /^-?\d+(\.\d+)?$/.test(v) ? "num" : "";
-          return `<td class="${cls}">${escapeHtml(v)}</td>`;
-        }).join("")}</tr>`
-      ).join("") || `<tr><td colspan="${data.headers.length}">${escapeHtml(t("table.none"))}</td></tr>`;
-      info.textContent = `${fmtNum(total)} ${t("table.rows")} · ${t("pager.page")} ${this.page} / ${pages}`;
-      pageLabel.textContent = `${t("pager.page")} ${this.page}`;
-      prev.disabled = this.page <= 1;
-      next.disabled = this.page >= pages;
-      prev.onclick = () => { if (this.page > 1) { this.page--; this.render(); } };
-      next.onclick = () => { this.page++; this.render(); };
-    },
-  };
-
-  document.addEventListener("click", () => {
-    section.querySelectorAll(".ms").forEach(m => m.classList.remove("open"));
-  });
-
-  ctrl.renderFilters();
-  ctrl.renderExports();
-  ctrl.render();
-  state.controllers.push(ctrl);
-  return ctrl;
-}
-
-async function loadSection(section) {
-  const status = section.querySelector("[data-status]");
+  const status = document.getElementById("status");
   status.hidden = false;
   status.className = "status";
   status.innerHTML = `<span class="loading"><span class="spinner"></span> ${escapeHtml(t("status.loading"))}</span>`;
   try {
-    const text = await gunzipB64(PAYLOAD[section.dataset.payload]);
-    const parsed = parseCSV(text);
-    status.innerHTML = `${fmtNum(parsed.records.length)} ${escapeHtml(t("status.loaded"))}`;
-    setTimeout(() => { status.hidden = true; }, 2500);
-    createTableController(section, parsed);
+    const [data, meta] = await Promise.all([gunzipJson(PAYLOAD.data_gz), gunzipJson(PAYLOAD.metadata_gz)]);
+    META = meta;
+    VARS = data.vars; PLACES = data.places; GEOS = data.geos;
+    ({ v: V, y: Y, g: G, p: P, x: X, d: D } = data.rows);
+    N = V.length;
+    buildDims();
+    status.hidden = true;
   } catch (err) {
     status.className = "status error";
     status.textContent = String(err.message || err);
-  }
-}
-
-async function boot() {
-  initLangSwitcher();
-
-  try {
-    state.metadata = JSON.parse(await gunzipB64(PAYLOAD.metadata_gz));
-  } catch (err) {
-    console.error(err);
+    return;
   }
 
-  applyI18n();
+  renderFilterShell();
+  renderTableHead();
+  update(null);
 
-  for (const section of document.querySelectorAll("section[data-payload]")) {
-    await loadSection(section);
-  }
+  document.addEventListener("click", closePanels);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closePanels(); });
+  let searchTimer;
+  document.getElementById("search").addEventListener("input", (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { state.search = e.target.value; updateSearchMask(); update(null); }, 200);
+  });
+  document.getElementById("reset").addEventListener("click", () => {
+    for (const d of DIMS) { d.selected.clear(); d.mask.fill(0); }
+    state.search = "";
+    document.getElementById("search").value = "";
+    updateSearchMask();
+    update(null);
+  });
+  document.getElementById("tableWrap").addEventListener("scroll", () => {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => { rafPending = false; renderTable(false); });
+  }, { passive: true });
 }
 
 boot().catch(console.error);
