@@ -7,11 +7,10 @@ requires-python = ">=3.12"
 dependencies = [
     "common",
     "pandas>=2.2.3",
-    "pdf-converter[docling-serve,pdfplumber,pymupdf,pymupdf4llm]",
+    "httpx>=0.28.1",
     "truststore>=0.10.4",
 ]
 
 [tool.uv.sources]
 common = { git = "https://github.com/opendatabs/common", rev = "2877e38289eb628fa7f30c4203b99f2b9ee19ad8" }
-pdf-converter = { git = "https://github.com/opendatabs/pdf_converter", rev = "fed140330770840d1f808e85d28cce6a67aa83a6" }
 

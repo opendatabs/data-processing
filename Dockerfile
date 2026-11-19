@@ -4,8 +4,7 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm
 # Set the working directory
 WORKDIR /code
  
-#### SET THE TIMEZONE TO "Europe/Zurich" ####
-# Set environment variables for timezone and locale
+# Set the timezone to "Europe/Zurich"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Zurich
 ENV LANG=de_CH.UTF-8

@@ -10,7 +10,6 @@ import pandas as pd
 from charset_normalizer import from_path
 
 # TODO: : vs _ bereinigen oder behalten?; Freitextfragen (bzw welche fragen wurden überhaupt aufgenommen?); F21 in 2021; FrageLabel vs Fortsetzung (z.B. 2009)
-# TODO: alle jahre datensatz (jahresübergreifend)
 
 def main():
 
@@ -141,15 +140,15 @@ def main():
             "jahr": 2025,
             "ods_id": "100486",
         },
-        """ {
+        {
             "data_file": os.path.join("data_orig", "jugend/Alle_Jahre/Jugendbefragung_Vergleichsdatensatz_alle_Jahre_OGD.xlsx"),
-            "var_file": None,
+            "var_file": os.path.join("data_orig", "jugend/2025/Jugendbefragung_Controlfile_2025_OGD.xlsx"),
             "export_folder": "jugend/alle_jahre",
             "export_file": "Befragung_jugend_alle_jahre.csv",
             "ftp_folder": "jugend",
             "jahr": None,
             "ods_id": "100487",
-        }, """
+        },
     ]
 
     for ds in datasets:
@@ -232,6 +231,10 @@ def process_single_file(
     else:
         logging.info("Jahresübergreifend: Filter out questions which just appear in one year...")
         # TODO: Filter out questions which just appear in one year
+    
+    if "Jahr" not in df_data and "Erhebungsjahr" in df_data: # this is the case for the alle_jahre file in jugend
+        df_data = df_data.rename(columns={"Erhebungsjahr": "Jahr"})
+
     id_vars = ["ID", "Jahr"]
     question_columns = [col for col in df_data.columns if col not in id_vars]
     question_order = {col: idx for idx, col in enumerate(question_columns, start=1)}
@@ -245,40 +248,33 @@ def process_single_file(
 
     df_var = read_survey_file(var_file)
     df_var.to_csv(os.path.join(data_path, export_folder, f"Variablen_{export_file}"), index=False)
-    if jahr == 2013:
-        df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on="FrageName2") #TODO: mit Michael abkläre, warum das Label anders ist (also make sure that no other befragung happened in 2013, onyl quick fix!!)
-    else:
-        df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on="FrageName")
+
+    name_col = "FrageName2" if jahr == 2013 else "FrageName" #TODO: fix this in the data?
+    df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on=name_col)
+
+    # questions missing from the variable file: use the column name as name and label
+    unmatched = df_merge[name_col].isna()
+    if unmatched.any():
+        missing = sorted(df_merge.loc[unmatched, "variable"].unique())
+        logging.warning(f"{len(missing)} questions not in variable file, using column name as label: {missing}")
+        df_merge.loc[unmatched, name_col] = df_merge.loc[unmatched, "variable"]
+        df_merge.loc[unmatched, "FrageLabel"] = df_merge.loc[unmatched, "variable"]
+
     df_merge = df_merge[df_merge["value"] != "**OTHER**"]
 
-    if jahr == 2013:
-        df_export = df_merge[
-            [
-                "Jahr",
-                "ID",
-                "FrageName2",
-                "FrageLabel",
-                "FrageLabel_Fortsetzung",
-                "FrageLabel_Anmerkung",
-                "value",
-                "FrageSpaltenReihenfolge",
-                "AntwortReihenfolge",
-            ]
-        ].rename(columns={"value": "Antwort"})
-    else:
-        df_export = df_merge[
-            [
-                "Jahr",
-                "ID",
-                "FrageName",
-                "FrageLabel",
-                "FrageLabel_Fortsetzung",
-                "FrageLabel_Anmerkung",
-                "value",
-                "FrageSpaltenReihenfolge",
-                "AntwortReihenfolge",
-            ]
-        ].rename(columns={"value": "Antwort"})
+    df_export = df_merge[
+        [
+            "Jahr",
+            "ID",
+            name_col,
+            "FrageLabel",
+            "FrageLabel_Fortsetzung",
+            "FrageLabel_Anmerkung",
+            "value",
+            "FrageSpaltenReihenfolge",
+            "AntwortReihenfolge",
+        ]
+    ].rename(columns={"value": "Antwort"})
     export_path = os.path.join(data_path, export_folder, export_file)
     df_export.to_csv(export_path, index=False)
     common.update_ftp_and_odsp(export_path, f"befragungen/{ftp_folder}", ods_id)
