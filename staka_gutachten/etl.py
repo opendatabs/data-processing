@@ -545,9 +545,7 @@ def delete_removed_files(current_ftp_names: set[str], remote_dir: str) -> None:
             LOGGER.warning("Could not delete %s from FTP: %s", name, exc)
             failures.append(name)
     if failures:
-        raise RuntimeError(
-            "Failed to delete Gutachten file(s) from FTP, CSV was not updated: " + ", ".join(failures)
-        )
+        raise RuntimeError("Failed to delete Gutachten file(s) from FTP, CSV was not updated: " + ", ".join(failures))
 
 
 def upload_files_to_ftp(df: pd.DataFrame):
