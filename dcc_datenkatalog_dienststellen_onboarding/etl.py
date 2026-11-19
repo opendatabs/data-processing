@@ -196,11 +196,7 @@ def _drop_rows_without_status(df: pd.DataFrame) -> pd.DataFrame:
 def _assert_unique_departement_dienststelle(df: pd.DataFrame) -> None:
     dup_mask = df.duplicated(subset=["Departement", "Dienststelle"], keep=False)
     if dup_mask.any():
-        duplicates = (
-            df.loc[dup_mask, ["Departement", "Dienststelle"]]
-            .drop_duplicates()
-            .to_dict(orient="records")
-        )
+        duplicates = df.loc[dup_mask, ["Departement", "Dienststelle"]].drop_duplicates().to_dict(orient="records")
         raise ValueError(f"Duplicate Departement-Dienststelle pairs found: {duplicates}")
 
 
@@ -215,7 +211,6 @@ def _extract_onboarding_df(source_path: Path) -> pd.DataFrame:
     df = _drop_rows_without_status(df)
     _assert_unique_departement_dienststelle(df)
     return df
-
 
 
 def main() -> None:

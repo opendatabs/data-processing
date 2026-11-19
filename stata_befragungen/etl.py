@@ -11,6 +11,7 @@ from charset_normalizer import from_path
 
 # TODO: : vs _ bereinigen oder behalten?; Freitextfragen (bzw welche fragen wurden überhaupt aufgenommen?); F21 in 2021; FrageLabel vs Fortsetzung (z.B. 2009)
 
+
 def main():
 
     datasets = [
@@ -141,7 +142,9 @@ def main():
             "ods_id": "100486",
         },
         {
-            "data_file": os.path.join("data_orig", "jugend/Alle_Jahre/Jugendbefragung_Vergleichsdatensatz_alle_Jahre_OGD.xlsx"),
+            "data_file": os.path.join(
+                "data_orig", "jugend/Alle_Jahre/Jugendbefragung_Vergleichsdatensatz_alle_Jahre_OGD.xlsx"
+            ),
             "var_file": os.path.join("data_orig", "jugend/2025/Jugendbefragung_Controlfile_2025_OGD.xlsx"),
             "export_folder": "jugend/alle_jahre",
             "export_file": "Befragung_jugend_alle_jahre.csv",
@@ -231,8 +234,8 @@ def process_single_file(
     else:
         logging.info("Jahresübergreifend: Filter out questions which just appear in one year...")
         # TODO: Filter out questions which just appear in one year
-    
-    if "Jahr" not in df_data and "Erhebungsjahr" in df_data: # this is the case for the alle_jahre file in jugend
+
+    if "Jahr" not in df_data and "Erhebungsjahr" in df_data:  # this is the case for the alle_jahre file in jugend
         df_data = df_data.rename(columns={"Erhebungsjahr": "Jahr"})
 
     id_vars = ["ID", "Jahr"]
@@ -249,7 +252,7 @@ def process_single_file(
     df_var = read_survey_file(var_file)
     df_var.to_csv(os.path.join(data_path, export_folder, f"Variablen_{export_file}"), index=False)
 
-    name_col = "FrageName2" if jahr == 2013 else "FrageName" #TODO: fix this in the data?
+    name_col = "FrageName2" if jahr == 2013 else "FrageName"  # TODO: fix this in the data?
     df_merge = df_data_long.merge(df_var, how="left", left_on="variable", right_on=name_col)
 
     # questions missing from the variable file: use the column name as name and label
