@@ -924,7 +924,7 @@ const I18N = {
     "tree.zoomIn": "Vergrössern",
     "tree.zoomOut": "Verkleinern",
     "tree.fit": "Einpassen",
-    "tree.hint": "Bild mit gedrückter Maustaste verschieben · Zoomen mit + / − oder Strg + Mausrad",
+    "tree.hint": "Bild mit gedrückter Maustaste verschieben · Zoomen mit Doppelklick (Shift: verkleinern), + / − oder Strg + Mausrad",
     "filters.title": "Suche und Filter",
     "filter.searchPlaceholder": "Indikator suchen, z. B. Geburten…",
     "filter.all": "Alle",
@@ -978,7 +978,7 @@ const I18N = {
     "tree.zoomIn": "Zoom in",
     "tree.zoomOut": "Zoom out",
     "tree.fit": "Fit",
-    "tree.hint": "Drag the image to move it · Zoom with + / − or Ctrl + mouse wheel",
+    "tree.hint": "Drag the image to move it · Zoom with double-click (Shift: zoom out), + / − or Ctrl + mouse wheel",
     "filters.title": "Search and filters",
     "filter.searchPlaceholder": "Search indicators, e.g. births…",
     "filter.all": "All",
@@ -1032,7 +1032,7 @@ const I18N = {
     "tree.zoomIn": "Agrandir",
     "tree.zoomOut": "Réduire",
     "tree.fit": "Ajuster",
-    "tree.hint": "Faites glisser l’image pour la déplacer · Zoom avec + / − ou Ctrl + molette",
+    "tree.hint": "Faites glisser l’image pour la déplacer · Zoom par double-clic (Maj : réduire), + / − ou Ctrl + molette",
     "filters.title": "Recherche et filtres",
     "filter.searchPlaceholder": "Rechercher un indicateur, p. ex. naissances…",
     "filter.all": "Tous",
@@ -1607,6 +1607,18 @@ function initLightbox() {
     const rect = view.getBoundingClientRect();
     setZoom(tree.scale * Math.exp(-e.deltaY * 0.002), e.clientX - rect.left, e.clientY - rect.top);
   }, { passive: false });
+
+  // Double-click zooms in around the cursor (Shift: zoom out); at maximum zoom it fits again.
+  view.addEventListener("dblclick", (e) => {
+    if (!tree.img) return;
+    e.preventDefault();
+    const rect = view.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    if (e.shiftKey) setZoom(tree.scale / (ZOOM_STEP * ZOOM_STEP), cx, cy);
+    else if (tree.scale >= treeMax() - 1e-6) fitTree();
+    else setZoom(tree.scale * ZOOM_STEP * ZOOM_STEP, cx, cy);
+  });
 
   // Click and drag to pan (mouse/pen); touch keeps native scrolling.
   let drag = null;
