@@ -49,7 +49,10 @@ def main():
 
                 prefix, id2 = href.split("/")
                 link = url_to_scrape_from + href
-                free = int(row.find("td", class_="parkh_belegung").get_text(strip=True))
+                belegung_text = row.find("td", class_="parkh_belegung").get_text(strip=True)
+                free = 0
+                if belegung_text.isdigit():
+                    free = int(belegung_text)
                 name = row.find("td", class_="parkh_name").get_text(strip=True)
                 status = row.find("td", class_="parkh_status").get_text(strip=True)
                 title = f"{prefix.capitalize()} {name}"
