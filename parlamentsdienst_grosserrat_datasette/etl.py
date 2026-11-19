@@ -3,18 +3,11 @@ import sqlite3
 from pathlib import Path
 
 import common
+import docling_corpus
 import pandas as pd
-import pdf_converter
 import truststore
 
 truststore.inject_into_ssl()
-
-
-def safe_converter(func, *args, **kwargs):
-    try:
-        func(*args, **kwargs)
-    except Exception as e:
-        logging.exception("Converter failed: %s (%s)", func.__name__, e)
 
 
 def main():
@@ -493,57 +486,12 @@ def main():
     conn.close()
     logging.info("Build complete.")
 
-    # ---------- Converters (guarded) ----------
+    # ---------- The docling corpus ----------
+    # Markdown with page markers, docling JSON and pictures via docling-serve (see docling_corpus.py).
+    # It is the only conversion: a failure fails the task.
     df_dok_copy = df_dok_full.copy()
     df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
-
-    for method in ["docling-serve", "pymupdf", "pymupdf4llm"]:
-        safe_converter(
-            pdf_converter.create_markdown_from_column,
-            df_dok_copy,
-            "url_dok",
-            method,
-            Path("data/markdown") / f"gr_dokumente_md_{method}.zip",
-            "dok_laufnr",
-            max_failures=3,
-            shuffle=True,
-            max_workers=1,
-        )
-    for method in ["docling-serve", "pymupdf", "pymupdf4llm"]:
-        safe_converter(
-            pdf_converter.create_markdown_from_column,
-            df_sessionen_src,
-            "url_vollprotokoll",
-            method,
-            Path("data/markdown") / f"gr_vollprotokoll_md_{method}.zip",
-            "tag1",
-            max_failures=3,
-            shuffle=True,
-            max_workers=1,
-        )
-
-    for method in ["pdfplumber", "pymupdf"]:
-        safe_converter(
-            pdf_converter.create_text_from_column,
-            df_dok_copy,
-            "url_dok",
-            method,
-            Path("data/text") / f"gr_dokumente_text_{method}.zip",
-            "dok_laufnr",
-            max_failures=3,
-            shuffle=True,
-        )
-    for method in ["pdfplumber", "pymupdf"]:
-        safe_converter(
-            pdf_converter.create_text_from_column,
-            df_sessionen_src,
-            "url_vollprotokoll",
-            method,
-            Path("data/text") / f"gr_vollprotokoll_text_{method}.zip",
-            "tag1",
-            max_failures=3,
-            shuffle=True,
-        )
+    docling_corpus.run(df_dok_copy, df_sessionen_src)
 
 
 if __name__ == "__main__":

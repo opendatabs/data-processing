@@ -1,0 +1,5 @@
+# The corpus is written here at runtime (mounted in Airflow); only the folders are tracked.
+data/markdown/*
+data/docling/*
+data/images/*
+!data/*/.gitkeep
