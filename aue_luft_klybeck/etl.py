@@ -1,3 +1,4 @@
+import io
 import logging
 import os
 import shutil
@@ -73,6 +74,24 @@ FEINSTAUB_STANDORTE = {
 }
 FEINSTAUB_PM_COLUMN = "sensirion-sps30-pm2_5"
 FEINSTAUB_COLUMNS = ["timestamp", "standort", FEINSTAUB_PM_COLUMN]
+
+# AirDB (Messnetz BS) – Meteostation Areal Klybeck (bsKYM), 10-minute values.
+METEO_OUTPUT_FILE = OUTPUT_DIR / "100532_meteo_klybeck.csv"
+AIRDB_BASE_URL = "https://airdbswiss.ch/tor/api"
+AIRDB_API_KEY = os.getenv("AIRDB_API_KEY")
+AIRDB_CHANNEL_PREFIX = "BS:bsKYM:MO"
+AIRDB_START = "2026-09-24T00:00:00Z"  # first data of the station
+# AirDB sensor -> output column. Units according to AirDB metadata.
+METEO_SENSORS = {
+    "T_amb": "lufttemperatur",  # °C
+    "H_rel": "relative_luftfeuchte",  # %
+    "P_amb": "luftdruck",  # hPa
+    "PRECIP": "niederschlag",  # mm
+    "HAIL": "hagel",  # Treffer/cm²
+    "WS_vect": "windgeschwindigkeit",  # m/s
+    "WS_max": "windgeschwindigkeit_max",  # m/s
+    "WD_vect": "windrichtung",  # °
+}
 
 PASSIVE_PARAMS = {"Benzol", "∑CKW", "Naphthalin", "Naphtalin", "Quecksilber"}
 ACTIVE_PARAMS = {"∑Aniline", "Nitrobenzol", "Phenol", "Methylphenole"}
@@ -449,6 +468,74 @@ def _publish_feinstaub() -> None:
     common.update_ftp_and_odsp(str(FEINSTAUB_OUTPUT_FILE), "aue/luft/", "100523")
 
 
+def _airdb_value_is_valid(status: str) -> bool:
+    """Interpret the 12 AirDB status flags (s0..s11, see docs/TSE_UM_de.pdf, 1.22/3.3.2).
+
+    A value is usable if Wertestatus (s0), Benutzungsstatus (s10) and Löschstatus (s11)
+    are ``N`` and the Gültigkeitsstatus (s8) is not ``U`` (ungültig).
+    """
+    if not isinstance(status, str) or len(status) != 12:
+        return False
+    return status[0] == "N" and status[10] == "N" and status[11] == "N" and status[8] != "U"
+
+
+def _fetch_airdb_series(sensor: str, start: str, end: str) -> pd.Series:
+    """Fetch one raw (non-aggregated) timeseries via ECS, indexed by interval end (UTC)."""
+    response = requests.get(
+        f"{AIRDB_BASE_URL}/ecs/v2/tsr",
+        params={
+            "ts": f"{AIRDB_CHANNEL_PREFIX}:{sensor}:VAL_W@ts",
+            "from": start,
+            "to": end,
+            "format": "csv1",
+            "mode": "0",
+            "tz": "UTC",
+        },
+        headers={"x-apikey": AIRDB_API_KEY},
+        timeout=300,
+    )
+    response.raise_for_status()
+    if not response.headers.get("content-type", "").startswith("text/csv"):
+        raise RuntimeError(f"AirDB error for {sensor}: {response.text[:500]}")
+
+    df = pd.read_csv(
+        io.StringIO(response.text),
+        sep=";",
+        header=None,
+        names=["messbeginn", "messende", "wert", "status"],
+        dtype={"status": str},
+    )
+    valid = df["status"].map(_airdb_value_is_valid)
+    logging.info("AirDB %s: %s rows, %s invalid/undefined", sensor, len(df), int((~valid).sum()))
+    df.loc[~valid, "wert"] = pd.NA
+    df["messende"] = pd.to_datetime(df["messende"], format="%d.%m.%Y %H:%M:%S", utc=True)
+    df["messbeginn"] = pd.to_datetime(df["messbeginn"], format="%d.%m.%Y %H:%M:%S", utc=True)
+    # Keep only regular 10-minute intervals (gap markers span longer periods).
+    df = df[(df["messende"] - df["messbeginn"]) == pd.Timedelta(minutes=10)]
+    return pd.to_numeric(df.set_index("messende")["wert"], errors="coerce").rename(METEO_SENSORS[sensor])
+
+
+def _publish_meteo() -> None:
+    """Query the Klybeck weather station from AirDB and publish the dataset."""
+    if not AIRDB_API_KEY:
+        raise RuntimeError("AIRDB_API_KEY is not set")
+
+    end = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
+    series = [_fetch_airdb_series(sensor, AIRDB_START, end) for sensor in METEO_SENSORS]
+    meteo_df = pd.concat(series, axis=1).sort_index()
+    meteo_df = meteo_df.dropna(how="all")
+    meteo_df.index.name = "messende"
+    meteo_df = meteo_df.reset_index()
+    meteo_df.insert(0, "messbeginn", meteo_df["messende"] - pd.Timedelta(minutes=10))
+    for column in ("messbeginn", "messende"):
+        meteo_df[column] = meteo_df[column].dt.tz_convert("Europe/Zurich").map(lambda ts: ts.isoformat())
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    meteo_df.to_csv(METEO_OUTPUT_FILE, sep=";", index=False, encoding="utf-8")
+    logging.info("Wrote %s rows to %s", len(meteo_df), METEO_OUTPUT_FILE)
+    common.update_ftp_and_odsp(str(METEO_OUTPUT_FILE), "aue/luft/", "100532")
+
+
 def main() -> None:
     """Create and publish the Klybeck air-quality datasets."""
     logging.info("ETL job started")
@@ -501,6 +588,7 @@ def main() -> None:
     _publish_coordinates()
     _publish_texts()
     _publish_feinstaub()
+    _publish_meteo()
     logging.info("ETL job completed")
 
 
