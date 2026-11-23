@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import csv
 import gzip
+import html
 import io
 import json
 import logging
@@ -18,11 +19,17 @@ import mimetypes
 import os
 import pathlib
 import re
+import time
 import unicodedata
 
 import common
+import common.change_tracking as ct
+import httpx
 import pandas as pd
 from dotenv import load_dotenv
+from huwise_utils_py import HuwiseDataset, get_uid_by_id, list_dataset_field_configurations
+from huwise_utils_py.config import HuwiseConfig
+from huwise_utils_py.http import HttpClient
 
 load_dotenv()
 
@@ -337,10 +344,242 @@ def publish_changed_files() -> None:
         common.update_ftp_and_odsp(path, FTP_REMOTE_PATH, dataset_id)
 
 
+HUWISE_DATASETS = {"100553": DATA_FILE, "100554": META_SHORT_FILE, "100555": META_LONG_FILE}
+HUWISE_PROCESSOR_PREFIX = "StatRhena labels"
+_HUWISE_IDLE_TIMEOUT = 600
+_HUWISE_IDLE_POLL = 5
+_LANG_SUFFIX = re.compile(r"^(.+)_(DE|FR|EN)$")
+_LAND_SUFFIX = re.compile(r"^(.+)_((?:CH|DE|FR)\d)$")
+_LANGUAGE_NAMES = {
+    "DE": {"de": "Deutsch", "fr": "allemand", "en": "German"},
+    "FR": {"de": "Französisch", "fr": "français", "en": "French"},
+    "EN": {"de": "Englisch", "fr": "anglais", "en": "English"},
+}
+_LANGUAGE_NOTE = {"de": "Sprache: {}.", "fr": "Langue : {}.", "en": "Language: {}."}
+
+
+def _excel_sheet(sheet: str) -> list[dict[str, str]]:
+    frame = pd.read_excel(LABELS_FILE, sheet_name=sheet, dtype=str).fillna("")
+    return [{key: str(value).strip() for key, value in record.items()} for record in frame.to_dict("records")]
+
+
+def _description_html(text: str) -> str:
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
+    return "".join(f"<p>{html.escape(part, quote=False)}</p>" for part in paragraphs)
+
+
+def _dataset_texts(dataset_id: str) -> dict[str, dict[str, object]]:
+    """Title, HTML description and keyword list per language for one dataset from the Excel."""
+    texts: dict[str, dict[str, object]] = {lang: {} for lang in LANGS}
+    for record in _excel_sheet("Datensaetze"):
+        if record.get("datensatz") != dataset_id:
+            continue
+        for lang in LANGS:
+            value = record.get(lang.upper(), "")
+            if record.get("feld") == "titel":
+                texts[lang]["title"] = value
+            elif record.get("feld") == "beschreibung":
+                texts[lang]["description"] = _description_html(value)
+            elif record.get("feld") == "schluesselwoerter":
+                texts[lang]["keywords"] = [word.strip() for word in value.split(";") if word.strip()]
+    return texts
+
+
+def _field_texts(header: str, columns: dict[str, dict[str, str]]) -> dict[str, dict[str, str]] | None:
+    """Label and description per language for one CSV column (None if the Excel has no entry)."""
+    record = columns.get(header)
+    suffix = ""
+    language = ""
+    if record is None and (match := _LANG_SUFFIX.match(header)):
+        record = columns.get(match.group(1))
+        language = match.group(2)
+        suffix = f" ({language})"
+    if record is None and (match := _LAND_SUFFIX.match(header)):
+        record = columns.get(f"{match.group(1)}_<LAND>")
+        suffix = f" ({match.group(2)})"
+    if record is None:
+        return None
+    texts = {}
+    for lang in LANGS:
+        label = record.get(f"label_{lang.upper()}", "")
+        description = record.get(f"beschreibung_{lang.upper()}", "")
+        if language:
+            note = _LANGUAGE_NOTE[lang].format(_LANGUAGE_NAMES[language][lang])
+            description = f"{description} {note}".strip()
+        texts[lang] = {"label": f"{label}{suffix}" if label else "", "description": description}
+    return texts
+
+
+def _huwise_field_name(header: str, explore_names: list[str]) -> str:
+    """Field name as ingested by Huwise (Explore API if available, else the lowercased header)."""
+    by_lower = {name.lower(): name for name in explore_names}
+    return by_lower.get(header.lower(), header.lower())
+
+
+def _add_translation(translations: dict[str, dict[str, str]], texts: dict[str, str]) -> None:
+    source = texts.get("de", "")
+    targets = {lang: texts[lang] for lang in ("fr", "en") if texts.get(lang) and texts[lang] != source}
+    if not source or not targets:
+        return
+    existing = translations.setdefault(source, {})
+    for lang, text in targets.items():
+        if existing.get(lang, text) != text:
+            logging.warning("Conflicting %s translation for %r: keeping %r", lang, source, existing[lang])
+            continue
+        existing[lang] = text
+
+
+def _wait_for_huwise_idle(client, dataset_uid: str, dataset_id: str) -> None:
+    deadline = time.monotonic() + _HUWISE_IDLE_TIMEOUT
+    while True:
+        status = client.get(f"/datasets/{dataset_uid}/status").json().get("status")
+        if status == "idle":
+            return
+        if time.monotonic() >= deadline:
+            logging.warning("Dataset %s still %s after %ss, continuing", dataset_id, status, _HUWISE_IDLE_TIMEOUT)
+            return
+        time.sleep(_HUWISE_IDLE_POLL)
+
+
+def _list_field_processors(dataset_id: str) -> list[dict]:
+    results: list[dict] = []
+    offset = 0
+    while True:
+        page = list_dataset_field_configurations(dataset_id=dataset_id, limit=100, offset=offset)
+        batch = page.get("results") or []
+        results.extend(item for item in batch if isinstance(item, dict))
+        if not batch or not page.get("next"):
+            return results
+        offset += 100
+
+
+def push_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> None:
+    """Set title, description, keywords, field labels/descriptions and FR/EN translations on Huwise.
+
+    German is the source language; French and English go into the dataset's
+    i18n translation dictionary, which Huwise applies when the dataset is published.
+    """
+    config = HuwiseConfig.from_env()
+    client = HttpClient(config)
+    dataset_uid = get_uid_by_id(dataset_id=dataset_id)
+    translations: dict[str, dict[str, str]] = {}
+
+    # Dataset metadata (default template, German).
+    texts = _dataset_texts(dataset_id)
+    for field in ("title", "description", "keywords"):
+        value = texts["de"].get(field)
+        if not value:
+            continue
+        api_field = "keyword" if field == "keywords" else field
+        client.put(f"/datasets/{dataset_uid}/metadata/default/{api_field}/", json={"value": value})
+        if field == "keywords":
+            for position, keyword in enumerate(value):
+                _add_translation(
+                    translations,
+                    {lang: (texts[lang].get("keywords") or [""] * len(value))[position] for lang in LANGS},
+                )
+        else:
+            _add_translation(translations, {lang: texts[lang].get(field, "") for lang in LANGS})
+    client.put(f"/datasets/{dataset_uid}/metadata/default/language/", json={"value": "de"})
+    logging.info("Dataset %s: title, description and keywords set", dataset_id)
+
+    # Field labels and descriptions as processors; drop the ones from earlier runs first.
+    for processor in _list_field_processors(dataset_id):
+        if str(processor.get("label", "")).startswith(HUWISE_PROCESSOR_PREFIX) and processor.get("uid"):
+            client.delete(f"/datasets/{dataset_uid}/fields/{processor['uid']}/")
+
+    try:
+        response = httpx.get(
+            f"https://{config.domain}/api/explore/v2.1/catalog/datasets/{dataset_id}",
+            headers=config.headers,
+            timeout=60,
+        )
+        response.raise_for_status()
+        explore_names = [item.get("name", "") for item in response.json().get("fields", [])]
+    except Exception as exc:
+        logging.warning("Dataset %s: no Explore field names (%s), using lowercased headers", dataset_id, exc)
+        explore_names = []
+
+    columns = {record["spalte"]: record for record in _excel_sheet("Spaltennamen") if record.get("spalte")}
+    with csv_path.open(encoding="utf-8-sig", newline="") as handle:
+        headers = next(csv.reader(handle))
+    created = 0
+    for header in headers:
+        field_texts = _field_texts(header, columns)
+        if field_texts is None:
+            logging.warning("Dataset %s: no label for column %s in %s", dataset_id, header, LABELS_FILE.name)
+            continue
+        field = _huwise_field_name(header, explore_names)
+        label = field_texts["de"]["label"]
+        description = field_texts["de"]["description"]
+        processors = []
+        if label:
+            processors.append(
+                {
+                    "type": "rename",
+                    "label": f"{HUWISE_PROCESSOR_PREFIX}: label {field}",
+                    "from_name": field,
+                    "to_name": field,
+                    "field_label": label,
+                }
+            )
+            _add_translation(translations, {lang: field_texts[lang]["label"] for lang in LANGS})
+        if description:
+            processors.append(
+                {
+                    "type": "description",
+                    "label": f"{HUWISE_PROCESSOR_PREFIX}: description {field}",
+                    "field": field,
+                    "description": description,
+                }
+            )
+            _add_translation(translations, {lang: field_texts[lang]["description"] for lang in LANGS})
+        for processor in processors:
+            try:
+                client.post(f"/datasets/{dataset_uid}/fields/", json=processor)
+                created += 1
+            except Exception as exc:
+                logging.warning(
+                    "Dataset %s: %s processor for %s rejected: %s", dataset_id, processor["type"], field, exc
+                )
+    logging.info("Dataset %s: %s field processors created", dataset_id, created)
+
+    # FR/EN translations of all texts above (keys are the German source texts).
+    client.post(f"/datasets/{dataset_uid}/i18n/translations/", json=translations)
+    logging.info("Dataset %s: %s translations set", dataset_id, len(translations))
+
+    _wait_for_huwise_idle(client, dataset_uid, dataset_id)
+    HuwiseDataset(uid=dataset_uid).publish()
+    _wait_for_huwise_idle(client, dataset_uid, dataset_id)
+    logging.info("Dataset %s: published", dataset_id)
+
+
+def push_huwise_metadata_if_changed() -> None:
+    """Push the Excel contents to Huwise for all StatRhena datasets when the Excel has changed."""
+    if not LABELS_FILE.exists():
+        logging.warning("Label file %s missing, skipping Huwise metadata", LABELS_FILE.name)
+        return
+    if not ct.has_changed(str(LABELS_FILE)):
+        logging.info("%s unchanged, skipping Huwise metadata", LABELS_FILE.name)
+        return
+    failed = []
+    for dataset_id, csv_path in HUWISE_DATASETS.items():
+        try:
+            push_huwise_metadata(dataset_id, csv_path)
+        except Exception:
+            logging.exception("Huwise metadata update failed for dataset %s", dataset_id)
+            failed.append(dataset_id)
+    if failed:
+        logging.warning("Huwise metadata not complete (%s); will retry on the next run", ", ".join(failed))
+        return
+    ct.update_hash_file(str(LABELS_FILE))
+
+
 def main() -> None:
     logging.info("Building HTML viewers from data_orig")
     build_pages()
     publish_changed_files()
+    push_huwise_metadata_if_changed()
 
 
 TEMPLATE = r"""<!DOCTYPE html>
@@ -676,6 +915,8 @@ table.data th {
   user-select: none;
   vertical-align: bottom;
   overflow-wrap: anywhere;
+  text-transform: uppercase;
+  letter-spacing: .03em;
 }
 table.data th:hover { color: var(--blue); }
 table.data th .sort-ind { margin-left: 4px; color: var(--muted); font-weight: 500; }
@@ -724,7 +965,7 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
   margin-bottom: 6px;
   align-items: start;
 }
-.kv b { color: var(--muted); font-weight: 600; font-size: .78rem; line-height: 1.4; padding-top: 2px; }
+.kv b { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; line-height: 1.4; padding-top: 2px; }
 .kv span { font-size: .93rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 @media (max-width: 560px) { .kv { grid-template-columns: 1fr; } }
 .meta-tabs { margin-top: 14px; }
