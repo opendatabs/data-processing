@@ -364,6 +364,9 @@ def _excel_sheet(sheet: str) -> list[dict[str, str]]:
 
 
 def _description_html(text: str) -> str:
+    """The Excel holds HTML; plain text (no tags) is wrapped into paragraphs."""
+    if re.search(r"<[a-zA-Z][^>]*>", text):
+        return text
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
     return "".join(f"<p>{html.escape(part, quote=False)}</p>" for part in paragraphs)
 
@@ -386,14 +389,17 @@ def _dataset_texts(dataset_id: str) -> dict[str, dict[str, object]]:
 
 
 def _field_texts(header: str, columns: dict[str, dict[str, str]]) -> dict[str, dict[str, str]] | None:
-    """Label and description per language for one CSV column (None if the Excel has no entry)."""
+    """Label and description per language for one CSV column (None if the Excel has no entry).
+
+    Language columns (Topic_DE/_FR/_EN) share the label of their base column; the description
+    names the language. Country columns (Title_CH1, …) get the source as label suffix.
+    """
     record = columns.get(header)
     suffix = ""
     language = ""
     if record is None and (match := _LANG_SUFFIX.match(header)):
         record = columns.get(match.group(1))
         language = match.group(2)
-        suffix = f" ({language})"
     if record is None and (match := _LAND_SUFFIX.match(header)):
         record = columns.get(f"{match.group(1)}_<LAND>")
         suffix = f" ({match.group(2)})"
@@ -429,6 +435,37 @@ def _add_translation(translations: dict[str, dict[str, str]], texts: dict[str, s
         existing[lang] = text
 
 
+def build_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> dict:
+    """Everything that goes to Huwise for one dataset: German metadata, field texts and FR/EN translations."""
+    translations: dict[str, dict[str, str]] = {}
+    texts = _dataset_texts(dataset_id)
+    metadata = {
+        field: texts["de"].get(field) for field in ("title", "description", "keywords") if texts["de"].get(field)
+    }
+    for field in ("title", "description"):
+        _add_translation(translations, {lang: str(texts[lang].get(field, "")) for lang in LANGS})
+    keywords = {lang: list(texts[lang].get("keywords") or []) for lang in LANGS}
+    for position in range(len(keywords["de"])):
+        _add_translation(
+            translations,
+            {lang: keywords[lang][position] if position < len(keywords[lang]) else "" for lang in LANGS},
+        )
+
+    columns = {record["spalte"]: record for record in _excel_sheet("Spaltennamen") if record.get("spalte")}
+    with csv_path.open(encoding="utf-8-sig", newline="") as handle:
+        headers = next(csv.reader(handle))
+    fields = []
+    for header in headers:
+        field_texts = _field_texts(header, columns)
+        if field_texts is None:
+            logging.warning("Dataset %s: no label for column %s in %s", dataset_id, header, LABELS_FILE.name)
+            continue
+        fields.append({"column": header, **field_texts["de"]})
+        for key in ("label", "description"):
+            _add_translation(translations, {lang: field_texts[lang][key] for lang in LANGS})
+    return {"metadata": metadata, "fields": fields, "translations": translations}
+
+
 def _wait_for_huwise_idle(client, dataset_uid: str, dataset_id: str) -> None:
     deadline = time.monotonic() + _HUWISE_IDLE_TIMEOUT
     while True:
@@ -453,7 +490,7 @@ def _list_field_processors(dataset_id: str) -> list[dict]:
         offset += 100
 
 
-def push_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> None:
+def push_huwise_metadata(dataset_id: str, spec: dict) -> None:
     """Set title, description, keywords, field labels/descriptions and FR/EN translations on Huwise.
 
     German is the source language; French and English go into the dataset's
@@ -462,24 +499,11 @@ def push_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> None:
     config = HuwiseConfig.from_env()
     client = HttpClient(config)
     dataset_uid = get_uid_by_id(dataset_id=dataset_id)
-    translations: dict[str, dict[str, str]] = {}
 
     # Dataset metadata (default template, German).
-    texts = _dataset_texts(dataset_id)
-    for field in ("title", "description", "keywords"):
-        value = texts["de"].get(field)
-        if not value:
-            continue
+    for field, value in spec["metadata"].items():
         api_field = "keyword" if field == "keywords" else field
         client.put(f"/datasets/{dataset_uid}/metadata/default/{api_field}/", json={"value": value})
-        if field == "keywords":
-            for position, keyword in enumerate(value):
-                _add_translation(
-                    translations,
-                    {lang: (texts[lang].get("keywords") or [""] * len(value))[position] for lang in LANGS},
-                )
-        else:
-            _add_translation(translations, {lang: texts[lang].get(field, "") for lang in LANGS})
     client.put(f"/datasets/{dataset_uid}/metadata/default/language/", json={"value": "de"})
     logging.info("Dataset %s: title, description and keywords set", dataset_id)
 
@@ -500,40 +524,29 @@ def push_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> None:
         logging.warning("Dataset %s: no Explore field names (%s), using lowercased headers", dataset_id, exc)
         explore_names = []
 
-    columns = {record["spalte"]: record for record in _excel_sheet("Spaltennamen") if record.get("spalte")}
-    with csv_path.open(encoding="utf-8-sig", newline="") as handle:
-        headers = next(csv.reader(handle))
     created = 0
-    for header in headers:
-        field_texts = _field_texts(header, columns)
-        if field_texts is None:
-            logging.warning("Dataset %s: no label for column %s in %s", dataset_id, header, LABELS_FILE.name)
-            continue
-        field = _huwise_field_name(header, explore_names)
-        label = field_texts["de"]["label"]
-        description = field_texts["de"]["description"]
+    for entry in spec["fields"]:
+        field = _huwise_field_name(entry["column"], explore_names)
         processors = []
-        if label:
+        if entry["label"]:
             processors.append(
                 {
                     "type": "rename",
                     "label": f"{HUWISE_PROCESSOR_PREFIX}: label {field}",
                     "from_name": field,
                     "to_name": field,
-                    "field_label": label,
+                    "field_label": entry["label"],
                 }
             )
-            _add_translation(translations, {lang: field_texts[lang]["label"] for lang in LANGS})
-        if description:
+        if entry["description"]:
             processors.append(
                 {
                     "type": "description",
                     "label": f"{HUWISE_PROCESSOR_PREFIX}: description {field}",
                     "field": field,
-                    "description": description,
+                    "description": entry["description"],
                 }
             )
-            _add_translation(translations, {lang: field_texts[lang]["description"] for lang in LANGS})
         for processor in processors:
             try:
                 client.post(f"/datasets/{dataset_uid}/fields/", json=processor)
@@ -545,8 +558,8 @@ def push_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> None:
     logging.info("Dataset %s: %s field processors created", dataset_id, created)
 
     # FR/EN translations of all texts above (keys are the German source texts).
-    client.post(f"/datasets/{dataset_uid}/i18n/translations/", json=translations)
-    logging.info("Dataset %s: %s translations set", dataset_id, len(translations))
+    client.post(f"/datasets/{dataset_uid}/i18n/translations/", json=spec["translations"])
+    logging.info("Dataset %s: %s translations set", dataset_id, len(spec["translations"]))
 
     _wait_for_huwise_idle(client, dataset_uid, dataset_id)
     HuwiseDataset(uid=dataset_uid).publish()
@@ -554,32 +567,36 @@ def push_huwise_metadata(dataset_id: str, csv_path: pathlib.Path) -> None:
     logging.info("Dataset %s: published", dataset_id)
 
 
-def push_huwise_metadata_if_changed() -> None:
-    """Push the Excel contents to Huwise for all StatRhena datasets when the Excel has changed."""
+def push_changed_huwise_metadata() -> None:
+    """Push the Huwise metadata of each StatRhena dataset whose Excel texts or CSV columns changed.
+
+    The metadata per dataset is written to data/huwise_metadata_<id>.json; only datasets whose
+    file differs from the last successful push are updated.
+    """
     if not LABELS_FILE.exists():
         logging.warning("Label file %s missing, skipping Huwise metadata", LABELS_FILE.name)
         return
-    if not ct.has_changed(str(LABELS_FILE)):
-        logging.info("%s unchanged, skipping Huwise metadata", LABELS_FILE.name)
-        return
-    failed = []
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     for dataset_id, csv_path in HUWISE_DATASETS.items():
+        spec = build_huwise_metadata(dataset_id, csv_path)
+        spec_path = OUT_DIR / f"huwise_metadata_{dataset_id}.json"
+        spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+        if not ct.has_changed(str(spec_path)):
+            logging.info("Dataset %s: Huwise metadata unchanged", dataset_id)
+            continue
         try:
-            push_huwise_metadata(dataset_id, csv_path)
+            push_huwise_metadata(dataset_id, spec)
         except Exception:
-            logging.exception("Huwise metadata update failed for dataset %s", dataset_id)
-            failed.append(dataset_id)
-    if failed:
-        logging.warning("Huwise metadata not complete (%s); will retry on the next run", ", ".join(failed))
-        return
-    ct.update_hash_file(str(LABELS_FILE))
+            logging.exception("Huwise metadata update failed for dataset %s; will retry on the next run", dataset_id)
+            continue
+        ct.update_hash_file(str(spec_path))
 
 
 def main() -> None:
     logging.info("Building HTML viewers from data_orig")
     build_pages()
     publish_changed_files()
-    push_huwise_metadata_if_changed()
+    push_changed_huwise_metadata()
 
 
 TEMPLATE = r"""<!DOCTYPE html>
@@ -1319,7 +1336,8 @@ const I18N = {
   },
 };
 
-let lang = FIXED_LANG || (() => { try { return localStorage.getItem("statrhena_lang"); } catch (e) { return null; } })() || "de";
+const URL_PARAMS = new URLSearchParams(location.search);
+let lang = FIXED_LANG || URL_PARAMS.get("lang") || (() => { try { return localStorage.getItem("statrhena_lang"); } catch (e) { return null; } })() || "de";
 if (!I18N[lang]) lang = "de";
 
 function t(key) { return (I18N[lang] && I18N[lang][key]) || I18N.de[key] || key; }
@@ -1544,6 +1562,34 @@ function update(changed) {
   renderTable(true);
   renderMetadata();
   renderDownloads();
+  writeUrlState();
+}
+
+/* ---------- URL state ---------- */
+/* Search, filters and language live in the query string (?q=…&topic=…&indicator=…&lang=fr),
+   so a filtered view can be bookmarked and shared. Values are language independent:
+   German texts for topic/subtopic/title, the indicator code for indicators. */
+function urlValue(d, key) { return d.id === "indicator" ? VARS[key].variable.de : String(key); }
+
+function writeUrlState() {
+  const params = new URLSearchParams(location.search);
+  for (const key of ["q", "lang", ...DIMS.map(d => d.id)]) params.delete(key);
+  const q = state.search.trim();
+  if (q) params.set("q", q);
+  for (const d of DIMS) for (const c of d.selected) params.append(d.id, urlValue(d, d.keys[c]));
+  if (SHOW_LANG && lang !== "de") params.set("lang", lang);
+  const qs = params.toString();
+  try { history.replaceState(null, "", location.pathname + (qs ? `?${qs}` : "") + location.hash); } catch (e) { /* ignore */ }
+}
+
+function readUrlState() {
+  state.search = URL_PARAMS.get("q") || "";
+  document.getElementById("search").value = state.search;
+  for (const d of DIMS) {
+    const wanted = new Set(URL_PARAMS.getAll(d.id));
+    if (!wanted.size) continue;
+    d.keys.forEach((key, c) => { if (wanted.has(urlValue(d, key))) { d.selected.add(c); d.mask[c] = 1; } });
+  }
 }
 
 /* ---------- Table (virtualised: all rows, one scroll area) ---------- */
@@ -1743,6 +1789,7 @@ function odsLiteral(value) { return `"${String(value).replaceAll("\\", "\\\\").r
 /** Export URL for the current filters: one value -> refine, several -> where IN, search -> where search(). */
 function buildExportUrl(id, format, withFilters) {
   const params = new URLSearchParams();
+  params.set("lang", lang);
   params.set("timezone", "Europe/Zurich");
   if (withFilters) {
     const where = [];
@@ -1979,6 +2026,8 @@ async function boot() {
     ({ v: V, y: Y, g: G, p: P, x: X, d: D } = data.rows);
     N = V.length;
     buildDims();
+    readUrlState();
+    updateSearchMask();
     status.hidden = true;
   } catch (err) {
     status.className = "status error";
