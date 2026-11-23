@@ -391,8 +391,8 @@ def _dataset_texts(dataset_id: str) -> dict[str, dict[str, object]]:
 def _field_texts(header: str, columns: dict[str, dict[str, str]]) -> dict[str, dict[str, str]] | None:
     """Label and description per language for one CSV column (None if the Excel has no entry).
 
-    Language columns (Topic_DE/_FR/_EN) share the label of their base column; the description
-    names the language. Country columns (Title_CH1, …) get the source as label suffix.
+    Language columns (Topic_DE/_FR/_EN) get the language as label suffix, e.g. "Themenbereich (FR)",
+    and the description names the language. Country columns (Title_CH1, …) get the source as suffix.
     """
     record = columns.get(header)
     suffix = ""
@@ -400,6 +400,7 @@ def _field_texts(header: str, columns: dict[str, dict[str, str]]) -> dict[str, d
     if record is None and (match := _LANG_SUFFIX.match(header)):
         record = columns.get(match.group(1))
         language = match.group(2)
+        suffix = f" ({language})"
     if record is None and (match := _LAND_SUFFIX.match(header)):
         record = columns.get(f"{match.group(1)}_<LAND>")
         suffix = f" ({match.group(2)})"
