@@ -627,6 +627,7 @@ dialog.lightbox::backdrop { background: rgba(20,22,30,.7); }
   cursor: pointer;
 }
 .ms-opts label:hover { background: var(--soft); }
+.ms-opts label[hidden], .ms-empty[hidden] { display: none; }
 .ms-opts input { margin-top: 3px; flex: 0 0 auto; }
 .ms-empty { padding: 8px 12px; color: var(--muted); font-size: .85rem; }
 .filter-actions { margin-top: 14px; display: flex; gap: 8px; }
@@ -932,6 +933,7 @@ const I18N = {
     "filter.auto": "Automatisch",
     "filter.find": "Optionen durchsuchen…",
     "filter.noOptions": "Keine Optionen",
+    "filter.noMatch": "Keine Treffer",
     "filter.reset": "Alle Filter zurücksetzen",
     "table.title": "Tabelle",
     "table.rows": "Zeilen",
@@ -986,6 +988,7 @@ const I18N = {
     "filter.auto": "Automatic",
     "filter.find": "Search options…",
     "filter.noOptions": "No options",
+    "filter.noMatch": "No matches",
     "filter.reset": "Reset all filters",
     "table.title": "Table",
     "table.rows": "rows",
@@ -1040,6 +1043,7 @@ const I18N = {
     "filter.auto": "Automatique",
     "filter.find": "Rechercher dans les options…",
     "filter.noOptions": "Aucune option",
+    "filter.noMatch": "Aucun résultat",
     "filter.reset": "Réinitialiser tous les filtres",
     "table.title": "Tableau",
     "table.rows": "lignes",
@@ -1219,7 +1223,7 @@ function renderFilterShell() {
           <span class="ms-summary"></span><span class="ms-caret">▾</span>
         </button>
         <div class="ms-panel">
-          ${d.keys.length > 12 ? `<div class="ms-find"><input type="search" placeholder="${escapeHtml(t("filter.find"))}" /></div>` : ""}
+          ${d.keys.length > 6 ? `<div class="ms-find"><input type="search" placeholder="${escapeHtml(t("filter.find"))}" /></div>` : ""}
           <div class="ms-opts" role="listbox"></div>
         </div>
       </div>
@@ -1243,9 +1247,14 @@ function renderFilterShell() {
     const find = ms.querySelector(".ms-find input");
     if (find) find.addEventListener("input", () => {
       const q = find.value.trim().toLowerCase();
+      let shown = 0;
       ms.querySelectorAll(".ms-opts label").forEach(l => {
-        l.hidden = q && !l.textContent.toLowerCase().includes(q);
+        const hit = !q || l.textContent.toLowerCase().includes(q);
+        l.hidden = !hit;
+        if (hit) shown++;
       });
+      const none = ms.querySelector(".ms-nohit");
+      if (none) none.hidden = shown > 0;
     });
     ms.querySelector(".ms-opts").addEventListener("change", (e) => {
       const code = Number(e.target.value);
@@ -1270,6 +1279,7 @@ function renderOptions(d) {
   const opts = ms.querySelector(".ms-opts");
   opts.innerHTML = codes.length
     ? codes.map(c => `<label><input type="checkbox" value="${c}" ${d.selected.has(c) ? "checked" : ""} /><span>${escapeHtml(d.label(d.keys[c]))}</span></label>`).join("")
+      + `<div class="ms-empty ms-nohit" hidden>${escapeHtml(t("filter.noMatch"))}</div>`
     : `<div class="ms-empty">${escapeHtml(t("filter.noOptions"))}</div>`;
   const find = ms.querySelector(".ms-find input");
   if (find && find.value) find.dispatchEvent(new Event("input"));
@@ -1450,7 +1460,7 @@ function metaBody(k) {
   const period = [m.min, m.max].filter(Boolean).join("–");
   const head = kv(colLabel("Variable", "Code"), v.variable[lang])
     + kv(colLabel("Measure_Unit", t("meta.unit")), v.unit[lang])
-    + kv(colLabel("Timespan_Min", t("meta.period")), period)
+    + kv(colLabel("Timespan", t("meta.period")), period)
     + kv(colLabel("Source", t("meta.source")), m.source)
     + kv(colLabel("Footnote", t("meta.footnote")), m.footnote && (m.footnote[lang] || m.footnote.de));
   const countries = m.countries || {};
@@ -1469,7 +1479,7 @@ function countryPanel(c) {
     + kv(L("Source", "meta.source"), c.source)
     + kv(L("Database", "meta.database"), c.database)
     + kv(L("Code", "meta.code"), c.code)
-    + kv(L("Timespan_Min", "meta.period"), ts)
+    + kv(L("Timespan", "meta.period"), ts)
     + kv(L("Stichtag", "meta.stichtag"), c.stichtag)
     + kv(L("Copyright", "meta.copyright"), c.copyright)
     + kv(L("Specific_Information", "meta.info"), c.info);
