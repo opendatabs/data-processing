@@ -1,0 +1,17 @@
+[project]
+name = "parlamentsdienst-grosserrat-topics"
+version = "0.1.0"
+description = "Topics for the business items of the Grosser Rat Basel-Stadt"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+    "joblib>=1.4",
+    "numpy>=2.1",
+    "pandas>=2.2.3",
+    "scikit-learn==1.9.0",
+    "truststore>=0.10.4",
+]
+
+[tool.uv.sources]
+common = { git = "https://github.com/opendatabs/common", rev = "2877e38289eb628fa7f30c4203b99f2b9ee19ad8" }

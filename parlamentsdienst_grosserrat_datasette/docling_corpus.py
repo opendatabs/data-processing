@@ -26,7 +26,6 @@ layout preset; the run checks that before the first document.
 
 from __future__ import annotations
 
-import base64
 import copy
 import gzip
 import io
@@ -63,8 +62,6 @@ DOCLING_OPTIONS = {
     "include_images": True,
     "image_export_mode": "referenced",
 }
-# Pictures come back as files only in a zip.
-TARGET = {"kind": "zip"}
 # The stage of /v1/capabilities that offers each preset we send.
 PRESET_STAGES = {"ocr_preset": "ocr", "layout_preset": "layout"}
 IMAGE_LINK = re.compile(r"!\[Image\]\(artifacts/[^)]+\)")
@@ -72,7 +69,8 @@ IMAGE_LINK = re.compile(r"!\[Image\]\(artifacts/[^)]+\)")
 TIMEOUT = httpx.Timeout(120.0, connect=20.0)
 RESULT_TIMEOUT = httpx.Timeout(300.0, connect=20.0)
 TASK_TIMEOUT = 1800.0
-POLL_WAIT = 5.0
+POLL_WAIT = 10.0
+RATE_LIMIT_WAIT = 30.0
 
 
 class Unavailable(RuntimeError):
@@ -88,17 +86,27 @@ class SourceMissing(DocumentFailed):
 
 
 class _Transient(Exception):
-    """A server error (5xx) worth asking again."""
+    """A server error (5xx) or a rate limit (429) worth asking again."""
 
 
-# Network errors and server errors are asked again, with the values common.requests_get uses.
+def _retry_after(response: httpx.Response) -> float:
+    """How long the gateway asks us to wait, in seconds."""
+    try:
+        return max(float(response.headers.get("retry-after", "")), 1.0)
+    except ValueError:
+        return RATE_LIMIT_WAIT
+
+
 _with_retry = retry((httpx.TransportError, _Transient), tries=6, delay=5, backoff=1, logger=logging.getLogger())
 
 
 @_with_retry
 def _request(client: httpx.Client, method: str, url: str, **kwargs) -> httpx.Response:
-    """One request, asked again on network and server errors; any other status comes back as is."""
+    """One request, asked again on network errors, server errors and rate limits; any other status comes back as is."""
     response = client.request(method, url, **kwargs)
+    if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
+        time.sleep(_retry_after(response))
+        raise _Transient(f"429 from {url}")
     if response.status_code >= 500:
         raise _Transient(f"{response.status_code} from {url}")
     return response
@@ -110,11 +118,11 @@ def _call(client: httpx.Client, method: str, url: str, **kwargs) -> httpx.Respon
         response = _request(client, method, url, **kwargs)
     except (httpx.TransportError, _Transient) as exc:
         raise Unavailable(f"{url} does not answer: {exc}") from exc
-    if response.status_code == httpx.codes.REQUEST_ENTITY_TOO_LARGE:
-        # This PDF, not the service: stopping here would stop every run at the same document.
-        raise DocumentFailed(f"the PDF is too large for {url}")
+    reason = " ".join(re.sub(r"<[^>]+>", " ", response.text).split())[:300]
+    if response.status_code in (httpx.codes.BAD_REQUEST, httpx.codes.REQUEST_ENTITY_TOO_LARGE):
+        raise DocumentFailed(f"the gateway refused the PDF with {response.status_code}: {reason}")
     if response.is_error:
-        raise Unavailable(f"{url} answers {response.status_code}: {response.text[:200]}")
+        raise Unavailable(f"{url} answers {response.status_code}: {reason}")
     return response
 
 
@@ -212,15 +220,18 @@ class Docling:
             logging.warning("docling-serve does not tell its version: %s", exc)
 
     def convert(self, pdf: bytes, name: str) -> Conversion:
-        """Send a PDF as base64 and wait for docling's answer."""
-        payload = {
-            "options": DOCLING_OPTIONS,
-            "sources": [{"kind": "file", "filename": f"{name}.pdf", "base64_string": base64.b64encode(pdf).decode()}],
-            "target": TARGET,
-        }
-        task_id = _call(self.client, "POST", f"{self.url}/v1/convert/source/async", json=payload).json()["task_id"]
+        """Upload a PDF as a file and wait for docling's answer."""
+        form = {key: str(value).lower() if isinstance(value, bool) else value for key, value in DOCLING_OPTIONS.items()}
+        task_id = _call(
+            self.client,
+            "POST",
+            f"{self.url}/v1/convert/file/async",
+            data={**form, "target_type": "zip"},
+            files={"files": (f"{name}.pdf", pdf, "application/pdf")},
+        ).json()["task_id"]
         deadline = time.monotonic() + TASK_TIMEOUT
         while True:
+            asked = time.monotonic()
             polled = _call(self.client, "GET", f"{self.url}/v1/status/poll/{task_id}", params={"wait": POLL_WAIT})
             status = polled.json().get("task_status", "")
             if status == "success":
@@ -229,6 +240,7 @@ class Docling:
                 raise DocumentFailed(f"docling reports {status}")
             if time.monotonic() > deadline:
                 raise DocumentFailed(f"docling was not done after {TASK_TIMEOUT:.0f}s")
+            time.sleep(max(0.0, POLL_WAIT - (time.monotonic() - asked)))
         result = _call(self.client, "GET", f"{self.url}/v1/result/{task_id}", timeout=RESULT_TIMEOUT)
         try:
             return Conversion.from_zip(result.content)
@@ -271,8 +283,20 @@ class Collection:
     def document_path(self, name: str) -> Path:
         return self.docling_dir / f"{name}_{METHOD}.json.gz"
 
-    def is_done(self, name: str) -> bool:
-        return self.markdown_path(name).exists() and self.document_path(name).exists()
+    def converted(self) -> set[str]:
+        """The names with both Markdown and JSON, from one listing of each folder."""
+        return _listing(self, self.markdown_dir, f"_{METHOD}.md") & _listing(
+            self, self.docling_dir, f"_{METHOD}.json.gz"
+        )
+
+
+def _listing(collection: Collection, folder: Path, suffix: str = "") -> set[str]:
+    if not folder.is_dir():
+        logging.warning("%s: %s not found", collection.name, folder)
+        return set()
+    names = {path.name.removesuffix(suffix) for path in folder.iterdir() if path.name.endswith(suffix)}
+    logging.info("%s: %s found, %d entries", collection.name, folder, len(names))
+    return names
 
 
 def _atomic(path: Path, payload: bytes) -> None:
@@ -333,30 +357,45 @@ def convert_collection(
     for value, url in zip(rows[collection.name_column], rows[collection.url_column]):
         pending.setdefault(collection.name_of(value), url)  # one PDF per name, the first listed, as before
 
+    converted = collection.converted()
+    _listing(collection, collection.images_dir)
     failures = _load_failures(collection)
-    todo = {
-        name: url
-        for name, url in pending.items()
-        if not collection.is_done(name) and failures.get(name, 0) < MAX_FAILURES
-    }
+    done = {name for name in pending if name in converted}
+    todo = {name: url for name, url in pending.items() if name not in done and failures.get(name, 0) < MAX_FAILURES}
     logging.info(
-        "%s: %d to convert, %d given up after %d attempts",
+        "%s: %d PDFs, %d already converted, %d to convert, %d given up after %d attempts",
         collection.name,
+        len(pending),
+        len(done),
         len(todo),
         sum(1 for count in failures.values() if count >= MAX_FAILURES),
         MAX_FAILURES,
     )
     counts = {"converted": 0, "failed": 0, "source_missing": 0}
-    for name, pdf_url in todo.items():
+    for position, (name, pdf_url) in enumerate(todo.items(), start=1):
+        size = 0
         try:
-            write(collection, name, docling.convert(download_pdf(source, pdf_url), name))
+            pdf = download_pdf(source, pdf_url)
+            size = len(pdf) / 1e6
+            write(collection, name, docling.convert(pdf, name))
         except DocumentFailed as exc:
             failures[name] = failures.get(name, 0) + 1
             counts["source_missing" if isinstance(exc, SourceMissing) else "failed"] += 1
-            logging.warning("%s %s: %s (%d/%d)", collection.name, name, exc, failures[name], MAX_FAILURES)
+            logging.warning(
+                "%s %d/%d %s (%.1f MB): %s (attempt %d of %d)",
+                collection.name,
+                position,
+                len(todo),
+                name,
+                size,
+                exc,
+                failures[name],
+                MAX_FAILURES,
+            )
         else:
             failures.pop(name, None)
             counts["converted"] += 1
+            logging.info("%s %d/%d %s (%.1f MB): converted", collection.name, position, len(todo), name, size)
         _save_failures(collection, failures)
     logging.info("%s: %s", collection.name, counts)
     return counts
