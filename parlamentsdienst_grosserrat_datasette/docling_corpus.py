@@ -72,7 +72,9 @@ IMAGE_LINK = re.compile(r"!\[Image\]\(artifacts/[^)]+\)")
 TIMEOUT = httpx.Timeout(120.0, connect=20.0)
 RESULT_TIMEOUT = httpx.Timeout(300.0, connect=20.0)
 TASK_TIMEOUT = 1800.0
-POLL_WAIT = 5.0
+POLL_WAIT = 10.0
+# Seconds to wait after a 429 when the gateway does not say how long (Retry-After).
+RATE_LIMIT_WAIT = 30.0
 
 
 class Unavailable(RuntimeError):
@@ -88,17 +90,29 @@ class SourceMissing(DocumentFailed):
 
 
 class _Transient(Exception):
-    """A server error (5xx) worth asking again."""
+    """A server error (5xx) or a rate limit (429) worth asking again."""
 
 
-# Network errors and server errors are asked again, with the values common.requests_get uses.
+def _retry_after(response: httpx.Response) -> float:
+    """How long the gateway asks us to wait, in seconds."""
+    try:
+        return max(float(response.headers.get("retry-after", "")), 1.0)
+    except ValueError:
+        return RATE_LIMIT_WAIT
+
+
+# Network errors, server errors and rate limits are asked again, with the values common.requests_get uses.
 _with_retry = retry((httpx.TransportError, _Transient), tries=6, delay=5, backoff=1, logger=logging.getLogger())
 
 
 @_with_retry
 def _request(client: httpx.Client, method: str, url: str, **kwargs) -> httpx.Response:
-    """One request, asked again on network and server errors; any other status comes back as is."""
+    """One request, asked again on network errors, server errors and rate limits; any other status comes back as is."""
     response = client.request(method, url, **kwargs)
+    if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
+        # The gateway in front of docling-serve limits the rate: wait as asked, then ask again.
+        time.sleep(_retry_after(response))
+        raise _Transient(f"429 from {url}")
     if response.status_code >= 500:
         raise _Transient(f"{response.status_code} from {url}")
     return response
@@ -221,6 +235,7 @@ class Docling:
         task_id = _call(self.client, "POST", f"{self.url}/v1/convert/source/async", json=payload).json()["task_id"]
         deadline = time.monotonic() + TASK_TIMEOUT
         while True:
+            asked = time.monotonic()
             polled = _call(self.client, "GET", f"{self.url}/v1/status/poll/{task_id}", params={"wait": POLL_WAIT})
             status = polled.json().get("task_status", "")
             if status == "success":
@@ -229,6 +244,9 @@ class Docling:
                 raise DocumentFailed(f"docling reports {status}")
             if time.monotonic() > deadline:
                 raise DocumentFailed(f"docling was not done after {TASK_TIMEOUT:.0f}s")
+            # A gateway may answer at once instead of holding the poll for POLL_WAIT: then pause here,
+            # so the polls never come faster than one per POLL_WAIT.
+            time.sleep(max(0.0, POLL_WAIT - (time.monotonic() - asked)))
         result = _call(self.client, "GET", f"{self.url}/v1/result/{task_id}", timeout=RESULT_TIMEOUT)
         try:
             return Conversion.from_zip(result.content)
