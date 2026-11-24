@@ -7,6 +7,8 @@ requires-python = ">=3.12"
 dependencies = [
     "common",
     "joblib>=1.4",
+    "numpy>=2.1",
+    "pandas>=2.2.3",
     "scikit-learn==1.9.0",
     "truststore>=0.10.4",
 ]
