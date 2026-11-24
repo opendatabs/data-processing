@@ -283,8 +283,20 @@ class Collection:
     def document_path(self, name: str) -> Path:
         return self.docling_dir / f"{name}_{METHOD}.json.gz"
 
-    def is_done(self, name: str) -> bool:
-        return self.markdown_path(name).exists() and self.document_path(name).exists()
+    def converted(self) -> set[str]:
+        """The names with both Markdown and JSON, from one listing of each folder."""
+        return _listing(self, self.markdown_dir, f"_{METHOD}.md") & _listing(
+            self, self.docling_dir, f"_{METHOD}.json.gz"
+        )
+
+
+def _listing(collection: Collection, folder: Path, suffix: str = "") -> set[str]:
+    if not folder.is_dir():
+        logging.warning("%s: %s not found", collection.name, folder)
+        return set()
+    names = {path.name.removesuffix(suffix) for path in folder.iterdir() if path.name.endswith(suffix)}
+    logging.info("%s: %s found, %d entries", collection.name, folder, len(names))
+    return names
 
 
 def _atomic(path: Path, payload: bytes) -> None:
@@ -345,13 +357,10 @@ def convert_collection(
     for value, url in zip(rows[collection.name_column], rows[collection.url_column]):
         pending.setdefault(collection.name_of(value), url)  # one PDF per name, the first listed, as before
 
-    for folder in (collection.markdown_dir, collection.docling_dir, collection.images_dir):
-        if folder.is_dir():
-            logging.info("%s: %s found, %d entries", collection.name, folder, sum(1 for _ in folder.iterdir()))
-        else:
-            logging.warning("%s: %s not found", collection.name, folder)
+    converted = collection.converted()
+    _listing(collection, collection.images_dir)
     failures = _load_failures(collection)
-    done = {name for name in pending if collection.is_done(name)}
+    done = {name for name in pending if name in converted}
     todo = {name: url for name, url in pending.items() if name not in done and failures.get(name, 0) < MAX_FAILURES}
     logging.info(
         "%s: %d PDFs, %d already converted, %d to convert, %d given up after %d attempts",
