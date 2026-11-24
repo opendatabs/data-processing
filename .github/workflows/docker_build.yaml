@@ -203,6 +203,9 @@ jobs:
             parlamentsdienst_grosserrat_datasette:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserrat_datasette/**'
+            parlamentsdienst_grosserrat_topics:
+              - 'Dockerfile'
+              - 'parlamentsdienst_grosserrat_topics/**'
             stadtreinigung_sauberkeitsindex:
               - 'Dockerfile'
               - 'stadtreinigung_sauberkeitsindex/**'
