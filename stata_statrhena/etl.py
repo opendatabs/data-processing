@@ -16,7 +16,6 @@ import io
 import json
 import logging
 import mimetypes
-import os
 import pathlib
 import re
 import time
@@ -42,6 +41,9 @@ DATA_FILE = DATA_ORIG / "100553_statrhena_all_databs.csv"
 META_SHORT_FILE = DATA_ORIG / "100554_statrhena_metadaten_1_databs.csv"
 META_LONG_FILE = DATA_ORIG / "100555_statrhena_metadaten_2_databs.csv"
 LABELS_FILE = DATA_ORIG / "statrhena_spaltennamen.xlsx"
+GEO_TRANSLATIONS_FILE = DATA_ORIG / "StatRhena_Uebersetzungen.xlsx"
+# 100553 with translated geographic columns; this file (not the one in data_orig) is published.
+DATA_EXPORT_FILE = OUT_DIR / DATA_FILE.name
 LANGS = ("de", "fr", "en")
 # Fields that exist once per language as <Field>_DE / _FR / _EN.
 VAR_FIELDS = {
@@ -53,6 +55,15 @@ VAR_FIELDS = {
     "unit": "Measure_Unit",
 }
 PLACE_FIELDS = ("land_code", "land", "region_code", "region", "kanton_code", "kanton_kreis_departement")
+# Geographic columns translated from GEO_TRANSLATIONS_FILE: column -> sheet.
+GEO_TRANSLATED = {"geo": "Raumebene", "land": "Land", "region": "Region", "kanton_kreis_departement": "Kreis"}
+# Prefixes of Kreis/Kanton names in the data and the qualifier the Excel uses for ambiguous names.
+_ADMIN_PREFIXES = (
+    ("Kreisfreie Stadt ", "Stadt"),
+    ("Stadtkreis ", "Stadt"),
+    ("Landkreis ", "Landkreis"),
+    ("Kanton ", ""),
+)
 # Country tabs in the long metadata: page key -> column prefix (columns are <Field>_<prefix>1/2).
 COUNTRIES = (("ch", "CH"), ("de", "DE"), ("fr", "FR"))
 COUNTRY_FIELDS = {
@@ -75,7 +86,6 @@ TREE_FILES = {
 }
 TREE_VARIANT = "live"
 FTP_REMOTE_PATH = "statrhena"
-_DATASET_FILE = re.compile(r"^(\d+)_.*\.csv$")
 
 LANG_SWITCHER_HTML = """\
   <div class="lang" id="langSwitch">
@@ -155,7 +165,83 @@ def _read_csv(path: pathlib.Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def build_data() -> dict:
+def _nfc(value: str | None) -> str:
+    return unicodedata.normalize("NFC", _text(value))
+
+
+def load_geo_translations() -> dict[str, dict[str, dict[str, str]]]:
+    """Per geographic column: German value -> {de, fr, en}, one sheet of the translation Excel per column."""
+    if not GEO_TRANSLATIONS_FILE.exists():
+        raise FileNotFoundError(f"{GEO_TRANSLATIONS_FILE} is missing (translations of the geographic fields)")
+    sheets = pd.read_excel(GEO_TRANSLATIONS_FILE, sheet_name=None, dtype=str)
+    translations: dict[str, dict[str, dict[str, str]]] = {}
+    for column, sheet in GEO_TRANSLATED.items():
+        frame = sheets[sheet].fillna("")
+        frame.columns = [str(name).strip().lower() for name in frame.columns]
+        table = {}
+        for record in frame.to_dict("records"):
+            german = _nfc(record.get("de"))
+            if german:
+                table[german] = {lang: _nfc(record.get(lang)) or german for lang in LANGS}
+        translations[column] = table
+    return translations
+
+
+def _translation_key(value: str, table: dict[str, dict[str, str]]) -> str | None:
+    """Excel entry for a data value. Kreis names in the data carry an administrative prefix,
+    e.g. "Landkreis Lörrach" -> "Lörrach", "Stadtkreis Karlsruhe" -> "Karlsruhe (Stadt)"."""
+    if value in table:
+        return value
+    for prefix, kind in _ADMIN_PREFIXES:
+        if value.startswith(prefix):
+            base = value[len(prefix) :]
+            for candidate in ([f"{base} ({kind})"] if kind else []) + [base]:
+                if candidate in table:
+                    return candidate
+    return None
+
+
+def build_data_rows() -> list[dict[str, str]]:
+    """Rows of 100553 with geo, land, region and kanton_kreis_departement as <column>_DE/_FR/_EN.
+
+    The translated columns replace the original column at the same position, like the other
+    multilingual fields (Topic_DE, Topic_FR, Topic_EN, …).
+    """
+    translations = load_geo_translations()
+    resolved: dict[tuple[str, str], dict[str, str]] = {}
+    missing: set[tuple[str, str]] = set()
+    rows = []
+    for row in _read_csv(DATA_FILE):
+        out: dict[str, str] = {}
+        for column, value in row.items():
+            if column not in GEO_TRANSLATED:
+                out[column] = value
+                continue
+            key = (column, _nfc(value))
+            if key not in resolved:
+                entry = _translation_key(key[1], translations[column]) if key[1] else None
+                if key[1] and entry is None:
+                    missing.add(key)
+                resolved[key] = translations[column][entry] if entry else {lang: key[1] for lang in LANGS}
+            for lang in LANGS:
+                out[f"{column}_{lang.upper()}"] = resolved[key][lang]
+        rows.append(out)
+    for column, value in sorted(missing):
+        logging.warning("No translation for %s=%r in %s, using it as is", column, value, GEO_TRANSLATIONS_FILE.name)
+    return rows
+
+
+def write_data_export(rows: list[dict[str, str]]) -> None:
+    """Write the translated 100553 CSV that is published on the data portal."""
+    DATA_EXPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with DATA_EXPORT_FILE.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]), quoting=csv.QUOTE_ALL, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    logging.info("Wrote %s (%s rows)", DATA_EXPORT_FILE.name, len(rows))
+
+
+def build_data(rows: list[dict[str, str]] | None = None) -> dict:
     """Shape 100553 into a compact, column-oriented structure for the page.
 
     Indicator texts and places are stored once and referenced by index from
@@ -164,24 +250,25 @@ def build_data() -> dict:
     var_index: dict[str, int] = {}
     variables: list[dict] = []
     place_index: dict[tuple, int] = {}
-    places: list[list[str]] = []
+    places: list[list] = []
     geo_index: dict[str, int] = {}
-    geos: list[str] = []
+    geos: list[dict[str, str]] = []
     cols: dict[str, list] = {"v": [], "y": [], "g": [], "p": [], "x": [], "d": []}
 
-    for row in _read_csv(DATA_FILE):
+    for row in rows if rows is not None else build_data_rows():
         key = _text(row["Variable_DE"])
         if key not in var_index:
             var_index[key] = len(variables)
             variables.append({name: _per_lang(row, field) for name, field in VAR_FIELDS.items()})
-        place = tuple(_text(row[f]) for f in PLACE_FIELDS)
-        if place not in place_index:
-            place_index[place] = len(places)
-            places.append(list(place))
-        geo = _text(row["geo"])
+        # Places: codes as text, names as {de, fr, en}; the German name is the language-independent key.
+        place_key = tuple(_text(row[f"{f}_DE"] if f in GEO_TRANSLATED else row[f]) for f in PLACE_FIELDS)
+        if place_key not in place_index:
+            place_index[place_key] = len(places)
+            places.append([_per_lang(row, f) if f in GEO_TRANSLATED else _text(row[f]) for f in PLACE_FIELDS])
+        geo = _text(row["geo_DE"])
         if geo not in geo_index:
             geo_index[geo] = len(geos)
-            geos.append(geo)
+            geos.append(_per_lang(row, "geo"))
         integer = _text(row["values_integer"])
         decimal = _text(row["values_decimal"])
         if decimal:
@@ -192,7 +279,7 @@ def build_data() -> dict:
         cols["v"].append(var_index[key])
         cols["y"].append(int(year) if year.isdigit() else year)
         cols["g"].append(geo_index[geo])
-        cols["p"].append(place_index[place])
+        cols["p"].append(place_index[place_key])
         cols["x"].append(value)
         cols["d"].append(is_decimal)
 
@@ -284,7 +371,7 @@ def _json_gz(obj) -> str:
     return gzip_b64(json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
 
-def build_pages() -> None:
+def build_pages(rows: list[dict[str, str]] | None = None) -> None:
     """Write the self-contained viewers into data/ from the current data_orig files."""
     fonts = json.loads((ASSETS / "fonts-b64.json").read_text())
     font_css = "\n".join(
@@ -300,7 +387,7 @@ def build_pages() -> None:
     )
 
     payload = {
-        "data_gz": _json_gz(build_data()),
+        "data_gz": _json_gz(build_data(rows)),
         "metadata_gz": _json_gz(build_metadata()),
         "labels": build_labels(),
         "flags": {
@@ -333,18 +420,13 @@ def build_pages() -> None:
 
 
 def publish_changed_files() -> None:
-    """Upload each changed source CSV and republish its Huwise/ODS dataset."""
-    for name in sorted(os.listdir(DATA_ORIG)):
-        match = _DATASET_FILE.match(name)
-        if not match:
-            continue
-        path = str(DATA_ORIG / name)
-        dataset_id = match.group(1)
-        logging.info("Checking %s (dataset %s)", name, dataset_id)
-        common.update_ftp_and_odsp(path, FTP_REMOTE_PATH, dataset_id)
+    """Upload each changed dataset CSV and republish its Huwise/ODS dataset."""
+    for dataset_id, path in DATASET_FILES.items():
+        logging.info("Checking %s (dataset %s)", path.name, dataset_id)
+        common.update_ftp_and_odsp(str(path), FTP_REMOTE_PATH, dataset_id)
 
 
-HUWISE_DATASETS = {"100553": DATA_FILE, "100554": META_SHORT_FILE, "100555": META_LONG_FILE}
+DATASET_FILES = {"100553": DATA_EXPORT_FILE, "100554": META_SHORT_FILE, "100555": META_LONG_FILE}
 HUWISE_PROCESSOR_PREFIX = "StatRhena labels"
 _HUWISE_IDLE_TIMEOUT = 600
 _HUWISE_IDLE_POLL = 5
@@ -578,7 +660,7 @@ def push_changed_huwise_metadata() -> None:
         logging.warning("Label file %s missing, skipping Huwise metadata", LABELS_FILE.name)
         return
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    for dataset_id, csv_path in HUWISE_DATASETS.items():
+    for dataset_id, csv_path in DATASET_FILES.items():
         spec = build_huwise_metadata(dataset_id, csv_path)
         spec_path = OUT_DIR / f"huwise_metadata_{dataset_id}.json"
         spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
@@ -594,8 +676,10 @@ def push_changed_huwise_metadata() -> None:
 
 
 def main() -> None:
+    rows = build_data_rows()
+    write_data_export(rows)
     logging.info("Building HTML viewers from data_orig")
-    build_pages()
+    build_pages(rows)
     publish_changed_files()
     push_changed_huwise_metadata()
 
@@ -1394,22 +1478,35 @@ function buildDims() {
   };
   const appearance = (dim) => dim.keys.map((_, c) => c);
   const alpha = (dim) => dim.keys.map((_, c) => c).sort((a, b) => COLLATOR.compare(String(dim.label(dim.keys[a])), String(dim.label(dim.keys[b]))));
-  const place = (n) => (i) => PLACES[P[i]][n];
+  // Geographic names are {de, fr, en}; the German name is the language-independent filter key.
+  const place = (n) => (i) => PLACES[P[i]][n].de;
   DIMS = [
     makeDim("topic", "Topic", "topic_de", i => VARS[V[i]].topic.de, varText("topic"), appearance),
     makeDim("subtopic", "Subtopic", "subtopic_de", i => VARS[V[i]].subtopic.de, varText("subtopic"), appearance),
     makeDim("title", "Title", "title_de", i => VARS[V[i]].title.de, varText("title"), appearance),
     makeDim("indicator", "Variable_Description", "variable_de", i => V[i], k => VARS[k].desc[lang] || VARS[k].desc.de, appearance),
-    makeDim("geo", "geo", "geo", i => GEOS[G[i]], k => k,
+    makeDim("geo", "geo", "geo_de", i => GEOS[G[i]].de, geoText,
       dim => dim.keys.map((_, c) => c).sort((a, b) => geoRank(dim.keys[b]) - geoRank(dim.keys[a]))),
-    makeDim("land", "land", "land", place(1), k => k, alpha),
-    makeDim("region", "region", "region", place(3), k => k, alpha),
-    makeDim("kanton", "kanton_kreis_departement", "kanton_kreis_departement", place(5), k => k, alpha),
+    makeDim("land", "land", "land_de", place(1), geoText, alpha),
+    makeDim("region", "region", "region_de", place(3), geoText, alpha),
+    makeDim("kanton", "kanton_kreis_departement", "kanton_kreis_departement_de", place(5), geoText, alpha),
     makeDim("year", "jahr_annee", "jahr_annee", i => Y[i], k => String(k),
       dim => dim.keys.map((_, c) => c).sort((a, b) => dim.keys[a] - dim.keys[b])),
   ];
 }
 function dim(id) { return DIMS.find(d => d.id === id); }
+
+/** Translations of geographic names, keyed by the German name. */
+let GEO_TEXT = new Map();
+function buildGeoText() {
+  GEO_TEXT = new Map();
+  for (const g of GEOS) GEO_TEXT.set(g.de, g);
+  for (const p of PLACES) for (const n of [1, 3, 5]) if (p[n].de) GEO_TEXT.set(p[n].de, p[n]);
+}
+function geoText(key) {
+  const entry = GEO_TEXT.get(key);
+  return (entry && (entry[lang] || entry.de)) || key;
+}
 function geoRank(name) {
   const r = GEO_HIERARCHY.indexOf(name);
   return r === -1 ? GEO_HIERARCHY.length : r;
@@ -1446,10 +1543,10 @@ function compute() {
   if (!geoDim.selected.size && base.length) {
     let best = Infinity, bestCode = -1;
     for (const i of base) {
-      const r = geoRank(GEOS[G[i]]);
+      const r = geoRank(GEOS[G[i]].de);
       if (r < best) { best = r; bestCode = G[i]; }
     }
-    state.autoGeo = GEOS[bestCode];
+    state.autoGeo = GEOS[bestCode].de;
     visible = base.filter(i => G[i] === bestCode);
   }
   state.visible = Int32Array.from(visible);
@@ -1468,7 +1565,7 @@ function availableCodes(d) {
 
 /* ---------- Filter UI ---------- */
 function summaryText(d) {
-  if (d.id === "geo" && !d.selected.size && state.autoGeo) return `${t("filter.auto")}: ${state.autoGeo}`;
+  if (d.id === "geo" && !d.selected.size && state.autoGeo) return `${t("filter.auto")}: ${geoText(state.autoGeo)}`;
   if (!d.selected.size) return t("filter.all");
   if (d.selected.size === 1) return d.label(d.keys[[...d.selected][0]]);
   return `${d.selected.size} ${t("filter.selected")}`;
@@ -1600,13 +1697,13 @@ const COLUMNS = [
   { col: "Title", get: i => VARS[V[i]].title[lang] },
   { col: "Variable", get: i => VARS[V[i]].variable[lang] },
   { col: "Variable_Description", get: i => VARS[V[i]].desc[lang] },
-  { col: "geo", get: i => GEOS[G[i]] },
+  { col: "geo", get: i => GEOS[G[i]][lang] },
   { col: "land_code", get: i => PLACES[P[i]][0] },
-  { col: "land", get: i => PLACES[P[i]][1] },
+  { col: "land", get: i => PLACES[P[i]][1][lang] },
   { col: "region_code", get: i => PLACES[P[i]][2] },
-  { col: "region", get: i => PLACES[P[i]][3] },
+  { col: "region", get: i => PLACES[P[i]][3][lang] },
   { col: "kanton_code", get: i => PLACES[P[i]][4] },
-  { col: "kanton_kreis_departement", get: i => PLACES[P[i]][5] },
+  { col: "kanton_kreis_departement", get: i => PLACES[P[i]][5][lang] },
   { col: "jahr_annee", get: i => String(Y[i]), num: true, sortKey: i => Y[i] },
   { col: "values", get: i => fmtValue(i), num: true, sortKey: i => X[i] ?? -Infinity },
 ];
@@ -1639,8 +1736,11 @@ function renderTableHead() {
       const prop = ["topic", "subtopic", "title", "variable", "desc"][idx];
       max = Math.max(max, (v[prop][lang] || "").length);
     });
-    else if (c.col === "geo") GEOS.forEach(g => { max = Math.max(max, g.length); });
-    else if (idx >= 6 && idx <= 11) PLACES.forEach(p => { max = Math.max(max, (p[idx - 6] || "").length); });
+    else if (c.col === "geo") GEOS.forEach(g => { max = Math.max(max, (g[lang] || "").length); });
+    else if (idx >= 6 && idx <= 11) PLACES.forEach(p => {
+      const v = p[idx - 6];
+      max = Math.max(max, ((typeof v === "object" ? v[lang] : v) || "").length);
+    });
     else if (c.col === "values") max = 12;
     // Header labels are uppercase and wider per character; +2 leaves room for the sort arrow.
     max = Math.max(max, Math.ceil(colLabel(c.col).length * 1.05) + 2);
@@ -1697,7 +1797,7 @@ function renderTable(resetScroll) {
     }
   }
   let info = `${NF_INT.format(total)} ${t("table.rows")}`;
-  if (state.autoGeo) info += ` · ${colLabel("geo")}: ${state.autoGeo} (${t("table.geoAuto")})`;
+  if (state.autoGeo) info += ` · ${colLabel("geo")}: ${geoText(state.autoGeo)} (${t("table.geoAuto")})`;
   document.getElementById("tableInfo").textContent = info;
 }
 
@@ -2026,6 +2126,7 @@ async function boot() {
     VARS = data.vars; PLACES = data.places; GEOS = data.geos;
     ({ v: V, y: Y, g: G, p: P, x: X, d: D } = data.rows);
     N = V.length;
+    buildGeoText();
     buildDims();
     readUrlState();
     updateSearchMask();
