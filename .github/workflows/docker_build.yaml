@@ -275,6 +275,9 @@ jobs:
             stata_superblock_allmend:
               - 'Dockerfile'
               - 'stata_superblock_allmend/**'
+            stata_superblockbefragungen:
+              - 'Dockerfile'
+              - 'stata_superblockbefragungen/**'
             stata_statrhena:
               - 'Dockerfile'
               - 'stata_statrhena/**'
