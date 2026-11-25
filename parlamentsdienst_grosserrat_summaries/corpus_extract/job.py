@@ -2,7 +2,9 @@
 
 import json
 import logging
+import urllib.request
 from dataclasses import asdict
+from urllib.parse import urlsplit
 
 from corpus_extract import expansion, llm, sweep
 from corpus_extract.db import attach_mcp, open_db
@@ -20,7 +22,13 @@ def main() -> None:
     settings = get_settings()
     _check_files(settings)
     gemma = llm.client(settings.llm_url, api_key=settings.llm_api_key)
-    logging.info("asking %s for %s", settings.llm_url, settings.llm_model)
+    logging.info(
+        "asking %s for %s, key: %s, proxy: %s",
+        settings.llm_url,
+        settings.llm_model,
+        f"{len(settings.llm_api_key)} characters" if settings.llm_api_key else "none",
+        _proxy(settings.llm_url),
+    )
     llm.check(gemma, settings.llm_model)
     logging.info("Gemma answers")
     with open_db(settings.db_path) as conn:
@@ -40,6 +48,16 @@ def main() -> None:
             conn, gemma, model=settings.llm_model, limit=open_chunks, concurrency=settings.concurrency
         )
         logging.info("expanded: %s", json.dumps(asdict(expanded)))
+
+
+def _proxy(url: str) -> str:
+    """The proxy a request to this URL goes through, without credentials; 'none' if it goes direct."""
+    host = urlsplit(url).hostname or ""
+    proxy = urllib.request.getproxies().get(urlsplit(url).scheme)
+    if not proxy or urllib.request.proxy_bypass(host):
+        return "none"
+    parts = urlsplit(proxy)
+    return f"{parts.hostname}:{parts.port}" if parts.port else str(parts.hostname)
 
 
 def _check_files(settings: Settings) -> None:

@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 
 import httpx
-from openai import LengthFinishReasonError, OpenAI, OpenAIError
+from openai import APIStatusError, LengthFinishReasonError, OpenAI, OpenAIError
 from pydantic import ValidationError
 
 from corpus_extract.claims import Sweep
@@ -72,8 +72,15 @@ def check(llm: OpenAI, model: str) -> None:
     """Fail unless the server answers and serves the model."""
     try:
         served = [entry.id for entry in llm.models.list().data]
+    except APIStatusError as error:
+        answer = " ".join(error.response.text.split())[:300]
+        server = error.response.headers.get("server", "unknown")
+        raise RuntimeError(
+            f"{llm.base_url} refused with {error.status_code} ({answer}; server: {server}): "
+            "check GEMMA_API_KEY, GEMMA_URL and no_proxy"
+        ) from error
     except OpenAIError as error:
-        raise RuntimeError(f"{llm.base_url} does not answer ({error}): check GEMMA_URL and GEMMA_API_KEY") from error
+        raise RuntimeError(f"{llm.base_url} does not answer ({error}): check GEMMA_URL and no_proxy") from error
     if model not in served:
         raise RuntimeError(f"{llm.base_url} serves {served or ['nothing']}, not {model}: check GEMMA_MODEL")
 
