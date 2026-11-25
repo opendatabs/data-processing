@@ -25,6 +25,9 @@ summary and none yet. A document read by an earlier model counts as read.
 | `data_orig/mcp/corpus-mcp.db` | `mcp/corpus-mcp.db` (read-only) | the list of documents and their business items |
 | `data/extract.db` | `summaries/extract.db` | the output: `extractions`, `expansions` and `relations` |
 
+SQLite cannot lock files on the share, so the job reads in `tmp/` on the Airflow host's disk, kept
+between runs, and copies `extract.db` back to the share, as a whole file, after each run.
+
 The first run starts from a copy of `extract.db` in `summaries/`; without it every document is read
 from scratch.
 

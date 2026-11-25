@@ -17,9 +17,9 @@ OPEN_CHUNKS = """
 """
 
 
-def main() -> None:
+def main(settings: Settings | None = None) -> None:
     """Read up to `EXTRACT_LIMIT` documents not read well yet, then expand every chunk without search terms."""
-    settings = get_settings()
+    settings = settings or get_settings()
     _check_files(settings)
     gemma = llm.client(settings.llm_url, api_key=settings.llm_api_key)
     logging.info(

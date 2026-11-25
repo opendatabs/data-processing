@@ -27,6 +27,10 @@ files it finds, and stops if there is no Markdown rather than release an empty d
 | `data/release.json` | `mcp/` | rewritten when the database or the vectors changed |
 | `data/failed.csv` | `mcp/` | the documents a step could not handle, with the reason |
 
+SQLite cannot lock files on the share, so the job works in `tmp/` on the Airflow host's disk, kept
+between runs: it takes a file from the share when `tmp/` lacks it or the share has another one, and
+copies back to the share, as a whole file, what a run changed.
+
 The first run starts from a copy of `corpus-mcp.db`, `vectors.db` and `vectors.faiss` in `mcp/`:
 embedding all passages on the CPU takes about two days. After that a run embeds only what is new.
 
