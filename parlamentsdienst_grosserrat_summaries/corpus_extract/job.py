@@ -20,7 +20,9 @@ def main() -> None:
     settings = get_settings()
     _check_files(settings)
     gemma = llm.client(settings.llm_url, api_key=settings.llm_api_key)
+    logging.info("asking %s for %s", settings.llm_url, settings.llm_model)
     llm.check(gemma, settings.llm_model)
+    logging.info("Gemma answers")
     with open_db(settings.db_path) as conn:
         attach_mcp(conn, settings.mcp_db)
         read = sweep.run(
@@ -47,4 +49,7 @@ def _check_files(settings: Settings) -> None:
     else:
         logging.warning("%s not found: every document is read from scratch; copy the seed first", settings.db_path)
     if not settings.mcp_db.exists():
-        raise SystemExit(f"no MCP database at {settings.mcp_db}: run parlamentsdienst_grosserrat_mcp first")
+        folder = settings.mcp_db.parent
+        found = sorted(entry.name for entry in folder.iterdir()) if folder.is_dir() else "no such folder"
+        raise RuntimeError(f"no MCP database at {settings.mcp_db} (the folder holds: {found})")
+    logging.info("%s: %.0f MB", settings.mcp_db, settings.mcp_db.stat().st_size / 1e6)

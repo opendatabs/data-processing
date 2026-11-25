@@ -69,13 +69,13 @@ def client(url: str, *, api_key: str = "", http_client: httpx.Client | None = No
 
 
 def check(llm: OpenAI, model: str) -> None:
-    """Stop unless the server answers and serves the model."""
+    """Fail unless the server answers and serves the model."""
     try:
         served = [entry.id for entry in llm.models.list().data]
     except OpenAIError as error:
-        raise SystemExit(f"{llm.base_url} does not answer ({error}): check GEMMA_URL and GEMMA_API_KEY") from error
+        raise RuntimeError(f"{llm.base_url} does not answer ({error}): check GEMMA_URL and GEMMA_API_KEY") from error
     if model not in served:
-        raise SystemExit(f"{llm.base_url} serves {served or ['nothing']}, not {model}: check GEMMA_MODEL")
+        raise RuntimeError(f"{llm.base_url} serves {served or ['nothing']}, not {model}: check GEMMA_MODEL")
 
 
 def sweep(llm: OpenAI, request: Request, *, model: str, looped: bool = False) -> Sweep:

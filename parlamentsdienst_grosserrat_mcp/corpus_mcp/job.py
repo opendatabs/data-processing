@@ -93,7 +93,7 @@ def _check_files(settings: Settings) -> None:
         else:
             logger.warning("%s not found: %s", path, missing)
     if not any(markdown.rglob("*.md")):
-        raise SystemExit(f"no Markdown in {markdown}: is Parlament/markdown mounted?")
+        raise RuntimeError(f"no Markdown in {markdown}: is Parlament/markdown mounted?")
 
 
 def _build(conn: sqlite3.Connection, settings: Settings, report: dict[str, object]) -> None:
