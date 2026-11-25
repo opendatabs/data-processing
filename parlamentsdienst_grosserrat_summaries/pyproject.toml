@@ -1,0 +1,16 @@
+[project]
+name = "parlamentsdienst-grosserrat-summaries"
+version = "0.1.0"
+description = "Summaries, search terms and quoted relations Gemma reads from the documents of the Grosser Rat"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "docling-core[chunking]>=2.96",
+    "httpx>=0.28",
+    "openai>=1.60",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "python-slugify>=8.0",
+    "transformers>=4.46",
+    "truststore>=0.10.4",
+]

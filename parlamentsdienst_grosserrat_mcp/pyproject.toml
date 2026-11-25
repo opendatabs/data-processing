@@ -1,0 +1,22 @@
+[project]
+name = "parlamentsdienst-grosserrat-mcp"
+version = "0.1.0"
+description = "The database the MCP server of the Grosser Rat reads"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "docling-core[chunking]>=2.96",
+    "faiss-cpu>=1.12",
+    "httpx>=0.28",
+    "huggingface-hub>=0.27",
+    "numpy>=2.1",
+    "onnxruntime>=1.20",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "rapidfuzz>=3.14.6",
+    "sqlite-vec>=0.1.9",
+    "tenacity>=9.2.1",
+    "tokenizers>=0.21",
+    "transformers>=4.46",
+    "truststore>=0.10.4",
+]

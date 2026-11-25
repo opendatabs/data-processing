@@ -203,6 +203,12 @@ jobs:
             parlamentsdienst_grosserrat_datasette:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserrat_datasette/**'
+            parlamentsdienst_grosserrat_mcp:
+              - 'Dockerfile'
+              - 'parlamentsdienst_grosserrat_mcp/**'
+            parlamentsdienst_grosserrat_summaries:
+              - 'Dockerfile'
+              - 'parlamentsdienst_grosserrat_summaries/**'
             parlamentsdienst_grosserrat_topics:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserrat_topics/**'
