@@ -1,33 +1,47 @@
 import logging
+import os
 import sqlite3
 from pathlib import Path
 
 import common
 import pandas as pd
-import truststore
+from common import change_tracking
 
-truststore.inject_into_ssl()
+EXPORT_DIR = Path("data") / "export"
+DB_PATH = Path("data") / "datasette" / "GrosserRat.db"
+CHECK_DIR = os.path.join("change_tracking", "datasette")
 
 
-def main():
+def update(paths: list[str]) -> None:
+    changed = [path for path in paths if change_tracking.has_changed(path, hash_file_dir=CHECK_DIR)]
+    if DB_PATH.exists() and not changed:
+        logging.info("No export changed since the last datasette build, keeping %s", DB_PATH)
+        return
+    build(DB_PATH)
+    for path in paths:
+        change_tracking.update_hash_file(path, change_tracking.get_check_file(path, CHECK_DIR))
+
+
+def build(db_path: Path) -> None:
     logging.info("Starting build…")
-    db_path = Path("data") / "datasette" / "GrosserRat.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = db_path.with_suffix(".db.part")
+    tmp_path.unlink(missing_ok=True)
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(tmp_path)
     conn.execute("PRAGMA foreign_keys=ON;")
     cur = conn.cursor()
 
     # ---------- Load CSVs ----------
-    df_adr_raw = pd.read_csv("data_orig/100307_gr_mitglieder.csv")
-    df_mit = pd.read_csv("data_orig/100308_gr_mitgliedschaften.csv")
-    df_int = pd.read_csv("data_orig/100309_gr_interessensbindungen.csv")
-    df_gre = pd.read_csv("data_orig/100310_gr_gremien.csv")
-    df_ges = pd.read_csv("data_orig/100311_gr_geschaefte.csv")
-    df_zuw = pd.read_csv("data_orig/100312_gr_zuweisungen.csv")
-    df_dok_full = pd.read_csv("data_orig/100313_gr_dokumente.csv")
-    df_vor = pd.read_csv("data_orig/100314_gr_vorgaenge.csv")
-    df_tag_trakt = pd.read_csv("data_orig/100348_gr_traktanden.csv")
+    df_adr_raw = pd.read_csv(EXPORT_DIR / "100307_gr_mitglieder.csv")
+    df_mit = pd.read_csv(EXPORT_DIR / "100308_gr_mitgliedschaften.csv")
+    df_int = pd.read_csv(EXPORT_DIR / "100309_gr_interessensbindungen.csv")
+    df_gre = pd.read_csv(EXPORT_DIR / "100310_gr_gremien.csv")
+    df_ges = pd.read_csv(EXPORT_DIR / "100311_gr_geschaefte.csv")
+    df_zuw = pd.read_csv(EXPORT_DIR / "100312_gr_zuweisungen.csv")
+    df_dok_full = pd.read_csv(EXPORT_DIR / "100313_gr_dokumente.csv")
+    df_vor = pd.read_csv(EXPORT_DIR / "100314_gr_vorgaenge.csv")
+    df_tag_trakt = pd.read_csv(EXPORT_DIR / "100348_gr_traktanden.csv")
     """
     df_unt = common.pandas_read_csv(
         "https://grosserrat.bs.ch/index.php?option=com_gribs&view=exporter&format=csv&chosentable=unt",
@@ -483,10 +497,5 @@ def main():
 
     conn.commit()
     conn.close()
+    tmp_path.replace(db_path)
     logging.info("Build complete.")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    main()

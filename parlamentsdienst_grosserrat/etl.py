@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 
 import common
+import datasette_db
 import numpy as np
 import pandas as pd
 
@@ -184,6 +185,8 @@ def main():
     # Upload everything into FTP-Server and update the dataset on data.bs.ch
     for args_for_upload in args_for_uploads:
         common.update_ftp_and_odsp(*args_for_upload)
+
+    datasette_db.update([path_export for path_export, _, _ in args_for_uploads])
 
 
 def get_path_to_file(chosentable: str) -> str:
