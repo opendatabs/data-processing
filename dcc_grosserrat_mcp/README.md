@@ -24,7 +24,7 @@ files it finds, and stops if there is no Markdown rather than release an empty d
 | `data_orig/summaries/extract.db` | `summaries/extract.db` (read-only) | written by [dcc_grosserrat_summaries](../dcc_grosserrat_summaries) |
 | `data/corpus-mcp.db` | `mcp/` | what the MCP server reads |
 | `data/vectors.db`, `data/vectors.faiss` | `mcp/` | the passage vectors and their index |
-| `data/release.json` | `mcp/` | rewritten when the database or the vectors changed |
+| `data/release.json` | `mcp/` | rewritten when the database or the vectors changed, with the size and time of each file; the MCP server switches only once all have arrived |
 | `data/failed.csv` | `mcp/` | the documents a step could not handle, with the reason |
 
 SQLite cannot lock files on the share, so the job works in `tmp/` on the Airflow host's disk, kept
