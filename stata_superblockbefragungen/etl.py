@@ -26,12 +26,18 @@ from dotenv import load_dotenv
 from huwise_utils_py import HuwiseDataset, get_uid_by_id, list_dataset_field_configurations
 from huwise_utils_py.config import HuwiseConfig
 from huwise_utils_py.http import HttpClient
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 load_dotenv()
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "data_orig"
 OUT = ROOT / "data"
+VARIABLEN_FILE = SRC / "variablen.xlsx"
+VARIABLEN_HEADERS = ("Technischer Name", "Spaltenname", "Spaltenbeschreibung", "Gilt für", "Fragetext im Export (Info)")
+ALL_PERIMETERS = "Beide"
 FTP_REMOTE_PATH = "befragungen/superblock"
 HUWISE_PROCESSOR_PREFIX = "superblock"
 HUWISE_IDLE_TIMEOUT = 600
@@ -365,18 +371,88 @@ def write_dataset(dataset: dict) -> list[dict]:
     return [{"datensatz_id": dataset["id"], "dateiname": target.name, **column} for column in columns]
 
 
-def write_variablen(rows: list[dict]) -> None:
-    fieldnames = ["datensatz_id", "dateiname", "technischer_name", "frage", "item", "originalspalte", "anmerkung"]
+def sheet_of(dataset: dict) -> str:
+    group = group_of(dataset)
+    if group == "anwohnende":
+        return "Anwohnende Nullmessung" if "nullmessung" in dataset["slug"] else "Anwohnende Vergleichsmessung"
+    return group.capitalize()
+
+
+def perimeter_of(dataset: dict) -> str:
+    return "St. Johann" if dataset["slug"].endswith("stjohann") else "Matthäus"
+
+
+def write_variablen_template(variables_by_dataset: dict[str, list[dict]]) -> None:
+    """Erstellt data_orig/variablen.xlsx aus den generierten Labels, ein Blatt pro Befragungsart.
+
+    Spalten, deren Text sich zwischen den Perimetern unterscheidet, erhalten eine Zeile pro Perimeter.
+    """
+    sheets: dict[str, dict[str, dict[str, dict]]] = {}
+    for dataset in DATASETS:
+        sheet = sheets.setdefault(sheet_of(dataset), {})
+        for variable in variables_by_dataset[dataset["id"]]:
+            sheet.setdefault(variable["technischer_name"], {})[perimeter_of(dataset)] = variable
+
     workbook = openpyxl.Workbook()
-    worksheet = workbook.active
-    worksheet.title = "Variablen"
-    worksheet.append(fieldnames)
-    for row in rows:
-        worksheet.append([row[name] for name in fieldnames])
-    worksheet.freeze_panes = "A2"
+    workbook.remove(workbook.active)
+    for title, columns in sheets.items():
+        worksheet = workbook.create_sheet(title)
+        worksheet.append(list(VARIABLEN_HEADERS))
+        for name, by_perimeter in columns.items():
+            texts = {perimeter: label_for(variable) for perimeter, variable in by_perimeter.items()}
+            if len(set(texts.values())) == 1:
+                variable = next(iter(by_perimeter.values()))
+                worksheet.append([name, *texts[next(iter(texts))], ALL_PERIMETERS, clean(variable["originalspalte"])])
+                continue
+            for perimeter, variable in by_perimeter.items():
+                worksheet.append([name, *texts[perimeter], perimeter, clean(variable["originalspalte"])])
+        style_variablen_sheet(worksheet)
+    workbook.save(VARIABLEN_FILE)
+    logging.info("%s erstellt", VARIABLEN_FILE.name)
+
+
+def style_variablen_sheet(worksheet) -> None:
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="116A8D")
+    info_font = Font(italic=True, color="6B6B6B")
+    wrap = Alignment(wrap_text=True, vertical="top")
+    for index, (width, is_info) in enumerate(((18, False), (55, False), (75, False), (14, False), (60, True)), 1):
+        letter = get_column_letter(index)
+        worksheet.column_dimensions[letter].width = width
+        for cell in worksheet[letter][1:]:
+            cell.alignment = wrap
+            if is_info:
+                cell.font = info_font
+    for cell in worksheet[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(wrap_text=True, vertical="center")
+    worksheet.row_dimensions[1].height = 30
+    worksheet.freeze_panes = "B2"
     worksheet.auto_filter.ref = worksheet.dimensions
-    workbook.save(OUT / "variablen.xlsx")
-    logging.info("variablen.xlsx: %s Zeilen", len(rows))
+    validation = DataValidation(type="list", formula1=f'"{ALL_PERIMETERS},St. Johann,Matthäus"', allow_blank=True)
+    worksheet.add_data_validation(validation)
+    validation.add(f"D2:D{max(worksheet.max_row, 2)}")
+
+
+def read_variablen() -> dict[tuple[str, str, str], tuple[str, str]]:
+    """(Blatt, Gilt für, technischer Name) -> (Spaltenname, Spaltenbeschreibung)."""
+    workbook = openpyxl.load_workbook(VARIABLEN_FILE, read_only=True, data_only=True)
+    texts = {}
+    for worksheet in workbook.worksheets:
+        rows = worksheet.iter_rows(values_only=True)
+        headers = [str(cell or "").strip().casefold() for cell in next(rows)]
+        index = {name: headers.index(name.casefold()) for name in VARIABLEN_HEADERS[:4]}
+        for row in rows:
+            name = str(row[index["Technischer Name"]] or "").strip()
+            if not name:
+                continue
+            perimeter = str(row[index["Gilt für"]] or "").strip() or ALL_PERIMETERS
+            label = clean(str(row[index["Spaltenname"]] or ""))
+            description = clean(str(row[index["Spaltenbeschreibung"]] or ""))
+            texts[(worksheet.title, perimeter, name)] = (label, description)
+    workbook.close()
+    return texts
 
 
 def clean(value: str) -> str:
@@ -409,12 +485,18 @@ def label_for(variable: dict) -> tuple[str, str]:
     return f"{question_heading(frage)}: {item}", " ".join(part for part in (frage, anmerkung) if part)
 
 
-def field_spec(variables: list[dict]) -> list[dict]:
+def field_spec(dataset: dict, variables: list[dict], texts: dict[tuple[str, str, str], tuple[str, str]]) -> list[dict]:
+    sheet, perimeter = sheet_of(dataset), perimeter_of(dataset)
     fields = []
     seen: dict[str, str] = {}
     for variable in variables:
-        label, description = label_for(variable)
         name = variable["technischer_name"]
+        entry = texts.get((sheet, perimeter, name)) or texts.get((sheet, ALL_PERIMETERS, name))
+        if entry and entry[0]:
+            label, description = entry
+        else:
+            logging.warning("%s: kein Spaltenname für %s (%s) in %s", sheet, name, perimeter, VARIABLEN_FILE.name)
+            label, description = label_for(variable)
         if not label:
             raise ValueError(f"Leerer Anzeigename für {variable['datensatz_id']}.{name}")
         if label in seen:
@@ -547,9 +629,12 @@ def verify_labels(dataset_id: str, fields: list[dict], explore_names: list[str])
 
 
 def push_changed_huwise_fields(variables_by_dataset: dict[str, list[dict]]) -> None:
-    for dataset_id, variables in variables_by_dataset.items():
+    texts = read_variablen()
+    for dataset in DATASETS:
+        dataset_id = dataset["id"]
+        spec = field_spec(dataset, variables_by_dataset[dataset_id], texts)
         spec_path = OUT / f"huwise_fields_{dataset_id}.json"
-        spec_path.write_text(json.dumps(field_spec(variables), ensure_ascii=False, indent=2), encoding="utf-8")
+        spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2), encoding="utf-8")
         if not ct.has_changed(str(spec_path)):
             logging.info("Datensatz %s: Spaltenlabels unverändert", dataset_id)
             continue
@@ -564,7 +649,8 @@ def push_changed_huwise_fields(variables_by_dataset: dict[str, list[dict]]) -> N
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     variables_by_dataset = {dataset["id"]: write_dataset(dataset) for dataset in DATASETS}
-    write_variablen([row for rows in variables_by_dataset.values() for row in rows])
+    if not VARIABLEN_FILE.exists():
+        write_variablen_template(variables_by_dataset)
     for dataset in DATASETS:
         common.update_ftp_and_odsp(str(csv_path(dataset)), FTP_REMOTE_PATH, dataset["id"])
     push_changed_huwise_fields(variables_by_dataset)
