@@ -1,5 +1,5 @@
 [project]
-name = "parlamentsdienst-grosserrat-summaries"
+name = "dcc-grosserrat-summaries"
 version = "0.1.0"
 description = "Summaries, search terms and quoted relations Gemma reads from the documents of the Grosser Rat"
 readme = "README.md"

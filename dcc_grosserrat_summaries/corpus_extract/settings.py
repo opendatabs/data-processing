@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     data_dir: Path = Field(default=Path("data"), description="Where extract.db is written.")
     corpus_dir: Path = Field(default=Path("data_orig"), description="The Markdown and Docling JSON, read-only.")
     mcp_db: Path = Field(
-        default=Path("data_orig/mcp/corpus-mcp.db"), description="The database of parlamentsdienst_grosserrat_mcp."
+        default=Path("data_orig/mcp/corpus-mcp.db"), description="The database of dcc_grosserrat_mcp."
     )
     llm_url: str = Field(validation_alias="GEMMA_URL", description="Gemma's OpenAI API, including /v1.")
     llm_model: str = Field(validation_alias="GEMMA_MODEL", description="The model id as /v1/models lists it.")

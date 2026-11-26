@@ -1,5 +1,5 @@
 [project]
-name = "parlamentsdienst-grosserrat-mcp"
+name = "dcc-grosserrat-mcp"
 version = "0.1.0"
 description = "The database the MCP server of the Grosser Rat reads"
 readme = "README.md"

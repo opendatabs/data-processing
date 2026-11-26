@@ -1,5 +1,5 @@
 [project]
-name = "parlamentsdienst-grosserrat-topics"
+name = "dcc-grosserrat-topics"
 version = "0.1.0"
 description = "Topics for the business items of the Grosser Rat Basel-Stadt"
 readme = "README.md"

@@ -81,7 +81,7 @@ def _check_files(settings: Settings) -> None:
         (markdown, "nothing to index"),
         (settings.corpus_dir / "docling", "no passages, so no vectors for new documents"),
         (settings.topics, "the database gets no topics"),
-        (settings.extract_db, "no summaries from Gemma yet; parlamentsdienst_grosserrat_summaries writes it"),
+        (settings.extract_db, "no summaries from Gemma yet; dcc_grosserrat_summaries writes it"),
         (settings.db_path, "built from scratch"),
         (settings.vectors_path, "every passage is embedded on the CPU, about two days; copy the seed first"),
         (settings.index_path, "built from the vectors"),

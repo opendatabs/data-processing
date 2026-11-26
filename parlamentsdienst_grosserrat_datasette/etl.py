@@ -3,7 +3,6 @@ import sqlite3
 from pathlib import Path
 
 import common
-import docling_corpus
 import pandas as pd
 import truststore
 
@@ -485,13 +484,6 @@ def main():
     conn.commit()
     conn.close()
     logging.info("Build complete.")
-
-    # ---------- The docling corpus ----------
-    # Markdown with page markers, docling JSON and pictures via docling-serve (see docling_corpus.py).
-    # It is the only conversion: a failure fails the task.
-    df_dok_copy = df_dok_full.copy()
-    df_dok_copy.loc[df_dok_copy["url_dok"] == "ohne", "url_dok"] = None
-    docling_corpus.run(df_dok_copy, df_sessionen_src)
 
 
 if __name__ == "__main__":

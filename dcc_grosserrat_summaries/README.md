@@ -3,7 +3,7 @@
 Lets Gemma read the documents of the Grosser Rat and records, per document: a summary with the core
 demand, measures, questions and arguments, the words someone would search it by, and relations to
 organisations, places, people, groups, laws and earlier business items. A relation is kept only if
-its quote appears verbatim in the document. [parlamentsdienst_grosserrat_mcp](../parlamentsdienst_grosserrat_mcp)
+its quote appears verbatim in the document. [dcc_grosserrat_mcp](../dcc_grosserrat_mcp)
 takes all of it into the database of the MCP server.
 
 ## Data Owner
@@ -21,7 +21,7 @@ summary and none yet. A document read by an earlier model counts as read.
 
 | In the container | On the share (`/mnt/OGD-DataExch/StatA/Parlament/`) | |
 |---|---|---|
-| `data_orig/markdown/`, `data_orig/docling/` | `markdown/`, `docling/` (read-only) | the documents, written by [parlamentsdienst_grosserrat_datasette](../parlamentsdienst_grosserrat_datasette) |
+| `data_orig/markdown/`, `data_orig/docling/` | `markdown/`, `docling/` (read-only) | the documents, written by [dcc_grosserrat_docling](../dcc_grosserrat_docling) |
 | `data_orig/mcp/corpus-mcp.db` | `mcp/corpus-mcp.db` (read-only) | the list of documents and their business items |
 | `data/extract.db` | `summaries/extract.db` | the output: `extractions`, `expansions` and `relations` |
 
