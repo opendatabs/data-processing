@@ -77,6 +77,18 @@ jobs:
             dcc_datenkatalog_dienststellen_onboarding:
               - 'Dockerfile'
               - 'dcc_datenkatalog_dienststellen_onboarding/**'
+            dcc_grosserrat_docling:
+              - 'Dockerfile'
+              - 'dcc_grosserrat_docling/**'
+            dcc_grosserrat_mcp:
+              - 'Dockerfile'
+              - 'dcc_grosserrat_mcp/**'
+            dcc_grosserrat_summaries:
+              - 'Dockerfile'
+              - 'dcc_grosserrat_summaries/**'
+            dcc_grosserrat_topics:
+              - 'Dockerfile'
+              - 'dcc_grosserrat_topics/**'
             dcc_verzeichnis_personendaten:
               - 'Dockerfile'
               - 'dcc_verzeichnis_personendaten/**'
@@ -203,15 +215,6 @@ jobs:
             parlamentsdienst_grosserrat_datasette:
               - 'Dockerfile'
               - 'parlamentsdienst_grosserrat_datasette/**'
-            parlamentsdienst_grosserrat_mcp:
-              - 'Dockerfile'
-              - 'parlamentsdienst_grosserrat_mcp/**'
-            parlamentsdienst_grosserrat_summaries:
-              - 'Dockerfile'
-              - 'parlamentsdienst_grosserrat_summaries/**'
-            parlamentsdienst_grosserrat_topics:
-              - 'Dockerfile'
-              - 'parlamentsdienst_grosserrat_topics/**'
             stadtreinigung_sauberkeitsindex:
               - 'Dockerfile'
               - 'stadtreinigung_sauberkeitsindex/**'

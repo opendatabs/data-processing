@@ -19,9 +19,9 @@ files it finds, and stops if there is no Markdown rather than release an empty d
 
 | In the container | On the share (`/mnt/OGD-DataExch/StatA/Parlament/`) | |
 |---|---|---|
-| `data_orig/markdown/`, `data_orig/docling/` | `markdown/`, `docling/` (read-only) | the documents, written by [parlamentsdienst_grosserrat_datasette](../parlamentsdienst_grosserrat_datasette) |
-| `data_orig/topics/topics.csv` | `topics/topics.csv` (read-only) | written by [parlamentsdienst_grosserrat_topics](../parlamentsdienst_grosserrat_topics) |
-| `data_orig/summaries/extract.db` | `summaries/extract.db` (read-only) | written by [parlamentsdienst_grosserrat_summaries](../parlamentsdienst_grosserrat_summaries) |
+| `data_orig/markdown/`, `data_orig/docling/` | `markdown/`, `docling/` (read-only) | the documents, written by [dcc_grosserrat_docling](../dcc_grosserrat_docling) |
+| `data_orig/topics/topics.csv` | `topics/topics.csv` (read-only) | written by [dcc_grosserrat_topics](../dcc_grosserrat_topics) |
+| `data_orig/summaries/extract.db` | `summaries/extract.db` (read-only) | written by [dcc_grosserrat_summaries](../dcc_grosserrat_summaries) |
 | `data/corpus-mcp.db` | `mcp/` | what the MCP server reads |
 | `data/vectors.db`, `data/vectors.faiss` | `mcp/` | the passage vectors and their index |
 | `data/release.json` | `mcp/` | rewritten when the database or the vectors changed |

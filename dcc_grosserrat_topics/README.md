@@ -13,7 +13,7 @@ Parlamentsdienst des Grossen Rates Basel-Stadt
 
 | In the container | On the share (`/mnt/OGD-DataExch/StatA/Parlament/`) | |
 |---|---|---|
-| `data_orig/markdown/` | `markdown/` (read-only) | the documents as Markdown, written by [parlamentsdienst_grosserrat_datasette](../parlamentsdienst_grosserrat_datasette) |
+| `data_orig/markdown/` | `markdown/` (read-only) | the documents as Markdown, written by [dcc_grosserrat_docling](../dcc_grosserrat_docling) |
 | `data/model/` | `topics/model/` | the classifier: `modell.joblib`, `karte.json` and its training data `datensatz.npz` |
 | `data/topics.csv` | `topics/topics.csv` | the output, written by the job |
 
