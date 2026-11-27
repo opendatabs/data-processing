@@ -13,10 +13,9 @@ from pathlib import Path
 
 import common
 import pandas as pd
+import poll_filters
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
-
-import poll_filters
 
 LOOKUP_FILE = Path("change_tracking") / "herausgefilterte_abstimmungen.csv"
 EXCEL_FILE = Path("data") / "herausgefilterte_testabstimmungen.xlsx"
