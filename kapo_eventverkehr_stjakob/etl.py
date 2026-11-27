@@ -245,6 +245,11 @@ def parse_time(value) -> datetime.time | None:
     return datetime.time(int(match.group(1)), int(match.group(2)), int(match.group(3) or 0))
 
 
+def format_time(value):
+    parsed = parse_time(value)
+    return parsed.strftime("%H:%M") if parsed is not None else value
+
+
 def is_filled(value) -> bool:
     return value is not None and not pd.isna(value) and str(value).strip() != ""
 
@@ -372,6 +377,8 @@ def process_data():
     if missing:
         raise KeyError(f"Missing columns in sheet 'Eventliste': {missing}")
     df_eventliste = df_eventliste[[columns_by_lower[col] for col in COLUMNS_OF_INTEREST_EVENTLISTE]].copy()
+    for col in (columns_by_lower["beginn"], columns_by_lower["ende"]):
+        df_eventliste[col] = df_eventliste[col].apply(format_time)
     df_eventliste["ICS_Link"] = create_ics_files(df_eventliste)
     df_zeitraum_info.drop(columns=["Text"], inplace=True)
 
