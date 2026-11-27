@@ -23,6 +23,21 @@ SHAREPOINT_ROOT = "Eventliste"
 DATA_ORIG_PATH = "data_orig"
 EXCEL_FILENAME = "Events St. Jakob.xlsx"
 
+COLUMNS_OF_INTEREST_EVENTLISTE = [
+    "id",
+    "name",
+    "link",
+    "standort",
+    "datum",
+    "beginn",
+    "ende",
+    "sperrung",
+    "zusatzpp",
+    "ticketintegration",
+    "bemerkung",
+    "info_text_html",
+]
+
 
 def get_graph_token() -> str:
     with open(CERT_PATH, "r") as f:
@@ -191,7 +206,11 @@ def process_data():
     df_erwartete_besucherzahl = df_erwartete_besucherzahl[["Datum", "Kategorie"]]
     # Remove the original columns that are no longer needed
     df_anreiseempf.drop(columns=["Bilder", "Weiterfuehrende Links", "Text"], inplace=True)
-    df_eventliste.drop(columns=["Info_Text"], inplace=True)
+    columns_by_lower = {col.lower(): col for col in df_eventliste.columns}
+    missing = [col for col in COLUMNS_OF_INTEREST_EVENTLISTE if col not in columns_by_lower]
+    if missing:
+        raise KeyError(f"Missing columns in sheet 'Eventliste': {missing}")
+    df_eventliste = df_eventliste[[columns_by_lower[col] for col in COLUMNS_OF_INTEREST_EVENTLISTE]]
     df_zeitraum_info.drop(columns=["Text"], inplace=True)
 
     os.makedirs("data", exist_ok=True)
