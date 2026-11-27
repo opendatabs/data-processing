@@ -205,11 +205,7 @@ def split_markdown_links(md):
 def ics_escape(value) -> str:
     text = str(value).strip()
     return (
-        text.replace("\\", "\\\\")
-        .replace(";", "\\;")
-        .replace(",", "\\,")
-        .replace("\r\n", "\\n")
-        .replace("\n", "\\n")
+        text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\r\n", "\\n").replace("\n", "\\n")
     )
 
 
