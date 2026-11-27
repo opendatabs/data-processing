@@ -1,3 +1,4 @@
+import argparse
 import json
 import logging
 import os
@@ -11,13 +12,16 @@ import common.change_tracking as ct
 import icalendar
 import numpy as np
 import pandas as pd
-import utilities
 from dotenv import load_dotenv
+
+import day_files
+import poll_filters
+import poll_report
+import utilities
 from excel_handler import ExcelHandler
 
 load_dotenv()
 
-ODS_PUSH_URL = os.getenv("ODS_PUSH_URL_100186")
 FTP_SERVER_GR = os.getenv("FTP_SERVER_GR")
 FTP_USER_GR_TRAKT_LIST = os.getenv("FTP_USER_GR_TRAKT_LIST")
 FTP_PASS_GR_TRAKT_LIST = os.getenv("FTP_PASS_GR_TRAKT_LIST")
@@ -279,7 +283,7 @@ def handle_congress_center_polls(df_unique_session_dates):
             (df.Mitglied_Name == "Vergeat, Jo")
             & (df["Creation Date"] >= datetime(2022, 2, 1))
             & (df["Creation Date"] <= datetime(2023, 2, 1))
-            & (["Entscheid_Mitglied"] == "A"),
+            & (df["Entscheid_Mitglied"] == "A"),
             "Entscheid_Mitglied",
         ] = "P"
 
@@ -363,7 +367,6 @@ def handle_congress_center_polls(df_unique_session_dates):
         df_export = df[columns_to_export]
         cc_export_file = os.path.join("data", cc_data_file_name.replace(".xlsx", ".csv"))
         df_export.to_csv(cc_export_file, index=False)
-        common.ods_realtime_push_df(df_export, ODS_PUSH_URL)
         logging.info(f"Saving data files to FTP server as backup: {cc_export_file}...")
         common.upload_ftp(cc_export_file, remote_path="parlamentsdienst/gr_abstimmungsergebnisse")
 
@@ -372,7 +375,7 @@ def handle_congress_center_polls(df_unique_session_dates):
     return all_cc_data
 
 
-def handle_polls_xml(df_unique_session_dates=None):
+def handle_polls_xml(df_unique_session_dates=None, session_windows=None, removed_polls=None):
     logging.info("Handling polls of old system in XML format...")
     df_to_return = None
     ftp = {
@@ -392,14 +395,16 @@ def handle_polls_xml(df_unique_session_dates=None):
         for subdir in subdir_ls:
             if subdir["remote_file"] not in [".", ".."]:
                 remote_path_subdir = remote_path + "/" + subdir["remote_file"]
-                poll_df = handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path_subdir)
+                poll_df = handle_single_polls_folder_xml(
+                    df_unique_session_dates, ftp, remote_path_subdir, session_windows, removed_polls
+                )
                 all_df = pd.concat(objs=[all_df, poll_df], sort=False)
     df_to_return = all_df
 
     return df_to_return
 
 
-def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
+def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path, session_windows=None, removed_polls=None):
     xml_ls_file = f"data/ftp_listing_xml_{remote_path.replace('/', '_')}.json"
     utilities.get_ftp_ls(remote_path=remote_path, pattern="*.xml", file_name=xml_ls_file, ftp=ftp)
     df_trakt_filenames = retrieve_traktanden_pdf_filenames(ftp, remote_path)
@@ -409,7 +414,7 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
     # Renaming of a pdf file to type "un" can happen after session, so we have to check for
     # changes in the poll pdf files even if no change to the poll xml file has happened.
     # todo: handle xlsx files of polls during time at congress center
-    xml_files = common.download_ftp([], ftp["server"], ftp["user"], ftp["password"], remote_path, "data_orig*.xml")
+    xml_files = common.download_ftp([], ftp["server"], ftp["user"], ftp["password"], remote_path, "data_orig", "*.xml")
     df_trakt = calc_traktanden_from_pdf_filenames(df_trakt_filenames)
     for i, file in enumerate(xml_files):
         local_file = file["local_file"]
@@ -433,10 +438,9 @@ def handle_single_polls_folder_xml(df_unique_session_dates, ftp, remote_path):
         # Remove test polls: (a) polls outside of session days
         # --> done by inner-joining session calendar with abstimmungen
         curr_poll_df = df_unique_session_dates.merge(df_merge1, on=["session_date"], how="inner")
-        # Remove test polls: (b) polls during session day but with a certain poll type
-        # ("Testabstimmung" or similar) --> none detected in whole archive
-
-        common.batched_ods_realtime_push(curr_poll_df, ODS_PUSH_URL)
+        # Remove test polls: (b) polls on session days outside of session hours without quorum,
+        # and mark polls without quorum during session hours as invalid
+        curr_poll_df = poll_filters.clean_polls(curr_poll_df, session_windows, removed_polls)
 
         export_filename_csv = local_file.replace("data_orig", "data").replace(".xml", ".csv")
         logging.info(f"Saving data files to FTP server as backup: {local_file}, {export_filename_csv}")
@@ -602,7 +606,7 @@ def retrieve_traktanden_pdf_filenames(ftp, remote_path):
     return df_trakt
 
 
-def handle_polls_json(process_archive=False, df_unique_session_dates=None):
+def handle_polls_json(process_archive=False, df_unique_session_dates=None, session_windows=None, removed_polls=None):
     logging.info(f"Handling polls, value of process_archive: {process_archive}...")
     df_to_return = None
     ftp = {
@@ -631,6 +635,8 @@ def handle_polls_json(process_archive=False, df_unique_session_dates=None):
                 remote_path,
                 df_name_trakt,
                 df_members,
+                session_windows,
+                removed_polls,
             )
             all_df = pd.concat(objs=[all_df, poll_df], sort=False)
         df_to_return = all_df
@@ -645,6 +651,8 @@ def handle_polls_json(process_archive=False, df_unique_session_dates=None):
             remote_path,
             df_name_trakt,
             df_members,
+            session_windows,
+            removed_polls,
         )
 
     return df_to_return
@@ -657,6 +665,8 @@ def handle_single_polls_folder_json(
     remote_path,
     df_name_trakt,
     df_members,
+    session_windows=None,
+    removed_polls=None,
 ):
     json_ls_file = f"data/ftp_listing_json_{remote_path.replace('/', '_')}.json"
     json_ls = utilities.get_ftp_ls(remote_path=remote_path, pattern="*.json", file_name=json_ls_file, ftp=ftp)
@@ -672,19 +682,21 @@ def handle_single_polls_folder_json(
                 "data_orig",
                 "*.json",
             )
-            # df_trakt = calc_traktanden_from_json_filenames(json_files)
+            # All files of the folder are processed, because the result is written as one file per session day.
+            # Polls deleted at the source are therefore no longer contained.
             curr_poll_df = pd.DataFrame()
             for i, file in enumerate(json_files):
                 local_file = file["local_file"]
                 logging.info(f"Processing file {i} of {len(json_files)}: {local_file}...")
-                if process_archive or ct.has_changed(local_file):
-                    df_single_trakt = calc_details_from_single_json_file(local_file, df_name_trakt, df_members)
+                df_single_trakt = calc_details_from_single_json_file(local_file, df_name_trakt, df_members)
 
-                    # Simplify fie name to allow saving into FTP-Server
-                    simplified_file_name = utilities.simplify_filename_json(local_file, file["remote_file"])
-                    os.replace(local_file, simplified_file_name)
-                    local_file = simplified_file_name
+                # Simplify file name to allow saving into FTP-Server
+                simplified_file_name = utilities.simplify_filename_json(local_file, file["remote_file"])
+                os.replace(local_file, simplified_file_name)
+                local_file = simplified_file_name
 
+                # Backup of raw and processed file, only if the raw file is new or has changed
+                if ct.has_changed(local_file):
                     export_filename_csv = local_file.replace("data_orig", "data").replace(".json", ".csv")
                     logging.info(f"Saving data files to FTP server as backup: {local_file}, {export_filename_csv}")
                     common.upload_ftp(
@@ -696,17 +708,17 @@ def handle_single_polls_folder_json(
                         export_filename_csv,
                         remote_path="parlamentsdienst/gr_abstimmungsergebnisse",
                     )
-                    curr_poll_df = pd.concat(objs=[curr_poll_df, df_single_trakt], sort=False)
                     ct.update_hash_file(local_file)
-            # TODO: Figure out how to handle ungültig with json-System
-            if curr_poll_df.empty:
-                print("No changes detected in any json file. Skip processing single polls folder...")
-            else:
+                curr_poll_df = pd.concat(objs=[curr_poll_df, df_single_trakt], sort=False)
+            if not curr_poll_df.empty:
+                # Remove test polls: (a) polls outside of session days
                 curr_poll_df = df_unique_session_dates.merge(curr_poll_df, on=["session_date"], how="inner")
-
-                common.batched_ods_realtime_push(curr_poll_df, ODS_PUSH_URL)
-                all_df = pd.concat(objs=[all_df, curr_poll_df], sort=False)
-                ct.update_hash_file(json_ls_file)
+                # (b) polls outside of session hours without quorum; mark polls without quorum as invalid
+                curr_poll_df = poll_filters.clean_polls(curr_poll_df, session_windows, removed_polls)
+                all_df = curr_poll_df
+            ct.update_hash_file(json_ls_file)
+        else:
+            logging.info(f"No changes in folder {remote_path}, skipping...")
     return all_df
 
 
@@ -769,16 +781,29 @@ def calc_details_from_single_json_file(local_file, df_name_trakt, df_members):
     df_json["url_dokument_ods"] = (
         "https://data.bs.ch/explore/dataset/100313/?refine.signatur_dok=" + df_json["signatur_dok"]
     )
-    df_json["Zeitstempel_text"] = df_json["started"].str.replace("Z", "+0000", regex=False)
-    df_json["Zeitstempel"] = pd.to_datetime(df_json["Zeitstempel_text"])
+    # "started" is UTC, but sometimes lacks the "Z" (e.g. '2024-05-15T15:51:27.1000000'), so always parse it as UTC
+    df_json["Zeitstempel"] = pd.to_datetime(df_json["started"], format="ISO8601", utc=True)
+    df_json["Zeitstempel_text"] = df_json["Zeitstempel"].dt.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+    # On some days (e.g. 2024-01-17, 2024-04-17) "started" is off by one or two hours, whereas "voting_time"
+    # (local time, ~20 s after "started") is correct. In that case, derive the timestamp from "voting_time".
+    local_voting_time = (
+        pd.to_datetime(df_json["Datum"] + " " + df_json["Zeit"], format="%Y-%m-%d %H:%M:%S.%f")
+        .dt.tz_localize("Europe/Zurich")
+        .dt.tz_convert("UTC")
+    )
+    is_off = (local_voting_time - df_json["Zeitstempel"]).abs() > timedelta(minutes=5)
+    if is_off.any():
+        logging.warning(f"'started' deviates from 'voting_time' for {local_file}, using 'voting_time' as timestamp")
+        df_json.loc[is_off, "Zeitstempel"] = local_voting_time[is_off]
+        df_json.loc[is_off, "Zeitstempel_text"] = local_voting_time[is_off].dt.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
     df_json["Mitglied_Anrede"] = np.where(df_json["sex"] == "w", "Frau", "Herr")
     df_json["Mitglied_Name"] = df_json["first_name"] + " " + df_json["last_name"]
     df_json = utilities.get_closest_name_from_member_dataset(df_json)
     df_json["Mitglied_Name_Fraktion"] = df_json["Mitglied_Name"] + " (" + df_json["Fraktion"] + ")"
     df_json["Mitglied_Funktion"] = df_json["person_uid"].map(df_members.set_index("Person_UID")["Funktion_detail"])
     df_json.to_csv("data_orig/temp_df_json.csv")
-    df_json["Datenstand_text"] = df_json["created"].str.replace("Z", "+0000", regex=False)
-    df_json["Datenstand"] = pd.to_datetime(df_json["Datenstand_text"])
+    df_json["Datenstand"] = pd.to_datetime(df_json["created"], format="ISO8601", utc=True)
+    df_json["Datenstand_text"] = df_json["Datenstand"].dt.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
     df_json["Entscheid_Mitglied"] = df_json["individual_result"].replace(
         {"y": "J", "n": "N", "a": "E", "x": "A", " ": "A", "0": "A"}
     )
@@ -799,79 +824,75 @@ def calc_details_from_single_json_file(local_file, df_name_trakt, df_members):
         + "&refine.traktand="
         + df_json.Traktandum.astype(int).astype(str)
     )
-    return df_json[
-        [
-            "session_date",
-            "Abst_Nr",
-            "Datum",
-            "Zeit",
-            "Anz_J",
-            "Anz_N",
-            "Anz_E",
-            "Anz_A",
-            "Anz_P",
-            "Typ",
-            "Geschaeft",
-            "laufnr_ges",
-            "signatur_ges",
-            "signatur_dok",
-            "url_ges",
-            "url_geschaeft_ods",
-            "url_dokument_ods",
-            "Zeitstempel",
-            "Zeitstempel_text",
-            "Sitz_Nr",
-            "Mitglied_Anrede",
-            "Mitglied_Name",
-            "Fraktion",
-            "Mitglied_Name_Fraktion",
-            "Mitglied_Funktion",
-            "Datenstand",
-            "Datenstand_text",
-            "Entscheid_Mitglied",
-            "Traktandum",
-            "Subtraktandum",
-            "tagesordnung_link",
-            "Mitglied_Vorname",
-            "Mitglied_Nachname",
-            "GR_uni_nr",
-            "GR_url",
-            "GR_url_ods",
-            "anr",
-            "url_abstimmung_dok",
-        ]
-    ]
+    return df_json[day_files.OUTPUT_COLUMNS]
 
 
-def main():
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Grosser Rat Basel-Stadt: Abstimmungsergebnisse (dataset 100186)")
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Rebuild the day files of all session days of the current (JSON) system and delete day files "
+        "of days that no longer exist at the source. Intended to run daily.",
+    )
+    parser.add_argument(
+        "--archive",
+        action="store_true",
+        help="Additionally rebuild the day files of the old XML system and of the Congress Center period.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
     # df_tagesordn = handle_tagesordnungen(process_archive=False)
     ical_file_path, df_cal = get_session_calendar(cutoff=timedelta(hours=12))
     df_unique_session_dates = get_unique_session_dates(df_cal)
-    poll_dfs = []
-    # UNCOMMENT to process Congress Center data
-    # poll_dfs.append((handle_congress_center_polls(df_unique_session_dates=None), 'congress_center'))
-    # UNCOMMENT to process poll data from old system (xml files)
-    # poll_dfs.append((handle_polls_xml(df_unique_session_dates=df_unique_session_dates), 'archiv_xml'))
-    # UNCOMMENT to process older poll data
-    # poll_dfs.append((handle_polls_json(process_archive=True, df_unique_session_dates=df_unique_session_dates), 'archiv_json'))
+    session_windows = poll_filters.calendar_windows(df_cal)
+    # Test polls removed by poll_filters.clean_polls, per source, for the e-mail report
+    removed_polls = {quelle: [] for quelle in day_files.QUELLEN}
+    anything_changed = False
 
-    if utilities.is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
-        poll_dfs.append(
-            (
-                handle_polls_json(
-                    process_archive=False,
-                    df_unique_session_dates=df_unique_session_dates,
-                ),
-                "aktuell_json",
-            )
+    if args.archive:
+        df_cc = handle_congress_center_polls(df_unique_session_dates=None)
+        written = day_files.write_day_files(df_cc, "congress_center")
+        anything_changed |= day_files.sync_to_ftp(written, "congress_center", prune=True)
+
+        df_xml = handle_polls_xml(
+            df_unique_session_dates=df_unique_session_dates,
+            session_windows=session_windows,
+            removed_polls=removed_polls["archiv_xml"],
         )
+        written = day_files.write_day_files(df_xml, "archiv_xml")
+        anything_changed |= day_files.sync_to_ftp(written, "archiv_xml", prune=True)
 
-    for df_poll, name in poll_dfs:
-        if len(df_poll) > 0:
-            polls_filename = os.path.join("data", f"grosser_rat_abstimmungen_{name}.csv")
-            logging.info(f"Saving polls as a backup to {polls_filename}...")
-            df_poll.to_csv(polls_filename, index=False)
-            common.upload_ftp(polls_filename, remote_path="parlamentsdienst/gr_abstimmungsergebnisse")
+    if args.full:
+        df_json = handle_polls_json(
+            process_archive=True,
+            df_unique_session_dates=df_unique_session_dates,
+            session_windows=session_windows,
+            removed_polls=removed_polls["gribs_json"],
+        )
+        written = day_files.write_day_files(df_json, "gribs_json")
+        anything_changed |= day_files.sync_to_ftp(written, "gribs_json", prune=True)
+    elif utilities.is_session_now(ical_file_path, hours_before_start=4, hours_after_end=10):
+        # During a session: only the latest session day, no pruning of other days
+        df_json = handle_polls_json(
+            process_archive=False,
+            df_unique_session_dates=df_unique_session_dates,
+            session_windows=session_windows,
+            removed_polls=removed_polls["gribs_json"],
+        )
+        written = day_files.write_day_files(df_json, "gribs_json")
+        anything_changed |= day_files.sync_to_ftp(written, "gribs_json", prune=False)
+
+    if anything_changed:
+        common.publish_ods_dataset_by_id(day_files.DATASET_ID)
+    else:
+        logging.info("No changes in day files, dataset is not republished.")
+
+    # E-mail with Excel list, only if test polls were removed that have not been reported before
+    poll_report.notify_removed_polls(removed_polls, session_windows)
 
 
 if __name__ == "__main__":
